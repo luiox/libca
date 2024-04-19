@@ -5,5 +5,4 @@
 #include <doctest/doctest.h>
 // #include <libca/libca.h>
 
-
 #endif /* ! LIBCA_TEST_MAIN_H */
