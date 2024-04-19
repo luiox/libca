@@ -9,7 +9,7 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
 target("libca")
     -- set_kind("binary")
-    set_kind("shared")
+    set_kind("$(kind)")
     add_includedirs("include")
     add_files("src/**.cpp")
     set_basename("ca")
