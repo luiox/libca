@@ -1,38 +1,39 @@
 set_project("libca")
 set_version("0.0.1")
-set_xmakever("2.8.1")
+set_xmakever("2.8.3")
 
 set_languages("c99", "cxx17")
 
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
-target("libca")
-    -- set_kind("binary")
-    set_kind("$(kind)")
-    add_includedirs("include")
-    add_files("src/**.cpp")
-    set_basename("ca")
-target_end()
+-- add_repositories("repo repo", {rootdir = os.scriptdir()})
+package("FakeIt")
+
+    set_kind("library", {headeronly = true})
+    set_homepage("https://github.com/eranpeer/FakeIt")
+    set_description("C++ mocking made easy. A simple yet very expressive, headers only library for c++ mocking.")
+
+    set_urls("https://github.com/eranpeer/FakeIt.git")
+
+    on_install(function (package)
+        os.cp("FakeIt", package:installdir("include"))
+    end)
+
+    on_test(function (package)
+        assert(package:check_cxxsnippets({test = [[
+            FakeIt is a simple mocking framework for C++. It supports GCC, Clang and MS Visual C++.
+        ]]}, {configs = {languages = "c++11"} } ))
+    end)
+package_end()
 
 add_requires("doctest")
+add_requires("FakeIt")
 add_requires("spdlog")
 
-target("test")
-    set_kind("binary")
-    add_defines("DEBUG")
-    add_includedirs("include")
-    add_includedirs("test")
-    add_deps("libca")
-    add_files("test/**.cpp")
-    if is_plat("linux", "macosx") then
-        add_links("pthread", "m", "dl")
-    end
-    add_packages("doctest")
-    add_packages("spdlog")
-    
-    -- add_includedirs("third_party")
-    -- add_deps("libca-coroutine"
+includes("src")
+includes("tests")
+
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
 --
