@@ -11,7 +11,7 @@ namespace libca
     public:
         template <class... Args>
         static T *
-        Instance(Args &&... args)
+        getInstance(Args &&... args)
         {
             if (m_pInstance == nullptr) {
                 std::lock_guard<std::mutex> lg(m_mutex);
@@ -53,6 +53,25 @@ namespace libca
 
     template <class T>
     std::mutex Singleton<T>::m_mutex;
+
+    template <typename T>
+    class MeyersSingleton
+    {
+    public:
+        static T &
+        getInstance()
+        {
+            static T instance{};
+            return instance;
+        }
+
+    private:
+        MeyersSingleton() = default;
+        ~MeyersSingleton() = default;
+        MeyersSingleton(const MeyersSingleton &) = delete;
+        MeyersSingleton & operator=(const MeyersSingleton &) = delete;
+    };
+
 } // namespace libca
 
 #endif /* !LIBCA_UTILITY_SINGLETON_H */

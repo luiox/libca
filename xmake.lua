@@ -7,6 +7,11 @@ set_languages("c99", "cxx17")
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
+add_requires("doctest")
+add_requires("trompeloeil")
+add_requires("nanobench")
+add_requires("spdlog")
+
 includes("src")
 includes("tests")
 

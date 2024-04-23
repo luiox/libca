@@ -4,5 +4,7 @@ target("ca")
     add_includedirs("../include")
     add_files("**.cpp")
     -- set_basename("ca")
+    -- add_packages("spdlog")
+    add_links("mysqlclient")
 target_end()
 
