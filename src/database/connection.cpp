@@ -1,6 +1,6 @@
 #include <libca/database/connection.h>
-#include <mysql/mysql.h>
 #include <libca/log/logger.h>
+#include <mysql/mysql.h>
 
 namespace libca
 {
@@ -17,14 +17,14 @@ namespace libca
     bool
     Connection::connect(std::string ip,
                         uint32_t port,
-                        std::string user,
-                        std::string pwd,
+                        std::string username,
+                        std::string password,
                         std::string dbname)
     {
         MYSQL * mysql = mysql_real_connect(m_mysql,
                                            ip.c_str(),
-                                           user.c_str(),
-                                           pwd.c_str(),
+                                           username.c_str(),
+                                           password.c_str(),
                                            dbname.c_str(),
                                            port,
                                            nullptr,
@@ -35,7 +35,7 @@ namespace libca
     bool
     Connection::update(std::string sql)
     {
-        if(0 != mysql_query(m_mysql, sql.c_str())){
+        if (0 != mysql_query(m_mysql, sql.c_str())) {
             error("update failed: %s", mysql_error(m_mysql));
             return false;
         }
@@ -45,10 +45,22 @@ namespace libca
     MYSQL_RES *
     Connection::query(std::string sql)
     {
-        if(0 != mysql_query(m_mysql, sql.c_str())){
+        if (0 != mysql_query(m_mysql, sql.c_str())) {
             error("query failed: %s", mysql_error(m_mysql));
             return nullptr;
         }
         return mysql_use_result(m_mysql);
+    }
+
+    void
+    Connection::refeshAliveTime()
+    {
+        m_aliveTime = clock();
+    }
+    
+    clock_t
+    Connection::getAliveTime()
+    {
+        return clock() - m_aliveTime;
     }
 }
