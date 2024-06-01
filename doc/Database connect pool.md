@@ -6,16 +6,6 @@
 sudo apt install libmysqlclient-dev
 ```
 
-
-
-```bash
-locate libmysqlclient.so
-```
-
-
-
-
-
 连接池一定是只有一个的，所以使用单例。为了存储连接，所以要用一个线程安全的队列。
 
 关键技术点
@@ -91,3 +81,29 @@ MySQL的windows安装文件云盘地址如下（development开发版，mysql头�
 2.右键项目 - 链接器 - 常规 - 附加库目录，填写libmysql.lib的路径
 3.右键项目 - 链接器 - 输入 - 附加依赖项，填写libmysql.lib库的名字
 4.把libmysql.dll动态链接库（Linux下后缀名是.so库）放在工程目录下  
+
+
+
+生产者给他不断的去生产连接，消费者这边获取连接，如果连接词里的连接不够用的时候就通知生产者进行一个生产，否则的话这个生产者线程呢，就会进行一个休眠，还有另外一个县城，过一段时间起来扫描连接队列里面的对头，是不是超过最大空闲时间，如果说他是超过了初始设置的十个连接，那么就要进行一个回收。
+
+在做这个获取连接的时候，我就返回个shared_ptr，自定义删除器，让他析构的时候不要关闭连接，而是归还到连接池。
+
+
+
+
+
+
+
+
+
+
+
+我要把xmake针对libca写一个自动测试的脚本
+
+xmake脚本修改参考：
+
+https://github.com/xmake-io/xmake/issues/723
+
+https://github.com/xmake-io/xmake/issues/3381
+
+https://github.com/idealvin/coost/blob/master/test/xmake.lua
