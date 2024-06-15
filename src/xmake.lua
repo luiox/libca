@@ -1,6 +1,6 @@
 target("ca")
-    -- set_kind("binary")
-    set_kind("$(kind)")
+    set_kind("shared")
+    -- set_kind("$(kind)")
     add_includedirs("../src")
 
     add_files("libca/core/*.cpp|test-*.cpp")
@@ -11,17 +11,58 @@ target("ca")
     -- add_packages("spdlog")
     add_links("mysqlclient")
 
-target("test-utility")
+target("test-core")
     set_kind("binary")
     add_defines("DEBUG")
-    add_includedirs("../src")
-    add_deps("ca")
-    add_files("libca/utility/test-datetime.cpp")
+    -- doctest main
+    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
 
     add_packages("doctest")
     add_packages("trompeloeil")
     add_packages("nanobench")
     add_packages("spdlog")
+
+    add_includedirs("../src")
+
+    add_files("libca/core/test-*.cpp")
+
+    add_deps("ca")
+    add_links("ca")
+
+target("test-utility")
+    set_kind("binary")
+    add_defines("DEBUG")
+    -- doctest main
+    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
+
+    add_packages("doctest")
+    add_packages("trompeloeil")
+    add_packages("nanobench")
+    add_packages("spdlog")
+
+    add_includedirs("../src")
+
+    add_files("libca/utility/test-*.cpp")
+
+    add_deps("ca")
+    add_links("ca")
+
+
+target("test-database")
+    set_kind("binary")
+    add_defines("DEBUG")
+    -- doctest main
+    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
+
+    add_packages("doctest")
+    add_packages("trompeloeil")
+    add_packages("nanobench")
+    add_packages("spdlog")
+
+    add_includedirs("../src")
     
-    -- add_includedirs("third_party")
-    -- add_deps("libca-coroutine"
+    add_files("libca/database/test-*.cpp")
+
+    add_deps("ca")
+    add_links("ca")
+

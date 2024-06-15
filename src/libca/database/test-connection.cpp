@@ -1,6 +1,5 @@
-#include <test-main.h>
+#include <doctest/doctest.h>
 #include <libca/database/connection.h>
-
 
 TEST_CASE("test database connection")
 {
@@ -8,5 +7,4 @@ TEST_CASE("test database connection")
     std::string sql = "";
     conn.connect("127.0.0.1", 3306, "root", "123456", "chat");
     conn.update(sql);
-    
 }

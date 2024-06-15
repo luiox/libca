@@ -5,9 +5,9 @@
  *
  */
 
+#include <doctest/doctest.h>
 #include <iostream>
 #include <libca/core/string.h>
-#include <test-main.h>
 
 TEST_CASE("test string")
 {
