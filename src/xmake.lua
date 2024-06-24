@@ -66,3 +66,16 @@ target("test-database")
     add_deps("ca")
     add_links("ca")
 
+target("test-log")
+    set_kind("binary")
+    add_defines("DEBUG")
+    -- doctest main
+    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
+
+    add_includedirs("../src")
+    
+    add_files("libca/log/test-*.cpp")
+
+    add_deps("ca")
+    add_links("ca")
+
