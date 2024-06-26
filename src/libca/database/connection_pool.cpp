@@ -13,7 +13,7 @@ namespace libca
     ConnectionPool::ConnectionPool()
     {
         if (!loadFromConfigFile("config.ini")) {
-            error("load config file failed");
+            // error("load config file failed");
             return;
         }
 
@@ -82,7 +82,7 @@ namespace libca
                                      std::chrono::milliseconds(m_connectionTimeout))) {
                 // 获取连接超时
                 if (m_connQueue.empty()) {
-                    error("get connection timeout");
+                    // error("get connection timeout");
                     return nullptr;
                 }
             }

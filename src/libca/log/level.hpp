@@ -1,5 +1,5 @@
-#ifndef LIBCA_LOG_LOGGER_H
-#define LIBCA_LOG_LOGGER_H
+#ifndef LIBCA_LOG_LEVEL_H
+#define LIBCA_LOG_LEVEL_H
 
 #include <string>
 
@@ -16,4 +16,4 @@ namespace libca::log
 
 }
 
-#endif // !LIBCA_LOG_LOGGER_H
+#endif // !LIBCA_LOG_LEVEL_H

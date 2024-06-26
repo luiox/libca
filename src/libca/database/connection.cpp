@@ -36,7 +36,7 @@ namespace libca
     Connection::update(std::string sql)
     {
         if (0 != mysql_query(m_mysql, sql.c_str())) {
-            error("update failed: %s", mysql_error(m_mysql));
+            // error("update failed: %s", mysql_error(m_mysql));
             return false;
         }
         return true;
@@ -46,7 +46,7 @@ namespace libca
     Connection::query(std::string sql)
     {
         if (0 != mysql_query(m_mysql, sql.c_str())) {
-            error("query failed: %s", mysql_error(m_mysql));
+            // error("query failed: %s", mysql_error(m_mysql));
             return nullptr;
         }
         return mysql_use_result(m_mysql);
@@ -57,7 +57,7 @@ namespace libca
     {
         m_aliveTime = clock();
     }
-    
+
     clock_t
     Connection::getAliveTime()
     {
