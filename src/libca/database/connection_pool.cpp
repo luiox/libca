@@ -1,9 +1,9 @@
-#include "libca/database/connection.h"
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include <libca/database/connection_pool.h>
-#include <libca/log/logger.h>
+#include <libca/database/connection.hpp>
+#include <libca/database/connection_pool.hpp>
+#include <libca/log/logger.hpp>
 #include <memory>
 #include <mutex>
 #include <thread>

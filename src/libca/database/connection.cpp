@@ -1,5 +1,5 @@
-#include <libca/database/connection.h>
-#include <libca/log/logger.h>
+#include <libca/database/connection.hpp>
+#include <libca/log/logger.hpp>
 #include <mysql/mysql.h>
 
 namespace libca

@@ -8,7 +8,7 @@
 #include <cctype>
 #include <cstring>
 #include <exception>
-#include <libca/core/string.h>
+#include <libca/core/string.hpp>
 
 namespace libca
 {

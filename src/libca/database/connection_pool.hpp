@@ -4,7 +4,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
-#include <libca/database/connection.h>
+#include <libca/database/connection.hpp>
 #include <memory>
 #include <mutex>
 #include <queue>

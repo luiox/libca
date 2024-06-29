@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include <libca/database/connection.h>
+#include <libca/database/connection.hpp>
 
 TEST_CASE("test database connection")
 {

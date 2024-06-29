@@ -1,4 +1,4 @@
-#include <libca/utility/bits.h>
+#include <libca/utility/bits.hpp>
 namespace libca
 {
     int32_t

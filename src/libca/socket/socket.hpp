@@ -5,7 +5,7 @@ namespace libca
 {
     class Socket
     {
-    }
+    };
 }
 
 #endif // !LIBCA_SOCKET_SOCKET_H

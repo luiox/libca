@@ -7,7 +7,7 @@
 
 #include <doctest/doctest.h>
 #include <iostream>
-#include <libca/core/string.h>
+#include <libca/core/string.hpp>
 
 TEST_CASE("test string")
 {

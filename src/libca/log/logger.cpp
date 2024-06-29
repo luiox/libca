@@ -1,5 +1,5 @@
 #include <errno.h>
-#include <libca/log/logger.h>
+#include <libca/log/logger.hpp>
 #include <stdarg.h>
 #include <stdexcept>
 #include <string.h>
