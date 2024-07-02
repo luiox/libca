@@ -5,7 +5,6 @@
 #include <exception>
 #include <stdexcept>
 #include <string>
-#include <variant>
 #include <vector>
 
 struct Void
@@ -34,6 +33,10 @@ class Result
 {
 public:
     // 构造函数
+    Result()
+        : m_isOk(true)
+    {}
+
     Result(T value)
         : m_isOk(true)
         , m_ok(std::move(value))
@@ -98,6 +101,11 @@ template<typename T>
 Result<T, Err> ok(T value)
 {
     return Result<T, Err>(std::move(value));
+}
+
+inline Result<Void, Err> ok()
+{
+    return Result<Void, Err>();
 }
 
 template<typename T>

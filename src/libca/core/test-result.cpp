@@ -1,5 +1,4 @@
 #include <doctest/doctest.h>
-#include <exception>
 #include <iostream>
 #include <libca/core/result.hpp>
 #include <stdexcept>
@@ -23,6 +22,11 @@ auto test_fun_helper(bool should_ok) -> Result<int, Err>
         return ok(1);
     }
     return error<int>(Err(std::string("not ok")));
+}
+
+auto test_result_func() -> Result<Void, Err>
+{
+    return ok();
 }
 
 TEST_CASE("test Result")
