@@ -17,6 +17,27 @@ TEST_CASE("test Err")
     CHECK(err3.error() == "test info4");
 }
 
+auto test_fun_helper(bool should_ok) -> Result<int, Err>
+{
+    if (should_ok) {
+        return ok(1);
+    }
+    return error<int>(Err(std::string("not ok")));
+}
+
+TEST_CASE("test Result")
+{
+    auto res = test_fun_helper(true);
+    if (res.is_ok()) {
+        CHECK(res.unwrap() == 1);
+    }
+    res = test_fun_helper(false);
+    if (!res.is_ok()) {
+        CHECK(res.unwrap_err().error() == "not ok");
+    }
+    std::cout << "sizeof(res):" << sizeof(res) << std::endl;
+}
+
 // // 辅助函数，用于测试value_or方法
 // template <typename T, typename E>
 // void

@@ -8,6 +8,10 @@
 #include <variant>
 #include <vector>
 
+struct Void
+{};
+typedef struct Void Void;
+
 class Err
 {
 public:
@@ -32,55 +36,74 @@ public:
     // 构造函数
     Result(T value)
         : m_isOk(true)
-        , m_data(std::move(value))
+        , m_ok(std::move(value))
     {}
+
     Result(E error)
         : m_isOk(false)
-        , m_data(std::move(error))
+        , m_err(std::move(error))
     {}
 
     // 检查是否成功
     bool is_ok() const { return m_isOk; }
 
-    // 获取值，如果失败则抛出异常或返回默认值
-    T value_or(T default_value) const
-    {
-        if (m_isOk) {
-            return m_data;
-        }
-        else {
-            return default_value;
-        }
-    }
-
     // 获取错误，如果成功则抛出异常
-    E error() const
+    E unwrap_err() const
     {
         if (!m_isOk) {
-            return value_or;
+            return m_err;
         }
         else {
             throw std::runtime_error("Tried to get error from successful Result");
         }
     }
 
-    T value() const { return m_data; }
+    // 获取值，如果失败则抛出异常
+    const T unwrap()
+    {
+        if (m_isOk) {
+            return m_ok;
+        }
+        throw std::runtime_error("unwrap error");
+    }
+    // 获取值，如果失败则返回默认值
+    const T unwrap_or(T failback)
+    {
+        if (m_isOk) {
+            return m_ok;
+        }
+        return failback;
+    }
 
 private:
-    bool               m_isOk;
-    std::variant<T, E> m_data;   // 使用std::variant来存储值或错误
+    bool m_isOk;
+    T    m_ok;
+    E    m_err;
 };
 
 template<typename T, typename E>
-auto ok(T value) -> Result<T, E>
+Result<T, E> ok(T value)
 {
     return Result<T, E>(std::move(value));
 }
 
 template<typename T, typename E>
-auto error(E error) -> Result<T, E>
+Result<T, E> error(E error)
 {
     return Result<T, E>(std::move(error));
+}
+
+// 特化辅助推导
+template<typename T>
+Result<T, Err> ok(T value)
+{
+    return Result<T, Err>(std::move(value));
+}
+
+template<typename T>
+Result<T, Err> error(Err error)
+{
+    return Result<T, Err>(std::move(error));
 }
 
 #endif   // !LIBCA_CORE_RESULT_HPP
