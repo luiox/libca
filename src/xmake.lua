@@ -19,12 +19,12 @@ target("ca-core")
 target("test-ca-core")
     set_kind("binary")
     add_defines("DEBUG")
-    -- doctest main
-    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
 
     add_packages("doctest")
-
+    
+    add_files("libca/test-main.cpp")
     add_files("libca/core/test-*.cpp")
+    
     add_deps("ca-core")
     add_links("ca-core")
 
