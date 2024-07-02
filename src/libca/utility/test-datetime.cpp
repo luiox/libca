@@ -5,4 +5,7 @@
 
 using namespace libca::utility;
 
-TEST_CASE("libca::utility::DateTime") { auto [date, time] = DateTime::now(); }
+TEST_CASE("libca::utility::DateTime")
+{
+    auto [date, time] = DateTime::now();
+}

@@ -8,54 +8,53 @@
 #include <string>
 #include <vector>
 
-namespace libca::event
+namespace libca::event {
+
+// 事件优先级
+enum class EventPriority
 {
+    Lowest  = std::numeric_limits<int>::lowest(),
+    Low     = 0,
+    Medium  = 1000,
+    High    = 2000,
+    Highest = std::numeric_limits<int>::max()
+};
 
-    // 事件优先级
-    enum class EventPriority {
-        Lowest = std::numeric_limits<int>::lowest(),
-        Low = 0,
-        Medium = 1000,
-        High = 2000,
-        Highest = std::numeric_limits<int>::max()
-    };
+// 事件
+class Event
+{
+public:
+    Event(const std::string& name, EventPriority priority = EventPriority::Medium);
+    virtual ~Event();
 
-    // 事件
-    class Event
-    {
-    public:
-        Event(const std::string & name, EventPriority priority = EventPriority::Medium);
-        virtual ~Event();
+    const std::string& GetName() const;
+    EventPriority      GetPriority() const;
 
-        const std::string & GetName() const;
-        EventPriority GetPriority() const;
+    virtual void Trigger() = 0;
 
-        virtual void Trigger() = 0;
+protected:
+    std::string   name;
+    EventPriority priority;
+};
 
-    protected:
-        std::string name;
-        EventPriority priority;
-    };
+// 事件监听器
+class EventListner
+{
+public:
+};
 
-    // 事件监听器
-    class EventListner
-    {
-    public:
-    };
+// 事件分发器
+class EventDispatcher
+{};
 
-    // 事件分发器
-    class EventDispatcher
-    {
-    };
+// 事件管理器
+class EventManager
+{
+public:
+    EventManager();
+    ~EventManager();
+};
 
-    // 事件管理器
-    class EventManager
-    {
-    public:
-        EventManager();
-        ~EventManager();
-    };
+}   // namespace libca::event
 
-}
-
-#endif // !LIBCA_EVENT_EVENT_H
+#endif   // !LIBCA_EVENT_EVENT_H

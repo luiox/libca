@@ -13,14 +13,13 @@ public:
     virtual ~Formatter() = default;
 
     // 重载这个函数来格式化日志消息
-    virtual std::string format(const std::string & message) = 0;
+    virtual std::string format(const std::string& message) = 0;
 };
 
 class BasicFormatter : public Formatter
 {
 public:
-    std::string
-    format(const std::string & message) override
+    std::string format(const std::string& message) override
     {
         std::stringstream ss;
         ss << prefix << "[" << std::this_thread::get_id()
@@ -30,15 +29,13 @@ public:
         return ss.str();
     }
 
-    BasicFormatter &
-    addBefore(const std::string & prefix)
+    BasicFormatter& addBefore(const std::string& prefix)
     {
         this->prefix = prefix;
         return *this;
     }
 
-    BasicFormatter &
-    addAfter(const std::string & suffix)
+    BasicFormatter& addAfter(const std::string& suffix)
     {
         this->suffix = suffix;
         return *this;
@@ -51,28 +48,25 @@ public:
 class Logger
 {
     std::mutex mtx;
-    Formatter * formatter;
+    Formatter* formatter;
 
 public:
-    Logger(Formatter * formatter)
-      : formatter(formatter)
-    {
-    }
+    Logger(Formatter* formatter)
+        : formatter(formatter)
+    {}
 
-    void
-    log(const std::string & message)
+    void log(const std::string& message)
     {
         std::lock_guard<std::mutex> lock(mtx);
         std::cout << formatter->format(message) << std::endl;
     }
 };
 
-int
-main(int argc, char * argv[])
+int main(int argc, char* argv[])
 {
     // 使用示例
-    BasicFormatter * formatter = new BasicFormatter();
-    Logger logger(formatter);
+    BasicFormatter* formatter = new BasicFormatter();
+    Logger          logger(formatter);
 
     formatter->addBefore("prefix");
     formatter->addAfter("suffix");

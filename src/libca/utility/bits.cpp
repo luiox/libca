@@ -1,10 +1,8 @@
 #include <libca/utility/bits.hpp>
-namespace libca
+namespace libca {
+int32_t BitsUitl::lowbit(int32_t x)
 {
-    int32_t
-    BitsUitl::lowbit(int32_t x)
-    {
-        return x & -x;
-    }
+    return x & -x;
+}
 
-} // namespace libca
+}   // namespace libca

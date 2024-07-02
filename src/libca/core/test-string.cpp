@@ -17,8 +17,8 @@ TEST_CASE("test string")
     libca::string str1("12三四");
     libca::string str2('a');
     libca::string str3(1234);
-    libca::string str4{ 1234 };
-    libca::string str5{ 'a' };
+    libca::string str4{1234};
+    libca::string str5{'a'};
     libca::string str6 = "1234";
     cout << "str1.c_str = " << str1.c_str() << endl;
     cout << "str1.length = " << str1.length() << endl;

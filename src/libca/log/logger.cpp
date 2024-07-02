@@ -5,7 +5,4 @@
 #include <string.h>
 #include <time.h>
 
-namespace libca::log
-{
-
-}
+namespace libca::log {}

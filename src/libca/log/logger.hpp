@@ -19,36 +19,35 @@
 // #define fatal(format, ...)                                                               \
 //     Logger::instance()->log(Logger::FATAL, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
-namespace libca::log
-{
-    // 日志器，负责收集日志，并且调用格式化器进行格式化日志，然后存到缓冲区里
-    // class Logger final
-    // {
-    // public:
-    //     enum Level { DEBUG = 0, INFO, WARN, ERROR, FATAL, LEVEL_COUNT };
+namespace libca::log {
+// 日志器，负责收集日志，并且调用格式化器进行格式化日志，然后存到缓冲区里
+// class Logger final
+// {
+// public:
+//     enum Level { DEBUG = 0, INFO, WARN, ERROR, FATAL, LEVEL_COUNT };
 
-    //     static Logger * instance();
-    //     void open(const std::string & filename);
-    //     void close();
-    //     void log(Level level, const char * file, int line, const char * format, ...);
-    //     void max(int bytes);
-    //     void level(int level);
+//     static Logger * instance();
+//     void open(const std::string & filename);
+//     void close();
+//     void log(Level level, const char * file, int line, const char * format, ...);
+//     void max(int bytes);
+//     void level(int level);
 
-    // private:
-    //     Logger();
-    //     ~Logger();
-    //     void rotate();
+// private:
+//     Logger();
+//     ~Logger();
+//     void rotate();
 
-    // private:
-    //     std::string m_filename;
-    //     std::ofstream m_fout;
-    //     int m_max;
-    //     int m_len;
-    //     int m_level;
-    //     static const char * s_level[LEVEL_COUNT];
-    //     static Logger * m_instance;
-    // };
+// private:
+//     std::string m_filename;
+//     std::ofstream m_fout;
+//     int m_max;
+//     int m_len;
+//     int m_level;
+//     static const char * s_level[LEVEL_COUNT];
+//     static Logger * m_instance;
+// };
 
-}
+}   // namespace libca::log
 
-#endif // ! LIBCA_LOG_LOGGER_H
+#endif   // ! LIBCA_LOG_LOGGER_H

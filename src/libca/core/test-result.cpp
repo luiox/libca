@@ -11,7 +11,7 @@ TEST_CASE("test Err")
     err1.append("test info1").append("test info2");
     CHECK(err1.error() == "test info1test info2");
     std::runtime_error e1("test info3");
-    Err err2(e1);
+    Err                err2(e1);
     CHECK(err2.error() == "test info3");
     Err err3(std::string("test info4"));
     CHECK(err3.error() == "test info4");
