@@ -86,4 +86,22 @@ target("test-ca-log")
     add_links("ca-core")
     add_links("ca-log")
 
+target("ca-concurrency")
+    set_kind("shared")
+    add_includedirs("../src", {public = true})
+    add_files("libca/concurrency/*.cpp|test-*.cpp")
+    add_links("pthread")
 
+target("test-ca-concurrency")
+    set_kind("binary")
+    add_defines("DEBUG")
+    -- doctest main
+    add_defines("DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN")
+
+    add_packages("doctest")
+
+    add_files("libca/concurrency/test-*.cpp")
+    add_deps("ca-core")
+    add_deps("ca-concurrency")
+    add_links("ca-core")
+    add_links("ca-concurrency")
