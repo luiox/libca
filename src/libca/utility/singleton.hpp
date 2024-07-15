@@ -3,7 +3,7 @@
 
 #include <mutex>
 
-namespace libca {
+namespace libca::utility {
 template<class T>
 class Singleton
 {
@@ -69,6 +69,6 @@ private:
     MeyersSingleton& operator=(const MeyersSingleton&) = delete;
 };
 
-}   // namespace libca
+}   // namespace libca::utility
 
 #endif /* !LIBCA_UTILITY_SINGLETON_H */
