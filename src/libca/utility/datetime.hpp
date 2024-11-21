@@ -1,5 +1,5 @@
-#ifndef DATE_TIME_H
-#define DATE_TIME_H
+#ifndef LIBCA_UTILITY_DATETIME_H
+#define LIBCA_UTILITY_DATETIME_H
 
 #include <ctime>
 #include <string>
