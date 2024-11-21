@@ -101,3 +101,17 @@ target("test-ca-concurrency")
     add_deps("ca-concurrency")
     add_links("ca-core")
     add_links("ca-concurrency")
+
+target("ca-opt")
+    set_kind("shared")
+    add_includedirs("../src", {public = true})
+    add_files("libca/utility/opt.cpp")
+
+target("test-ca-concurrency")
+    set_kind("binary")
+    add_defines("DEBUG")
+
+    add_packages("doctest")
+
+    add_files("libca/utility/test-opt.cpp")
+
