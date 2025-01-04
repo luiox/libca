@@ -16,7 +16,7 @@ void test1()
     assert(s.capacity == 10);
 
     // 测试压栈
-    assert(stack_push(&s, (void*) "Hello", 6) == true);
+    assert(stack_push(&s, (void*)"Hello", 6) == true);
     assert(s.size == 6);
     assert(buf[0] == 'H');
     assert(buf[1] == 'e');
@@ -31,7 +31,7 @@ void test1()
 
     // 测试获取栈顶数据
     uint8_t buf2[10];
-    assert(stack_push(&s, (void*) "World", 6) == true);
+    assert(stack_push(&s, (void*)"World", 6) == true);
     assert(stack_peek(&s, buf2, 6) == true);
     assert(s.size == 6);
     assert(buf[0] == 'W');
@@ -45,15 +45,15 @@ void test1()
     assert(stack_empty(&s) == false);
 
     // 测试栈是否已满
-    stack_push(&s, (void*) "1234", 4);
-    assert(stack_push(&s, (void*) "1234567890", 10) == false);
+    stack_push(&s, (void*)"1234", 4);
+    assert(stack_push(&s, (void*)"1234567890", 10) == false);
     assert(s.size == 10);
     assert(buf[9] == '4');
 
     printf("All tests pass");
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     test1();
     return 0;

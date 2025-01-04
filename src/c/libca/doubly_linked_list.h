@@ -1,7 +1,7 @@
 /*********************************************************************
  * @file   doubly_linked_list.h
  * @brief  一个简单的双向链表实现
- * 
+ *
  * @author Canrad
  * @date   2024.06.02
  *********************************************************************/
@@ -12,18 +12,20 @@
 #include <stdint.h>
 
 // 双向链表的结点
-typedef struct doubly_linked_list_node{
-    void* data; // 数据
-    struct doubly_linked_list_node* next; // 下一个结点
-    struct doubly_linked_list_node* prev; // 上一个结点
-}doubly_linked_list_node_t;
+typedef struct doubly_linked_list_node
+{
+    void*                           data;   // 数据
+    struct doubly_linked_list_node* next;   // 下一个结点
+    struct doubly_linked_list_node* prev;   // 上一个结点
+} doubly_linked_list_node_t;
 
 // 双向链表
-typedef struct doubly_linked_list{
-    doubly_linked_list_node_t* head; // 头结点
-    doubly_linked_list_node_t* tail; // 尾结点
-    int32_t size; // 链表大小
-}doubly_linked_list_t;
+typedef struct doubly_linked_list
+{
+    doubly_linked_list_node_t* head;   // 头结点
+    doubly_linked_list_node_t* tail;   // 尾结点
+    int32_t                    size;   // 链表大小
+} doubly_linked_list_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 // 以下为双向链表的操作，内部没有任何的动态内存分配操作
@@ -33,7 +35,7 @@ typedef struct doubly_linked_list{
  * @param list 双向链表
  */
 void doubly_linked_list_init(doubly_linked_list_t* list);
- 
+
 /**
  * @brief 初始化双向链表结点
  * @param node 双向链表结点
@@ -75,13 +77,13 @@ doubly_linked_list_node_t* doubly_linked_list_pop_front(doubly_linked_list_t* li
 /**
  * @brief 创建一个双向链表
  * @return 双向链表
- */ 
+ */
 doubly_linked_list_t* doubly_linked_list_create();
 
 /**
  * @brief 创建一个双向链表结点
  * @return 双向链表结点
- */ 
+ */
 doubly_linked_list_node_t* doubly_linked_list_node_create(void* data);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -116,15 +118,15 @@ doubly_linked_list_node_t* doubly_linked_list_next(doubly_linked_list_node_t* no
 doubly_linked_list_node_t* doubly_linked_list_prev(doubly_linked_list_node_t* node);
 
 // 正向遍历双向链表
-#define DOUBLE_LINKED_LIST_FOR_EACH(node, list) \
-    for(doubly_linked_list_node_t* node = doubly_linked_list_begin(list);\
-        node != doubly_linked_list_end(list)->next; \
-        node = doubly_linked_list_next(node))
+#define DOUBLE_LINKED_LIST_FOR_EACH(node, list)                            \
+    for (doubly_linked_list_node_t* node = doubly_linked_list_begin(list); \
+         node != doubly_linked_list_end(list)->next;                       \
+         node = doubly_linked_list_next(node))
 
 // 反向遍历双向链表
-#define DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(node, list) \
-    for(doubly_linked_list_node_t* node = doubly_linked_list_end(list);\
-        node != doubly_linked_list_begin(list)->prev; \
-        node = doubly_linked_list_prev(node))
+#define DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(node, list)                  \
+    for (doubly_linked_list_node_t* node = doubly_linked_list_end(list); \
+         node != doubly_linked_list_begin(list)->prev;                   \
+         node = doubly_linked_list_prev(node))
 
-#endif // !DOUBLY_LINKED_LIST_H
+#endif   // !DOUBLY_LINKED_LIST_H

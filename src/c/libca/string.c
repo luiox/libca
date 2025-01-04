@@ -4,7 +4,8 @@
 
 char* str_trim(char* str)
 {
-    if(str == NULL) return NULL;
+    if (str == NULL)
+        return NULL;
     // 找到字符串开始的非空白字符
     char* p_start = str;
     while (*p_start != '\0' && (*p_start == ' ' || *p_start == '\t' || *p_start == '\n')) {

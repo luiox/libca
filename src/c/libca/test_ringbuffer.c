@@ -5,19 +5,21 @@
 
 // 定义一个环形缓冲区实例
 #define BUFFER_SIZE RINGBUFFER_SIZE_GEN(8)
-uint8_t buffer[BUFFER_SIZE];
+uint8_t      buffer[BUFFER_SIZE];
 ringbuffer_t rb;
 
 // 用于测试的辅助函数
-void testInitialization() {
+void testInitialization()
+{
     ringbuffer_init(&rb, buffer, BUFFER_SIZE);
     assert(ringbuffer_get_data_size(&rb) == 0);
     assert(ringbuffer_get_free_size(&rb) == BUFFER_SIZE);
 }
 
-void testWriteReadSingleByte() {
+void testWriteReadSingleByte()
+{
     uint8_t writeData = 0xAA;
-    uint8_t readData = 0;
+    uint8_t readData  = 0;
 
     ringbuffer_reset(&rb);
     assert(ringbuffer_write(&rb, &writeData, 1));
@@ -27,8 +29,9 @@ void testWriteReadSingleByte() {
     assert(readData == writeData);
 }
 
-void testWriteReadMultiByte() {
-    uint8_t writeData[] = { 0xAA, 0xBB, 0xCC, 0xDD };
+void testWriteReadMultiByte()
+{
+    uint8_t writeData[] = {0xAA, 0xBB, 0xCC, 0xDD};
     uint8_t readData[4];
 
     ringbuffer_reset(&rb);
@@ -39,7 +42,8 @@ void testWriteReadMultiByte() {
     assert(memcmp(writeData, readData, 4) == 0);
 }
 
-void testWriteUntilFull() {
+void testWriteUntilFull()
+{
     uint8_t writeData[BUFFER_SIZE];
     for (int i = 0; i < BUFFER_SIZE; ++i) {
         writeData[i] = (uint8_t)i;
@@ -51,10 +55,11 @@ void testWriteUntilFull() {
     assert(ringbuffer_get_free_size(&rb) == 0);
 }
 
-void testReadWriteLoop() {
-    uint8_t writeData[] = { 0xAA, 0xBB, 0xCC, 0xDD };
+void testReadWriteLoop()
+{
+    uint8_t writeData[] = {0xAA, 0xBB, 0xCC, 0xDD};
     uint8_t readData[4];
-    int iterations = BUFFER_SIZE / sizeof(writeData);
+    int     iterations = BUFFER_SIZE / sizeof(writeData);
 
     ringbuffer_reset(&rb);
     for (int i = 0; i < iterations; ++i) {
@@ -71,7 +76,8 @@ void testReadWriteLoop() {
     assert(ringbuffer_get_free_size(&rb) == BUFFER_SIZE);
 }
 
-int main() {
+int main()
+{
     testInitialization();
     testWriteReadSingleByte();
     testWriteReadMultiByte();

@@ -1,7 +1,7 @@
 /*********************************************************************
  * @file   stack.h
  * @brief  一个简单的栈实现
- * 
+ *
  * @author Canrad
  * @date   2024.06.02
  *********************************************************************/
@@ -32,12 +32,13 @@
 // |                                      |
 // ---------------低（bottom）--------------
 
-typedef struct stack{
-    uint8_t* top; // 顶端
-    uint8_t* bottom; // 底端
-    int32_t size; // 栈中使用的字节数
-    int32_t capacity; // 栈的容量
-}stack_t;
+typedef struct stack
+{
+    uint8_t* top;        // 顶端
+    uint8_t* bottom;     // 底端
+    int32_t  size;       // 栈中使用的字节数
+    int32_t  capacity;   // 栈的容量
+} stack_t;
 
 /**
  * @brief 初始化栈
@@ -70,7 +71,7 @@ bool stack_pop(stack_t* s, int32_t size);
  * @param buf 存储数据的缓冲区，要保证缓冲区够大
  * @param size 数据大小
  */
-uint8_t stack_peek(stack_t* s, void* buf , int32_t size);
+uint8_t stack_peek(stack_t* s, void* buf, int32_t size);
 
 /**
  * @brief 检查栈是否为空
@@ -86,4 +87,4 @@ bool stack_empty(stack_t* s);
  */
 bool stack_full(stack_t* s);
 
-#endif // !STACK_H
+#endif   // !STACK_H

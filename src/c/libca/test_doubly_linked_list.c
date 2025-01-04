@@ -5,20 +5,22 @@
 
 void test1()
 {
-    int d[10] = {1,2,3,4,5,6,7,8,9,10};
+    int                        d[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     doubly_linked_list_node_t* node[10];
-    doubly_linked_list_t* list = doubly_linked_list_create();
+    doubly_linked_list_t*      list = doubly_linked_list_create();
     // 插入int数据
-    for(int i = 0; i < 10; i++){
+    for (int i = 0; i < 10; i++) {
         node[i] = doubly_linked_list_node_create(&d[i]);
         doubly_linked_list_push_back(list, node[i]);
     }
 
-    DOUBLE_LINKED_LIST_FOR_EACH(it, list){
+    DOUBLE_LINKED_LIST_FOR_EACH(it, list)
+    {
         // do something with it
         printf("%d\n", *(int*)it->data);
     }
-    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(it, list){
+    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(it, list)
+    {
         // do something with it
         printf("%d\n", *(int*)it->data);
     }
@@ -76,8 +78,9 @@ void test2()
     doubly_linked_list_node_t* node3 = doubly_linked_list_node_create(NULL);
     doubly_linked_list_node_init(node3, "data3");
     doubly_linked_list_push_back(&list3, node3);
-    DOUBLE_LINKED_LIST_FOR_EACH(current_node, &list3) {
-        if(current_node == node3) {
+    DOUBLE_LINKED_LIST_FOR_EACH(current_node, &list3)
+    {
+        if (current_node == node3) {
             break;
         }
         assert(current_node == NULL);
@@ -89,8 +92,9 @@ void test2()
     doubly_linked_list_node_t* node4 = doubly_linked_list_node_create(NULL);
     doubly_linked_list_node_init(node4, "data4");
     doubly_linked_list_push_back(&list4, node4);
-    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(current_node, &list4) {
-        if(current_node == node4) {
+    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(current_node, &list4)
+    {
+        if (current_node == node4) {
             break;
         }
         assert(current_node == NULL);
@@ -99,7 +103,7 @@ void test2()
     printf("All test cases pass");
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     // test1();
     test2();

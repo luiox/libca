@@ -80,5 +80,4 @@ TEST_CASE("TEST-LOGGER")
     // 输出:
     // prefix[14004421040] [test-logger.cpp:11] This is a log message.
     logger.log("This is 12312a log message.  ");
-
 }

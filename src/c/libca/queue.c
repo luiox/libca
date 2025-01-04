@@ -11,7 +11,8 @@ void queue_init(queue_t* queue)
 void queue_push(queue_t* queue, void* data)
 {
     doubly_linked_list_node_t* node = doubly_linked_list_node_create(data);
-    if(NULL == node) return;
+    if (NULL == node)
+        return;
     doubly_linked_list_push_back(queue, node);
 }
 
@@ -19,7 +20,8 @@ void queue_push(queue_t* queue, void* data)
 void queue_pop(queue_t* queue)
 {
     doubly_linked_list_node_t* head = doubly_linked_list_pop_front(queue);
-    if(NULL == head) return;
+    if (NULL == head)
+        return;
     free(head);
 }
 
@@ -27,7 +29,7 @@ void queue_pop(queue_t* queue)
 void* queue_front(queue_t* queue)
 {
     doubly_linked_list_node_t* head = queue->head;
-    if(NULL == head) {
+    if (NULL == head) {
         return NULL;
     }
     return head->data;
@@ -48,8 +50,8 @@ bool queue_empty(queue_t* queue)
 // 清空队列
 void queue_clear(queue_t* queue)
 {
-    doubly_linked_list_node_t* node =queue->head;
-    while(NULL != node){
+    doubly_linked_list_node_t* node = queue->head;
+    while (NULL != node) {
         doubly_linked_list_node_t* next = node->next;
         free(node);
         node = next;

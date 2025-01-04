@@ -39,6 +39,6 @@ char* str_duplicate(const char* str);
 // 获取子字符串
 char* str_substr(const char* str, uint32_t start, uint32_t len);
 // 字符串分词
-int str_tokenize(char* str, const char* delimiters, char** tokens, int max_tokens); 
+int str_tokenize(char* str, const char* delimiters, char** tokens, int max_tokens);
 
-#endif // !STRING_H
+#endif   // !STRING_H

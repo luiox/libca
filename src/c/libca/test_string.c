@@ -4,11 +4,10 @@
 void test1()
 {
     char buf[512] = "  \n \t 21345\n\t ";
-    printf("%s1",str_trim(buf));
-
+    printf("%s1", str_trim(buf));
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     test1();
     return 0;

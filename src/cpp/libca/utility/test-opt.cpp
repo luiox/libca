@@ -78,7 +78,7 @@ TEST_CASE("libca::utility::OPT")
 {
     string cmd1 = "./app -a";
     string cmd2 = "./app --option value";
-    string cmd3 = "./app -o=value"; 
+    string cmd3 = "./app -o=value";
     string cmd4 = "./app --message \"Hello World\"";
     string cmd5 = "./app --special @#$%^&*()_+";
     string cmd6 = "./app --control \n\t\r";
@@ -87,26 +87,25 @@ TEST_CASE("libca::utility::OPT")
 
     {
         CommandLineParser parser;
-        parser.addOption(CommandLineParser::OPT_MUST, "a", "option", "description", [](string str){
+        parser.addOption(CommandLineParser::OPT_MUST, "a", "option", "description", [](string str) {
             cout << "Option 'a' was set" << endl;
         });
     }
 
     {
         CommandLineParser parser;
-        parser.addOption(CommandLineParser::OPT_OPTIONAL, "o", "option", "description", [](string str){
-            if(str =="value"){
-                cout << "str is value" << endl;
-            }
-        });
+        parser.addOption(
+            CommandLineParser::OPT_OPTIONAL, "o", "option", "description", [](string str) {
+                if (str == "value") {
+                    cout << "str is value" << endl;
+                }
+            });
         parser.parse(cmd3);
     }
 
     {
         // CommandLineParser parser;
-        // parser.addSubCommand(std::string name, std::string description, std::function<void (std::string)> handler);
-        // cmd8
+        // parser.addSubCommand(std::string name, std::string description, std::function<void
+        // (std::string)> handler); cmd8
     }
-    
-    
 }

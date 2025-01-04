@@ -14,9 +14,9 @@ void stack_init(stack_t* s, void* buf, int32_t size)
     assert(buf);
 
     s->capacity = size;
-    s->bottom = buf;
-    s->top = buf;
-    s->size = 0;
+    s->bottom   = buf;
+    s->top      = buf;
+    s->size     = 0;
 }
 
 /**
@@ -31,7 +31,7 @@ bool stack_push(stack_t* s, void* data, int32_t size)
     assert(s);
     assert(data);
 
-    if (s->size + size > s->capacity){
+    if (s->size + size > s->capacity) {
         // 剩余空间不足以存放数据
         return false;
     }
@@ -52,7 +52,7 @@ bool stack_pop(stack_t* s, int32_t size)
 {
     assert(s);
 
-    if (s->size < size){
+    if (s->size < size) {
         // 栈的剩余空间不足
         return false;
     }
@@ -68,12 +68,12 @@ bool stack_pop(stack_t* s, int32_t size)
  * @param buf 存储数据的缓冲区，要保证缓冲区够大
  * @param size 数据大小
  */
-uint8_t stack_peek(stack_t* s, void* buf , int32_t size)
+uint8_t stack_peek(stack_t* s, void* buf, int32_t size)
 {
     assert(s);
     assert(buf);
 
-    if (s->size < size){
+    if (s->size < size) {
         // 栈的剩余空间不足
         return false;
     }

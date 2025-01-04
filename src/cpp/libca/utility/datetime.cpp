@@ -1,7 +1,7 @@
 #include <libca/utility/datetime.hpp>
 
 namespace libca::utility {
-    
+
 Date::Date(int year, int month, int day) {}
 Date::Date(const std::string& date) {}
 int Date::getYear() const
