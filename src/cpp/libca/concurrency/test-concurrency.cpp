@@ -62,5 +62,5 @@ TEST_CASE("test Thread")
 
 
     cout << "all thread finished !" << endl;
-    sleep(10);
+    // sleep(10);
 }

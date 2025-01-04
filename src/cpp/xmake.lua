@@ -1,7 +1,7 @@
 target("ca")
     set_kind("shared")
     -- set_kind("$(kind)")
-    add_includedirs("../src")
+    add_includedirs(".")
 
     add_files("libca/core/*.cpp|test-*.cpp")
     add_files("libca/database/*.cpp|test-*.cpp")
@@ -13,7 +13,7 @@ target("ca")
 
 target("ca-core")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/core/*.cpp|test-*.cpp")
 
 target("test-ca-core")
@@ -30,7 +30,7 @@ target("test-ca-core")
 
 target("ca-utility")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/utility/*.cpp|test-*.cpp")
 
 target("test-ca-utility")
@@ -48,7 +48,7 @@ target("test-ca-utility")
 
 target("ca-database")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/database/*.cpp|test-*.cpp")
     add_links("mysqlclient")
 
@@ -67,7 +67,7 @@ target("test-ca-database")
 
 target("ca-log")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/log/*.cpp|test-*.cpp")
 
 target("test-ca-log")
@@ -85,7 +85,7 @@ target("test-ca-log")
 
 target("ca-concurrency")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/concurrency/*.cpp|test-*.cpp")
     add_links("pthread")
 
@@ -104,7 +104,7 @@ target("test-ca-concurrency")
 
 target("ca-opt")
     set_kind("shared")
-    add_includedirs("../src", {public = true})
+    add_includedirs(".", {public = true})
     add_files("libca/utility/opt.cpp")
 
 target("test-ca-concurrency")
@@ -113,5 +113,5 @@ target("test-ca-concurrency")
 
     add_packages("doctest")
 
-    add_files("libca/utility/test-opt.cpp")
+    -- add_files("libca/utility/test-concurrency.cpp")
 

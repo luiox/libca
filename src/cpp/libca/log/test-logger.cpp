@@ -6,6 +6,7 @@ using namespace std;
 #include <sstream>
 #include <string>
 #include <thread>
+#include <doctest/doctest.h>
 
 class Formatter
 {
@@ -62,7 +63,7 @@ public:
     }
 };
 
-int main(int argc, char* argv[])
+TEST_CASE("TEST-LOGGER")
 {
     // 使用示例
     BasicFormatter* formatter = new BasicFormatter();
@@ -80,5 +81,4 @@ int main(int argc, char* argv[])
     // prefix[14004421040] [test-logger.cpp:11] This is a log message.
     logger.log("This is 12312a log message.  ");
 
-    return 0;
 }
