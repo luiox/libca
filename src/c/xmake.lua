@@ -4,9 +4,11 @@ set_languages("c99")
 
 includes("libca/core")
 includes("libca/container")
-
--- includes("network")
--- includes("log")
+includes("libca/algorithm")
+includes("libca/event")
+includes("libca/log")
+includes("libca/network")
+includes("libca/concurrency")
 
 -- target("ringbuffer")
 --     set_kind("static")

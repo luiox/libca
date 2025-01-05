@@ -1,10 +1,9 @@
-target("ca-c-core")
+target("ca-c-event")
     set_kind("shared")
-    add_defines("LIBCA_USE_TEST")
     add_files("*.c")
     remove_files("test-*.c")
 
-target("ca-c-core-test")
+target("ca-c-event-test")
     set_kind("binary")
     add_defines("LIBCA_USE_TEST")
     add_files("test-**.c")
