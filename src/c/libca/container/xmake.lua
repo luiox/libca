@@ -1,0 +1,10 @@
+target("libca-c-container")
+    set_kind("static")
+    add_files("*.c")
+    remove_files("test_*.c")
+
+target("libca-c-container-test")
+    set_kind("binary")
+    add_files("./test_*.c")
+    add_deps("libca-c-container")
+    add_links("libca-c-container")

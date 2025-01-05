@@ -1,0 +1,11 @@
+target("libca-c-core")
+    set_kind("static")
+    add_includedirs("$(projectdir)/src/c")
+    add_files("*.c")
+    remove_files("test_*.c")
+
+target("libca-c-core-test")
+    set_kind("binary")
+    add_files("test_*.c")
+    add_deps("libca-c-core")
+    add_links("libca-c-core")
