@@ -12,8 +12,8 @@ add_requires("trompeloeil 47")
 add_requires("nanobench 4.3.11")
 add_requires("spdlog 1.14.1")
 
-includes("src/c")
-includes("src/cpp")
+add_subdirs("src/c")
+add_subdirs("src/cpp")
 
 -- -- task("find_tests")
 -- --     set_menu {

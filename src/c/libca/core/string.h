@@ -1,7 +1,7 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <libca/stdtype.h>
+#include <libca/core/stdtype.h>
 
 // 字符串拷贝
 char* str_copy(char* dest, const char* src);
