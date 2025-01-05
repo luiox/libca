@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include <libca/stdtype.h>
+#include <libca/core/stdtype.h>
 
 typedef struct
 {

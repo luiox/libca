@@ -1,5 +1,5 @@
-#ifndef STDTYPE_H
-#define STDTYPE_H
+#ifndef LIBCA_CORE_STDTYPE_H
+#define LIBCA_CORE_STDTYPE_H
 
 typedef char                   int8_t;
 typedef unsigned char          uint8_t;
@@ -14,4 +14,4 @@ typedef char bool;
 #define true 1
 #define false 0
 
-#endif   // !STDTYPE_H
+#endif   // !LIBCA_CORE_STDTYPE_H
