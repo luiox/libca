@@ -102,14 +102,11 @@ static void run_tests()
 
 int main(int argc, char** argv)
 {
-    // extern int idx;
-    // printf("idx = %d\n", idx);
     printf("Start running tests...\n");
     run_tests();
     free(tests);
     return LIBCA_TEST_SUCCESS;
 }
-
 
 #endif   // LIBCA_TEST_CONFIG_WITH_MAIN
 
