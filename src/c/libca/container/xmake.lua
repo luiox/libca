@@ -5,7 +5,7 @@ target("libca-c-container")
 
 target("libca-c-container-test")
     set_kind("binary")
-    add_files("./test-*.c")
+    add_files("test-*.c")
     add_files("../test-main.c")
     add_defines("LIBCA_USE_TEST")
     add_deps("libca-c-container")
