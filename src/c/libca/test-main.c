@@ -9,4 +9,3 @@ int main(int argc, char** argv)
     free(tests);
     return LIBCA_TEST_SUCCESS;
 }
-
