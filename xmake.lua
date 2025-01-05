@@ -2,8 +2,6 @@ set_project("libca")
 set_version("0.0.1")
 set_xmakever("2.8.3")
 
-set_languages("c99", "cxx17")
-
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
@@ -12,8 +10,8 @@ add_requires("trompeloeil 47")
 add_requires("nanobench 4.3.11")
 add_requires("spdlog 1.14.1")
 
-add_subdirs("src/c")
-add_subdirs("src/cpp")
+includes("src/c")
+includes("src/cpp")
 
 -- -- task("find_tests")
 -- --     set_menu {

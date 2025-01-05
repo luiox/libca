@@ -1,10 +1,12 @@
 add_includedirs("$(projectdir)/src/c")
 
-add_subdirs("libca/core")
-add_subdirs("libca/container")
+set_languages("c99")
 
--- add_subdirs("network")
--- add_subdirs("log")
+includes("libca/core")
+includes("libca/container")
+
+-- includes("network")
+-- includes("log")
 
 -- target("ringbuffer")
 --     set_kind("static")

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <libca/core/test.h>
 
 // 定义一个环形缓冲区实例
 #define BUFFER_SIZE RINGBUFFER_SIZE_GEN(8)
@@ -76,7 +77,7 @@ void testReadWriteLoop()
     assert(ringbuffer_get_free_size(&rb) == BUFFER_SIZE);
 }
 
-int main()
+TEST_CASE(ringbuffer_test1)
 {
     testInitialization();
     testWriteReadSingleByte();
@@ -85,5 +86,4 @@ int main()
     testReadWriteLoop();
 
     printf("All tests passed.\n");
-    return 0;
 }

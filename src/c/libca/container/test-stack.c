@@ -1,8 +1,9 @@
 #include <libca/container/stack.h>
 #include <assert.h>
 #include <stdio.h>
+#include <libca/core/test.h>
 
-void test1()
+TEST_CASE(stack_test1)
 {
     // 初始化栈
     stack_t s;
@@ -53,8 +54,8 @@ void test1()
     printf("All tests pass");
 }
 
-int main(int argc, char* argv[])
-{
-    test1();
-    return 0;
-}
+// int main(int argc, char* argv[])
+// {
+//     test1();
+//     return 0;
+// }

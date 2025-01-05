@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <libca/core/test.h>
 
-void test1()
+TEST_CASE(doubly_linked_list_test1)
 {
     int                        d[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     doubly_linked_list_node_t* node[10];
@@ -26,7 +27,7 @@ void test1()
     }
 }
 
-void test2()
+TEST_CASE(doubly_linked_list_test2)
 {
     // Test case 1: Initialize the doubly linked list
     doubly_linked_list_t list1;
@@ -103,10 +104,10 @@ void test2()
     printf("All test cases pass");
 }
 
-int main(int argc, char* argv[])
-{
-    // test1();
-    test2();
+// int main(int argc, char* argv[])
+// {
+//     // test1();
+//     test2();
 
-    return 0;
-}
+//     return 0;
+// }

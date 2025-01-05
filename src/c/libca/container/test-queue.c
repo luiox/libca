@@ -1,6 +1,7 @@
 #include <libca/container/queue.h>
 #include <stdio.h>
 #include <assert.h>
+#include <libca/core/test.h>
 
 // 用于测试的数据类型
 typedef struct
@@ -16,7 +17,7 @@ bool test_data_equal(void* a, void* b)
     return data_a->value == data_b->value;
 }
 
-void test1()
+TEST_CASE(queue_test1)
 {
     queue_t     queue;
     test_data_t data1 = {1};
@@ -56,9 +57,9 @@ void test1()
     printf("All tests passed.\n");
 }
 
-int main(int argc, char* argv[])
-{
-    test1();
+// int main(int argc, char* argv[])
+// {
+//     test1();
 
-    return 0;
-}
+//     return 0;
+// }
