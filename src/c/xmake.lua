@@ -61,3 +61,8 @@ target("string-test")
     add_includedirs(".")
     add_deps("string")
     add_links("string")
+
+target("test-module")
+    set_kind("binary")
+    add_files("libca/core/test.c")
+    add_includedirs(".")
