@@ -8,15 +8,17 @@
 #include <string>
 #include <vector>
 
-namespace libca::event {
+namespace libca {
 
 // 事件优先级
 enum class EventPriority
 {
     Lowest  = std::numeric_limits<int>::lowest(),
-    Low     = 0,
-    Medium  = 1000,
-    High    = 2000,
+    Lower   = -2000,
+    Low     = -1000,
+    Medium  = 0,
+    High    = 1000,
+    Higher  = 2000,
     Highest = std::numeric_limits<int>::max()
 };
 
@@ -55,6 +57,6 @@ public:
     ~EventManager();
 };
 
-}   // namespace libca::event
+}   // namespace libca
 
 #endif   // !LIBCA_EVENT_EVENT_H

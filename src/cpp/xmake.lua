@@ -1,5 +1,7 @@
 set_languages("cxx17")
 
+
+
 target("ca")
     set_kind("shared")
     -- set_kind("$(kind)")
