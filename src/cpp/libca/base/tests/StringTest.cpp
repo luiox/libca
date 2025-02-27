@@ -9,30 +9,30 @@ int main()
     const char* str = u8"test,中文";
     // 打印十六进制
     printf("str hex: ");
-    for(auto i = 0; i < strlen(str); i++){
-        printf("%02x ", static_cast<uint8_t>(*(str+i)));
+    for (auto i = 0; i < strlen(str); i++) {
+        printf("%02x ", static_cast<uint8_t>(*(str + i)));
     }
     printf("\n");
-    
+
     String s1 = String::createFromUtf8(str, strlen(str));
     // 打印十六进制
     printf("s1 hex: ");
-    for(auto i = 0; i < s1.byteLength(); i++){
+    for (auto i = 0; i < s1.byteLength(); i++) {
         printf("%02x ", s1.byteAt(i));
     }
     printf("\n");
 
     // 打印字符
     printf("s1 ch by at: ");
-    for(auto i = 0; i < s1.length(); i++){
-        auto ptr =s1.at(i);
+    for (auto i = 0; i < s1.length(); i++) {
+        auto ptr = s1.at(i);
         auto ch = String::createFromUtf8(reinterpret_cast<const char*>(ptr), BytesInUtf8Char(*ptr));
         printf("%s ", ch.cStr());
     }
     printf("\n");
 
     printf("s1 ch by iterator: ");
-    for(auto ch : s1){
+    for (auto ch : s1) {
         printf("%s ", ch.cStr());
     }
     printf("\n");

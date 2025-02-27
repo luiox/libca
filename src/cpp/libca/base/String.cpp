@@ -29,22 +29,21 @@ size_t BytesInUtf8Char(unsigned char firstByte)
 SmallString::SmallString()
     : byteLength(0)
     , length_(0)
-{
-    
-}
+{}
 
 SmallString::SmallString(uint8_t* bytes, size_t len)
     : byteLength(len)
 {
     size_t i = 0;
-    length_ = 0;
-    while(i<len){
-        length_ ++;
+    length_  = 0;
+    while (i < len) {
+        length_++;
         i += BytesInUtf8Char(bytes[i]);
     }
     memcpy(buffer_, bytes, len);
 
-    // printf("SmallString::SmallString(uint8_t* bytes, size_t len) len=%d, length_=%d\n", len, length_);
+    // printf("SmallString::SmallString(uint8_t* bytes, size_t len) len=%d, length_=%d\n", len,
+    // length_);
 }
 
 // 导出为C风格字符串
@@ -135,13 +134,13 @@ String String::createFromUtf8(const char* utf8Str, size_t length)
 {
     String str;
     size_t unitCnt = 0;
-    for(auto i = 0; i < length; ) {
+    for (auto i = 0; i < length;) {
         // printf("i = %d, utf8Str[i] = %X\n", i, utf8Str[i]);
         auto uintLen = BytesInUtf8Char(utf8Str[i]);
-        if(uintLen == 0){
+        if (uintLen == 0) {
             // 有错误的utf8字符
-            str.length_=0;
-            
+            str.length_ = 0;
+
             throw std::runtime_error("invalid utf8 char");
             return str;
         }
@@ -150,8 +149,8 @@ String String::createFromUtf8(const char* utf8Str, size_t length)
         unitCnt++;
     }
     str.length_ = unitCnt;
-    if(str.byteLength_ > str.capacity_) {
-        str.buffer_ = new uint8_t[str.byteLength_+1];
+    if (str.byteLength_ > str.capacity_) {
+        str.buffer_ = new uint8_t[str.byteLength_ + 1];
     }
     memcpy(str.buffer_, utf8Str, length);
     return str;
@@ -196,17 +195,17 @@ size_t String::capacity() const
 // 获取字符下标的utf8字符，时间复杂度O(n)
 uint8_t* String::at(size_t index)
 {
-    if(index >= length_) {
+    if (index >= length_) {
         return nullptr;
     }
     size_t unitCnt = 0;
-    size_t i = 0;
-    while(i < byteLength_) {
+    size_t i       = 0;
+    while (i < byteLength_) {
         // printf("i = %d, utf8Str[i] = %X\n", i, utf8Str[i]);
-        if(unitCnt == index) {
+        if (unitCnt == index) {
             return &buffer_[i];
         }
-        auto unitLen = BytesInUtf8Char(buffer_[i]);  
+        auto unitLen = BytesInUtf8Char(buffer_[i]);
         i += unitLen;
         unitCnt++;
     }
@@ -505,7 +504,8 @@ StringIterator::StringIterator(uint8_t* p)
 
 uint8_t* StringIterator::raw() const
 {
-return ptr_;;
+    return ptr_;
+    ;
 }
 
 SmallString StringIterator::operator*() const
@@ -515,7 +515,7 @@ SmallString StringIterator::operator*() const
 
 StringIterator& StringIterator::operator++()
 {
-ptr_ += BytesInUtf8Char(*ptr_);
+    ptr_ += BytesInUtf8Char(*ptr_);
     return *this;
 }
 

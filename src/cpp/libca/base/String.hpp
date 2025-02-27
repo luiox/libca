@@ -23,9 +23,10 @@ size_t BytesInUtf8Char(unsigned char firstByte);
 class SmallString
 {
 private:
-    size_t length_;
-    size_t byteLength;
+    size_t  length_;
+    size_t  byteLength;
     uint8_t buffer_[ShortStrMaxLen];
+
 public:
     SmallString();
     SmallString(uint8_t* bytes, size_t len);
