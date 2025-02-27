@@ -1,6 +1,6 @@
-set_languages("cxx17")
 
 
+includes("libca/base/tests/*.lua")
 
 target("ca")
     set_kind("shared")

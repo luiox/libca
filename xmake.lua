@@ -2,6 +2,9 @@ set_project("libca")
 set_version("0.0.1")
 set_xmakever("2.8.3")
 
+set_languages("c99")
+set_languages("cxx17")
+
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
