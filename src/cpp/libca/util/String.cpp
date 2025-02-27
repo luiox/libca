@@ -7,10 +7,11 @@
 
 #include <cctype>
 #include <cstring>
-#include <libca/core/string.hpp>
+#include "String.hpp"
 
 namespace libca {
-void string::expand(size_t new_capacity)
+
+void String::expand(size_t new_capacity)
 {
     if (new_capacity <= m_capacity) {
         // 新的容量小于等于当前容量，什么也不做
@@ -23,7 +24,7 @@ void string::expand(size_t new_capacity)
     m_capacity = new_capacity;                // 更新容量值
 }
 
-void string::copy(const char* other)
+void String::copy(const char* other)
 {
     if (m_str != other) {   // 避免自我赋值
         size_t other_length = strlen(other);
@@ -36,13 +37,13 @@ void string::copy(const char* other)
     }
 }
 
-string::string()
+String::String()
     : m_str(nullptr)
     , m_length(0)
     , m_capacity(0)
 {}
 
-string::string(char val)
+String::String(char val)
 {
     m_length   = 1;
     m_capacity = 2;
@@ -51,7 +52,7 @@ string::string(char val)
     m_str[1]   = '\0';
 }
 
-string::string(int val)
+String::String(int val)
 {
     char buffer[15];
     snprintf(buffer, 15, "%d", val);
@@ -61,7 +62,7 @@ string::string(int val)
     strcpy(m_str, buffer);
 }
 
-string::string(const char* str)
+String::String(const char* str)
 {
     m_length   = strlen(str);
     m_capacity = m_length + 1;
@@ -69,7 +70,7 @@ string::string(const char* str)
     strcpy(m_str, str);
 }
 
-string::string(string& str)
+String::String(String& str)
 {
     size_t length = str.m_length;
     m_length      = length;
@@ -78,13 +79,13 @@ string::string(string& str)
     strcpy(m_str, str.m_str);
 }
 
-string::~string()
+String::~String()
 {
     delete[] m_str;
     m_str = nullptr;
 }
 
-const char* string::c_str()
+const char* String::c_str()
 {
     m_str[m_length] = '\0';
     return m_str;
@@ -119,7 +120,7 @@ unsigned char utf8_code_bytes(unsigned char byte)
     return bytes;
 }
 
-size_t string::length() const
+size_t String::length() const
 {
     int length = 0;
     for (size_t i = 0; i < m_length;) {
@@ -129,17 +130,17 @@ size_t string::length() const
     return length;
 }
 
-size_t string::byte_length() const
+size_t String::byte_length() const
 {
     return m_length;
 }
 
-size_t string::capacity() const
+size_t String::capacity() const
 {
     return m_capacity;
 }
 
-bool string::resize(int capacity)
+bool String::resize(int capacity)
 {
     if (capacity < 0 || capacity < m_length + 1) {
         return false;
@@ -156,24 +157,31 @@ bool string::resize(int capacity)
     return true;
 }
 
-string& string::operator=(const char* other)
+String String::clone()
+{
+    String str;
+    str.copy(m_str);
+    return str;
+}
+
+String& String::operator=(const char* other)
 {
     copy(other);
     return *this;
 }
 
-string& string::operator=(const string& other)
+String& String::operator=(const String& other)
 {
     copy(other.m_str);
     return *this;
 }
 
-bool string::operator==(const string& other)
+bool String::operator==(const String& other)
 {
     return compare(other);
 }
 
-char& string::operator[](int index)
+char& String::operator[](int index)
 {
     if (index < 0 || index >= m_length) {
         throw std::out_of_range("Index out of range.");
@@ -182,13 +190,13 @@ char& string::operator[](int index)
     return m_str[index];
 }
 
-std::ostream& operator<<(std::ostream& out, string& other)
+std::ostream& operator<<(std::ostream& out, String& other)
 {
     std::cout << other.m_str;
     return out;
 }
 
-string& string::append(const char* str)
+String& String::append(const char* str)
 {
     size_t new_length = m_length + strlen(str);   // 计算拼接后的长度
 
@@ -205,13 +213,13 @@ string& string::append(const char* str)
     return *this;
 }
 
-string& string::append(string& str)
+String& String::append(String& str)
 {
     append(str.c_str());
     return *this;
 }
 
-string& string::insert(const char* str, int index)
+String& String::insert(const char* str, int index)
 {
     if (index < 0 || index > m_length) {
         throw std::out_of_range("Index out of range.");
@@ -232,14 +240,14 @@ string& string::insert(const char* str, int index)
     return *this;
 }
 
-string& string::insert(string& str, int index)
+String& String::insert(String& str, int index)
 {
     // 预留优化空间，如果需要可以减少一次strlen
     insert(str.c_str(), index);
     return *this;
 }
 
-string& string::erase(int index, int size)
+String& String::erase(int index, int size)
 {
     if (index < 0 || index > m_length - 1) {
         throw std::out_of_range("Index out of range.");
@@ -253,14 +261,14 @@ string& string::erase(int index, int size)
     return *this;
 }
 
-string& string::clear()
+String& String::clear()
 {
     m_length = 0;
     m_str[0] = '\0';
     return *this;
 }
 
-string& string::replace(const char* find_str, const char* replace_str)
+String& String::replace(const char* find_str, const char* replace_str)
 {
     auto find_size    = strlen(find_str);
     auto replace_size = strlen(replace_str);
@@ -279,12 +287,12 @@ string& string::replace(const char* find_str, const char* replace_str)
     return *this;
 }
 
-string& string::replace(string& find_str, string& replace_str)
+String& String::replace(String& find_str, String& replace_str)
 {
     return replace(find_str.m_str, replace_str.m_str);
 }
 
-int string::find(const char* find_str)
+int String::find(const char* find_str)
 {
     auto find_size = strlen(find_str);
     auto pos       = -1;
@@ -297,7 +305,7 @@ int string::find(const char* find_str)
     return pos;
 }
 
-string string::substr(int begin, int end) const
+String String::substr(int begin, int end) const
 {
     if (begin < 0 || end < 0 || begin > m_length - 1 || end > m_length - 1 || begin > end) {
         throw std::out_of_range("Invalid range.");
@@ -306,10 +314,10 @@ string string::substr(int begin, int end) const
     char* const ret  = new char[size + 1];
     strncpy(ret, m_str + begin, size);
     ret[size] = '\0';
-    return string(ret);
+    return String(ret);
 }
 
-string& string::trim()
+String& String::trim()
 {
     if (m_length == 0) {
         return *this;   // 空字符串，无需操作
@@ -335,12 +343,12 @@ string& string::trim()
     return *this;
 }
 
-bool string::compare(const string& other) const
+bool String::compare(const String& other) const
 {
     return m_length == other.byte_length() && strcmp(m_str, other.m_str) == 0;
 }
 
-string& string::to_lower_case()
+String& String::to_lower_case()
 {
     for (int i = 0; i < m_length; i++) {
         if (isalpha(static_cast<unsigned char>(m_str[i]))) {
@@ -362,7 +370,7 @@ string& string::to_lower_case()
     return *this;
 }
 
-string& string::to_upper_case()
+String& String::to_upper_case()
 {
     for (int i = 0; i < m_length; i++) {
         if (isalpha(static_cast<unsigned char>(m_str[i]))) {
@@ -385,33 +393,33 @@ string& string::to_upper_case()
     return *this;
 }
 
-string_iterator string::begin() noexcept
+StringIterator String::begin() noexcept
 {
     return {m_str};
 }
 
-string_iterator string::end() noexcept
+StringIterator String::end() noexcept
 {
     return {m_str + m_length};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string_iterator::string_iterator(char* p)
+StringIterator::StringIterator(char* p)
     : ptr(p)
 {}
 
-char& string_iterator::operator*() const
+char& StringIterator::operator*() const
 {
     return *ptr;
 }
 
-string_iterator& string_iterator::operator++()
+StringIterator& StringIterator::operator++()
 {
     ++ptr;
     return *this;
 }
 
-bool string_iterator::operator!=(const string_iterator& other) const
+bool StringIterator::operator!=(const StringIterator& other) const
 {
     return ptr != other.ptr;
 }
