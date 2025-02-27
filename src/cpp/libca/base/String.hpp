@@ -170,7 +170,7 @@ private:
 public:
     StringIterator(uint8_t* p);
 
-    uint8_t raw() const;
+    uint8_t* raw() const;
 
     SmallString operator*() const;
 

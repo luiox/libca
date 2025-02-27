@@ -499,26 +499,30 @@ StringIterator String::end() noexcept
 
 ////////////////////////////////////////////////////////////////////////////////
 
+StringIterator::StringIterator(uint8_t* p)
+    : ptr_(p)
+{}
 
- StringIterator::StringIterator(uint8_t* p)
-     : ptr_(p)
- {}
+uint8_t* StringIterator::raw() const
+{
+return ptr_;;
+}
 
 SmallString StringIterator::operator*() const
- {
-     return SmallString(ptr_, BytesInUtf8Char(*ptr_));
- }
+{
+    return SmallString(ptr_, BytesInUtf8Char(*ptr_));
+}
 
- StringIterator& StringIterator::operator++()
- {
-    ptr_ += BytesInUtf8Char(*ptr_);
-     return *this;
- }
+StringIterator& StringIterator::operator++()
+{
+ptr_ += BytesInUtf8Char(*ptr_);
+    return *this;
+}
 
- bool StringIterator::operator!=(const StringIterator& other) const
- {
-     return ptr_ != other.ptr_;
- }
+bool StringIterator::operator!=(const StringIterator& other) const
+{
+    return ptr_ != other.ptr_;
+}
 
 
 }   // namespace libca
