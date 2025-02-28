@@ -13,6 +13,109 @@
 
 namespace libca {
 class StringIterator;
+class CharIterator;
+class ByteIterator;
+
+class Char
+{
+    uint8_t* c_;
+    uint8_t  str_[8];
+
+public:
+    Char(uint8_t* c);
+
+    uint8_t* cStr();
+};
+
+class Chars
+{
+private:
+    uint8_t* begin_;
+    uint8_t* end_;
+
+public:
+    Chars(uint8_t* begin, uint8_t* end);
+
+    CharIterator begin();
+
+    CharIterator end();
+};
+
+class Bytes
+{
+private:
+    uint8_t* begin_;
+    uint8_t* end_;
+
+public:
+    Bytes(uint8_t* begin, uint8_t* end);
+
+    ByteIterator begin();
+
+    ByteIterator end();
+};
+
+class CharIterator
+{
+private:
+    uint8_t* str_;
+
+public:
+    // 构造函数
+    CharIterator(uint8_t* str)
+        : str_(str)
+    {}
+
+    // 解引用操作符
+    Char operator*() const { return Char(str_); }
+
+    // 前缀自增操作符
+    CharIterator& operator++()
+    {
+        ++str_;
+        return *this;
+    }
+
+    // 相等比较操作符
+    bool operator==(const CharIterator& other) const { return str_ == other.str_; }
+
+    // 不相等比较操作符
+    bool operator!=(const CharIterator& other) const { return str_ != other.str_; }
+};
+
+class ByteIterator
+{
+private:
+    uint8_t* ptr_;
+
+public:
+    ByteIterator(uint8_t* ptr)
+        : ptr_(ptr)
+    {}
+
+    // 解引用操作符
+    uint8_t operator*() const { return *ptr_; }
+
+    // 前缀自增操作符
+    ByteIterator& operator++()
+    {
+        ++ptr_;
+        return *this;
+    }
+    // 自减操作符
+    ByteIterator& operator--()
+    {
+        --ptr_;
+        return *this;
+    }
+
+    // 相等比较操作符
+    bool operator==(const ByteIterator& other) const { return ptr_ == other.ptr_; }
+
+    // 不相等比较操作符
+    bool operator!=(const ByteIterator& other) const { return ptr_ != other.ptr_; }
+};
+
 
 constexpr static size_t ShortStrMaxLen    = sizeof(void*) * 8 - sizeof(size_t);
 constexpr static size_t LongStrDefaultLen = ShortStrMaxLen;
@@ -87,11 +190,17 @@ public:
     // 获取字节下标的字节，时间复杂度O(1)
     uint8_t byteAt(size_t index);
 
-    // 获取字符开始
-    StringIterator begin() noexcept;
+    // 以字符单位遍历字符串
+    Chars chars();
 
-    // 获取字符结束
-    StringIterator end() noexcept;
+    // 以字节单位遍历字符串
+    Bytes bytes();
+
+    // // 获取字符开始
+    // StringIterator begin() noexcept;
+
+    // // 获取字符结束
+    // StringIterator end() noexcept;
 
     // 拼接字符串
     String& append(String& str);
@@ -159,7 +268,7 @@ public:
 
     // char& operator[](int index);
 
-    // friend std::ostream& operator<<(std::ostream& out, String& other);
+    friend std::ostream& operator<<(std::ostream& out, String& other);
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -5,17 +5,14 @@
 
 namespace libca {
 
-class TcpSocketChannel : public Channel{
+class TcpSocketChannel : public Channel
+{};
 
-};
+class TcpServerSocketChannel : public Channel
+{};
 
-class TcpServerSocketChannel : public Channel{
-
-};
-
-class UdpSocketChannel : public Channel{
-    
-};
+class UdpSocketChannel : public Channel
+{};
 
 }   // namespace libca
 

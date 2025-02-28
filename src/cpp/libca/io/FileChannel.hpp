@@ -3,9 +3,8 @@
 
 namespace libca {
 
-class fileChannel{
-
-};
+class fileChannel
+{};
 
 
 }   // namespace libca

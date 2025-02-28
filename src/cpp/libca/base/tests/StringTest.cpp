@@ -22,6 +22,12 @@ int main()
     }
     printf("\n");
 
+    // printf("s1 hex by iterator: ");
+    // for (auto ch : s1.bytes()) {
+    //     printf("%s ", ch.cStr());
+    // }
+    // printf("\n");
+
     // 打印字符
     printf("s1 ch by at: ");
     for (auto i = 0; i < s1.length(); i++) {
@@ -32,7 +38,7 @@ int main()
     printf("\n");
 
     printf("s1 ch by iterator: ");
-    for (auto ch : s1) {
+    for (auto ch : s1.chars()) {
         printf("%s ", ch.cStr());
     }
     printf("\n");
@@ -43,8 +49,11 @@ int main()
     cout << "at(1): " << *s1.at(1) << endl;
     cout << "byteAt(1): " << s1.byteAt(1) << endl;
     auto ch = String::createFromUtf8(reinterpret_cast<const char*>(s1.at(5)), 3);
+    cout << "ch:" << ch << endl;
     printf("at(5): %s\n", ch.cStr());
     printf("byteAt(5): %X\n", s1.byteAt(5));
+
+
 
     return 0;
 }

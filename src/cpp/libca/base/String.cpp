@@ -12,6 +12,49 @@
 
 namespace libca {
 
+Char::Char(uint8_t* c)
+    : c_(c)
+{}
+
+uint8_t* Char::cStr()
+{
+    size_t cnt = BytesInUtf8Char(*c_);
+    memcpy(str_, c_, cnt);
+    str_[cnt] = '\0';
+    return str_;
+}
+
+Chars::Chars(uint8_t* begin, uint8_t* end)
+    : begin_(begin)
+    , end_(end)
+{}
+
+CharIterator Chars::begin()
+{
+    return CharIterator(begin_);
+}
+
+CharIterator Chars::end()
+{
+    return CharIterator(end_);
+}
+
+
+Bytes::Bytes(uint8_t* begin, uint8_t* end)
+    : begin_(begin)
+    , end_(end)
+{}
+
+ByteIterator Bytes::begin()
+{
+    return ByteIterator(begin_);
+}
+
+ByteIterator Bytes::end()
+{
+    return ByteIterator(end_);
+}
+
 // 根据UTF-8第一个字节返回该字符的字节数
 size_t BytesInUtf8Char(unsigned char firstByte)
 {
@@ -218,6 +261,18 @@ uint8_t String::byteAt(size_t index)
     return buffer_[index];
 }
 
+    // 以字符单位遍历字符串
+    Chars String::chars()
+    {
+        return Chars(buffer_,buffer_+length_);
+    }
+
+    // 以字节单位遍历字符串
+    Bytes String::bytes()
+    {
+        return Bytes(buffer_,buffer_+byteLength_);
+    }
+
 // 拼接字符串
 String& String::append(String& str)
 {
@@ -282,11 +337,14 @@ String& String::append(String& str)
 //     return m_str[index];
 // }
 
-// std::ostream& operator<<(std::ostream& out, String& other)
-// {
-//     std::cout << other.m_str;
-//     return out;
-// }
+std::ostream& operator<<(std::ostream& out, String& other)
+{
+
+
+    std::cout << other.cStr();
+
+    return out;
+}
 
 // String& String::append(const char* str)
 // {
@@ -485,44 +543,45 @@ String& String::append(String& str)
 //     return *this;
 // }
 
-StringIterator String::begin() noexcept
-{
-    return StringIterator(buffer_);
-}
+// StringIterator String::begin() noexcept
+// {
+//     return StringIterator(buffer_);
+// }
 
-StringIterator String::end() noexcept
-{
-    return StringIterator(buffer_ + byteLength_);
-}
+// StringIterator String::end() noexcept
+// {
+//     return StringIterator(buffer_ + byteLength_);
+// }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-StringIterator::StringIterator(uint8_t* p)
-    : ptr_(p)
-{}
+// StringIterator::StringIterator(uint8_t* p)
+//     : ptr_(p)
+// {}
 
-uint8_t* StringIterator::raw() const
-{
-    return ptr_;
-    ;
-}
+// uint8_t* StringIterator::raw() const
+// {
+//     return ptr_;
+//     ;
+// }
 
-SmallString StringIterator::operator*() const
-{
-    return SmallString(ptr_, BytesInUtf8Char(*ptr_));
-}
+// SmallString StringIterator::operator*() const
+// {
+//     return SmallString(ptr_, BytesInUtf8Char(*ptr_));
+// }
 
-StringIterator& StringIterator::operator++()
-{
-    ptr_ += BytesInUtf8Char(*ptr_);
-    return *this;
-}
+// StringIterator& StringIterator::operator++()
+// {
+//     ptr_ += BytesInUtf8Char(*ptr_);
+//     return *this;
+// }
 
-bool StringIterator::operator!=(const StringIterator& other) const
-{
-    return ptr_ != other.ptr_;
-}
+// bool StringIterator::operator!=(const StringIterator& other) const
+// {
+//     return ptr_ != other.ptr_;
+// }
 
 
 }   // namespace libca

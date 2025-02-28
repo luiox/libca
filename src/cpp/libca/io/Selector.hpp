@@ -3,9 +3,8 @@
 
 namespace libca {
 
-class Selector{
-
-};
+class Selector
+{};
 
 
 }   // namespace libca
