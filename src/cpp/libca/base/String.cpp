@@ -25,6 +25,9 @@ uint8_t* Char::cStr()
     return str_;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+
 Chars::Chars(uint8_t* begin, uint8_t* end)
     : begin_(begin)
     , end_(end)
@@ -40,6 +43,7 @@ CharIterator Chars::end()
     return CharIterator(end_);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 Bytes::Bytes(uint8_t* begin, uint8_t* end)
     : begin_(begin)
@@ -55,6 +59,8 @@ ByteIterator Bytes::end()
 {
     return ByteIterator(end_);
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 // 构造函数
 CharIterator::CharIterator(uint8_t* str)
@@ -86,6 +92,7 @@ bool CharIterator::operator!=(const CharIterator& other) const
     return str_ != other.str_;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 ByteIterator::ByteIterator(uint8_t* ptr)
     : ptr_(ptr)
@@ -122,6 +129,7 @@ bool ByteIterator::operator!=(const ByteIterator& other) const
     return ptr_ != other.ptr_;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
 // 根据UTF-8第一个字节返回该字符的字节数
 size_t BytesInUtf8Char(unsigned char firstByte)
@@ -136,6 +144,8 @@ size_t BytesInUtf8Char(unsigned char firstByte)
         return 4;   // 11110xxx
     return 0;       // 错误的UTF-8编码
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 SmallString::SmallString()
     : byteLength(0)
@@ -164,7 +174,7 @@ const char* SmallString::cStr()
     return reinterpret_cast<const char*>(buffer_);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 void String::expand(size_t capacity)
 {
@@ -199,41 +209,27 @@ String::String()
     , buffer_(new uint8_t[LongStrDefaultLen])
 {}
 
-// String::String(char val)
-// {
-//     m_length   = 1;
-//     m_capacity = 2;
-//     m_str      = new char[m_capacity];
-//     m_str[0]   = val;
-//     m_str[1]   = '\0';
-// }
+String::String(String&& str) noexcept
+{
+    length_   = str.length_;
+    byteLength_ = str.byteLength_;
+    capacity_ = str.capacity_;
+    // 转移缓冲区
+    buffer_   = str.buffer_;
+    str.buffer_ = nullptr;
+}
 
-// String::String(int val)
-// {
-//     char buffer[15];
-//     snprintf(buffer, 15, "%d", val);
-//     m_length   = strlen(buffer);
-//     m_capacity = m_length + 1;
-//     m_str      = new char[m_capacity];
-//     strcpy(m_str, buffer);
-// }
-
-// String::String(const char* str)
-// {
-//     m_length   = strlen(str);
-//     m_capacity = m_length + 1;
-//     m_str      = new char[m_capacity];
-//     strcpy(m_str, str);
-// }
-
-// String::String(String& str)
-// {
-//     size_t length = str.m_length;
-//     m_length      = length;
-//     m_capacity    = m_length + 1;
-//     m_str         = new char[m_capacity];
-//     strcpy(m_str, str.m_str);
-// }
+// 拷贝出一份新的字符串对象
+[[nodiscard]] String String::clone() noexcept
+{
+    String str;
+    str.length_   = length_;
+    str.byteLength_ = byteLength_;
+    str.capacity_ = capacity_;
+    str.buffer_   = new uint8_t[capacity_];
+    memcpy(str.buffer_, buffer_, capacity_);
+    return str;
+}
 
 String::~String()
 {
@@ -241,7 +237,7 @@ String::~String()
     buffer_ = nullptr;
 }
 
-String String::createFromUtf8(const char* utf8Str, size_t length)
+String String::createFromUtf8(uint8_t* utf8Str, size_t length)
 {
     String str;
     size_t unitCnt = 0;
@@ -265,6 +261,38 @@ String String::createFromUtf8(const char* utf8Str, size_t length)
     }
     memcpy(str.buffer_, utf8Str, length);
     return str;
+}
+
+// 从C风格字符串创建
+String String::createFromCStr(const char* cStr)
+{
+    auto len = strlen(cStr);
+    return createFromUtf8(reinterpret_cast<uint8_t*>(const_cast<char*>(cStr)), len);
+}
+
+// 从std::string创建
+String String::createFromStdString(const std::string& str)
+{
+    return createFromUtf8(reinterpret_cast<uint8_t*>(const_cast<char*>(str.c_str())), str.length());
+}
+
+// 赋值
+String& String::operator=(const String& other)
+{
+    // 避免自赋值
+    if(this != &other) {
+        // 如果当前容量小于其他字符串的长度，则重新分配内存
+        if(byteLength_ < other.byteLength_) {
+            delete[] buffer_;
+            buffer_ = new uint8_t[other.byteLength_];
+        }
+        // 复制其他字符串的内容到当前字符串
+        memcpy(buffer_, other.buffer_, other.byteLength_);
+        length_ = other.length_;
+        byteLength_ = other.byteLength_;
+        capacity_ = other.capacity_;
+    }
+    return *this;
 }
 
 // 获取字符原始数据
@@ -303,8 +331,25 @@ size_t String::capacity() const
     return capacity_;
 }
 
+[[nodiscard]] bool String::isEmpty() const
+{
+    return byteLength_ == 0;
+}
+
+// 获取字节下标的字节，时间复杂度O(1)
+[[nodiscard]] uint8_t* String::at(size_t index)
+{
+    return &buffer_[index];
+}
+
+// []获取的是字节下标的字节，时间复杂度O(1)
+[[nodiscard]] uint8_t* String::operator[](int index)
+{
+    return &buffer_[index];
+}
+
 // 获取字符下标的utf8字符，时间复杂度O(n)
-uint8_t* String::at(size_t index)
+[[nodiscard]] uint8_t* String::atU(size_t index)
 {
     if (index >= length_) {
         return nullptr;
@@ -323,12 +368,6 @@ uint8_t* String::at(size_t index)
     return nullptr;
 }
 
-// 获取字节下标的字节，时间复杂度O(1)
-uint8_t String::byteAt(size_t index)
-{
-    return buffer_[index];
-}
-
 // 以字符单位遍历字符串
 Chars String::chars() noexcept
 {
@@ -339,6 +378,46 @@ Chars String::chars() noexcept
 Bytes String::bytes() noexcept
 {
     return Bytes(buffer_, buffer_ + byteLength_);
+}
+
+// 切片，返回一个子字符串，基于字节下标
+[[nodiscard]] Chars String::slice(size_t start, size_t end) noexcept
+{
+    return Chars(buffer_ + start, buffer_ + end);
+}
+// 切片，返回一个子字符串，基于字符下标
+[[nodiscard]] Chars String::sliceU(size_t start, size_t end) noexcept
+{
+    return Chars(atU(start), atU(end));
+}
+
+// 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
+bool String::resize(size_t capacity) noexcept
+{
+    if (capacity < byteLength_) {
+        // 截断字符串
+        byteLength_ = capacity;
+        length_     = 0;
+        return true;
+    }
+    if (capacity > capacity_) {
+        // 扩容
+        auto newBuffer = new uint8_t[capacity];
+        memcpy(newBuffer, buffer_, byteLength_);
+        delete[] buffer_;
+        buffer_     = newBuffer;
+        capacity_   = capacity;
+        return false;
+    }
+    return false;
+}
+
+// 删除全部字符串内容
+String& String::clear() noexcept
+{
+    byteLength_ = 0;
+    length_     = 0;
+    return *this;
 }
 
 // 拼接字符串
@@ -355,55 +434,33 @@ String& String::append(String& str)
     return *this;
 }
 
-// bool String::resize(int capacity)
-// {
-//     if (capacity < 0 || capacity < m_length + 1) {
-//         return false;
-//     }
-//     if (m_length == 0) {
-//         auto new_str = new char[capacity];
-//         delete m_str;
-//         m_str      = new_str;
-//         m_capacity = capacity;
-//     }
-//     else {
-//         expand(capacity);
-//     }
-//     return true;
-// }
+String& String::append(const char* str)
+{
+    auto len = strlen(str);
+    if (len + byteLength_ > capacity_) {
+        // 需要扩容
+        // 反复循环计算，需要扩容到多大合适
+        size_t newCapacity = capacity_ * 1.5;
+        while (len + byteLength_ > newCapacity) {
+            newCapacity *= 1.5;
+        }
+        expand(newCapacity);
+    }
+    // 拷贝数据
+    memcpy(buffer_ + byteLength_, str, len);
+    // 更新长度
+    byteLength_ += len;
+    // 计算一下新的有多少个utf8字符
+    size_t cnt = 0;
+    auto i = 0;
+    while(i < len) {
+        i+=BytesInUtf8Char(buffer_[i]);
+        cnt++;
+    }
+    length_ += cnt;
+    return *this;
+}
 
-// String String::clone()
-// {
-//     String str;
-//     str.copy(m_str);
-//     return str;
-// }
-
-// String& String::operator=(const char* other)
-// {
-//     copy(other);
-//     return *this;
-// }
-
-// String& String::operator=(const String& other)
-// {
-//     copy(other.m_str);
-//     return *this;
-// }
-
-// bool String::operator==(const String& other)
-// {
-//     return compare(other);
-// }
-
-// char& String::operator[](int index)
-// {
-//     if (index < 0 || index >= m_length) {
-//         throw std::out_of_range("Index out of range.");
-//         // return m_str[0];
-//     }
-//     return m_str[index];
-// }
 
 std::ostream& operator<<(std::ostream& out, String& other)
 {
@@ -623,33 +680,6 @@ std::ostream& operator<<(std::ostream& out, String& other)
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-
-// StringIterator::StringIterator(uint8_t* p)
-//     : ptr_(p)
-// {}
-
-// uint8_t* StringIterator::raw() const
-// {
-//     return ptr_;
-//     ;
-// }
-
-// SmallString StringIterator::operator*() const
-// {
-//     return SmallString(ptr_, BytesInUtf8Char(*ptr_));
-// }
-
-// StringIterator& StringIterator::operator++()
-// {
-//     ptr_ += BytesInUtf8Char(*ptr_);
-//     return *this;
-// }
-
-// bool StringIterator::operator!=(const StringIterator& other) const
-// {
-//     return ptr_ != other.ptr_;
-// }
 
 
 }   // namespace libca

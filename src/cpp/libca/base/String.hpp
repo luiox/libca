@@ -130,17 +130,23 @@ private:
     void expand(size_t capacity);
 
 public:
+    // 默认构造函数
     String();
-    explicit String(char val);
-    explicit String(int val);
-    String(const char* str);
-    String(String& str);
-    String(String&& str);
+    // 拷贝构造函数已被删除，深拷贝使用clone
+    String(String& str) = delete;
+    // 移动构造函数，原来来的缓冲区会被清空
+    String(String&& str) noexcept;
+    // 拷贝出一份新的字符串对象
+    [[nodiscard]] String clone() noexcept;
+    // 析构函数
     ~String();
-    // 从UTF-8字符串创建
-    static String createFromUtf8(const char* utf8Str, size_t length);
+    // 从UTF-8字符串创建，utf8Str是utf8编码字符串的字节数组
+    static String createFromUtf8(uint8_t* utf8Str, size_t length);
+    // 从C风格字符串创建
+    static String createFromCStr(const char* cStr);
+    // 从std::string创建
+    static String createFromStdString(const std::string& str);
     // 赋值
-    String& operator=(const char* other);
     String& operator=(const String& other);
     // 获取字符原始数据
     [[nodiscard]] uint8_t* rawData() const;
@@ -152,24 +158,24 @@ public:
     [[nodiscard]] size_t byteLength() const;
     // 获取容量
     [[nodiscard]] size_t capacity() const;
-    // 获取字符下标的utf8字符，时间复杂度O(n)
-    [[nodiscard]] uint8_t* at(size_t index);
-    // []获取的是utf8字符，时间复杂度O(n)
+    // 判断是否为空
+    [[nodiscard]] bool isEmpty() const;
+    // []获取的是字节下标的字节，时间复杂度O(1)
     [[nodiscard]] uint8_t* operator[](int index);
     // 获取字节下标的字节，时间复杂度O(1)
-    [[nodiscard]] uint8_t byteAt(size_t index);
+    [[nodiscard]] uint8_t* at(size_t index);
+    // 获取字符下标的utf8字符，时间复杂度O(n)
+    [[nodiscard]] uint8_t* atU(size_t index);
     // 以字符单位遍历字符串
     [[nodiscard]] Chars chars() noexcept;
     // 以字节单位遍历字符串
     [[nodiscard]] Bytes bytes() noexcept;
-    // 拷贝出一份新的字符串对象
-    [[nodiscard]] String clone() noexcept;
     // 切片，返回一个子字符串，基于字节下标
     [[nodiscard]] Chars slice(size_t start, size_t end) noexcept;
     // 切片，返回一个子字符串，基于字符下标
     [[nodiscard]] Chars sliceU(size_t start, size_t end) noexcept;
     // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
-    bool resize(int capacity) noexcept;
+    bool resize(size_t capacity) noexcept;
     // 删除全部字符串内容
     String& clear() noexcept;
     // 拼接字符串

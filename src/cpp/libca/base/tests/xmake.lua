@@ -3,4 +3,4 @@ target("StringTest")
     add_files("StringTest.cpp")
     add_files("../String.cpp")
     add_includedirs("../")
-    
+    add_packages("doctest")
