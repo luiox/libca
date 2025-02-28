@@ -108,7 +108,7 @@ int main_func()
     // 打印十六进制
     printf("s1 hex: ");
     for (auto i = 0; i < s1.byteLength(); i++) {
-        printf("%02x ", s1.at(i));
+        printf("%02x ", *s1.at(i));
     }
     printf("\n");
 
@@ -141,7 +141,7 @@ int main_func()
     auto ch = String::createFromUtf8((uint8_t*)s1.atU(5), 3);
     cout << "ch:" << ch << endl;
     printf("at(5): %s\n", ch.cStr());
-    printf("byteAt(5): %X\n", s1.at(5));
+    printf("byteAt(5): %X\n", *s1.at(5));
 
 
 
