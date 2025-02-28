@@ -1,4 +1,4 @@
-#    define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "String.hpp"
 #include <iostream>
 #include <cstring>
@@ -9,31 +9,22 @@ using namespace libca;
 TEST_CASE("CharTest")
 {
     uint8_t* cstr = (uint8_t*)"中";
-    Char c1(cstr);
+    Char     c1(cstr);
     REQUIRE(strlen((char*)c1.cStr()) == 3);
 }
 
-TEST_CASE("CharsTest")
-{
+TEST_CASE("CharsTest") {}
 
-}
+TEST_CASE("CharIteratorTest") {}
 
-TEST_CASE("CharIteratorTest")
-{
-
-}
-
-TEST_CASE("BytesTest")
-{
-
-}
+TEST_CASE("BytesTest") {}
 
 TEST_CASE("ByteIterator")
 {
-    uint8_t arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    uint8_t      arr[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     ByteIterator it(arr);
-    int i = 0;
-    for(; it != arr+10; ++it) {
+    int          i = 0;
+    for (; it != arr + 10; ++it) {
         REQUIRE(*it == arr[i]);
         i++;
     }
@@ -43,7 +34,7 @@ TEST_CASE("StringTest")
 {
     String s1;
     REQUIRE(s1.isEmpty());
-    
+
     // 测试构造函数
     String s2 = String::createFromCStr("test,中文");
     REQUIRE(s2.length() == 7);
@@ -61,7 +52,7 @@ TEST_CASE("StringTest")
     REQUIRE(*s3.at(0) == 't');
     REQUIRE(*s3.at(1) == 'e');
     REQUIRE(*s3.at(2) == 's');
-    
+
     // 深拷贝
     String s4 = s3.clone();
     REQUIRE(s4.length() == 7);
@@ -74,7 +65,7 @@ TEST_CASE("StringTest")
     String s5;
     REQUIRE(s5.isEmpty());
     REQUIRE(s5.capacity() == LongStrDefaultLen);
-    s5=s4;
+    s5 = s4;
     REQUIRE(s5.length() == 7);
     REQUIRE(s5.byteLength() == 11);
     REQUIRE(*s5.at(0) == 't');
@@ -101,8 +92,6 @@ TEST_CASE("StringTest")
     // REQUIRE(*z == zstr[0]);
     // REQUIRE(*(z + 1) == zstr[1]);
     // REQUIRE(*(z+2) == zstr[1]);
-
-    
 }
 
 int main_func()
@@ -133,7 +122,7 @@ int main_func()
     printf("s1 ch by at: ");
     for (auto i = 0; i < s1.length(); i++) {
         auto ptr = s1.atU(i);
-        auto ch = String::createFromUtf8(ptr, BytesInUtf8Char(*ptr));
+        auto ch  = String::createFromUtf8(ptr, BytesInUtf8Char(*ptr));
         printf("%s ", ch.cStr());
     }
     printf("\n");

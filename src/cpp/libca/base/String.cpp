@@ -211,11 +211,11 @@ String::String()
 
 String::String(String&& str) noexcept
 {
-    length_   = str.length_;
+    length_     = str.length_;
     byteLength_ = str.byteLength_;
-    capacity_ = str.capacity_;
+    capacity_   = str.capacity_;
     // 转移缓冲区
-    buffer_   = str.buffer_;
+    buffer_     = str.buffer_;
     str.buffer_ = nullptr;
 }
 
@@ -223,10 +223,10 @@ String::String(String&& str) noexcept
 [[nodiscard]] String String::clone() noexcept
 {
     String str;
-    str.length_   = length_;
+    str.length_     = length_;
     str.byteLength_ = byteLength_;
-    str.capacity_ = capacity_;
-    str.buffer_   = new uint8_t[capacity_];
+    str.capacity_   = capacity_;
+    str.buffer_     = new uint8_t[capacity_];
     memcpy(str.buffer_, buffer_, capacity_);
     return str;
 }
@@ -280,17 +280,17 @@ String String::createFromStdString(const std::string& str)
 String& String::operator=(const String& other)
 {
     // 避免自赋值
-    if(this != &other) {
+    if (this != &other) {
         // 如果当前容量小于其他字符串的长度，则重新分配内存
-        if(byteLength_ < other.byteLength_) {
+        if (byteLength_ < other.byteLength_) {
             delete[] buffer_;
             buffer_ = new uint8_t[other.byteLength_];
         }
         // 复制其他字符串的内容到当前字符串
         memcpy(buffer_, other.buffer_, other.byteLength_);
-        length_ = other.length_;
+        length_     = other.length_;
         byteLength_ = other.byteLength_;
-        capacity_ = other.capacity_;
+        capacity_   = other.capacity_;
     }
     return *this;
 }
@@ -405,8 +405,8 @@ bool String::resize(size_t capacity) noexcept
         auto newBuffer = new uint8_t[capacity];
         memcpy(newBuffer, buffer_, byteLength_);
         delete[] buffer_;
-        buffer_     = newBuffer;
-        capacity_   = capacity;
+        buffer_   = newBuffer;
+        capacity_ = capacity;
         return false;
     }
     return false;
@@ -452,9 +452,9 @@ String& String::append(const char* str)
     byteLength_ += len;
     // 计算一下新的有多少个utf8字符
     size_t cnt = 0;
-    auto i = 0;
-    while(i < len) {
-        i+=BytesInUtf8Char(buffer_[i]);
+    auto   i   = 0;
+    while (i < len) {
+        i += BytesInUtf8Char(buffer_[i]);
         cnt++;
     }
     length_ += cnt;
