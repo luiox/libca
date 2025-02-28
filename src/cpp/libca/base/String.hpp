@@ -2,7 +2,9 @@
 // @brief string for libca
 // @author Canrad
 // @date 2023/10/11
-//
+// @update 2025/2/28
+// @version 2.0
+// @note: 基于UTF-8编码重新设计
 //
 
 #ifndef LIBCA_BASE_STRING_HPP
