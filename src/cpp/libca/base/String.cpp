@@ -2,7 +2,8 @@
 // @brief string for libca
 // @author Canrad
 // @date 2023/10/11
-//
+// @version 2.0
+// @note: 基于UTF-8编码重新设计
 //
 
 #include <cctype>
@@ -54,6 +55,73 @@ ByteIterator Bytes::end()
 {
     return ByteIterator(end_);
 }
+
+// 构造函数
+CharIterator::CharIterator(uint8_t* str)
+    : str_(str)
+{}
+
+// 解引用操作符
+Char CharIterator::operator*() const
+{
+    return Char(str_);
+}
+
+// 前缀自增操作符
+CharIterator& CharIterator::operator++()
+{
+    ++str_;
+    return *this;
+}
+
+// 相等比较操作符
+bool CharIterator::operator==(const CharIterator& other) const
+{
+    return str_ == other.str_;
+}
+
+// 不相等比较操作符
+bool CharIterator::operator!=(const CharIterator& other) const
+{
+    return str_ != other.str_;
+}
+
+
+ByteIterator::ByteIterator(uint8_t* ptr)
+    : ptr_(ptr)
+{}
+
+// 解引用操作符
+uint8_t ByteIterator::operator*() const
+{
+    return *ptr_;
+}
+
+// 前缀自增操作符
+ByteIterator& ByteIterator::operator++()
+{
+    ++ptr_;
+    return *this;
+}
+// 自减操作符
+ByteIterator& ByteIterator::operator--()
+{
+    --ptr_;
+    return *this;
+}
+
+// 相等比较操作符
+bool ByteIterator::operator==(const ByteIterator& other) const
+{
+    return ptr_ == other.ptr_;
+}
+
+// 不相等比较操作符
+bool ByteIterator::operator!=(const ByteIterator& other) const
+{
+    return ptr_ != other.ptr_;
+}
+
 
 // 根据UTF-8第一个字节返回该字符的字节数
 size_t BytesInUtf8Char(unsigned char firstByte)
@@ -261,17 +329,17 @@ uint8_t String::byteAt(size_t index)
     return buffer_[index];
 }
 
-    // 以字符单位遍历字符串
-    Chars String::chars()
-    {
-        return Chars(buffer_,buffer_+length_);
-    }
+// 以字符单位遍历字符串
+Chars String::chars() noexcept
+{
+    return Chars(buffer_, buffer_ + length_);
+}
 
-    // 以字节单位遍历字符串
-    Bytes String::bytes()
-    {
-        return Bytes(buffer_,buffer_+byteLength_);
-    }
+// 以字节单位遍历字符串
+Bytes String::bytes() noexcept
+{
+    return Bytes(buffer_, buffer_ + byteLength_);
+}
 
 // 拼接字符串
 String& String::append(String& str)
