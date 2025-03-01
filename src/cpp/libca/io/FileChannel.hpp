@@ -1,9 +1,11 @@
 #ifndef LIBCA_IO_FILE_CHANNEL_HPP
 #define LIBCA_IO_FILE_CHANNEL_HPP
 
+#include "Channel.hpp"
+
 namespace libca {
 
-class fileChannel
+class FileChannel : public Channel
 {};
 
 

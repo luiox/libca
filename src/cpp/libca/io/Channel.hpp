@@ -4,7 +4,11 @@
 namespace libca {
 
 class Channel
-{};
+{
+public:
+    Channel();
+    virtual ~Channel() = default;
+};
 
 
 }   // namespace libca
