@@ -1,5 +1,6 @@
 #include "Test.hpp"
 #include <sstream>
+#include <cstring>
 
 namespace ca::test {
     static std::vector<TestCase> g_testCases;
@@ -18,6 +19,7 @@ namespace ca::test {
     }
     
     void runAllTests() {
+        std::cout << "Running " << g_testCases.size() << " test cases..." << std::endl;
         for (size_t i = 0; i < g_testCases.size(); i++) {
             auto testCase = g_testCases[i];
             try {

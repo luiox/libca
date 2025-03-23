@@ -15,8 +15,15 @@ target("ca")
         add_defines("USE_LIBCA_NETWORK=1")
         add_files("libca/network/*.cpp")
     end
-    
-    
+
+target("ca-test")
+    set_kind("binary")
+    add_includedirs(".")
+    add_files("libca/base/*.cpp")
+    add_files("libca/test/*.cpp")
+
+    add_defines("TEST_USE_DEFAULT_MAIN")
+    add_defines("TEST_ENABLE")
 
 
 
