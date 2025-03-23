@@ -4,7 +4,7 @@
 #include <cstring>
 #include <doctest/doctest.h>
 using namespace std;
-using namespace libca;
+using namespace ca;
 
 TEST_CASE("CharTest")
 {

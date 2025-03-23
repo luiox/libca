@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace libca {
+namespace ca {
 
 class ByteBuffer
 {

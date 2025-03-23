@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <functional>
 #include <type_traits>
 

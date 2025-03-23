@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace libca {
+namespace ca {
 
 class StringIterator;
 class CharIterator;

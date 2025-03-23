@@ -12,7 +12,7 @@
 #include "String.hpp"
 #include <cstdio>
 
-namespace libca {
+namespace ca {
 
 Char::Char(uint8_t* c)
     : c_(c)
