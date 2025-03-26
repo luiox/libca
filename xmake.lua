@@ -8,10 +8,22 @@ set_languages("cxx17")
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
-add_requires("doctest 2.4.11")
-add_requires("trompeloeil 47")
-add_requires("nanobench 4.3.11")
-add_requires("spdlog 1.14.1")
+-- 设置 C 编译选项
+-- add_cflags("-finput-charset=UTF-8", "-fexec-charset=UTF-8")
+
+-- 设置 C++ 编译选项
+-- add_cxflags("-finput-charset=UTF-8", "-fexec-charset=UTF-8")
+
+-- 如果是 msvc 编译器，则使用以下选项
+-- if is_plat("windows") and is_compiler("msvc") then
+    add_cflags("/source-charset:utf-8")
+    add_cxflags("/source-charset:utf-8")
+-- end
+
+-- add_requires("doctest 2.4.11")
+-- add_requires("trompeloeil 47")
+-- add_requires("nanobench 4.3.11")
+-- add_requires("spdlog 1.14.1")
 
 includes("src/c")
 includes("src/cpp")
