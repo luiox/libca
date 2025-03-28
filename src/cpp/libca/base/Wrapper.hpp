@@ -1,6 +1,7 @@
 #ifndef LIBCA_BASE_WRAPPER_HPP
 #define LIBCA_BASE_WRAPPER_HPP
 
+#include <memory>
 namespace ca {
 
 template<typename T>
@@ -30,6 +31,44 @@ private:
     T* ptr;   // 指向要引用的数据的指针
 };
 
+template<typename T>
+class Box
+{
+public:
+    using TPtr = T*;
+
+private:
+    TPtr ptr_;
+
+public:
+    Box() { ptr_ = nullptr; }
+    explicit Box(T value) { ptr_ = new T(value); }
+
+    ~Box() { delete ptr_; }
+
+    Box(const Box&)            = delete;
+    Box& operator=(const Box&) = delete;
+
+    Box(Box&& other)
+        : ptr_(other.ptr)
+    {
+        other.ptr = nullptr;
+    }
+    Box& operator=(Box&& other) noexcept
+    {
+        if (this != &other) {
+            ptr_      = other.ptr;
+            other.ptr = nullptr;
+        }
+        return *this;
+    }
+
+    T& get() const { return ptr_; }
+
+    T& operator*() const { return *ptr_; }
+
+    T* operator->() const { return &ptr_; }
+};
 
 }   // namespace ca
 
