@@ -85,6 +85,18 @@ void requireEqual(const char* file, int line, int expect, int real)
         throw std::runtime_error(ss.str());
     }
 }
+void requireEqual(const char* file, int line, double expect, double real, double delta)
+{
+    if (fabs(expect - real) < delta) {
+        g_currentCase->passCount++;
+    }
+    else {
+        g_needStop = true;
+        std::stringstream ss;
+        ss << "requireEqual fail!" << std::endl << "file :" << file << ", line :" << line;
+        throw std::runtime_error(ss.str());
+    }
+}
 void requireEqual(const char* file, int line, const char* expect, const char* real)
 {
     if (strcmp(expect, real) == 0) {
@@ -136,6 +148,17 @@ void assertFalse(const char* file, int line, bool condition)
 void assertEqual(const char* file, int line, int expect, int real)
 {
     if (expect == real) {
+        g_currentCase->passCount++;
+    }
+    else {
+        std::stringstream ss;
+        ss << "requireEqual fail!" << std::endl << "file :" << file << ", line :" << line;
+        throw std::runtime_error(ss.str());
+    }
+}
+void assertEqual(const char* file, int line, double expect, double real, double delta)
+{
+    if (fabs(expect - real) < delta) {
         g_currentCase->passCount++;
     }
     else {
