@@ -908,5 +908,18 @@ std::string StringConverter::unicodeToUtf8(const std::wstring& unicodeString)
     return utf8String;
 }
 
-
 }   // namespace ca
+
+#ifdef TEST_ENABLE
+
+#    include "libca/test/Test.hpp"
+
+using namespace ca::test;
+
+TEST_CASE("StringConverter")
+{
+    ca::String s;
+}
+
+
+#endif   // TEST_ENABLE

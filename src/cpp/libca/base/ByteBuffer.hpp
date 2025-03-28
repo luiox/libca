@@ -62,7 +62,7 @@ public:
     // void limit(size_t newLimit) { limit_ = newLimit; }
 
     // // 获取容量
-    // size_t capacity() const { return capacity_; }
+    size_t capacity() const;
 
     // // 标记当前位置
     // void mark() { mark_ = position_; }
