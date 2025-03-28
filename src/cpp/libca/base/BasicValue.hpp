@@ -1,11 +1,10 @@
 #ifndef LIBCA_BASE_BASIC_VALUE_HPP
 #define LIBCA_BASE_BASIC_VALUE_HPP
 
-#include <cstdint>
 #include <string>
 
-
 namespace ca {
+
 class BasicValue
 {
 public:
@@ -31,7 +30,6 @@ public:
     int         asInt();
     double      asDouble();
     std::string asString();
-
 
 private:
     std::string value_;

@@ -3,22 +3,22 @@
 #include <string>
 
 namespace ca {
-BasicValue::BasicValue() {}
+
+BasicValue::BasicValue()
+    : value_("")
+{}
 
 BasicValue::BasicValue(bool value)
-{
-    *this = value;
-}
+    : value_(value ? "true" : "false")
+{}
 
 BasicValue::BasicValue(int value)
-{
-    *this = value;
-}
+    : value_(std::to_string(value))
+{}
 
 BasicValue::BasicValue(double value)
-{
-    *this = value;
-}
+    : value_(std::to_string(value))
+{}
 
 BasicValue::BasicValue(const char* value)
     : value_(value)
