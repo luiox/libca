@@ -1,4 +1,3 @@
-includes("libca/base/tests/*.lua")
 
 option("network")
     set_default(false)
