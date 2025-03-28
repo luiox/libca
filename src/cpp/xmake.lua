@@ -22,6 +22,7 @@ target("ca-test")
     -- add_files("libca/base/*.cpp")
     add_files("libca/test/*.cpp")
     add_files("libca/base/Result.cpp")
+    add_files("libca/base/BasicValue.cpp")
     add_files("libca/base/ByteBuffer.cpp")
 
     add_defines("TEST_USE_DEFAULT_MAIN")
