@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-namespace libca::utility {
+namespace ca {
 
 class CsvFile
 {
@@ -34,7 +34,7 @@ private:
     std::vector<std::vector<std::string>> m_records;          // 每一行的记录
 };
 
-}   // namespace libca::utility
+}   // namespace ca
 
 
 #endif   // !LIBCA_UTILITY_CSV_FILE_H

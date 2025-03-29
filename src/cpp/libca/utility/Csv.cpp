@@ -1,9 +1,10 @@
-#include <libca/utility/csv_file.hpp>
-#include <libca/utility/string_util.hpp>
+#include "Csv.hpp"
+#include "libca/base/String.hpp"
 #include <fstream>
 #include <sstream>
 
-namespace libca::utility {
+
+namespace ca {
 
 CsvFile::CsvFile(std::string filename, bool containTitle)
     : m_filename(filename)
@@ -112,4 +113,4 @@ void CsvFile::addRecord(std::vector<std::string>& record)
     m_records.push_back(record);
 }
 
-}   // namespace libca::utility
+}   // namespace ca
