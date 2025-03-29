@@ -3,12 +3,12 @@
 
 #include <cstdint>
 
-namespace libca::utility {
+namespace ca {
 class BitsUitl
 {
 public:
     static int32_t lowbit(int32_t x);
 };
-}   // namespace libca::utility
+}   // namespace ca
 
 #endif   // !LIBCA_UTILITY_BITS_H
