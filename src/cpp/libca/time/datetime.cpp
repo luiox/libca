@@ -1,6 +1,6 @@
-#include <libca/utility/datetime.hpp>
+#include "datetime.hpp"
 
-namespace libca::utility {
+namespace ca {
 
 Date::Date(int year, int month, int day) {}
 Date::Date(const std::string& date) {}
@@ -40,4 +40,20 @@ int Time::getSecond() const
     return second;
 }
 
-}   // namespace libca::utility
+}   // namespace ca
+
+#ifdef TEST_ENABLE
+
+#    include "libca/test/Test.hpp"
+
+using namespace std;
+using namespace ca::test;
+using namespace ca;
+
+
+TEST_CASE(DateTime)
+{
+    auto [date, time] = DateTime::now();
+}
+
+#endif

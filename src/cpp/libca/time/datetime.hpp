@@ -5,7 +5,7 @@
 #include <string>
 #include <tuple>
 
-namespace libca::utility {
+namespace ca {
 
 class Date
 {
@@ -49,6 +49,6 @@ public:
     }
 };
 
-}   // namespace libca::utility
+}   // namespace ca
 
 #endif   // !DATE_TIME_H

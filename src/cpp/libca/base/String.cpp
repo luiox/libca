@@ -1211,11 +1211,31 @@ bool StringUtil::is_numeric(const std::string& input)
 #    include "libca/test/Test.hpp"
 
 using namespace ca::test;
+using namespace ca;
 
-TEST_CASE("StringConverter")
+TEST_CASE(StringConverterTest)
 {
     ca::String s;
 }
+
+
+TEST_CASE(StringUtilTest)
+{
+    ASSERT_EQUAL(StringUtil::to_lower("HELLO"), "hello");
+    ASSERT_EQUAL(StringUtil::to_lower("Hello"), "hello");
+    ASSERT_EQUAL(StringUtil::to_lower("hello"), "hello");
+
+    ASSERT_EQUAL(StringUtil::to_upper("hello"), "HELLO");
+    ASSERT_EQUAL(StringUtil::to_upper("HELLO"), "HELLO");
+    ASSERT_EQUAL(StringUtil::to_upper("Hello"), "HELLO");
+
+    ASSERT_EQUAL(StringUtil::to_char("hello"), 'h');
+    ASSERT_EQUAL(StringUtil::to_char("HELLO"), 'H');
+
+    ASSERT_EQUAL(StringUtil::to_short("12345"), 12345);
+    ASSERT_EQUAL(StringUtil::to_short("-12345"), -12345);
+}
+
 
 
 #endif   // TEST_ENABLE
