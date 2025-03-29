@@ -26,6 +26,8 @@ target("ca-shared")
         add_files("libca/network/*.cpp")
     end
 
+    add_links("user32", "kernel32")
+
 target("ca-static")
     set_kind("static")
     add_includedirs(".")
