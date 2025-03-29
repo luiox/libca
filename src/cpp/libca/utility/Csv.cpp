@@ -114,3 +114,44 @@ void CsvFile::addRecord(std::vector<std::string>& record)
 }
 
 }   // namespace ca
+
+
+#ifdef TEST_ENABLE
+
+#    include "libca/test/Test.hpp"
+
+using namespace std;
+using namespace ca::test;
+using namespace ca;
+
+void write_test()
+{
+    CsvFile csv;
+
+    vector<string> title   = {"id", "name", "year"};
+    vector<string> record1 = {"001", "test name1", "2024"};
+    vector<string> record2 = {"002", "test name2", "2025"};
+    vector<string> record3 = {"003", "test name3", "2026"};
+    csv.addTitle(title);
+    csv.addRecord(record1);
+    csv.addRecord(record2);
+    csv.addRecord(record3);
+
+    ASSERT_FALSE(!csv.wrtie("test.csv"));
+}
+
+void read_test()
+{
+    CsvFile csv("test.csv", true);
+    csv.load();
+    ASSERT_EQUAL(csv.getRecord(0)[0], "001");
+    ASSERT_EQUAL(csv.getRecord(1)[1], "test name2");
+}
+
+TEST_CASE(CsvFile)
+{
+    write_test();
+    read_test();
+}
+
+#endif
