@@ -16,6 +16,11 @@ target("ca-shared")
     add_defines("LIBCA_DLL_MODE")
     add_defines("LIBCA_DLL_EXPORT")
 
+    add_includedirs("$(projectdir)/third_party")
+    add_files("$(projectdir)/third_party/zlib/*.c")
+    add_files("$(projectdir)/third_party/minizip/*.cpp")
+    add_files("$(projectdir)/third_party/zip_utils/*.cpp")
+
     if has_config("network") then
         add_defines("USE_LIBCA_NETWORK=1")
         add_files("libca/network/*.cpp")

@@ -8,3 +8,5 @@ build/
 
 build/
 compile_commands.json
+
+third_party/
