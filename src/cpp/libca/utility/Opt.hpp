@@ -6,7 +6,7 @@
 #include <functional>
 #include <vector>
 
-namespace libca::utility {
+namespace ca {
 
 class Command
 {
@@ -53,6 +53,6 @@ private:
     std::vector<SubCommand> m_subCommands;   // 子命令列表
 };
 
-}   // namespace libca::utility
+}   // namespace ca
 
 #endif   // !LIBCA_UTILITY_OPT_H
