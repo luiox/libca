@@ -17,7 +17,9 @@ using namespace ca::test;
 
 TEST_CASE(EnumReflectTest)
 {
-    ASSERT_EQUAL("RED", get_enum_name(Color::RED));
+    Color color = RED;
+    ASSERT_EQUAL("RED", get_enum_name(color));
+    Color v = enum_from_name<Color>("RED");
 }
 
 #endif   // TEST_ENABLE
