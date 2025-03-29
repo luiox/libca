@@ -24,6 +24,7 @@ target("ca-test")
     add_files("libca/base/BasicValue.cpp")
     add_files("libca/base/ByteBuffer.cpp")
     add_files("libca/base/Wrapper.cpp")
+    add_files("libca/reflect/Enum.cpp")
     -- add_files("libca/utility/Ini.cpp")
 
     add_defines("TEST_USE_DEFAULT_MAIN")

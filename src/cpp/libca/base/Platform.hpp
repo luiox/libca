@@ -4,73 +4,97 @@
 #include <string>
 
 namespace ca {
-class OsUtil{
+class OsUtil
+{
 public:
-static std::string getOsName(){
+    static std::string getOsName()
+    {
 #ifdef _WIN32
-    return "Windows";
+        return "Windows";
 #elif __linux__
-    return "Linux";
+        return "Linux";
 #elif __APPLE__
-    return "MacOS";
+        return "MacOS";
 #else
-    return "Unknown";
-    #endif   
-}
-static bool isWindows(){
+        return "Unknown";
+#endif
+    }
+    static bool isWindows()
+    {
 #ifdef _WIN32
-    return true;
+        return true;
 #else
-    return false;
-    #endif
-}
-
-static bool isLinux(){
-    #ifdef __linux__
-        return true;
-    #else
         return false;
-        #endif
-}
-
-static bool isMac(){
-    #ifdef __APPLE__
-        return true;
-    #else
-        return false;   
-    #endif
-}
-};
-
-class ArchUtil{
-public:
-    static std::string getArchName(){
-        #ifdef _WIN32
-            return "x86_64";
-        #elif __linux__
-            return "x86_64";
-        #elif __APPLE__
-            return "x86_64";
-        #else
-            return "Unknown";
-        #endif
+#endif
     }
 
+    static bool isLinux()
+    {
+#ifdef __linux__
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    static bool isMac()
+    {
+#ifdef __APPLE__
+        return true;
+#else
+        return false;
+#endif
+    }
 };
 
-    
-}
+class ArchUtil
+{
+public:
+    static std::string getArchName()
+    {
+#ifdef _WIN32
+        return "x86_64";
+#elif __linux__
+        return "x86_64";
+#elif __APPLE__
+        return "x86_64";
+#else
+        return "Unknown";
+#endif
+    }
+};
+
+
+}   // namespace ca
 
 #ifdef _WIN32
-#include <Windows.h>
-#include <wincrypt.h>
+#    include <Windows.h>
+#    include <wincrypt.h>
 #endif
-#ifdef __linux__    
-#include <unistd.h>
+#ifdef __linux__
+#    include <unistd.h>
 #endif
 #ifdef __APPLE__
 // unsuport
 #endif
 
+////////////////////////////////////////////////////////////////////////////////
 
-#endif // !LIBCA_PLATFORM_HPP
+// complier
+
+#if defined(__GNUC__)
+    // Code for GCC
+#    define COMPLIER_GCC 1
+#elif defined(_MSC_VER)
+    // Code for MSVC
+#    define COMPLIER_MSVC 1
+#elif defined(__clang__)
+    // Code for Clang
+#    define COMPLIER_CLANG 1
+#else
+#    warning "Unknown compiler"
+    // Fallback or generic code
+#endif
+
+
+#endif   // !LIBCA_PLATFORM_HPP
