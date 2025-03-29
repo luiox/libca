@@ -4,10 +4,11 @@
 #include <iostream>
 #include <cstdint>
 #include <cstring>
+#include "Platform.hpp"
 
 namespace ca {
 
-class ByteBuffer
+class LIBCA_API ByteBuffer
 {
 private:
     size_t   position_;

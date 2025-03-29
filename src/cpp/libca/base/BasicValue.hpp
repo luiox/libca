@@ -1,11 +1,12 @@
 #ifndef LIBCA_BASE_BASIC_VALUE_HPP
 #define LIBCA_BASE_BASIC_VALUE_HPP
 
+#include "libca/base/Platform.hpp"
 #include <string>
 
 namespace ca {
 
-class BasicValue
+class LIBCA_API BasicValue
 {
 public:
     BasicValue();

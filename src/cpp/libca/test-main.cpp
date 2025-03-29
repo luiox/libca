@@ -1,7 +1,0 @@
-#ifndef DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#    define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-#endif   // !DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
-// #include <doctest/doctest.h>

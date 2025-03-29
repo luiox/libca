@@ -13,6 +13,7 @@
 #include <iostream>
 #include <cstdint>
 #include <vector>
+#include "Platform.hpp"
 
 namespace ca {
 
@@ -20,7 +21,7 @@ class StringIterator;
 class CharIterator;
 class ByteIterator;
 
-class Char
+class LIBCA_API Char
 {
 private:
     uint8_t* c_;
@@ -32,7 +33,7 @@ public:
     uint8_t* cStr();
 };
 
-class Chars
+class LIBCA_API Chars
 {
 private:
     uint8_t* begin_;
@@ -60,8 +61,8 @@ public:
     ByteIterator end();
 };
 
-class CharIterator
-{
+class LIBCA_API CharIterator
+{ 
 private:
     uint8_t* str_;
 
@@ -78,7 +79,7 @@ public:
     bool operator!=(const CharIterator& other) const;
 };
 
-class ByteIterator
+class LIBCA_API ByteIterator
 {
 private:
     uint8_t* ptr_;
@@ -101,9 +102,9 @@ constexpr static size_t ShortStrMaxLen    = sizeof(void*) * 8 - sizeof(size_t);
 constexpr static size_t LongStrDefaultLen = ShortStrMaxLen;
 
 // 根据UTF-8第一个字节返回该字符的字节数
-size_t BytesInUtf8Char(unsigned char firstByte);
+size_t LIBCA_API BytesInUtf8Char(unsigned char firstByte);
 
-class SmallString
+class LIBCA_API SmallString
 {
 private:
     size_t  length_;
@@ -117,7 +118,7 @@ public:
     [[nodiscard]] const char* cStr();
 };
 
-class String
+class LIBCA_API String
 {
 private:
     // UTF-8的字符个数（不是字节个数），不包括结束符
@@ -226,7 +227,7 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-class StringIterator
+class LIBCA_API StringIterator
 {
 private:
     uint8_t* ptr_;
