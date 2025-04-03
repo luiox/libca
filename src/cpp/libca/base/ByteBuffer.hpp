@@ -20,7 +20,7 @@ private:
 public:
     ByteBuffer();
 
-    ByteBuffer(size_t size);
+    explicit ByteBuffer(size_t size);
 
     ~ByteBuffer();
 
@@ -63,7 +63,7 @@ public:
     // void limit(size_t newLimit) { limit_ = newLimit; }
 
     // // 获取容量
-    size_t capacity() const;
+    [[nodiscard]] size_t capacity() const;
 
     // // 标记当前位置
     // void mark() { mark_ = position_; }

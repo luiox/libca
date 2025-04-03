@@ -11,7 +11,7 @@ class Ref
 {
 public:
     // 构造函数接受一个引用，并将其存储为指针
-    Ref(T& ref)
+    explicit Ref(T& ref)
         : ptr(&ref)
     {}
 
@@ -55,7 +55,7 @@ public:
     Box(const Box&)            = delete;
     Box& operator=(const Box&) = delete;
 
-    Box(Box&& other)
+    Box(Box&& other) noexcept
         : ptr_(other.ptr)
     {
         other.ptr = nullptr;
@@ -95,12 +95,12 @@ public:
         return m_pInstance;
     }
 
-private:
     Singleton()                            = delete;
     virtual ~Singleton()                   = delete;
     Singleton(const Singleton&)            = delete;
     Singleton& operator=(const Singleton&) = delete;
 
+private:
     class AutoRelease
     {
     public:
@@ -141,6 +141,7 @@ public:
 private:
     MeyersSingleton()                                  = default;
     ~MeyersSingleton()                                 = default;
+public:
     MeyersSingleton(const MeyersSingleton&)            = delete;
     MeyersSingleton& operator=(const MeyersSingleton&) = delete;
 };
@@ -152,12 +153,12 @@ private:
 class NoCopyable
 {
 protected:
-    NoCopyable() {}
-    ~NoCopyable() {}
+    NoCopyable() =default;
+    ~NoCopyable() = default;
 
-private:
-    NoCopyable(const NoCopyable&);
-    NoCopyable& operator=(const NoCopyable&);
+public:
+    NoCopyable(const NoCopyable&) = delete;
+    NoCopyable& operator=(const NoCopyable&) = delete;
 };
 
 }   // namespace ca
