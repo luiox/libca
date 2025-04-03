@@ -3,6 +3,12 @@
 #include <cstring>
 
 namespace ca::test {
+
+    TestCaseRegister::TestCaseRegister(const std::string& name, void (*func)())
+    {
+        ca::test::registerTestCase(name, func);
+    }
+
 static std::vector<TestCase> g_testCases;
 static int                   g_passCount = 0;
 static int                   g_failCount = 0;
@@ -215,7 +221,7 @@ int main()
 
 using namespace ca::test;
 
-TEST_CASE(TestFrameworkTest)
+TEST_CASE("Test Framework Test")
 {
     TEST_FUNCTION_CALL_ARG1(assertTrue, true);
 

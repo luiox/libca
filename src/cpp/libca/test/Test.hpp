@@ -11,17 +11,23 @@
 #include <vector>
 #include <cstdint>
 
-// 定义测试用例结构
-struct TestCase
-{
-    std::string name;
-    void (*function)();
-    uint32_t passCount;
-    uint32_t failCount;
-};
-
 // 测试框架命名空间
 namespace ca::test {
+
+    // 定义测试用例结构
+    struct TestCase
+    {
+        std::string name;
+        void (*function)();
+        uint32_t passCount;
+        uint32_t failCount;
+    };
+
+    struct TestCaseRegister{
+        TestCaseRegister(const std::string& name, void (*func)());
+    };
+
+
 // 注册测试用例
 void registerTestCase(const std::string& name, void (*func)());
 // 运行所有注册的测试用例
@@ -55,29 +61,21 @@ void assertEqual(const char* file, int line, std::string expect, std::string rea
 #define TEST_FUNCTION_DEFINE2(function_name) static void function_name()
 #define TEST_FUNCTION_DEFINE(function_name) TEST_FUNCTION_DEFINE2(function_name)
 
-#define TEST_FUNCTION_AUTO_REGISTER3(function_name, register_type, register_name, test_case_name) \
-    struct register_type                                                                          \
-    {                                                                                             \
-        register_type()                                                                           \
-        {                                                                                         \
-            ca::test::registerTestCase(test_case_name, &function_name);                           \
-        }                                                                                         \
-    };                                                                                            \
-    static register_type register_name;
+#define TEST_FUNCTION_AUTO_REGISTER3(function_name, register_name, test_case_name) \
+    static ca::test::TestCaseRegister register_name(test_case_name, &function_name);
 
-#define TEST_FUNCTION_AUTO_REGISTER2(function_name, register_type, register_name, test_case_name) \
+#define TEST_FUNCTION_AUTO_REGISTER2(function_name, register_name, test_case_name) \
     TEST_FUNCTION_AUTO_REGISTER3(                                                                 \
-        function_name, register_type, register_name, MAKE_STRING(test_case_name))
+        function_name, register_name, MAKE_STRING(test_case_name))
 
-#define TEST_FUNCTION_AUTO_REGISTER(function_name, register_type, register_name, test_case_name) \
-    TEST_FUNCTION_AUTO_REGISTER2(function_name, register_type, register_name, test_case_name)
+#define TEST_FUNCTION_AUTO_REGISTER(function_name, register_name, test_case_name) \
+    TEST_FUNCTION_AUTO_REGISTER2(function_name, register_name, test_case_name)
 
 // 定义一个测试函数
 
 #define TEST_CASE2(name)                                        \
     TEST_FUNCTION_STATEMENT(UNIQUE_TEST_FUNCTION_NAME)          \
     TEST_FUNCTION_AUTO_REGISTER(UNIQUE_TEST_FUNCTION_NAME,      \
-                                UNIQUE_TEST_REGISTER_TYPE_NAME, \
                                 UNIQUE_TEST_REGISTER_INST_NAME, \
                                 name)                           \
     TEST_FUNCTION_DEFINE(UNIQUE_TEST_FUNCTION_NAME)

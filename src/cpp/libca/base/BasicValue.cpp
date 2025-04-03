@@ -114,7 +114,7 @@ std::string BasicValue::asString()
 using namespace ca::test;
 
 
-TEST_CASE(BasicValueTest)
+TEST_CASE("Basic Value Test")
 {
     ca::BasicValue intVal(1);
     ASSERT_EQUAL(1, intVal.asInt());
