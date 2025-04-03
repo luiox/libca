@@ -225,14 +225,14 @@ TEST_CASE("Test Framework Test")
 {
     TEST_FUNCTION_CALL_ARG1(assertTrue, true);
 
-    // ASSERT_TRUE(true);
+    ASSERT_TRUE(true);
     ASSERT_FALSE(1 == 2);
     ASSERT_EQUAL(1, 1);
     ASSERT_EQUAL("hello", "hello");
     std::string s1 = "foo";
     ASSERT_EQUAL("foo", s1);
 
-    // REQUIRE_TRUE(1 == 1);
+    REQUIRE_TRUE(1 == 1);
     REQUIRE_FALSE(2 == 3);
     REQUIRE_EQUAL(1, 1);
     REQUIRE_EQUAL("hello", "hello");

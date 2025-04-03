@@ -269,23 +269,23 @@ public:
 //     // char*转wchar_t*
 //     static std::wstring charToWchar(const char* charStr);
 
-//     // gbk转utf8
-//     static std::string gbkToUtf8(const std::string& gbkString);
+    // gbk转utf8
+    static std::string gbkToUtf8(const std::string& gbkString);
 
-//     // 将 utf8 编码的字符串转换为 GBK 编码
-//     static std::string utf8ToGbk(const std::string& utf8String);
+    // 将 utf8 编码的字符串转换为 GBK 编码
+    static std::string utf8ToGbk(const std::string& utf8String);
 
-//     // 将 utf8 编码的字符串转换为 Unicode 编码
-//     static std::wstring utf8ToUnicode(const std::string& utf8String);
+    // 将 utf8 编码的字符串转换为 Unicode 编码
+    static std::wstring utf8ToUnicode(const std::string& utf8String);
 
-//     // Unicode转Utf8
-//     static std::string unicodeToUtf8(const std::wstring& unicodeString);
+    // Unicode转Utf8
+    static std::string unicodeToUtf8(const std::wstring& unicodeString);
 
-//     // 本地代码页转std::wstring
-//     static std::wstring localCodePageToWstring(const std::string& str);
+    // 本地代码页转std::wstring
+    static std::wstring localCodePageToWstring(const std::string& str);
 
-//     // 本地代码页转std::string
-//     static std::string localCodePageToUtf8(const std::string& localString);
+    // 本地代码页转std::string
+    static std::string localCodePageToUtf8(const std::string& localString);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
