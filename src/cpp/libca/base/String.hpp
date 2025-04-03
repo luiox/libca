@@ -248,14 +248,14 @@ public:
 
 // 字符串在不同平台上的一些处理，尤其是Window平台，处理各种字符串的转换
 // 这个类纯粹是一个工具类，不包含任何数据
-// class StringConverter
-// {
-// public:
-//     // string转wstring
-//     static std::wstring stringToWideString(const std::string& narrowStr);
+class StringConverter
+{
+public:
+     // string转wstring
+     static std::wstring stringToWideString(const std::string& narrowStr);
 
-//     // wstring转string
-//     static std::string wideStringToString(const std::wstring& wideStr);
+     // wstring转string
+     static std::string wideStringToString(const std::wstring& wideStr);
 
 //     // wstring转本地string
 //     static std::string wideStringToString2(const std::wstring& wideStr);
@@ -286,7 +286,7 @@ public:
 
 //     // 本地代码页转std::string
 //     static std::string localCodePageToUtf8(const std::string& localString);
-// };
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 

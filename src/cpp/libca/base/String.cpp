@@ -14,6 +14,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstdarg>
+#include <string>
 
 namespace ca {
 
@@ -687,37 +688,37 @@ std::ostream& operator<<(std::ostream& out, String& other)
 
 // #include <codecvt>
 
-// // string转wstring
-// std::wstring StringConverter::stringToWideString(const std::string& narrowStr)
-// {
-//     // 获取宽字符字符串的长度（包括空终止符）
-//     int wideStrLength = MultiByteToWideChar(CP_UTF8, 0, narrowStr.c_str(), -1, nullptr, 0);
+// string转wstring
+std::wstring StringConverter::stringToWideString(const std::string& narrowStr)
+{
+    // 获取宽字符字符串的长度（包括空终止符）
+    int wideStrLength = MultiByteToWideChar(CP_UTF8, 0, narrowStr.c_str(), -1, nullptr, 0);
 
-//     // 分配内存来存储宽字符字符串
-//     wchar_t* wideStr = new wchar_t[wideStrLength];
+    // 分配内存来存储宽字符字符串
+    wchar_t* wideStr = new wchar_t[wideStrLength];
 
-//     // 将窄字符转换为宽字符
-//     MultiByteToWideChar(CP_UTF8, 0, narrowStr.c_str(), -1, wideStr, wideStrLength);
+    // 将窄字符转换为宽字符
+    MultiByteToWideChar(CP_UTF8, 0, narrowStr.c_str(), -1, wideStr, wideStrLength);
 
-//     // 创建 std::wstring 对象
-//     std::wstring result(wideStr);
+    // 创建 std::wstring 对象
+    std::wstring result(wideStr);
 
-//     // 释放内存
-//     delete[] wideStr;
+    // 释放内存
+    delete[] wideStr;
 
-//     return result;
-// }
+    return result;
+}
 
-// // wstring转string
-// // 注意: 在Windows下将utf16转utf8的std::string是无法正常显示中文的
-// std::string StringConverter::wideStringToString(const std::wstring& wideStr)
-// {
-//     int bufferSize =
-//         WideCharToMultiByte(CP_UTF8, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-//     std::string str(bufferSize - 1, 0);
-//     WideCharToMultiByte(CP_UTF8, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr,
-//     nullptr); return str;
-// }
+// wstring转string
+// 注意: 在Windows下将utf16转utf8的std::string是无法正常显示中文的
+std::string StringConverter::wideStringToString(const std::wstring& wideStr)
+{
+    int bufferSize =
+        WideCharToMultiByte(CP_UTF8, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string str(bufferSize - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr, nullptr);
+    return str;
+}
 
 // // wstring转本地string
 // // 注意: 本地ansi可以显示中文，但请不要再网络内容传输中使用它，因为不同计算机本地代码页不相同.
@@ -1425,7 +1426,21 @@ using namespace ca;
 
 TEST_CASE(StringConverterTest)
 {
-    ca::String s;
+    // 测试字符串
+    std::string narrowStr = "Hello, 世界!";
+    std::wstring wideStr = L"Hello, 世界!";
+
+    // string 转 wstring
+    std::wstring convertedWideStr = StringConverter::stringToWideString(narrowStr);
+    ASSERT_FALSE(convertedWideStr != L"Hello, 世界!");
+
+    // wstring 转 string
+    std::string convertedNarrowStr = StringConverter::wideStringToString(wideStr);
+    ASSERT_FALSE(convertedNarrowStr != "Hello, 世界!");
+
+    // 检查转换是否可逆
+    bool isReversible = (narrowStr == convertedNarrowStr);
+    ASSERT_FALSE(!isReversible);
 }
 
 
