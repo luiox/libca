@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <vector>
 #include "Platform.hpp"
+#include "libca/base/Platform.hpp"
 
 namespace ca {
 
@@ -28,7 +29,7 @@ private:
     uint8_t  str_[8];
 
 public:
-    Char(uint8_t* c);
+    explicit Char(uint8_t* c);
     // C风格字符串
     uint8_t* cStr();
 };
@@ -68,7 +69,7 @@ private:
 
 public:
     // 构造函数
-    CharIterator(uint8_t* str);
+    explicit CharIterator(uint8_t* str);
     // 解引用操作符
     Char operator*() const;
     // 前缀自增操作符
@@ -85,7 +86,7 @@ private:
     uint8_t* ptr_;
 
 public:
-    ByteIterator(uint8_t* ptr);
+    explicit ByteIterator(uint8_t* ptr);
     // 解引用操作符
     uint8_t operator*() const;
     // 前缀自增操作符
@@ -248,7 +249,7 @@ public:
 
 // 字符串在不同平台上的一些处理，尤其是Window平台，处理各种字符串的转换
 // 这个类纯粹是一个工具类，不包含任何数据
-class StringConverter
+class LIBCA_API StringConverter
 {
 public:
      // string转wstring
@@ -257,17 +258,17 @@ public:
      // wstring转string
      static std::string wideStringToString(const std::wstring& wideStr);
 
-//     // wstring转本地string
-//     static std::string wideStringToString2(const std::wstring& wideStr);
+    // wstring转本地string
+    static std::string wideStringToString2(const std::wstring& wideStr);
 
-//     // wchar_t*转string
-//     static std::string wcharToString(const wchar_t* str);
+    // wchar_t*转string
+    static std::string wcharToString(const wchar_t* str);
 
-//     // wchar_t*转wstring
-//     static std::wstring wcharToWideString(const wchar_t* wcharStr);
+    // wchar_t*转wstring
+    static std::wstring wcharToWideString(const wchar_t* wcharStr);
 
-//     // char*转wchar_t*
-//     static std::wstring charToWchar(const char* charStr);
+    // char*转wchar_t*
+    static std::wstring charToWchar(const char* charStr);
 
     // gbk转utf8
     static std::string gbkToUtf8(const std::string& gbkString);
@@ -295,29 +296,29 @@ public:
 class StringUtil
 {
 public:
-    static std::string to_lower(const std::string& input);
-    static std::string to_upper(const std::string& input);
+    static std::string toLowerCase(const std::string& input);
+    static std::string toUpperCase(const std::string& input);
 
-    static char   to_char(const std::string& input);
-    static short  to_short(const std::string& input);
-    static int    to_int(const std::string& input);
-    static long   to_long(const std::string& input);
-    static float  to_float(const std::string& input);
-    static double to_double(const std::string& input);
+    static char   toChar(const std::string& input);
+    static short  toShort(const std::string& input);
+    static int    toInt(const std::string& input);
+    static long   toLong(const std::string& input);
+    static float  toFloat(const std::string& input);
+    static double toDouble(const std::string& input);
 
-    static std::string to_string(char c);
-    static std::string to_string(short s);
-    static std::string to_string(int i);
-    static std::string to_string(long l);
-    static std::string to_string(float f);
-    static std::string to_string(double d);
+    static std::string toString(char c);
+    static std::string toString(short s);
+    static std::string toString(int i);
+    static std::string toString(long l);
+    static std::string toString(float f);
+    static std::string toString(double d);
 
-    static std::string trim_start(const std::string& input);
-    static std::string trim_start(const std::string& input, char trim);
-    static std::string trim_start(const std::string& input, const char* trims);
+    static std::string trimStart(const std::string& input);
+    static std::string trimStart(const std::string& input, char trim);
+    static std::string trimStart(const std::string& input, const char* trims);
 
-    static std::string trim_end(const std::string& input);
-    static std::string trim_end(const std::string& input, char trim);
+    static std::string trimEnd(const std::string& input);
+    static std::string trimEnd(const std::string& input, char trim);
     static std::string trim_end(const std::string& input, const char* trims);
 
     static std::string trim(const std::string& input);

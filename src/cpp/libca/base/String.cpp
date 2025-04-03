@@ -5,6 +5,8 @@
 // @update 2025/2/28
 // @version 2.0
 // @note: 基于UTF-8编码重新设计
+// 字符串的编码是非常复杂的，常用就已有的ANSI、GBK、GB2312、UTF8、UTF-16、UTF32、Unicode
+// 因为无法确定一个char*、wchar_t*、std::string、std::wstring里面存储的字符串是什么编码，这是造成混乱的根本原因
 //
 
 #include "String.hpp"
@@ -16,6 +18,7 @@
 #include <cstdarg>
 #include <string>
 #include <cstring>
+#include <codecvt>
 
 namespace ca {
 
@@ -687,8 +690,6 @@ std::ostream& operator<<(std::ostream& out, String& other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// #include <codecvt>
-
 // string转wstring
 std::wstring StringConverter::stringToWideString(const std::string& narrowStr)
 {
@@ -721,55 +722,55 @@ std::string StringConverter::wideStringToString(const std::wstring& wideStr)
     return str;
 }
 
-// // wstring转本地string
-// // 注意: 本地ansi可以显示中文，但请不要再网络内容传输中使用它，因为不同计算机本地代码页不相同.
-// std::string StringConverter::wideStringToString2(const std::wstring& wideStr)
-// {
-//     int bufferSize =
-//         WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
-//     std::string str(bufferSize - 1, 0);
-//     WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr,
-//     nullptr); return str;
-// }
+// wstring转本地string
+// 注意: 本地ansi可以显示中文，但请不要再网络内容传输中使用它，因为不同计算机本地代码页不相同.
+std::string StringConverter::wideStringToString2(const std::wstring& wideStr)
+{
+    int bufferSize =
+        WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string str(bufferSize - 1, 0);
+    WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr,
+    nullptr); return str;
+}
 
-// // wchar_t*转string
-// std::string StringConverter::wcharToString(const wchar_t* str)
-// {
-//     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-//     return converter.to_bytes(str);
-// }
+// wchar_t*转string
+std::string StringConverter::wcharToString(const wchar_t* str)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.to_bytes(str);
+}
 
-// // wchar_t*转wstring
-// std::wstring StringConverter::wcharToWideString(const wchar_t* wcharStr)
-// {
-//     // 使用构造函数将 wchar_t* 转换为 std::wstring
-//     std::wstring wideStr(wcharStr);
+// wchar_t*转wstring
+std::wstring StringConverter::wcharToWideString(const wchar_t* wcharStr)
+{
+    // 使用构造函数将 wchar_t* 转换为 std::wstring
+    std::wstring wideStr(wcharStr);
 
-//     return wideStr;
-// }
+    return wideStr;
+}
 
-// // char*转wchar_t*
-// std::wstring StringConverter::charToWchar(const char* charStr)
-// {
-//     const int charStrLength = strlen(charStr) + 1;   // char 字符串的长度（包括 null 终止符）
+// char*转wchar_t*
+std::wstring StringConverter::charToWchar(const char* charStr)
+{
+    const int charStrLength = strlen(charStr) + 1;   // char 字符串的长度（包括 null 终止符）
 
-//     // 计算 wchar_t 字符串所需的缓冲区大小
-//     const int wcharStrSize = MultiByteToWideChar(CP_UTF8, 0, charStr, charStrLength, nullptr, 0);
+    // 计算 wchar_t 字符串所需的缓冲区大小
+    const int wcharStrSize = MultiByteToWideChar(CP_UTF8, 0, charStr, charStrLength, nullptr, 0);
 
-//     // 分配 wchar_t 缓冲区
-//     wchar_t* wcharStr = new wchar_t[wcharStrSize];
+    // 分配 wchar_t 缓冲区
+    wchar_t* wcharStr = new wchar_t[wcharStrSize];
 
-//     // 执行转换
-//     MultiByteToWideChar(CP_UTF8, 0, charStr, charStrLength, wcharStr, wcharStrSize);
+    // 执行转换
+    MultiByteToWideChar(CP_UTF8, 0, charStr, charStrLength, wcharStr, wcharStrSize);
 
-//     // 将 wchar_t 字符串封装到 std::wstring 类型
-//     std::wstring result(wcharStr);
+    // 将 wchar_t 字符串封装到 std::wstring 类型
+    std::wstring result(wcharStr);
 
-//     // 释放内存
-//     delete[] wcharStr;
+    // 释放内存
+    delete[] wcharStr;
 
-//     return result;
-// }
+    return result;
+}
 
 // gbk转utf8
 std::string StringConverter::gbkToUtf8(const std::string& gbkString)
@@ -917,21 +918,21 @@ std::string StringConverter::unicodeToUtf8(const std::wstring& unicodeString)
 
 // 字符串辅助工具类
 
-std::string StringUtil::to_lower(const std::string& input)
+std::string StringUtil::toLowerCase(const std::string& input)
 {
     std::string str = input;
     std::transform(str.begin(), str.end(), str.begin(), ::tolower);
     return str;
 }
 
-std::string StringUtil::to_upper(const std::string& input)
+std::string StringUtil::toUpperCase(const std::string& input)
 {
     std::string str = input;
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
     return str;
 }
 
-char StringUtil::to_char(const std::string& input)
+char StringUtil::toChar(const std::string& input)
 {
     char              c = 0;
     std::stringstream ss;
@@ -940,7 +941,7 @@ char StringUtil::to_char(const std::string& input)
     return c;
 }
 
-short StringUtil::to_short(const std::string& input)
+short StringUtil::toShort(const std::string& input)
 {
     short             s = 0;
     std::stringstream ss;
@@ -949,7 +950,7 @@ short StringUtil::to_short(const std::string& input)
     return s;
 }
 
-int StringUtil::to_int(const std::string& input)
+int StringUtil::toInt(const std::string& input)
 {
     // return atoi(input.c_str());
     int               i = 0;
@@ -959,7 +960,7 @@ int StringUtil::to_int(const std::string& input)
     return i;
 }
 
-long StringUtil::to_long(const std::string& input)
+long StringUtil::toLong(const std::string& input)
 {
     // return atol(input.c_str());
     long              l = 0;
@@ -969,7 +970,7 @@ long StringUtil::to_long(const std::string& input)
     return l;
 }
 
-float StringUtil::to_float(const std::string& input)
+float StringUtil::toFloat(const std::string& input)
 {
     float             f = 0.0;
     std::stringstream ss;
@@ -978,7 +979,7 @@ float StringUtil::to_float(const std::string& input)
     return f;
 }
 
-double StringUtil::to_double(const std::string& input)
+double StringUtil::toDouble(const std::string& input)
 {
     // return atof(input.c_str());
     double            d = 0.0;
@@ -988,61 +989,61 @@ double StringUtil::to_double(const std::string& input)
     return d;
 }
 
-std::string StringUtil::to_string(char c)
+std::string StringUtil::toString(char c)
 {
     std::ostringstream os;
     os << c;
     return os.str();
 }
 
-std::string StringUtil::to_string(short s)
+std::string StringUtil::toString(short s)
 {
     std::ostringstream os;
     os << s;
     return os.str();
 }
 
-std::string StringUtil::to_string(int i)
+std::string StringUtil::toString(int i)
 {
     std::stringstream os;
     os << i;
     return os.str();
 }
 
-std::string StringUtil::to_string(long l)
+std::string StringUtil::toString(long l)
 {
     std::stringstream os;
     os << l;
     return os.str();
 }
 
-std::string StringUtil::to_string(float f)
+std::string StringUtil::toString(float f)
 {
     std::ostringstream os;
     os << f;
     return os.str();
 }
 
-std::string StringUtil::to_string(double d)
+std::string StringUtil::toString(double d)
 {
     std::ostringstream os;
     os << d;
     return os.str();
 }
 
-std::string StringUtil::trim_start(const std::string& input)
+std::string StringUtil::trimStart(const std::string& input)
 {
-    return trim_start(input, " \r\n");
+    return trimStart(input, " \r\n");
 }
 
-std::string StringUtil::trim_start(const std::string& input, char trim)
+std::string StringUtil::trimStart(const std::string& input, char trim)
 {
     std::string str;
     str = trim;
-    return trim_start(input, str.c_str());
+    return trimStart(input, str.c_str());
 }
 
-std::string StringUtil::trim_start(const std::string& input, const char* trims)
+std::string StringUtil::trimStart(const std::string& input, const char* trims)
 {
     std::string delimiter = trims;
     std::string str       = input;
@@ -1055,15 +1056,15 @@ std::string StringUtil::trim_start(const std::string& input, const char* trims)
     return str;
 }
 
-std::string StringUtil::trim_end(const std::string& input)
+std::string StringUtil::trimEnd(const std::string& input)
 {
     return trim_end(input, " \r\n");
 }
 
-std::string StringUtil::trim_end(const std::string& input, char delim)
+std::string StringUtil::trimEnd(const std::string& input, char trim)
 {
     std::string str;
-    str = delim;
+    str = trim;
     return trim_end(input, str.c_str());
 }
 
@@ -1094,7 +1095,7 @@ std::string StringUtil::trim(const std::string& input, char trim)
 
 std::string StringUtil::trim(const std::string& input, const char* trims)
 {
-    std::string str = trim_start(input, trims);
+    std::string str = trimStart(input, trims);
     return trim_end(str, trims);
 }
 
@@ -1447,19 +1448,19 @@ TEST_CASE(StringConverterTest)
 
 TEST_CASE(StringUtilTest)
 {
-    ASSERT_EQUAL(StringUtil::to_lower("HELLO"), "hello");
-    ASSERT_EQUAL(StringUtil::to_lower("Hello"), "hello");
-    ASSERT_EQUAL(StringUtil::to_lower("hello"), "hello");
+    ASSERT_EQUAL(StringUtil::toLowerCase("HELLO"), "hello");
+    ASSERT_EQUAL(StringUtil::toLowerCase("Hello"), "hello");
+    ASSERT_EQUAL(StringUtil::toLowerCase("hello"), "hello");
 
-    ASSERT_EQUAL(StringUtil::to_upper("hello"), "HELLO");
-    ASSERT_EQUAL(StringUtil::to_upper("HELLO"), "HELLO");
-    ASSERT_EQUAL(StringUtil::to_upper("Hello"), "HELLO");
+    ASSERT_EQUAL(StringUtil::toUpperCase("hello"), "HELLO");
+    ASSERT_EQUAL(StringUtil::toUpperCase("HELLO"), "HELLO");
+    ASSERT_EQUAL(StringUtil::toUpperCase("Hello"), "HELLO");
 
-    ASSERT_EQUAL(StringUtil::to_char("hello"), 'h');
-    ASSERT_EQUAL(StringUtil::to_char("HELLO"), 'H');
+    ASSERT_EQUAL(StringUtil::toChar("hello"), 'h');
+    ASSERT_EQUAL(StringUtil::toChar("HELLO"), 'H');
 
-    ASSERT_EQUAL(StringUtil::to_short("12345"), 12345);
-    ASSERT_EQUAL(StringUtil::to_short("-12345"), -12345);
+    ASSERT_EQUAL(StringUtil::toShort("12345"), 12345);
+    ASSERT_EQUAL(StringUtil::toShort("-12345"), -12345);
 }
 
 
