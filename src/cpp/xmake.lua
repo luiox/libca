@@ -60,6 +60,14 @@ target("ca-test")
     end
 
 
+target("ca-win32")
+    set_kind("binary")
 
+    add_includedirs(".")
 
+    add_files("libca/platform/*.cpp")
+
+    add_defines("UNICODE", "_UNICODE", "WIN32")
+
+    add_links("user32", "kernel32", "gdi32")
 
