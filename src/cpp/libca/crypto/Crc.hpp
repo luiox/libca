@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <libca/base/Platform.hpp>
 #include <cstring>
 #include <string>
 
@@ -10,11 +10,11 @@ namespace ca {
         Crc16() = delete;
         ~Crc16() = delete;
     public:
-        static uint16_t calculate(const void* s, size_t n, uint16_t crc = 0);
+        static u16 calculate(const void* s, usize n, u16 crc = 0);
 
-        static uint16_t calculate(const char* s);
+        static u16 calculate(const char* s);
 
-        static uint16_t calculate(const std::string& s);
+        static u16 calculate(const std::string& s);
     };
     
     
