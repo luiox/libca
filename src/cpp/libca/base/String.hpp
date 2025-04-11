@@ -319,7 +319,7 @@ public:
 
     static std::string trimEnd(const std::string& input);
     static std::string trimEnd(const std::string& input, char trim);
-    static std::string trim_end(const std::string& input, const char* trims);
+    static std::string trimEnd(const std::string& input, const char* trims);
 
     static std::string trim(const std::string& input);
     static std::string trim(const std::string& input, char trim);
@@ -339,7 +339,7 @@ public:
     static int compare(const std::string& strA, const std::string& strB, bool ignoreCase = false);
     static std::string format(const char* format, ...);
 
-    static bool is_numeric(const std::string& input);
+    static bool isNumeric(const std::string& input);
 };
 
 }   // namespace ca

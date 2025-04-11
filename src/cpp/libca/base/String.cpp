@@ -1106,17 +1106,17 @@ std::string StringUtil::trimStart(const std::string& input, const char* trims)
 
 std::string StringUtil::trimEnd(const std::string& input)
 {
-    return trim_end(input, " \r\n");
+    return trimEnd(input, " \r\n");
 }
 
 std::string StringUtil::trimEnd(const std::string& input, char trim)
 {
     std::string str;
     str = trim;
-    return trim_end(input, str.c_str());
+    return trimEnd(input, str.c_str());
 }
 
-std::string StringUtil::trim_end(const std::string& input, const char* delims)
+std::string StringUtil::trimEnd(const std::string& input, const char* delims)
 {
     std::string delimiter = delims;
     std::string str       = input;
@@ -1144,7 +1144,7 @@ std::string StringUtil::trim(const std::string& input, char trim)
 std::string StringUtil::trim(const std::string& input, const char* trims)
 {
     std::string str = trimStart(input, trims);
-    return trim_end(str, trims);
+    return trimEnd(str, trims);
 }
 
 void StringUtil::split(std::vector<std::string>& output, const std::string& input)
@@ -1260,7 +1260,7 @@ std::string StringUtil::format(const char* format, ...)
     return std::string(buf);
 }
 
-bool StringUtil::is_numeric(const std::string& input)
+bool StringUtil::isNumeric(const std::string& input)
 {
     if (input.find_first_not_of("0123456789.") != std::string::npos)
         return false;
