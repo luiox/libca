@@ -30,6 +30,11 @@ target("ca-shared")
 
 target("ca-static")
     set_kind("static")
+
+    add_includedirs("$(projectdir)/third_party")
+    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+    add_links("libiconv")
+
     add_includedirs(".")
     add_files("libca/base/*.cpp")
     add_files("libca/test/*.cpp")
@@ -43,6 +48,11 @@ target("ca-static")
 
 target("ca-test")
     set_kind("binary")
+
+    -- 添加libiconv，编译参考https://blog.csdn.net/bladeandmaster88/article/details/54808644
+    add_includedirs("$(projectdir)/third_party")
+    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+    add_links("libiconv")
 
     add_includedirs(".")
 

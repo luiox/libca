@@ -87,14 +87,14 @@ void assertEqual(const char* file, int line, std::string expect, std::string rea
 #define TEST_FUNCTION_CALL_ARG1(function_name, arg) function_name(__FILE__, __LINE__, arg)
 
 // 断言宏，如果失败会终止测试
-#define REQUIRE_TRUE(condition) TEST_FUNCTION_CALL_ARG1(requireTrue, condition)
-#define REQUIRE_FALSE(condition) TEST_FUNCTION_CALL_ARG1(requireFalse, condition)
-#define REQUIRE_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(requireEqual, expect, real)
+#define REQUIRE_TRUE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::requireTrue, condition)
+#define REQUIRE_FALSE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::requireFalse, condition)
+#define REQUIRE_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(ca::test::requireEqual, expect, real)
 
 // 断言宏，如果失败会继续测试
-#define ASSERT_TRUE(condition) TEST_FUNCTION_CALL_ARG1(assertTrue, condition)
-#define ASSERT_FALSE(condition) TEST_FUNCTION_CALL_ARG1(assertFalse, condition)
-#define ASSERT_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(assertEqual, expect, real)
+#define ASSERT_TRUE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::assertTrue, condition)
+#define ASSERT_FALSE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::assertFalse, condition)
+#define ASSERT_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(ca::test::assertEqual, expect, real)
 
 
 
