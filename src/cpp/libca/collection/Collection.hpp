@@ -82,15 +82,16 @@ private:
     Container container;
 };
 
-template<typename Iterator>
+template<typename ElementType, typename Iterator>
 class LazyStream
 {
 public:
-    using value_type = typename Iterator::value_type;
+    using value_type = ElementType;
+    using iterator   = Iterator;
 
 private:
-    Iterator                              begin_itr;
-    Iterator                              end_itr;
+    iterator                              begin_itr;
+    iterator                              end_itr;
     std::function<bool(value_type)>       filterPredicate;
     std::function<value_type(value_type)> mapFunction;
 
@@ -102,15 +103,14 @@ public:
     {}
 
     // 中间操作：过滤（惰性）
-    LazyStream<Iterator>& filter(std::function<bool(value_type)> predicate)
+    auto filter(std::function<bool(value_type)> predicate) -> LazyStream<value_type, iterator>&
     {
         filterPredicate = predicate;
         return *this;
     }
 
     // 中间操作：映射（惰性）
-    LazyStream<Iterator>& map(
-        std::function<value_type(value_type)> mapper)
+    auto map(std::function<value_type(value_type)> mapper) -> LazyStream<value_type, iterator>&
     {
         mapFunction = mapper;
         return *this;
@@ -118,7 +118,7 @@ public:
 
     // 终端操作：收集到容器（执行操作）
     template<typename Container>
-    Container collect()
+    auto collect() -> Container
     {
         Container result;
         for (auto itr = begin_itr; itr != end_itr; ++itr) {
@@ -133,7 +133,7 @@ public:
         return result;
     }
 
-    LazyStream<Iterator>& forEach(std::function<void(value_type)> consumer)
+    auto forEach(std::function<void(value_type)> consumer) -> LazyStream<value_type, iterator>&
     {
         for (auto itr = begin_itr; itr != end_itr; ++itr) {
             if (!filterPredicate || filterPredicate(*itr)) {
@@ -148,12 +148,6 @@ public:
     }
 };
 
-template<typename Iterator>
-LazyStream<Iterator> stream(Iterator begin, Iterator end)
-{
-    return LazyStream<Iterator>(begin, end);
-}
-
 template<typename T, typename = void>
 struct has_begin_end : std::false_type
 {};
@@ -166,9 +160,11 @@ struct has_begin_end<
 
 template<typename Container>
 auto stream(Container container)
-    -> std::enable_if_t<has_begin_end<Container>::value, LazyStream<decltype(container.begin())>>
+    -> std::enable_if_t<has_begin_end<Container>::value,
+                        LazyStream<typename Container::value_type, decltype(container.begin())>>
 {
-    return LazyStream(container.begin(), container.end());
+    return LazyStream<typename Container::value_type, decltype(container.begin())>(
+        container.begin(), container.end());
 }
 
 // 如果Container没有begin和end方法，则提供备用实现或错误信息
