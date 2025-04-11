@@ -15,7 +15,7 @@ struct has_value_type<Iter, std::void_t<typename Iter::value_type>> : std::true_
 {};
 
 template<typename T, typename Iter>
-class LazyStream
+class Stream
 {
 public:
     using value_type = T;
@@ -29,20 +29,20 @@ private:
 
 public:
     // 从迭代器范围构造流
-    LazyStream(iterator begin, iterator end)
+    Stream(iterator begin, iterator end)
         : begin_itr(begin)
         , end_itr(end)
     {}
 
     // 中间操作：过滤（惰性）
-    auto filter(std::function<bool(value_type)> predicate) -> LazyStream<value_type, iterator>&
+    auto filter(std::function<bool(value_type)> predicate) -> Stream<value_type, iterator>&
     {
         filterPredicate = predicate;
         return *this;
     }
 
     // 中间操作：映射（惰性）
-    auto map(std::function<value_type(value_type)> mapper) -> LazyStream<value_type, iterator>&
+    auto map(std::function<value_type(value_type)> mapper) -> Stream<value_type, iterator>&
     {
         mapFunction = mapper;
         return *this;
@@ -65,7 +65,7 @@ public:
         return result;
     }
 
-    auto forEach(std::function<void(value_type)> consumer) -> LazyStream<value_type, iterator>&
+    auto forEach(std::function<void(value_type)> consumer) -> Stream<value_type, iterator>&
     {
         for (auto itr = begin_itr; itr != end_itr; ++itr) {
             if (!filterPredicate || filterPredicate(*itr)) {
@@ -93,10 +93,10 @@ struct has_begin_end<
 template<typename Container>
 auto stream(Container container)
     -> std::enable_if_t<has_begin_end<Container>::value,
-                        LazyStream<typename Container::value_type, decltype(container.begin())>>
+                        Stream<typename Container::value_type, decltype(container.begin())>>
 {
-    return LazyStream<typename Container::value_type, decltype(container.begin())>(
-        container.begin(), container.end());
+    return Stream<typename Container::value_type, decltype(container.begin())>(container.begin(),
+                                                                               container.end());
 }
 
 // 如果Container没有begin和end方法，则提供备用实现或错误信息

@@ -14,16 +14,15 @@ TEST_CASE("Stream")
                           .map([](int x) { return x * x; })
                           .forEach([](int x) { std::cout << x << ' '; })
                           .collect<std::vector<int>>();
-
-        // std::cout << "LazyStream: " << result;
-        // std::cout << "LazyStream: ";
-        // for (auto x : result) {
-        //     std::cout << x << ' ';
-        // }
         std::cout << std::endl;
         ASSERT_EQUAL(result.size(), 2);
         ASSERT_EQUAL(result[0], 4);
         ASSERT_EQUAL(result[1], 16);
+
+        // std::cout << "Stream: ";
+        // for (auto x : result) {
+        //     std::cout << x << ' ';
+        // }
     }
 
 }
