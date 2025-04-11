@@ -22,4 +22,19 @@ TEST_CASE("Enum Reflect Test")
     Color v = enum_from_name<Color>("RED");
 }
 
+TEST_CASE("Class Member Sizer")
+{
+    struct X { std::string s{ " " }; }x;
+	struct Y { double a{}, b{}, c{}, d{}; }y;
+	std::cout << size<X>() << '\n';
+	std::cout << size<Y>() << '\n';
+
+	auto print = [](const auto& member) {
+		std::cout << member << ' ';
+	};
+	for_each_member(x, print);
+	for_each_member(y, print);
+}
+
+
 #endif   // TEST_ENABLE

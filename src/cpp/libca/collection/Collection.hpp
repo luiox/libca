@@ -74,45 +74,45 @@ public:
 
 // 检测begin方法
 template<typename T, typename = void>
-struct has_begin : std::false_type
+struct hasBegin : std::false_type
 {};
 
 template<typename T>
-struct has_begin<
+struct hasBegin<
     T, std::void_t<decltype(std::declval<T>().begin())>>
     : std::true_type
 {};
 
 // 检测end方法
 template<typename T, typename = void>
-struct has_end : std::false_type
+struct hasEnd : std::false_type
 {};
 
 template<typename T>
-struct has_end<
+struct hasEnd<
     T, std::void_t<decltype(std::declval<T>().end())>>
     : std::true_type
 {};
 
 template<typename T>
-struct has_begin_end : std::conjunction<has_begin<T>, has_end<T>>
+struct hasBeginEnd : std::conjunction<hasBegin<T>, hasEnd<T>>
 {};
 
 // 检测value_type别名
 template<typename Iter, typename = void>
-struct has_value_type : std::false_type
+struct hasValueType : std::false_type
 {};
 
 template<typename Iter>
-struct has_value_type<Iter, std::void_t<typename Iter::value_type>> : std::true_type
+struct hasValueType<Iter, std::void_t<typename Iter::value_type>> : std::true_type
 {};
 
 template<typename Container>
-struct stream_container_required_traits : std::conjunction<has_begin_end<Container>, has_value_type<Container>> {};
+struct streamContainerRequiredTraits : std::conjunction<hasBeginEnd<Container>, hasValueType<Container>> {};
 
 template<typename Container>
 auto stream(Container container)
-    -> std::enable_if_t<stream_container_required_traits<Container>::value,
+    -> std::enable_if_t<streamContainerRequiredTraits<Container>::value,
                         Stream<typename Container::value_type, decltype(container.begin())>>
 {
     return Stream<typename Container::value_type, decltype(container.begin())>(container.begin(),
@@ -125,7 +125,11 @@ auto stream(Container container)
 // stream(a);
 // error C2338: static_assert failed: 'Container must have begin() and end() methods'
 template<typename Container>
-auto stream(Container container) -> std::enable_if_t<!stream_container_required_traits<Container>::value, void>
+auto stream(Container container) -> std::enable_if_t<!streamContainerRequiredTraits<Container>::value, void>
 {
-    static_assert(has_begin_end<Container>::value, "Container must have begin() and end() methods");
+    static_assert(hasBegin<Container>::value, "Container must have begin() method");
+    static_assert(hasEnd<Container>::value, "Container must have end() method");
+    static_assert(hasValueType<Container>::value, "Container must have value_type type");
 }
+
+
