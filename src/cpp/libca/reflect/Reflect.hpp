@@ -3,6 +3,10 @@
 
 #include <string>
 #include <stdexcept>
+#include <vector>
+#include <unordered_map>
+#include <memory>
+#include "libca/base/Result.hpp"
 
 namespace ca {
 
@@ -251,5 +255,72 @@ inline constexpr void ForEachField(T&& value, Fn&& fn)
            std::get<1>(std::forward<decltype(field_schema)>(field_schema)));
     });
 }
+namespace ca {
+
+class FieldInfo
+{
+public:
+    std::string name_;
+    std::string type_;
+    size_t offset_;
+
+    FieldInfo(std::string name, std::string type, size_t offset)
+        : name_(name)
+        , type_(type)
+        , offset_(offset)
+    {}
+};
+
+class ParamInfo
+{
+public:
+    std::string name_;
+    std::string type_;
+
+    ParamInfo(std::string name, std::string type)
+        : name_(name)
+        , type_(type)
+    {}
+};
+
+class MethodInfo
+{
+public:
+    std::string            name_;
+    std::string            returnType_;
+    std::vector<ParamInfo> args_;
+};
+
+class ClassInfo
+{
+public:
+    std::string             name_;
+    std::vector<MethodInfo> methods_;
+    std::vector<FieldInfo>  fields_;
+};
+
+class RuntimeInfoManager
+{
+private:
+    std::unordered_map<std::string, ClassInfo> classInfos_;
+
+public:
+    void registerClass(const std::string& className, const ClassInfo& classInfo)
+    {
+        classInfos_[className] = classInfo;
+    }
+
+    Result<ClassInfo, std::string> getClassInfo(const std::string& className) const
+    {
+        if (classInfos_.find(className) != classInfos_.end()) {
+            return Err(std::string("Class not found: ")));
+        }
+        return Ok(classInfos_.at(className));
+    }
+};
+
+
+
+}   // namespace ca
 
 #endif   // LIBCA_REFLECT_ENUM_HPP
