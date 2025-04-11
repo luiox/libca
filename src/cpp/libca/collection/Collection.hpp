@@ -1,93 +1,25 @@
 #pragma once
 
-#include <vector>
-#include <iostream>
 #include <algorithm>
 #include <functional>
 #include <iterator>
 #include <type_traits>
 
-// 包装器类，用于链式调用
-template<typename T>
-class ChainableVector
-{
-public:
-    ChainableVector(const std::vector<T>& vec)
-        : vec_(vec)
-    {}
-
-    // 过滤操作
-    ChainableVector<T> filter(std::function<bool(const T&)> predicate)
-    {
-        std::vector<T> filtered;
-        std::copy_if(vec_.begin(), vec_.end(), std::back_inserter(filtered), predicate);
-        return ChainableVector<T>(filtered);
-    }
-
-    // 映射操作
-    template<typename U>
-    ChainableVector<U> map(std::function<U(const T&)> transform)
-    {
-        std::vector<U> mapped;
-        std::transform(vec_.begin(), vec_.end(), std::back_inserter(mapped), transform);
-        return ChainableVector<U>(mapped);
-    }
-
-    // 收集操作，返回最终的向量
-    std::vector<T> collect() { return vec_; }
-
-private:
-    std::vector<T> vec_;
-};
-
 // 辅助类型，用于检测value_type别名
-template<typename Iterator, typename = void>
+template<typename Iter, typename = void>
 struct has_value_type : std::false_type
 {};
 
-template<typename Iterator>
-struct has_value_type<Iterator, std::void_t<typename Iterator::value_type>> : std::true_type
+template<typename Iter>
+struct has_value_type<Iter, std::void_t<typename Iter::value_type>> : std::true_type
 {};
 
-template<typename Container>
-class Stream
-{
-public:
-    Stream(Container cont)
-        : container(std::move(cont))
-    {}
-
-    template<typename Func>
-    Stream<Container> map(Func func)
-    {
-        Container result;
-        result.reserve(container.size());
-        std::transform(container.begin(), container.end(), std::back_inserter(result), func);
-        return Stream<Container>(std::move(result));
-    }
-
-    template<typename Pred>
-    Stream<Container> filter(Pred pred)
-    {
-        Container result;
-        std::copy_if(container.begin(), container.end(), std::back_inserter(result), pred);
-        return Stream<Container>(std::move(result));
-    }
-
-    Container collect() { return container; }
-
-
-
-private:
-    Container container;
-};
-
-template<typename ElementType, typename Iterator>
+template<typename T, typename Iter>
 class LazyStream
 {
 public:
-    using value_type = ElementType;
-    using iterator   = Iterator;
+    using value_type = T;
+    using iterator   = Iter;
 
 private:
     iterator                              begin_itr;
@@ -97,7 +29,7 @@ private:
 
 public:
     // 从迭代器范围构造流
-    LazyStream(Iterator begin, Iterator end)
+    LazyStream(iterator begin, iterator end)
         : begin_itr(begin)
         , end_itr(end)
     {}
