@@ -24,5 +24,4 @@ TEST_CASE("Stream")
         //     std::cout << x << ' ';
         // }
     }
-
 }
