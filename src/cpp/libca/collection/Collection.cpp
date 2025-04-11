@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 TEST_CASE("ChainableVector")
 {
@@ -54,7 +55,7 @@ TEST_CASE("Stream")
     {
         std::vector<int> vec = {1, 2, 3, 4, 5};
 
-        auto result = stream(vec.begin(), vec.end())
+        auto result = stream(vec)
                           .filter([](int x) { return x % 2 == 0; })
                           .map([](int x) { return x * x; })
                           .forEach([](int x) { std::cout << x << ' '; })
@@ -70,4 +71,5 @@ TEST_CASE("Stream")
         ASSERT_EQUAL(result[0], 4);
         ASSERT_EQUAL(result[1], 16);
     }
+
 }

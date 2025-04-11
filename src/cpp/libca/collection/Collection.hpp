@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <type_traits>
 
 // 包装器类，用于链式调用
 template<typename T>
@@ -124,3 +125,25 @@ template <typename Iterator>
 LazyStream<Iterator> stream(Iterator begin, Iterator end) {
     return LazyStream<Iterator>(begin, end);
 }
+
+template<typename T, typename = void>
+struct has_begin_end : std::false_type {};
+
+template<typename T>
+struct has_begin_end<T, std::void_t<decltype(std::declval<T>().begin()), decltype(std::declval<T>().end())>> : std::true_type {};
+
+template <typename Container>
+auto stream(Container container) -> std::enable_if_t<has_begin_end<Container>::value, LazyStream<decltype(container.begin())>> {
+    return LazyStream(container.begin(), container.end());
+}
+
+// 如果Container没有begin和end方法，则提供备用实现或错误信息
+// example:
+// int a;
+// stream(a);
+// error C2338: static_assert failed: 'Container must have begin() and end() methods'
+template <typename Container>
+auto stream(Container container) -> std::enable_if_t<!has_begin_end<Container>::value, void> {
+    static_assert(has_begin_end<Container>::value, "Container must have begin() and end() methods");
+}
+
