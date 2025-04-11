@@ -62,6 +62,7 @@ target("ca-test")
     add_files("libca/base/*.cpp")
     add_files("libca/test/*.cpp")
     add_files("libca/reflect/*.cpp")
+    add_files("libca/collection/*.cpp")
     --add_files("libca/utility/*.cpp")
 
     if has_config("network") then

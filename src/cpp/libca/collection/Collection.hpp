@@ -1,9 +1,10 @@
 #pragma once
+
 #include <vector>
 #include <iostream>
-#include <vector>
 #include <algorithm>
 #include <functional>
+#include <iterator>
 
 // 包装器类，用于链式调用
 template<typename T>
@@ -35,3 +36,91 @@ private:
     std::vector<T> vec_;
 };
 
+template<typename Container>
+class Stream {
+public:
+    Stream(Container cont) : container(std::move(cont)) {}
+
+    template<typename Func>
+    Stream<Container> map(Func func) {
+        Container result;
+        result.reserve(container.size());
+        std::transform(container.begin(), container.end(), std::back_inserter(result), func);
+        return Stream<Container>(std::move(result));
+    }
+
+    template<typename Pred>
+    Stream<Container> filter(Pred pred) {
+        Container result;
+        std::copy_if(container.begin(), container.end(), std::back_inserter(result), pred);
+        return Stream<Container>(std::move(result));
+    }
+
+    Container collect() {
+        return container;
+    }
+
+    
+
+private:
+    Container container;
+};
+
+template<typename Iterator>
+class LazyStream {
+private:
+    Iterator begin_itr;
+    Iterator end_itr;
+    std::function<bool (typename Iterator::value_type)> filterPredicate;
+    std::function<typename Iterator::value_type(typename Iterator::value_type)> mapFunction;
+
+public:
+    // 从迭代器范围构造流
+    LazyStream(Iterator begin, Iterator end) : begin_itr(begin), end_itr(end) {}
+
+    // 中间操作：过滤（惰性）
+    LazyStream<Iterator>& filter(std::function<bool(typename Iterator::value_type)> predicate) {
+        filterPredicate = predicate;
+        return *this;
+    }
+
+    // 中间操作：映射（惰性）
+    LazyStream<Iterator>& map(std::function<typename Iterator::value_type(typename Iterator::value_type)> mapper) {
+        mapFunction = mapper;
+        return *this;
+    }
+
+    // 终端操作：收集到容器（执行操作）
+    template <typename Container>
+    Container collect() {
+        Container result;
+        for (auto itr = begin_itr; itr != end_itr; ++itr) {
+            if (!filterPredicate || filterPredicate(*itr)) {
+                typename Iterator::value_type value = *itr;
+                if (mapFunction) {
+                    value = mapFunction(value);
+                }
+                result.push_back(value);
+            }
+        }
+        return result;
+    }
+
+    LazyStream<Iterator>& forEach(std::function<void(typename Iterator::value_type)> consumer) {
+        for (auto itr = begin_itr; itr != end_itr; ++itr) {
+            if (!filterPredicate || filterPredicate(*itr)) {
+                typename Iterator::value_type value = *itr;
+                if (mapFunction) {
+                    value = mapFunction(value);
+                }
+                consumer(value);
+            }
+        }
+        return *this;
+    }
+};
+
+template <typename Iterator>
+LazyStream<Iterator> stream(Iterator begin, Iterator end) {
+    return LazyStream<Iterator>(begin, end);
+}
