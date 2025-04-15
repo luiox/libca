@@ -17,6 +17,30 @@
 #include "libca/base/Platform.hpp"
 
 namespace ca {
+    using u8char  = u8;
+    using u16char = u16;
+    using u32char = u32;
+
+#define U16STR_WRAPPER(s) (u16*)(L##s)
+#define U16STR_LEN(s) (sizeof(L##s) / sizeof(u16))
+
+class String
+{
+private:
+    u16char*  data_;
+    usize len_;
+
+public:
+    explicit String(u16char* data, usize len);
+
+    
+};
+
+    // 自定义字面量后缀 u16s 表示UTF-16字符串
+    // String operator"" _u16s(const char* str, size_t len) {
+    //     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> convert;
+    //     return convert.from_bytes(str);
+    // }
 
 class StringIterator;
 class CharIterator;
@@ -63,7 +87,7 @@ public:
 };
 
 class LIBCA_API CharIterator
-{ 
+{
 private:
     uint8_t* str_;
 
@@ -119,7 +143,7 @@ public:
     [[nodiscard]] const char* cStr();
 };
 
-class LIBCA_API String
+class LIBCA_API Utf8String
 {
 private:
     // UTF-8的字符个数（不是字节个数），不包括结束符
@@ -135,23 +159,23 @@ private:
 
 public:
     // 默认构造函数
-    String();
+    Utf8String();
     // 拷贝构造函数已被删除，深拷贝使用clone
-    String(String& str) = delete;
+    Utf8String(Utf8String& str) = delete;
     // 移动构造函数，原来来的缓冲区会被清空
-    String(String&& str) noexcept;
+    Utf8String(Utf8String&& str) noexcept;
     // 拷贝出一份新的字符串对象
-    [[nodiscard]] String clone() noexcept;
+    [[nodiscard]] Utf8String clone() noexcept;
     // 析构函数
-    ~String();
+    ~Utf8String();
     // 从UTF-8字符串创建，utf8Str是utf8编码字符串的字节数组
-    static String createFromUtf8(uint8_t* utf8Str, size_t length);
+    static Utf8String createFromUtf8(uint8_t* utf8Str, size_t length);
     // 从C风格字符串创建
-    static String createFromCStr(const char* cStr);
+    static Utf8String createFromCStr(const char* cStr);
     // 从std::string创建
-    static String createFromStdString(const std::string& str);
+    static Utf8String createFromStdString(const std::string& str);
     // 赋值
-    String& operator=(const String& other);
+    Utf8String& operator=(const Utf8String& other);
     // 获取字符原始数据
     [[nodiscard]] uint8_t* rawData() const;
     // 导出为C风格字符串
@@ -181,22 +205,22 @@ public:
     // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
     bool resize(size_t capacity) noexcept;
     // 删除全部字符串内容
-    String& clear() noexcept;
+    Utf8String& clear() noexcept;
     // 拼接字符串
-    String& append(const char* str);
-    String& append(String& str);
+    Utf8String& append(const char* str);
+    Utf8String& append(Utf8String& str);
     // 插入字符串，这个下标是字节下标
-    String& insert(const char* str, int index);
-    String& insert(String& str, int index);
+    Utf8String& insert(const char* str, int index);
+    Utf8String& insert(Utf8String& str, int index);
     // 插入字符串，这个下标是字符下标
-    String& insertU(const char* str, int index);
+    Utf8String& insertU(const char* str, int index);
     // 删除部分字符串内容
-    String& erase(int index, int size = 1);
+    Utf8String& erase(int index, int size = 1);
     // 替换字符串，基于字节下标
-    String& replace(const char* find_str, const char* replace_str);
-    String& replace(String& find_str, String& replace_str);
+    Utf8String& replace(const char* find_str, const char* replace_str);
+    Utf8String& replace(Utf8String& find_str, Utf8String& replace_str);
     // 替换字符串，这个下标是字符下标
-    String& replaceU(const char* find_str, const char* replace_str);
+    Utf8String& replaceU(const char* find_str, const char* replace_str);
     // 查找第一个匹配的字符串，返回其字节下标，找不到返回-1
     [[nodiscard]] int find(const char* find_str);
     // 查找第一个匹配的字符串，返回其字符下标，找不到返回-1
@@ -204,27 +228,27 @@ public:
     // 反向查找，字节下标，因为utf8编码，所以反向查找很麻烦
     [[nodiscard]] int rfind(const char* find_str);
     // 获取字符串的子串，基于字节下标
-    [[nodiscard]] String substr(int begin, int end) const;
+    [[nodiscard]] Utf8String substr(int begin, int end) const;
     // 获取字符串的子串，基于字符下标
-    [[nodiscard]] String substrU(int begin, int end) const;
+    [[nodiscard]] Utf8String substrU(int begin, int end) const;
     // 消除字符串两端的空格
-    String& trim();
+    Utf8String& trim();
     // 将字符串中所有字母转小写
-    String& toLowerCase();
+    Utf8String& toLowerCase();
     // 将字符串中所有字母转大写
-    String& toUpperCase();
+    Utf8String& toUpperCase();
     // split分割字符串
-    [[nodiscard]] std::vector<String> split(const char* split_str);
+    [[nodiscard]] std::vector<Utf8String> split(const char* split_str);
     // 反向分割
-    [[nodiscard]] std::vector<String> rsplit(const char* split_str);
+    [[nodiscard]] std::vector<Utf8String> rsplit(const char* split_str);
     // 比较两个字符串的内容是否相等
-    [[nodiscard]] bool operator==(const String& other);
+    [[nodiscard]] bool operator==(const Utf8String& other);
     // 比较两个字符串内部的指针是否相等
-    [[nodiscard]] bool equals(const String* other);
+    [[nodiscard]] bool equals(const Utf8String* other);
     // 比较两个字符串的内容是否不相等
-    [[nodiscard]] bool operator!=(const String& other);
+    [[nodiscard]] bool operator!=(const Utf8String& other);
     // 打印字符串
-    friend std::ostream& operator<<(std::ostream& out, String& other);
+    friend std::ostream& operator<<(std::ostream& out, Utf8String& other);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -252,11 +276,11 @@ public:
 class LIBCA_API StringConverter
 {
 public:
-     // string转wstring
-     static std::wstring stringToWideString(const std::string& narrowStr);
+    // string转wstring
+    static std::wstring stringToWideString(const std::string& narrowStr);
 
-     // wstring转string
-     static std::string wideStringToString(const std::wstring& wideStr);
+    // wstring转string
+    static std::string wideStringToString(const std::wstring& wideStr);
 
     // wstring转本地string
     static std::string wideStringToString2(const std::wstring& wideStr);
