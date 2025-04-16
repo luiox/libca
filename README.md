@@ -18,9 +18,9 @@ And in library, it is used to return the result of a function. In the process of
 
 This provides conversion of character encoding and mutual conversion between various miscellaneous strings in the C++ standard library.
 
-### Utf8String
+### String
 
-Because of C++'s `std::string` does not provide encoding, so an enhanced implementation of Utf8String with encoding is provided.
+Because of C++'s `std::string` does not provide encoding, so an enhanced implementation of String with encoding is provided.
 
 ### ByteBuffer
 
