@@ -965,6 +965,16 @@ std::string StringConverter::unicodeToUtf8(const std::wstring& unicodeString)
     return utf8String;
 }
 
+std::u16string StringConverter::mstrToU16str(String& str)
+{
+    return u"";
+}
+
+std::u32string StringConverter::mstrToU32str(String& str)
+{
+    return U"";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // 字符串辅助工具类

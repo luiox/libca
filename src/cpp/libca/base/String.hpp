@@ -11,6 +11,7 @@
 #define LIBCA_BASE_STRING_HPP
 
 #include <iostream>
+#include <string>
 #include <cstdint>
 #include <vector>
 #include "Platform.hpp"
@@ -255,6 +256,9 @@ public:
 class LIBCA_API StringConverter
 {
 public:
+    StringConverter() = delete;
+    ~StringConverter() = delete;
+
     // string转wstring
     static std::wstring stringToWideString(const std::string& narrowStr);
 
@@ -290,6 +294,10 @@ public:
 
     // 本地代码页转std::string
     static std::string localCodePageToUtf8(const std::string& localString);
+
+    static std::u16string mstrToU16str(String& str);
+
+    static std::u32string mstrToU32str(String& str);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
