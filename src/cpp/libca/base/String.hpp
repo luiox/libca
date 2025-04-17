@@ -14,6 +14,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <memory>
 #include "Platform.hpp"
 #include "libca/base/Platform.hpp"
 
@@ -30,14 +31,17 @@ class LIBCA_API Char
 {
 private:
     u8char* c_;
-    u8char  str_[8];
+    usize   len_;
 
 public:
     explicit Char(u8char* c);
     [[nodiscard]] bool isNull();
     [[nodiscard]] u8char* getRaw();
-    // C风格字符串
-    u8char* cStr();
+    // C风格字符串，下面两个方法会产生一个新的字符串
+    // 自动管理内存的C风格字符串
+    std::shared_ptr<u8char> cStr();
+    // 原始C风格字符串
+    u8char* rawcStr();
 };
 
 // UTF8字符序列

@@ -25,7 +25,7 @@ namespace ca {
 
 Char::Char(u8char* c)
     : c_(c)
-    , str_{0}
+    , len_(0)
 {}
 
 bool Char::isNull()
@@ -38,12 +38,19 @@ u8char* Char::getRaw()
     return c_;
 }
 
-u8char* Char::cStr()
+std::shared_ptr<u8char> Char::cStr()
 {
-    size_t cnt = BytesInUtf8Char(*c_);
-    memcpy(str_, c_, cnt);
-    str_[cnt] = '\0';
-    return str_;
+    // 需要自定义删除器来删除数组
+    return std::shared_ptr<u8char>(rawcStr(), [](u8char* ptr) { delete[] ptr; });
+}
+
+u8char* Char::rawcStr()
+{
+    auto cnt = BytesInUtf8Char(*c_);
+    auto  str      = new u8char[cnt + 1];
+    memcpy(str, c_, cnt);
+    str[cnt] = '\0';
+    return str;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
