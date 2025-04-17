@@ -23,12 +23,20 @@
 
 namespace ca {
 
-
-
-
 Char::Char(u8char* c)
     : c_(c)
+    , str_{0}
 {}
+
+bool Char::isNull()
+{
+    return c_ == nullptr;
+}
+
+u8char* Char::getRaw()
+{
+    return c_;
+}
 
 u8char* Char::cStr()
 {
@@ -58,7 +66,7 @@ CharIterator CharSequence::end()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ByteSequence::ByteSequence(uint8_t* begin, uint8_t* end)
+ByteSequence::ByteSequence(u8* begin, u8* end)
     : begin_(begin)
     , end_(end)
 {}
@@ -76,7 +84,7 @@ ByteIterator ByteSequence::end()
 ////////////////////////////////////////////////////////////////////////////////
 
 // 构造函数
-CharIterator::CharIterator(uint8_t* str)
+CharIterator::CharIterator(u8char* str)
     : str_(str)
 {}
 
@@ -87,9 +95,19 @@ Char CharIterator::operator*() const
 }
 
 // 前缀自增操作符
-CharIterator& CharIterator::operator++()
+CharIterator CharIterator::operator++() 
 {
-    ++str_;
+    usize len = BytesInUtf8Char(*str_);
+    auto  temp = str_;
+    str_ += len;
+    return CharIterator(temp);
+}
+
+// 后缀自增操作符
+CharIterator& CharIterator::operator++(int)
+{
+    usize len = BytesInUtf8Char(*str_);
+    str_ += len;
     return *this;
 }
 
@@ -107,7 +125,7 @@ bool CharIterator::operator!=(const CharIterator& other) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ByteIterator::ByteIterator(uint8_t* ptr)
+ByteIterator::ByteIterator(u8* ptr)
     : ptr_(ptr)
 {}
 
@@ -118,14 +136,28 @@ uint8_t ByteIterator::operator*() const
 }
 
 // 前缀自增操作符
-ByteIterator& ByteIterator::operator++()
+ByteIterator ByteIterator::operator++()
 {
+    auto temp = ptr_;
     ++ptr_;
+    return ByteIterator(temp);
+}
+
+// 后缀自增操作符
+ByteIterator& ByteIterator::operator++(int) {
+    +ptr_;
     return *this;
 }
-// 自减操作符
-ByteIterator& ByteIterator::operator--()
+// 前缀自减操作符
+ByteIterator ByteIterator::operator--()
 {
+    auto temp = ptr_;
+    --ptr_;
+    return ByteIterator(temp);
+}
+
+// 后缀自减操作符
+ByteIterator& ByteIterator::operator--(int) {
     --ptr_;
     return *this;
 }
@@ -145,7 +177,7 @@ bool ByteIterator::operator!=(const ByteIterator& other) const
 ////////////////////////////////////////////////////////////////////////////////
 
 // 根据UTF-8第一个字节返回该字符的字节数
-size_t BytesInUtf8Char(unsigned char firstByte)
+size_t BytesInUtf8Char(u8 firstByte)
 {
     if ((firstByte & 0x80) == 0)
         return 1;   // 0xxxxxxx
@@ -160,36 +192,7 @@ size_t BytesInUtf8Char(unsigned char firstByte)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-SmallString::SmallString()
-    : byteLength(0)
-    , length_(0)
-{}
-
-SmallString::SmallString(uint8_t* bytes, size_t len)
-    : byteLength(len)
-{
-    size_t i = 0;
-    length_  = 0;
-    while (i < len) {
-        length_++;
-        i += BytesInUtf8Char(bytes[i]);
-    }
-    memcpy(buffer_, bytes, len);
-
-    // printf("SmallString::SmallString(uint8_t* bytes, size_t len) len=%d, length_=%d\n", len,
-    // length_);
-}
-
-// 导出为C风格字符串
-const char* SmallString::cStr()
-{
-    buffer_[byteLength] = '\0';
-    return reinterpret_cast<const char*>(buffer_);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void String::expand(size_t capacity)
+void String::expand(usize capacity)
 {
     if (capacity <= capacity_) {
         // 新的容量小于等于当前容量，什么也不做
@@ -250,10 +253,10 @@ String::~String()
     buffer_ = nullptr;
 }
 
-String String::createFromUtf8(uint8_t* utf8Str, size_t length)
+String String::createFromUtf8(u8char* utf8Str, usize length)
 {
     String str;
-    size_t unitCnt = 0;
+    usize  unitCnt = 0;
     for (auto i = 0; i < length;) {
         // printf("i = %d, utf8Str[i] = %X\n", i, utf8Str[i]);
         auto uintLen = BytesInUtf8Char(utf8Str[i]);
@@ -270,7 +273,7 @@ String String::createFromUtf8(uint8_t* utf8Str, size_t length)
     }
     str.length_ = unitCnt;
     if (str.byteLength_ > str.capacity_) {
-        str.buffer_ = new uint8_t[str.byteLength_ + 1];
+        str.buffer_ = new u8char[str.byteLength_ + 1];
     }
     memcpy(str.buffer_, utf8Str, length);
     return str;
@@ -309,7 +312,7 @@ String& String::operator=(const String& other)
 }
 
 // 获取字符原始数据
-uint8_t* String::rawData() const
+u8char* String::rawData() const
 {
     return buffer_;
 }
@@ -350,7 +353,7 @@ size_t String::capacity() const
 }
 
 // 获取字节下标的字节，时间复杂度O(1)
-[[nodiscard]] uint8_t* String::at(size_t index)
+[[nodiscard]] uint8_t* String::at(usize index)
 {
     return &buffer_[index];
 }
@@ -362,23 +365,23 @@ size_t String::capacity() const
 }
 
 // 获取字符下标的utf8字符，时间复杂度O(n)
-[[nodiscard]] uint8_t* String::atU(size_t index)
+[[nodiscard]] Char String::atU(usize index)
 {
     if (index >= length_) {
-        return nullptr;
+        return Char(nullptr);
     }
     size_t unitCnt = 0;
     size_t i       = 0;
     while (i < byteLength_) {
         // printf("i = %d, utf8Str[i] = %X\n", i, utf8Str[i]);
         if (unitCnt == index) {
-            return &buffer_[i];
+            return Char(&buffer_[i]);
         }
         auto unitLen = BytesInUtf8Char(buffer_[i]);
         i += unitLen;
         unitCnt++;
     }
-    return nullptr;
+    return Char(nullptr);
 }
 
 // 以字符单位遍历字符串
@@ -394,14 +397,18 @@ ByteSequence String::bytes() noexcept
 }
 
 // 切片，返回一个子字符串，基于字节下标
-[[nodiscard]] CharSequence String::slice(size_t start, size_t end) noexcept
+[[nodiscard]] CharSequence String::slice(usize start, usize end) noexcept
 {
     return CharSequence(buffer_ + start, buffer_ + end);
 }
+
 // 切片，返回一个子字符串，基于字符下标
-[[nodiscard]] CharSequence String::sliceU(size_t start, size_t end) noexcept
+[[nodiscard]] CharSequence String::sliceU(usize start, usize end) noexcept
 {
-    return CharSequence(atU(start), atU(end));
+    if (start < end) {
+        return CharSequence(nullptr, nullptr);
+    }
+    return CharSequence(atU(start).getRaw(), atU(end).getRaw());
 }
 
 // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
@@ -431,6 +438,46 @@ String& String::clear() noexcept
     byteLength_ = 0;
     length_     = 0;
     return *this;
+}
+
+bool String::isSame(const String& other)
+{
+    return buffer_ == other.buffer_;
+}
+
+// 比较两个字符串内容是否相等
+bool String::equals(const String& other, bool caseSensitive)
+{
+    if (byteLength_ != other.byteLength_) {
+        return false;
+    }
+    if (caseSensitive) {
+        return memcmp(buffer_, other.buffer_, byteLength_) == 0;
+    }
+    else {
+
+        // return strcasecmp(buffer_, other->buffer_) == 0;
+        return false;
+    }
+}
+
+// 比较两个字符串的内容是否相等
+bool String::operator==(const String& other)
+{
+    return equals(other);
+}
+
+// 比较两个字符串的内容是否不相等
+bool String::operator!=(const String& other)
+{
+    return !equals(other);
+}
+
+std::ostream& operator<<(std::ostream& out, String& other)
+{
+    std::cout << other.cStr();
+
+    return out;
 }
 
 // 拼接字符串
@@ -474,15 +521,6 @@ String& String::append(const char* str)
     return *this;
 }
 
-
-std::ostream& operator<<(std::ostream& out, String& other)
-{
-
-
-    std::cout << other.cStr();
-
-    return out;
-}
 
 // String& String::append(const char* str)
 // {
@@ -681,6 +719,39 @@ std::ostream& operator<<(std::ostream& out, String& other)
 //     return *this;
 // }
 
+
+////////////////////////////////////////////////////////////////////////////////
+
+SmallString::SmallString()
+    : byteLength(0)
+    , length_(0)
+    , buffer_{0}
+{}
+
+SmallString::SmallString(u8* bytes, usize len)
+    : byteLength(len)
+{
+    size_t i = 0;
+    length_  = 0;
+    while (i < len) {
+        length_++;
+        i += BytesInUtf8Char(bytes[i]);
+    }
+    memcpy(buffer_, bytes, len);
+
+    // printf("SmallString::SmallString(uint8_t* bytes, size_t len) len=%d, length_=%d\n", len,
+    // length_);
+}
+
+// 导出为C风格字符串
+const char* SmallString::cStr()
+{
+    buffer_[byteLength] = '\0';
+    return reinterpret_cast<const char*>(buffer_);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 // StringIterator String::begin() noexcept
 // {
 //     return StringIterator(buffer_);
@@ -694,51 +765,54 @@ std::ostream& operator<<(std::ostream& out, String& other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//编码转换，source_charset是源编码，to_charset是目标编码
-std::string code_convert(char *source_charset, char *to_charset, const std::string& sourceStr) //sourceStr是源编码字符串
+// 编码转换，source_charset是源编码，to_charset是目标编码
+std::string code_convert(char* source_charset, char* to_charset,
+                         const std::string& sourceStr)   // sourceStr是源编码字符串
 {
-	iconv_t cd = iconv_open(to_charset, source_charset);//获取转换句柄，void*类型
-	if (cd == 0)
-		return "";
- 
-    size_t inlen = sourceStr.size();
-	size_t outlen = 255;
-	char* inbuf = (char*)sourceStr.c_str();
-	char outbuf[255];//这里实在不知道需要多少个字节，这是个问题
-	//char *outbuf = new char[outlen]; 另外outbuf不能在堆上分配内存，否则转换失败，猜测跟iconv函数有关
-	memset(outbuf, 0, outlen);
- 
-	char *poutbuf = outbuf; //多加这个转换是为了避免iconv这个函数出现char(*)[255]类型的实参与char**类型的形参不兼容
-	if (iconv(cd, &inbuf, &inlen, &poutbuf,&outlen) == -1)
-		return "";
- 
-    std::string strTemp(outbuf);//此时的strTemp为转换编码之后的字符串
-	iconv_close(cd);
-	return strTemp;
+    iconv_t cd = iconv_open(to_charset, source_charset);   // 获取转换句柄，void*类型
+    if (cd == 0)
+        return "";
+
+    size_t inlen  = sourceStr.size();
+    size_t outlen = 255;
+    char*  inbuf  = (char*)sourceStr.c_str();
+    char   outbuf[255];   // 这里实在不知道需要多少个字节，这是个问题
+    // char *outbuf = new char[outlen];
+    // 另外outbuf不能在堆上分配内存，否则转换失败，猜测跟iconv函数有关
+    memset(outbuf, 0, outlen);
+
+    char* poutbuf =
+        outbuf;   // 多加这个转换是为了避免iconv这个函数出现char(*)[255]类型的实参与char**类型的形参不兼容
+    if (iconv(cd, &inbuf, &inlen, &poutbuf, &outlen) == -1)
+        return "";
+
+    std::string strTemp(outbuf);   // 此时的strTemp为转换编码之后的字符串
+    iconv_close(cd);
+    return strTemp;
 }
- 
-//gbk转UTF-8  
-std::string GbkToUtf8(const std::string& strGbk)// 传入的strGbk是GBK编码 
+
+// gbk转UTF-8
+std::string GbkToUtf8(const std::string& strGbk)   // 传入的strGbk是GBK编码
 {
-	return code_convert("gb2312", "utf-8",strGbk);
+    return code_convert("gb2312", "utf-8", strGbk);
 }
- 
-//UTF-8转gbk
+
+// UTF-8转gbk
 std::string Utf8ToGbk(const std::string& strUtf8)
 {
-	return code_convert("utf-8", "gb2312", strUtf8);
+    return code_convert("utf-8", "gb2312", strUtf8);
 }
- 
-//gbk转unicode,"UCS-2LE"代表unicode小端模式
-std::string GbkToUnicode(const std::string& strGbk)// 传入的strGbk是GBK编码 
+
+// gbk转unicode,"UCS-2LE"代表unicode小端模式
+std::string GbkToUnicode(const std::string& strGbk)   // 传入的strGbk是GBK编码
 {
-	return code_convert("gb2312", "UCS-2LE",strGbk);
+    return code_convert("gb2312", "UCS-2LE", strGbk);
 }
- 
-//unicode转gbk
-std::string UnicodeToGbk(const std::string& strGbk)// 传入的strGbk是GBK编码 
+
+// unicode转gbk
+std::string UnicodeToGbk(const std::string& strGbk)   // 传入的strGbk是GBK编码
 {
-	return code_convert("UCS-2LE", "gb2312",strGbk);
+    return code_convert("UCS-2LE", "gb2312", strGbk);
 }
 
 // string转wstring
@@ -780,8 +854,8 @@ std::string StringConverter::wideStringToString2(const std::wstring& wideStr)
     int bufferSize =
         WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string str(bufferSize - 1, 0);
-    WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr,
-    nullptr); return str;
+    WideCharToMultiByte(CP_ACP, 0, wideStr.c_str(), -1, &str[0], bufferSize - 1, nullptr, nullptr);
+    return str;
 }
 
 // wchar_t*转string
@@ -920,8 +994,8 @@ std::string StringConverter::localCodePageToUtf8(const std::string& localString)
     }
 
     std::wstring wideString(wideCharLength, L'\0');
-    if (MultiByteToWideChar(CP_ACP, 0, 
-        localString.c_str(), -1, &wideString[0], wideCharLength) == 0) {
+    if (MultiByteToWideChar(CP_ACP, 0, localString.c_str(), -1, &wideString[0], wideCharLength) ==
+        0) {
         // 转换失败
         return "";
     }
@@ -1289,9 +1363,15 @@ bool StringUtil::isNumeric(const std::string& input)
 
 #    include "libca/test/Test.hpp"
 
+#include <iostream>
 using namespace ca::test;
 using namespace ca;
 
+TEST_CASE("String Test")
+{
+    String s1;
+    std::cout << "str" << std::endl;
+}
 
 // #include "String.hpp"
 // #include <iostream>
@@ -1485,7 +1565,7 @@ using namespace ca;
 //     cout << "after clear, str1 = " << str1 << endl;
 // }
 
-TEST_CASE(StringConverterTest)
+TEST_CASE("StringConverterTest")
 {
     // 先不测试这些，因为无法确定编码
 
@@ -1507,7 +1587,7 @@ TEST_CASE(StringConverterTest)
 }
 
 
-TEST_CASE(StringUtilTest)
+TEST_CASE("StringUtilTest")
 {
     ASSERT_EQUAL(StringUtil::toLowerCase("HELLO"), "hello");
     ASSERT_EQUAL(StringUtil::toLowerCase("Hello"), "hello");

@@ -56,8 +56,8 @@ target("ca-test")
 
     add_includedirs(".")
 
-    add_defines("TEST_USE_DEFAULT_MAIN")
-    add_defines("TEST_ENABLE")
+    add_defines("TEST_USE_DEFAULT_MAIN=1")
+    add_defines("TEST_ENABLE=1")
     
     add_files("libca/base/*.cpp")
     add_files("libca/test/*.cpp")

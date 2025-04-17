@@ -1,3 +1,34 @@
+xmake命令
+xmake project -k vsxmake -m "debug,release"
+xmake project -k cmakelists
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 libca是一个可裁剪的库，可以选择所需要的部分进行裁剪。
 目前主要是针对C++17进行封装，大致思路是先拿C封装一层平台的，然后再封装一层C++的。

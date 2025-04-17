@@ -18,9 +18,9 @@
 #include "libca/base/Platform.hpp"
 
 namespace ca {
-    using u8char  = u8;
-    using u16char = u16;
-    using u32char = u32;
+using u8char  = u8;
+using u16char = u16;
+using u32char = u32;
 
 class StringIterator;
 class CharIterator;
@@ -34,10 +34,13 @@ private:
 
 public:
     explicit Char(u8char* c);
+    [[nodiscard]] bool isNull();
+    [[nodiscard]] u8char* getRaw();
     // C风格字符串
     u8char* cStr();
 };
 
+// UTF8字符序列
 class LIBCA_API CharSequence
 {
 private:
@@ -52,7 +55,8 @@ public:
     CharIterator end();
 };
 
-class ByteSequence
+// 字节序列
+class LIBCA_API ByteSequence
 {
 private:
     u8* begin_;
@@ -76,8 +80,10 @@ public:
     explicit CharIterator(u8char* str);
     // 解引用操作符
     Char operator*() const;
-    // 前缀自增操作符
-    CharIterator& operator++();
+    // 前缀自增操作符，因为目前的这个被改变了，所以只能创建一个新的
+    CharIterator operator++();
+    // 后缀自增操作符
+    CharIterator& operator++(int);
     // 相等比较操作符
     bool operator==(const CharIterator& other) const;
     // 不相等比较操作符
@@ -94,9 +100,13 @@ public:
     // 解引用操作符
     u8 operator*() const;
     // 前缀自增操作符
-    ByteIterator& operator++();
-    // 自减操作符
-    ByteIterator& operator--();
+    ByteIterator operator++();
+    // 后缀自增操作符
+    ByteIterator& operator++(int);
+    // 前缀自减操作符
+    ByteIterator operator--();
+    // 后缀自减操作符
+    ByteIterator& operator--(int);
     // 相等比较操作符
     bool operator==(const ByteIterator& other) const;
     // 不相等比较操作符
@@ -107,21 +117,7 @@ constexpr static size_t ShortStrMaxLen    = sizeof(void*) * 8 - sizeof(size_t);
 constexpr static size_t LongStrDefaultLen = ShortStrMaxLen;
 
 // 根据UTF-8第一个字节返回该字符的字节数
-usize LIBCA_API BytesInUtf8Char(unsigned char firstByte);
-
-class LIBCA_API SmallString
-{
-private:
-    usize  length_;
-    usize  byteLength;
-    usize buffer_[ShortStrMaxLen];
-
-public:
-    SmallString();
-    SmallString(uint8_t* bytes, size_t len);
-    // 导出为C风格字符串
-    [[nodiscard]] const char* cStr();
-};
+usize LIBCA_API BytesInUtf8Char(u8 firstByte);
 
 class LIBCA_API String
 {
@@ -157,7 +153,7 @@ public:
     // 赋值
     String& operator=(const String& other);
     // 获取字符原始数据
-    [[nodiscard]] uint8_t* rawData() const;
+    [[nodiscard]] u8char* rawData() const;
     // 导出为C风格字符串
     [[nodiscard]] const char* cStr();
     // 获取字符串的长度
@@ -171,21 +167,43 @@ public:
     // []获取的是字节下标的字节，时间复杂度O(1)
     [[nodiscard]] u8char* operator[](int index);
     // 获取字节下标的字节，时间复杂度O(1)
-    [[nodiscard]] u8* at(size_t index);
+    [[nodiscard]] u8* at(usize index);
     // 获取字符下标的utf8字符，时间复杂度O(n)
-    [[nodiscard]] u8char* atU(size_t index);
+    [[nodiscard]] Char atU(usize index);
     // 以字符单位遍历字符串
     [[nodiscard]] CharSequence chars() noexcept;
     // 以字节单位遍历字符串
     [[nodiscard]] ByteSequence bytes() noexcept;
     // 切片，返回一个子字符串，基于字节下标
-    [[nodiscard]] CharSequence slice(size_t start, size_t end) noexcept;
+    [[nodiscard]] CharSequence slice(usize start, usize end) noexcept;
     // 切片，返回一个子字符串，基于字符下标
-    [[nodiscard]] CharSequence sliceU(size_t start, size_t end) noexcept;
+    [[nodiscard]] CharSequence sliceU(usize start, usize end) noexcept;
     // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
     bool resize(size_t capacity) noexcept;
     // 删除全部字符串内容
     String& clear() noexcept;
+    // 比较两个字符串内部的指针是否相等
+    [[nodiscard]] bool isSame(const String& other);
+    // 比较两个字符串的内容是否相等
+    [[nodiscard]] bool equals(const String& other, bool caseSensitive = true);
+    // 比较两个字符串的内容是否相等
+    [[nodiscard]] bool operator==(const String& other);
+    // 比较两个字符串的内容是否不相等
+    [[nodiscard]] bool operator!=(const String& other);
+    // 打印字符串
+    friend std::ostream& operator<<(std::ostream& out, String& other);
+    // 是否以某个字符串开始，默认是大小写敏感的，并且这个版本是以C风格字符串进行比较的
+    [[nodiscard]] bool startsWith(const char* str, bool caseSensitive = true);
+    // 是否以某个字符串开始，默认是大小写敏感的，并且这个版本是以String类型进行比较的
+    [[nodiscard]] bool startsWith(const String& str, bool caseSensitive = true);
+    // 是否以某个字符串结束
+    [[nodiscard]] bool endsWith(const char* str, bool caseSensitive = true);
+    // 是否以某个字符串结束
+    [[nodiscard]] bool endsWith(const String& str, bool caseSensitive = true);
+    // 是否包含某个字符串
+    [[nodiscard]] bool contains(const char* str, bool caseSensitive = true);
+    [[nodiscard]] bool contains(const String& str, bool caseSensitive = true);
+
     // 拼接字符串
     String& append(const char* str);
     String& append(String& str);
@@ -213,6 +231,11 @@ public:
     [[nodiscard]] String substrU(int begin, int end) const;
     // 消除字符串两端的空格
     String& trim();
+    String& trimLeft();
+    String& trimRight();
+    // 替换
+    String& replace(const String& find, const String& replace);
+
     // 将字符串中所有字母转小写
     String& toLowerCase();
     // 将字符串中所有字母转大写
@@ -221,16 +244,22 @@ public:
     [[nodiscard]] std::vector<String> split(const char* split_str);
     // 反向分割
     [[nodiscard]] std::vector<String> rsplit(const char* split_str);
-    // 比较两个字符串的内容是否相等
-    [[nodiscard]] bool operator==(const String& other);
-    // 比较两个字符串内部的指针是否相等
-    [[nodiscard]] bool equals(const String* other);
-    // 比较两个字符串的内容是否不相等
-    [[nodiscard]] bool operator!=(const String& other);
-    // 打印字符串
-    friend std::ostream& operator<<(std::ostream& out, String& other);
 };
 
+////////////////////////////////////////////////////////////////////////////////
+class LIBCA_API SmallString
+{
+private:
+    usize  length_;
+    usize  byteLength;
+    u8char buffer_[ShortStrMaxLen];
+
+public:
+    SmallString();
+    SmallString(u8* bytes, usize len);
+    // 导出为C风格字符串
+    [[nodiscard]] const char* cStr();
+};
 ////////////////////////////////////////////////////////////////////////////////
 class LIBCA_API StringIterator
 {
@@ -256,7 +285,7 @@ public:
 class LIBCA_API StringConverter
 {
 public:
-    StringConverter() = delete;
+    StringConverter()  = delete;
     ~StringConverter() = delete;
 
     // string转wstring
@@ -351,6 +380,14 @@ public:
     static std::string format(const char* format, ...);
 
     static bool isNumeric(const std::string& input);
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+// 不可变字符串
+class ImmutableString
+{
+
 };
 
 }   // namespace ca
