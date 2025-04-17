@@ -419,7 +419,7 @@ ByteSequence String::bytes() noexcept
 }
 
 // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
-bool String::resize(size_t capacity) noexcept
+bool String::resize(usize capacity) noexcept
 {
     if (capacity < byteLength_) {
         // 截断字符串
@@ -492,7 +492,7 @@ String& String::append(String& str)
 {
     if (str.byteLength_ + byteLength_ > capacity_) {
         // 需要扩容
-        auto newCapacity = capacity_ * 1.5;
+        auto newCapacity = capacity_ * ExpandFactor;
         expand(newCapacity);
     }
     // 拷贝数据

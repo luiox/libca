@@ -117,8 +117,9 @@ public:
     bool operator!=(const ByteIterator& other) const;
 };
 
-constexpr static size_t ShortStrMaxLen    = sizeof(void*) * 8 - sizeof(size_t);
-constexpr static size_t LongStrDefaultLen = ShortStrMaxLen;
+constexpr static usize ShortStrMaxLen    = sizeof(void*) * 8 - sizeof(size_t);
+constexpr static usize LongStrDefaultLen = ShortStrMaxLen;
+constexpr static f32 ExpandFactor = 1.5f;
 
 // 根据UTF-8第一个字节返回该字符的字节数
 usize LIBCA_API BytesInUtf8Char(u8 firstByte);
@@ -183,7 +184,7 @@ public:
     // 切片，返回一个子字符串，基于字符下标
     [[nodiscard]] CharSequence sliceU(usize start, usize end) noexcept;
     // 改变字符串容量，如果小于，将会截断字符串，如果增大将会发生拷贝，返回是否发生截短
-    bool resize(size_t capacity) noexcept;
+    bool resize(usize capacity) noexcept;
     // 删除全部字符串内容
     String& clear() noexcept;
     // 比较两个字符串内部的指针是否相等
