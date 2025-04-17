@@ -47,7 +47,7 @@ std::shared_ptr<u8char> Char::cStr()
 u8char* Char::rawcStr()
 {
     auto cnt = BytesInUtf8Char(*c_);
-    auto  str      = new u8char[cnt + 1];
+    auto str = new u8char[cnt + 1];
     memcpy(str, c_, cnt);
     str[cnt] = '\0';
     return str;
@@ -102,9 +102,9 @@ Char CharIterator::operator*() const
 }
 
 // 前缀自增操作符
-CharIterator CharIterator::operator++() 
+CharIterator CharIterator::operator++()
 {
-    usize len = BytesInUtf8Char(*str_);
+    usize len  = BytesInUtf8Char(*str_);
     auto  temp = str_;
     str_ += len;
     return CharIterator(temp);
@@ -151,10 +151,12 @@ ByteIterator ByteIterator::operator++()
 }
 
 // 后缀自增操作符
-ByteIterator& ByteIterator::operator++(int) {
-    +ptr_;
+ByteIterator& ByteIterator::operator++(int)
+{
+    ++ptr_;
     return *this;
 }
+
 // 前缀自减操作符
 ByteIterator ByteIterator::operator--()
 {
@@ -164,7 +166,8 @@ ByteIterator ByteIterator::operator--()
 }
 
 // 后缀自减操作符
-ByteIterator& ByteIterator::operator--(int) {
+ByteIterator& ByteIterator::operator--(int)
+{
     --ptr_;
     return *this;
 }
@@ -1370,7 +1373,7 @@ bool StringUtil::isNumeric(const std::string& input)
 
 #    include "libca/test/Test.hpp"
 
-#include <iostream>
+#    include <iostream>
 using namespace ca::test;
 using namespace ca;
 
