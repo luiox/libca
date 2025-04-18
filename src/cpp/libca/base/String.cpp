@@ -289,6 +289,33 @@ String String::createFromUtf8(u8char* utf8Str, usize length)
     return str;
 }
 
+String String::createFromUtf8ByMove(u8char* utf8Str, usize length) 
+{
+    String str;
+    str.capacity_ = length;
+    usize  unitCnt = 0;
+    for (auto i = 0; i < length;) {
+        // printf("i = %d, utf8Str[i] = %X\n", i, utf8Str[i]);
+        auto uintLen = BytesInUtf8Char(utf8Str[i]);
+        if (uintLen == 0) {
+            // 有错误的utf8字符
+            str.length_ = 0;
+            // 释放内存
+            delete[] utf8Str;
+            // 抛出错误
+            throw std::runtime_error("invalid utf8 char");
+            return str;
+        }
+        str.byteLength_ += uintLen;
+        i += uintLen;
+        unitCnt++;
+    }
+    str.length_ = unitCnt;
+    // 直接移动进去
+    str.buffer_ = utf8Str;
+    return str;
+}
+
 // 从C风格字符串创建
 String String::createFromCStr(const char* cStr)
 {
@@ -1057,6 +1084,89 @@ std::u16string StringConverter::mstrToU16str(String& str)
 std::u32string StringConverter::mstrToU32str(String& str)
 {
     return U"";
+}
+
+std::wstring StringConverter::mstrUtf8ToWstrUtf16(String& utf8str)
+{
+    char* str = (char*)utf8str.rawData();
+    if (!str)
+        return L"";
+
+    // 打开转换描述符
+    iconv_t cd = iconv_open("WCHAR_T", "UTF-8");
+    if (cd == (iconv_t)-1) {
+        std::cerr << "iconv_open failed" << std::endl;
+        return L"";
+    }
+
+    // 估算转换后的字符串长度
+    size_t   utf8_len  = utf8str.byteLength();
+    size_t   wchar_len = utf8_len;                     // 最多不会超过UTF-8长度
+    wchar_t* wchar_str = new wchar_t[wchar_len + 1];   // +1 for null-terminator
+
+    // 设置转换的输入输出参数
+    char*  in_buf   = const_cast<char*>(str);
+    size_t in_left  = utf8_len;
+    char*  out_buf  = reinterpret_cast<char*>(wchar_str);
+    size_t out_left = wchar_len * sizeof(wchar_t);
+
+    // 执行转换
+    size_t result = iconv(cd, &in_buf, &in_left, &out_buf, &out_left);
+    if (result == (size_t)-1) {
+        std::cerr << "iconv failed" << std::endl;
+        delete[] wchar_str;
+        iconv_close(cd);
+        return L"";
+    }
+
+    // 确保字符串以null终止
+    wchar_str[wchar_len - out_left / sizeof(wchar_t)] = L'\0';
+
+    // 关闭转换描述符
+    iconv_close(cd);
+
+    // 转换为std::wstring
+    std::wstring wstr(wchar_str);
+    delete[] wchar_str;
+    return wstr;
+}
+
+String StringConverter::wstrUtf16ToMstrUtf8(wchar_t* utf16str)
+{
+    if (utf16str == nullptr) {
+        return String();
+    }
+
+    // 打开转换描述符
+    iconv_t cd = iconv_open("UTF-8", "WCHAR_T");
+    if (cd == (iconv_t)-1) {
+        std::cerr << "iconv_open failed" << std::endl;
+        return String();
+    }
+
+    // 估算转换后的字符串长度
+    size_t      utf16len     = wcslen(utf16str);
+    size_t      utf8len      = utf16len * 4;   // UTF-8最多使用4个字节表示一个字符
+    char*       utf8str      = new char[utf8len + 1];   // +1 for null-terminator
+    char*       utf8str_ptr  = utf8str;
+    char* utf16str_ptr = reinterpret_cast<char*>(utf16str);
+
+    // 执行转换
+    size_t result = iconv(cd, &utf16str_ptr, &utf16len, &utf8str_ptr, &utf8len);
+    if (result == (size_t)-1) {
+        std::cerr << "iconv failed" << std::endl;
+        delete[] utf8str;
+        iconv_close(cd);
+        return String();
+    }
+
+    // 确保字符串以null终止
+    *utf8str_ptr = '\0';
+
+    // 关闭转换描述符
+    iconv_close(cd);
+    // 直接移动进去，把之后内存释放的工作交给String
+    return String::createFromUtf8ByMove((u8char*)utf8str, utf8len);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

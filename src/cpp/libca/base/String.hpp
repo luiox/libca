@@ -151,6 +151,8 @@ public:
     ~String();
     // 从UTF-8字符串创建，utf8Str是utf8编码字符串的字节数组
     static String createFromUtf8(u8char* utf8Str, usize length);
+    // 从UTF-8字符串创建，无复制，直接移动
+    static String createFromUtf8ByMove(u8char* utf8Str, usize length);
     // 从C风格字符串创建
     static String createFromCStr(const char* cStr);
     // 从std::string创建
@@ -332,6 +334,10 @@ public:
     static std::u16string mstrToU16str(String& str);
 
     static std::u32string mstrToU32str(String& str);
+
+    static std::wstring mstrUtf8ToWstrUtf16(String& utf8str);
+
+    static String wstrUtf16ToMstrUtf8(wchar_t* utf16str);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
