@@ -1491,6 +1491,9 @@ TEST_CASE("String Test")
 {
     String s1;
     std::cout << "str" << std::endl;
+    wchar_t* t  = L"h,中文";
+    String   s2 = StringConverter::wstrUtf16ToMstrUtf8(t);
+
 }
 
 // #include "String.hpp"
