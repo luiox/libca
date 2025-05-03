@@ -11,14 +11,15 @@
 template<unsigned trail_args, typename Map, typename... Args>
 inline std::string fmt11hlp( const Map *ctx, const char *format, Args... args) {
     std::stringstream out;
-    if( format ) {
+    if(format) {
          auto tpl = std::tuple_cat( std::tuple<Args...>{ args... }, std::make_tuple( 0,0,0,0,0,0,0,0,0,0) );
          char raw[64], tag[32], fmt[32];
          unsigned fix, dig, counter = 0;
-         while( *format ) {
-            if( *format++ != '{' ) {
+         while(*format) {
+            if(*format++ != '{') {
                 out << format[-1];
-            } else { 
+            }
+            else { 
                 auto parse = []( char raw[64], char tag[32], char fmt[32], unsigned &fix, unsigned &dig, const char *in ) -> int {
                     int lv = 0; // parses [{] { [tag][:][fmt] } [}] expressions; returns num of bytes parsed or 0 if error
                     char *o = raw, *m = tag, *g = 0;
@@ -27,7 +28,7 @@ inline std::string fmt11hlp( const Map *ctx, const char *format, Args... args) {
                         if( (o - raw) >= 63 ) return 0;
                     }
                     while( *in && lv > 0 ) {
-                        /**/ if( *in < 32 ) return 0;
+                        if( *in < 32 ) return 0;
                         else if( *in < '0' && !g ) return 0;
                         else if( *in == '}' ) --lv, *o++ = *in++;
                         else if( *in == ':' ) g = fmt, *o++ = *in++;
