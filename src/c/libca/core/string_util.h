@@ -1,16 +1,16 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <libca/core/stdtype.h>
+#include "platform.h"
 
 // 字符串拷贝
 char* str_copy(char* dest, const char* src);
 // 字符串拼接
 char* str_concat(char* dest, const char* src);
 // 字符串长度
-uint32_t str_length(const char* str);
+u32_t str_length(const char* str);
 // 字符串比较
-int32_t str_compare(const char* str1, const char* str2);
+i32_t str_compare(const char* str1, const char* str2);
 // 字符串搜索字串
 char* str_find(const char* str, const char* substr);
 // 字符串替换
