@@ -799,6 +799,8 @@ const char* SmallString::cStr()
 
 #ifdef TEST_ENABLE
 
+#include "StringUtil.hpp"
+#include "Charset.hpp"
 #    include "libca/test/Test.hpp"
 
 #    include <iostream>

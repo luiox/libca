@@ -27,6 +27,8 @@ target("ca-shared")
     end
 
     add_links("user32", "kernel32")
+    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+    add_links("libiconv")
 
 target("ca-static")
     set_kind("static")

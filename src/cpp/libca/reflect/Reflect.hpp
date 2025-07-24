@@ -313,7 +313,7 @@ public:
     Result<ClassInfo, std::string> getClassInfo(const std::string& className) const
     {
         if (classInfos_.find(className) != classInfos_.end()) {
-            return Err(std::string("Class not found: ")));
+            return Err(std::string("Class not found: "));
         }
         return Ok(classInfos_.at(className));
     }
