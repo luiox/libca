@@ -9,7 +9,7 @@
 #ifndef DOUBLY_LINKED_LIST_H
 #define DOUBLY_LINKED_LIST_H
 
-#include <stdint.h>
+#include "../base/datatype.h"
 
 // 双向链表的结点
 typedef struct doubly_linked_list_node
@@ -24,7 +24,7 @@ typedef struct doubly_linked_list
 {
     doubly_linked_list_node_t* head;   // 头结点
     doubly_linked_list_node_t* tail;   // 尾结点
-    int32_t                    size;   // 链表大小
+    usize                      size;   // 链表大小
 } doubly_linked_list_t;
 
 ///////////////////////////////////////////////////////////////////////////////

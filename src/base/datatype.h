@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 // 整数
 typedef uint8_t      u8;
@@ -248,5 +249,25 @@ static inline void little_endian_write_s32(u8* bytes, s32 value)
     bytes[2] = (u8)(value >> 16);
     bytes[3] = (u8)(value >> 24);
 }
+
+// 获取一个结构体的成员指针
+// 例如
+// struct list_head {
+//     struct list_head *next, *prev;
+// };
+// struct task {
+//     int id;
+//     struct list_head node;
+// };
+// int main() {
+//     struct task t = { .id = 42 };
+//     struct list_head *nodeptr = &t.node;
+//     struct task *tp = container_of(nodeptr, struct task, node);
+//     printf("Task ID: %d\n", tp->id); // 输出: Task ID: 42
+//     return 0;
+// }
+// 
+#define container_of(ptr, type, member) \
+    ((type *)((char *)(ptr) - offsetof(type, member)))
 
 #endif   // !DATATYPE_H
