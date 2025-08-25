@@ -99,6 +99,12 @@ typedef union
     u16 val;   // 整体值
 } bits16_t;
 
+// 常用函数指针
+typedef void(*runnable_fn_t)(void);
+// 暂时不开放谓词
+//typedef bool(*predicate_fn_t)(void* arg);
+
+
 // 对于需要精准控制高低位的情况下使用下面的宏
 // 其中bits是一个整数类型的变量，一般是u8、u16、u32等
 // n是位的索引，从0开始
