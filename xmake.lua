@@ -27,6 +27,7 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
 includes("src/c")
 includes("src/cpp")
+includes("src")
 
 -- -- task("find_tests")
 -- --     set_menu {
