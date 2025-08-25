@@ -1,7 +1,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <libca/stdtype.h>
+#include "../base/datatype.h"
 
 typedef enum
 {

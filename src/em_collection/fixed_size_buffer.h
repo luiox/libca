@@ -1,7 +1,6 @@
 #ifndef FIXED_SIZE_BUFFER_H
 #define FIXED_SIZE_BUFFER_H
 
-#include <cstdint>
 #include <stdint.h>
 
 typedef struct {

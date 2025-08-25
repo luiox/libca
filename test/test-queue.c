@@ -1,4 +1,4 @@
-#include <libca/container/queue.h>
+#include "queue.h"
 #include <stdio.h>
 #include <assert.h>
 #include <libca/core/test.h>

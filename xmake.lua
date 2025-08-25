@@ -25,9 +25,9 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 -- add_requires("nanobench 4.3.11")
 -- add_requires("spdlog 1.14.1")
 
-includes("src/c")
-includes("src/cpp")
 includes("src")
+includes("src/cpp")
+
 
 -- -- task("find_tests")
 -- --     set_menu {
