@@ -1,6 +1,6 @@
 #include "ImmutableList.hpp"
 
-#include "libca/test/Test.hpp"
+#include "../test/Test.hpp"
 using namespace ca;
 
 TEST_CASE("ImmutableList")

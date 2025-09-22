@@ -4,9 +4,9 @@
 
 #include <string>
 #include <map>
-#include "libca/base/BasicValue.hpp"
-#include "libca/base/Result.hpp"
-#include "libca/base/Wrapper.hpp"
+#include "../base/BasicValue.hpp"
+#include "../base/Result.hpp"
+#include "../base/Wrapper.hpp"
 
 namespace ca {
 

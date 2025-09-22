@@ -1,5 +1,5 @@
 #include "Format.hpp"
-#include "libca/test/Test.hpp"
+#include "../test/Test.hpp"
 
 TEST_CASE("Format")
 {

@@ -801,7 +801,7 @@ const char* SmallString::cStr()
 
 #include "StringUtil.hpp"
 #include "Charset.hpp"
-#    include "libca/test/Test.hpp"
+#    include "../test/Test.hpp"
 
 #    include <iostream>
 using namespace ca::test;

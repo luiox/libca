@@ -33,7 +33,7 @@ size_t ByteBuffer::capacity() const
 
 #ifdef TEST_ENABLE
 
-#    include "libca/test/Test.hpp"
+#    include "../test/Test.hpp"
 
 using namespace ca::test;
 

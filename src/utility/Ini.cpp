@@ -1,5 +1,5 @@
 #include "Ini.hpp"
-#include "libca/base/BasicValue.hpp"
+#include "../base/BasicValue.hpp"
 #include <iostream>
 #include <sstream>
 #include <fstream>
