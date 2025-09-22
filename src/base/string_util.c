@@ -252,7 +252,7 @@ u32 str_length(const char* str)
 }
 
 // 字符串比较
-s32 str_compare(const char* str1, const char* str2)
+i32 str_compare(const char* str1, const char* str2)
 {
     while (*str1 != '\0' && *str2 != '\0') {
         if (*str1 != *str2)

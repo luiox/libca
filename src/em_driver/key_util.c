@@ -79,7 +79,7 @@ void key_scan_all(void)
     }
 }
 
-key_t* key_get(s8 id)
+key_t* key_get(i8 id)
 {
     return &keys[id];
 }

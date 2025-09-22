@@ -1,6 +1,6 @@
 #include "datatype.h"
 
-static s8 endian_flag = -1;
+static i8 endian_flag = -1;
 // 是否是小端序
 bool is_little_endian()
 {

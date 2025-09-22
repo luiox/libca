@@ -23,12 +23,12 @@ typedef uint32_t     u32;
 typedef volatile u8  vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
-typedef int8_t       s8;
-typedef int16_t      s16;
-typedef int32_t      s32;
-typedef volatile s8  vs8;
-typedef volatile s16 vs16;
-typedef volatile s32 vs32;
+typedef int8_t       i8;
+typedef int16_t      i16;
+typedef int32_t      i32;
+typedef volatile i8  vi8;
+typedef volatile i16 vi16;
+typedef volatile i32 vi32;
 #if USE_RUST_STYLE_INT
 typedef s8   i8;
 typedef s16  i16;
@@ -40,8 +40,8 @@ typedef vs32 vi32;
 #ifdef HAS_INT64
 typedef uint64_t     u64;
 typedef volatile u64 vu64;
-typedef int64_t      s64;
-typedef volatile s64 vs64;
+typedef int64_t      i64;
+typedef volatile i64 vi64;
 #    if USE_RUST_STYLE_INT
 typedef i64  i64;
 typedef vi64 vi64;
@@ -149,9 +149,9 @@ static inline u16 big_endian_read_u16(const u8* bytes)
 }
 
 // 大端方式解释字节数组到s16
-static inline s16 big_endian_read_s16(const u8* bytes)
+static inline i16 big_endian_read_s16(const u8* bytes)
 {
-    return (s16)((bytes[0] << 8) | bytes[1]);
+    return (i16)((bytes[0] << 8) | bytes[1]);
 }
 
 // 大端方式解释字节数组到u32
@@ -161,9 +161,9 @@ static inline u32 big_endian_read_u32(const u8* bytes)
 }
 
 // 大端方式解释字节数组到s32
-static inline s32 big_endian_read_s32(const u8* bytes)
+static inline i32 big_endian_read_s32(const u8* bytes)
 {
-    return (s32)((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
+    return (i32)((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
 }
 
 // 以小端的方式解释一个数组
@@ -175,9 +175,9 @@ static inline u16 little_endian_read_u16(const u8* bytes)
 }
 
 // 小端方式解释字节数组到s16
-static inline s16 little_endian_read_s16(const u8* bytes)
+static inline i16 little_endian_read_s16(const u8* bytes)
 {
-    return (s16)(bytes[0] | (bytes[1] << 8));
+    return (i16)(bytes[0] | (bytes[1] << 8));
 }
 
 // 小端方式解释字节数组到u32
@@ -187,9 +187,9 @@ static inline u32 little_endian_read_u32(const u8* bytes)
 }
 
 // 小端方式解释字节数组到s32
-static inline s32 little_endian_read_s32(const u8* bytes)
+static inline i32 little_endian_read_s32(const u8* bytes)
 {
-    return (s32)((bytes[0]) | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24));
+    return (i32)((bytes[0]) | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24));
 }
 
 // 以大端方式写入u16到字节数组
@@ -200,7 +200,7 @@ static inline void big_endian_write_u16(u8* bytes, u16 value)
 }
 
 // 以大端方式写入s16到字节数组
-static inline void big_endian_write_s16(u8* bytes, s16 value)
+static inline void big_endian_write_s16(u8* bytes, i16 value)
 {
     bytes[0] = (value >> 8) & 0xFF;
     bytes[1] = value & 0xFF;
@@ -216,7 +216,7 @@ static inline void big_endian_write_u32(u8* bytes, u32 value)
 }
 
 // 以大端方式写入s32到字节数组
-static inline void big_endian_write_s32(u8* bytes, s32 value)
+static inline void big_endian_write_s32(u8* bytes, i32 value)
 {
     bytes[0] = (u8)(value >> 24);
     bytes[1] = (u8)(value >> 16);
@@ -232,7 +232,7 @@ static inline void little_endian_write_u16(u8* bytes, u16 value)
 }
 
 // 以小端方式写入s16到字节数组
-static inline void little_endian_write_s16(u8* bytes, s16 value)
+static inline void little_endian_write_s16(u8* bytes, i16 value)
 {
     bytes[0] = (u8)(value);
     bytes[1] = (u8)(value >> 8);
@@ -248,7 +248,7 @@ static inline void little_endian_write_u32(u8* bytes, u32 value)
 }
 
 // 以小端方式写入s32到字节数组
-static inline void little_endian_write_s32(u8* bytes, s32 value)
+static inline void little_endian_write_s32(u8* bytes, i32 value)
 {
     bytes[0] = (u8)(value);
     bytes[1] = (u8)(value >> 8);

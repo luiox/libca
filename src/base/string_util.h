@@ -54,7 +54,7 @@ char* str_concat(char* dest, const char* src);
 // 字符串长度
 u32 str_length(const char* str);
 // 字符串比较
-s32 str_compare(const char* str1, const char* str2);
+i32 str_compare(const char* str1, const char* str2);
 // 字符串搜索字串
 char* str_find(const char* str, const char* substr);
 // 字符串替换
