@@ -76,6 +76,9 @@ option_end()
 
 target("ca-shared")
     set_kind("shared")
+
+    add_deps("ca-base")
+    
     add_includedirs(".")
     add_files("base/*.cpp")
     add_files("test/*.cpp")
@@ -147,7 +150,7 @@ target("ca-win32")
 
     add_includedirs(".")
 
-    add_files("platform/*.cpp")
+    add_files("platform/**.cpp")
 
     add_defines("UNICODE", "_UNICODE", "WIN32")
 

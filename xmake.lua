@@ -26,7 +26,6 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 -- add_requires("spdlog 1.14.1")
 
 includes("src")
-includes("src/cpp")
 
 
 -- -- task("find_tests")
