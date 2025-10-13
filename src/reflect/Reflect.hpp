@@ -11,7 +11,6 @@
 namespace ca {
 
 template<class T, T N>
-
 const char* get_enum_name_static()
 {
 #if defined(_MSC_VER)
