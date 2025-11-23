@@ -18,12 +18,8 @@
 
 #    else
 
-#        define ca_assert(expr) static_cast<void>(           \
-    (expr) ? 0 :                     \
-                 (                    \
-                     ::ca::assertion_failed( \
-                         #expr, __FILE__, __LINE__), \
-                     0)
+#        define ca_assert(expr) \
+            static_cast<void>(expr) ? 0 : (::ca::assertion_failed(#expr, __FILE__, __LINE__), 0)
 
 #    endif   // NDEBUG
 
