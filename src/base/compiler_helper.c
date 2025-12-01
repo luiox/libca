@@ -1,4 +1,4 @@
-#include "compiler_detect.h"
+#include "compiler_helper.h"
 #include <stdio.h>
 
 void print_compiler_info()

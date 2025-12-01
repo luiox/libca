@@ -1,39 +1,62 @@
 #include "debug.h"
-#include "../base/printer.h"
 #include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
+#include "compiler_helper.h"
+#include "datatype.h"
 
-// 定义一个缓冲区大小
-#define DEBUG_BUFFER_SIZE 256
+static u8   g_debug_level = PRINT_LEVEL_DEFAULT;
+static char g_print_buffer[PRINT_BUFFER_SIZE];
 
-static uint32_t g_uart;
-static printer_t g_debug_printer;
-static u8 g_debug_buffer[DEBUG_BUFFER_SIZE];
-
-// 串口发送函数
-static void usart_send_buffer(u8* buf, usize size)
+WEAK_FUNC void hw_puts_output(const char* str)
 {
-    // 这里应该实现实际的串口发送功能
-    // uart_send(g_uart, buf, size);
-    // 作为示例，暂时留空，实际使用时需要实现具体的串口发送逻辑
+    unused_param(str);
 }
 
-void debug_init(uint32_t uart)
+void ca_puts(const char* str)
 {
-    g_uart = uart;
-    printer_init(&g_debug_printer, g_debug_buffer, DEBUG_BUFFER_SIZE, usart_send_buffer);
+    // 调用具体实现
+    hw_puts_output(str);
 }
 
-// 平台无关，无需修改
-void debug_print(const char* fmt, ...)
+void ca_set_print_level(i8 level)
+{
+    g_debug_level = level;
+}
+
+void ca_printf(i8 level, const char* fmt, ...)
+{
+    if (level < g_debug_level) {
+        return;
+    }
+
+    va_list args;
+
+    va_start(args, fmt);
+
+    vsprintf(g_print_buffer, fmt, args);
+
+    va_end(args);
+
+    ca_puts((const char*)g_print_buffer);
+}
+
+void ca_println(i8 level, const char* str)
+{
+    if (level < g_debug_level) {
+        return;
+    }
+    ca_puts(str);
+    ca_puts(PRINT_NEWLINE);
+}
+
+void ca_dprintf(const char* fmt, ...)
 {
     va_list args;
 
     va_start(args, fmt);
 
-    // 使用printer_vprintf来输出格式化字符串
-    printer_vprintf(&g_debug_printer, fmt, args);
+    vsprintf(g_print_buffer, fmt, args);
 
     va_end(args);
+
+    ca_puts((const char*)g_print_buffer);
 }

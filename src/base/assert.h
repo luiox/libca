@@ -1,7 +1,7 @@
 #ifndef ASSETS_H
 #define ASSETS_H
 
-#include "compiler_detect.h"
+#include "compiler_helper.h"
 
 
 // #define C_ASSERT_STATIC(condition) \

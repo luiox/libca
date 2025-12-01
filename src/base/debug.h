@@ -12,11 +12,36 @@
 #define MYLIB_UTILITY_DEBUG_H
 
 #include "../base/base_config.h"
+#include "datatype.h"
+#include <stdarg.h>
 
-////////////////////////////////////////////////////////////////////////////////
-// initialize
+#define PRI_LEVEL_DEBUG 0
+#define PRI_LEVEL_INFO 1
+#define PRI_LEVEL_WARN 2
+#define PRI_LEVEL_ERROR 3
+#define PRI_LEVEL_FATAL 4
 
-void debug_init(uint32_t uart);
+// 设置默认打印级别
+#ifndef PRINT_LEVEL_DEFAULT
+#define PRINT_LEVEL_DEFAULT PRI_LEVEL_DEBUG
+#endif
+
+// 设置默认打印缓冲区大小
+#ifndef PRINT_BUFFER_SIZE
+#define PRINT_BUFFER_SIZE 256
+#endif
+
+// 定义换行符
+#ifndef PRINT_NEWLINE
+#define PRINT_NEWLINE "\n"
+#endif
+
+void ca_puts(const char* str);
+void ca_set_print_level(i8 level);
+void ca_printf(i8 level, const char* fmt, ...);
+void ca_println(i8 level, const char* str);
+void ca_dprintf(const char* fmt, ...);
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // debug print
@@ -25,7 +50,7 @@ void debug_print(const char* fmt, ...);
 
 #ifdef USE_DEBUG_MODE
 #    define DEBUG_INFO(fmt, ...) \
-        debug_print("[info][%s][%d]:" fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+        ca_dprintf("[info][%s][%d]:" fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #    define DEBUG_INFO(fmt, ...)
 #endif   // USE_DEBUG_MODE
@@ -36,7 +61,7 @@ void debug_print(const char* fmt, ...);
 #if USE_DEBUG_ASSERT
 #    define MYLIB_DEBUG_ASSERT(expr)                                   \
         if (!(expr)) {                                                 \
-            debug_print("assert failed: %s:%d\n", __FILE__, __LINE__); \
+            ca_dprintf("assert failed: %s:%d\n", __FILE__, __LINE__); \
         }
 #else
 #    define MYLIB_DEBUG_ASSERT(expr)
@@ -46,7 +71,7 @@ void debug_print(const char* fmt, ...);
 
 #    define CA_PARAM_CHECK(expr)                                            \
         if (!(expr)) {                                                      \
-            debug_print("param check failed: %s:%d\n", __FILE__, __LINE__); \
+            ca_dprintf("param check failed: %s:%d\n", __FILE__, __LINE__); \
         }
 
 #else
@@ -62,7 +87,7 @@ void debug_print(const char* fmt, ...);
 #if USE_DEBUG_ASSERT
 #    define LIBCA_DEBUG_ASSERT(expr)                                   \
         if (!(expr)) {                                                 \
-            debug_print("assert failed: %s:%d\n", __FILE__, __LINE__); \
+            ca_dprintf("assert failed: %s:%d\n", __FILE__, __LINE__); \
         }
 #else
 #    define LIBCA_DEBUG_ASSERT(expr) \
