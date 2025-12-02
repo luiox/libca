@@ -10,7 +10,7 @@
 #define __CONNECT7(__A, __B, __C, __D, __E, __F, __G) \
   __A##__B##__C##__D##__E##__F##__G
 #define __CONNECT8(__A, __B, __C, __D, __E, __F, __G, __H) \
-  _A##__B##__C##__D##__E##__F##__G##__H
+  __A##__B##__C##__D##__E##__F##__G##__H
 #define __CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I) \
   __A##__B##__C##__D##__E##__F##__G##__H##__I
 #define CONNECT2(__A, __B) __CONNECT2(__A, __B)
