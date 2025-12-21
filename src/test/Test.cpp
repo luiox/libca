@@ -54,6 +54,10 @@ static int                   g_passCount = 0;
 static int                   g_failCount = 0;
 static bool                  g_needStop  = false;
 static TestCase*             g_currentCase = nullptr;
+// logging options
+static bool                  g_logRegistrations = true;
+static bool                  g_printPasses = true;
+
 static inline std::string baseName(const std::string& path)
 {
     size_t p = path.find_last_of("/\\");
@@ -73,11 +77,23 @@ void setOnlyRunTestsFromFile(const std::string& filename)
     setTestFilterPredicate([filename](const TestCase& tc){ return baseName(tc.file) == baseName(filename); });
 }
 
+void setLogRegistrations(bool enable)
+{
+    g_logRegistrations = enable;
+}
+
+void setPrintPasses(bool enable)
+{
+    g_printPasses = enable;
+}
+
 void registerTestCase(const std::string& name, std::function<void()> func, const char* file)
 {
     auto &g_testCases = getTestCases();
     g_testCases.emplace_back(name, func, 0, 0, (file ? file : std::string()));
-    std::cout << "[test] registered: " << name << " (total " << g_testCases.size() << ")" << std::endl;
+    if (g_logRegistrations) {
+        std::cout << "[test] registered: " << name << " (total " << g_testCases.size() << ")" << std::endl;
+    }
     // debug: append to registrations log
     {
         FILE* f = fopen("registrations.log", "a");
@@ -86,18 +102,8 @@ void registerTestCase(const std::string& name, std::function<void()> func, const
             fclose(f);
         }
     }
-} 
+}
 
-// Static init diagnostic
-struct TestStaticInitPrinter {
-    TestStaticInitPrinter() {
-        std::cout << "[test] Test.cpp static init done" << std::endl;
-        std::atexit([](){ std::cout << "[test] atexit called" << std::endl; });
-    }
-    ~TestStaticInitPrinter() {
-        std::cout << "[test] Test.cpp static dtor" << std::endl;
-    }
-} g_testStaticInitPrinter;
 
 void runAllTests()
 {
@@ -131,7 +137,7 @@ void runAllTests()
             g_currentCase = &testCase;
             testCase.function();
             g_currentCase = nullptr;
-            std::cout << colorize(std::string("Test '") + testCase.name + "' passed " + std::to_string(testCase.passCount) + ".", COLOR_GREEN) << std::endl;
+            if (g_printPasses) std::cout << colorize(std::string("Test '") + testCase.name + "' passed " + std::to_string(testCase.passCount) + ".", COLOR_GREEN) << std::endl;
         }
         catch (const std::exception& e) {
             if (g_currentCase) g_currentCase->failCount++;

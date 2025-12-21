@@ -42,6 +42,11 @@ void registerTestCase(const std::string& name, std::function<void()> func, const
 void setTestFilterPredicate(const std::function<bool(const TestCase&)>& predicate);
 // 便利函数：只运行来自某个源文件的测试
 void setOnlyRunTestsFromFile(const std::string& filename);
+
+// Logging control (off by default for registrations)
+void setLogRegistrations(bool enable);
+// Control whether individual test pass messages are printed
+void setPrintPasses(bool enable);
 // 运行所有注册的测试用例
 void runAllTests();
 // Run all tests and return number of failed tests (for programs that need an exit code)
