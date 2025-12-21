@@ -4,7 +4,7 @@
 
 #include <string>
 #include <map>
-#include "../base/BasicValue.hpp"
+#include <any>
 #include "../base/Result.hpp"
 #include "../base/Wrapper.hpp"
 
@@ -13,8 +13,8 @@ namespace ca {
 
 class IniSection
 {
-    std::string                       name_;
-    std::map<std::string, BasicValue> items_;
+    std::string                             name_;
+    std::map<std::string, std::any>         items_;
 
 public:
     IniSection() {}
@@ -23,9 +23,9 @@ public:
     {}
     ~IniSection() {}
     inline std::string name() const { return name_; }
-    inline void addItem(const std::string& key, const BasicValue& value) { items_[key] = value; }
-    Result<Ref<BasicValue>, std::string>      findItem(const std::string& key);
-    inline std::map<std::string, BasicValue>& items() { return items_; }
+    inline void addItem(const std::string& key, const std::any& value) { items_[key] = value; }
+    Result<Ref<std::any>, std::string>      findItem(const std::string& key);
+    inline std::map<std::string, std::any>& items() { return items_; }
 };
 
 class IniFile
@@ -43,8 +43,8 @@ public:
     void show();
     void clear();
 
-    Result<Ref<BasicValue>, std::string> get(const std::string& section, const std::string& key);
-    void set(const std::string& section, const std::string& key, const BasicValue& value);
+    Result<Ref<std::any>, std::string> get(const std::string& section, const std::string& key);
+    void set(const std::string& section, const std::string& key, const std::any& value);
 
     bool has(const std::string& section);
     bool has(const std::string& section, const std::string& key);

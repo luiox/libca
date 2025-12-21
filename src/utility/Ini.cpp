@@ -1,18 +1,18 @@
 #include "Ini.hpp"
-#include "../base/BasicValue.hpp"
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <algorithm>
 #include <string>
+#include <any>
 
 namespace ca {
 
-Result<Ref<BasicValue>, std::string> IniSection::findItem(const std::string& key)
+Result<Ref<std::any>, std::string> IniSection::findItem(const std::string& key)
 {
     auto it = items_.find(key);
     if (it != items_.end()) {
-        return Ok(Ref(it->second));
+        return Ok(Ref<std::any>(it->second));
     }
     return Err(std::string("Key not found: ") + key);
 }
@@ -100,7 +100,22 @@ std::string IniFile::str()
     for (auto it = m_sections.begin(); it != m_sections.end(); ++it) {
         ss << "[" << it->first << "]" << std::endl;
         for (auto iter = it->second.items().begin(); iter != it->second.items().end(); ++iter) {
-            ss << iter->first << " = " << (std::string)iter->second.asString() << std::endl;
+            const std::any& val = iter->second;
+            std::string s;
+            if (val.type() == typeid(std::string)) {
+                s = std::any_cast<std::string>(val);
+            } else if (val.type() == typeid(const char*)) {
+                s = std::any_cast<const char*>(val);
+            } else if (val.type() == typeid(int)) {
+                s = std::to_string(std::any_cast<int>(val));
+            } else if (val.type() == typeid(double)) {
+                s = std::to_string(std::any_cast<double>(val));
+            } else if (val.type() == typeid(bool)) {
+                s = std::any_cast<bool>(val) ? "true" : "false";
+            } else {
+                s = "(unknown)";
+            }
+            ss << iter->first << " = " << s << std::endl;
         }
         ss << std::endl;
     }
@@ -131,7 +146,7 @@ bool IniFile::has(const std::string& section, const std::string& key)
     return false;
 }
 
-Result<Ref<BasicValue>, std::string> IniFile::get(const std::string& section,
+Result<Ref<std::any>, std::string> IniFile::get(const std::string& section,
                                                   const std::string& key)
 {
     // 先查找一下有没有这个section和key
@@ -139,10 +154,10 @@ Result<Ref<BasicValue>, std::string> IniFile::get(const std::string& section,
         return Err(std::string("key not found: "));
     }
     // 找得到就返回引用
-    return Ok(Ref(m_sections[section].items()[key]));
+    return Ok(Ref<std::any>(m_sections[section].items()[key]));
 }
 
-void IniFile::set(const std::string& section, const std::string& key, const BasicValue& value)
+void IniFile::set(const std::string& section, const std::string& key, const std::any& value)
 {
     m_sections[section].items()[key] = value;
 }
