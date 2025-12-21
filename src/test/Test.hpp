@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <functional>
+#include <sstream>
 
 // 测试框架命名空间
 namespace ca::test {
@@ -18,41 +20,66 @@ namespace ca::test {
     struct TestCase
     {
         std::string name;
-        void (*function)();
+        std::function<void()> function;
         uint32_t passCount;
         uint32_t failCount;
     };
 
     struct TestCaseRegister{
-        TestCaseRegister(const std::string& name, void (*func)());
+        TestCaseRegister(const std::string& name, std::function<void()> func);
     };
 
 
 // 注册测试用例
-void registerTestCase(const std::string& name, void (*func)());
+void registerTestCase(const std::string& name, std::function<void()> func);
 // 运行所有注册的测试用例
 void runAllTests();
+// Run all tests and return number of failed tests (for programs that need an exit code)
+int runAllTestsAndGetFailCount();
 // 断言，如果失败会终止测试
-void requireTrue(const char* file, int line, bool condition);
-void requireFalse(const char* file, int line, bool condition);
-void requireEqual(const char* file, int line, int expect, int real);
+void requireTrue(const char* file, int line, bool condition, const std::string& message = "");
+void requireFalse(const char* file, int line, bool condition, const std::string& message = "");
 void requireEqual(const char* file, int line, double expect, double real, double delta = 0.00001);
-void requireEqual(const char* file, int line, const char* expect, const char* real);
-void requireEqual(const char* file, int line, std::string expect, std::string real);
-// 断言，如果失败会继续测试
-void assertTrue(const char* file, int line, bool condition);
-void assertFalse(const char* file, int line, bool condition);
-void assertEqual(const char* file, int line, int expect, int real);
+// 通用模板，用于大多数类型（内联以保持可见）
+template<typename T, typename U>
+inline void requireEqual(const char* file, int line, const T& expect, const U& real)
+{
+    if (expect == real) {
+        requireTrue(file, line, true);
+    }
+    else {
+        std::ostringstream ss;
+        ss << "requireEqual fail! expect=" << expect << ", real=" << real;
+        requireTrue(file, line, false, ss.str());
+    }
+}
+
+// 断言，如果失败会继续测试（非致命）
+void assertTrue(const char* file, int line, bool condition, const std::string& message = "");
+void assertFalse(const char* file, int line, bool condition, const std::string& message = "");
+// 通用模板，用于大多数类型（非致命）
+template<typename T, typename U>
+inline void assertEqual(const char* file, int line, const T& expect, const U& real)
+{
+    if (expect == real) {
+        assertTrue(file, line, true);
+    }
+    else {
+        std::ostringstream ss;
+        ss << "assertEqual fail! expect=" << expect << ", real=" << real;
+        assertTrue(file, line, false, ss.str());
+    }
+}
+
+// 继续保留 double 的近似比较重载
 void assertEqual(const char* file, int line, double expect, double real, double delta = 0.00001);
-void assertEqual(const char* file, int line, const char* expect, const char* real);
-void assertEqual(const char* file, int line, std::string expect, std::string real);
 
 }   // namespace ca::test
 
 #define MAKE_STRING(a) #a
 #define MAKE_CONCAT(a, b) a##b
 #define UNIQUE_ID2(a, b) MAKE_CONCAT(a, b)
-#define UNIQUE_ID(id) UNIQUE_ID2(id, __LINE__)
+#define UNIQUE_ID(id) UNIQUE_ID2(id, __COUNTER__)
 #define UNIQUE_TEST_FUNCTION_NAME UNIQUE_ID(ca_test_test_func_)
 #define UNIQUE_TEST_REGISTER_TYPE_NAME UNIQUE_ID(ca_test_Test_Register_)
 #define UNIQUE_TEST_REGISTER_INST_NAME UNIQUE_ID(ca_test_Test_Register_reg_instance_)
@@ -73,14 +100,12 @@ void assertEqual(const char* file, int line, std::string expect, std::string rea
 
 // 定义一个测试函数
 
-#define TEST_CASE2(name)                                        \
-    TEST_FUNCTION_STATEMENT(UNIQUE_TEST_FUNCTION_NAME)          \
-    TEST_FUNCTION_AUTO_REGISTER(UNIQUE_TEST_FUNCTION_NAME,      \
-                                UNIQUE_TEST_REGISTER_INST_NAME, \
-                                name)                           \
-    TEST_FUNCTION_DEFINE(UNIQUE_TEST_FUNCTION_NAME)
+#define TEST_CASE_IMPL(name, id)                                            \
+    TEST_FUNCTION_STATEMENT( MAKE_CONCAT(ca_test_test_func_, id) )            \
+    static ca::test::TestCaseRegister MAKE_CONCAT(ca_test_Test_Register_reg_instance_, id) (MAKE_STRING(name), MAKE_CONCAT(ca_test_test_func_, id)); \
+    TEST_FUNCTION_DEFINE( MAKE_CONCAT(ca_test_test_func_, id) )
 
-#define TEST_CASE(name) TEST_CASE2(name)
+#define TEST_CASE(name) TEST_CASE_IMPL(name, __COUNTER__)
 
 #define TEST_FUNCTION_CALL_ARG2(function_name, arg1, arg2) \
     function_name(__FILE__, __LINE__, arg1, arg2)

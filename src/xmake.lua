@@ -81,7 +81,6 @@ target("ca-shared")
     
     add_includedirs(".")
     add_files("base/*.cpp")
-    add_files("test/*.cpp")
     add_files("reflect/*.cpp")
     add_files("utility/*.cpp")
     
@@ -111,7 +110,6 @@ target("ca-static")
 
     add_includedirs(".")
     add_files("base/*.cpp")
-    add_files("test/*.cpp")
     add_files("reflect/*.cpp")
     add_files("utility/*.cpp")
     
@@ -135,9 +133,30 @@ target("ca-test")
     
     add_files("base/*.cpp")
     add_files("test/*.cpp")
+    remove_files("test/self_test_main.cpp")
     --add_files("libca/reflect/*.cpp")
     add_files("collection/*.cpp")
     --add_files("libca/utility/*.cpp")
+
+    if has_config("network") then
+        add_defines("USE_LIBCA_NETWORK=1")
+        add_files("network/*.cpp")
+    end
+
+-- A small self-test executable that runs the test framework and returns non-zero on failures
+target("ca-self_test")
+    set_kind("binary")
+    add_includedirs("$(projectdir)/third_party")
+    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+    add_links("libiconv")
+
+    add_includedirs(".")
+    add_defines("TEST_ENABLE=1") -- enable test cases but DO NOT define TEST_USE_DEFAULT_MAIN
+
+    add_files("base/*.cpp")
+    add_files("test/*.cpp")
+    add_files("test/self_test_main.cpp")
+    add_files("collection/*.cpp")
 
     if has_config("network") then
         add_defines("USE_LIBCA_NETWORK=1")
