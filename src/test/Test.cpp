@@ -40,25 +40,43 @@ static const char* COLOR_CYAN = "\x1b[36m";
 
 namespace ca::test {
 
-    TestCaseRegister::TestCaseRegister(const std::string& name, std::function<void()> func)
+    TestCaseRegister::TestCaseRegister(const std::string& name, std::function<void()> func, const char* file)
     {
-        ca::test::registerTestCase(name, func);
+        ca::test::registerTestCase(name, func, file);
     }
 
-static std::vector<TestCase> g_testCases;
+static std::vector<TestCase>& getTestCases()
+{
+    static std::vector<TestCase> s_testCases;
+    return s_testCases;
+}
 static int                   g_passCount = 0;
 static int                   g_failCount = 0;
 static bool                  g_needStop  = false;
 static TestCase*             g_currentCase = nullptr;
-
-void registerTestCase(const std::string& name, std::function<void()> func)
+static inline std::string baseName(const std::string& path)
 {
-    TestCase testCase;
-    testCase.name      = name;
-    testCase.function  = func;
-    testCase.failCount = 0;
-    testCase.passCount = 0;
-    g_testCases.push_back(testCase);
+    size_t p = path.find_last_of("/\\");
+    return (p == std::string::npos) ? path : path.substr(p + 1);
+}
+
+static std::function<bool(const TestCase&)> g_testFilterPredicate;
+
+void setTestFilterPredicate(const std::function<bool(const TestCase&)>& predicate)
+{
+    g_testFilterPredicate = predicate;
+}
+
+void setOnlyRunTestsFromFile(const std::string& filename)
+{
+    // capture filename by value to ensure lifetime
+    setTestFilterPredicate([filename](const TestCase& tc){ return baseName(tc.file) == baseName(filename); });
+}
+
+void registerTestCase(const std::string& name, std::function<void()> func, const char* file)
+{
+    auto &g_testCases = getTestCases();
+    g_testCases.emplace_back(name, func, 0, 0, (file ? file : std::string()));
     std::cout << "[test] registered: " << name << " (total " << g_testCases.size() << ")" << std::endl;
     // debug: append to registrations log
     {
@@ -68,7 +86,7 @@ void registerTestCase(const std::string& name, std::function<void()> func)
             fclose(f);
         }
     }
-}
+} 
 
 // Static init diagnostic
 struct TestStaticInitPrinter {
@@ -86,10 +104,30 @@ void runAllTests()
     // enable color output if possible
     g_enableColors = enableAnsiColors();
 
-    std::cout << colorize(std::string("Running ") + std::to_string(g_testCases.size()) + " test cases...", COLOR_CYAN) << std::endl;
-    for (size_t i = 0; i < g_testCases.size(); i++) {
-        auto& testCase = g_testCases[i];
+    auto &g_testCases = getTestCases();
+
+    // Build a snapshot list of tests to run (avoid mutation/invalidated references while running)
+    std::vector<TestCase> runList;
+    for (const auto &tc : g_testCases) {
+        if (g_testFilterPredicate) {
+            if (g_testFilterPredicate(tc)) runList.push_back(tc);
+        }
+        else {
+            runList.push_back(tc);
+        }
+    }
+
+    std::cout << colorize(std::string("Running ") + std::to_string(runList.size()) + " test cases...", COLOR_CYAN) << std::endl;
+
+    // Reset counters for this run
+    g_passCount = 0;
+    g_failCount = 0;
+    g_needStop = false;
+
+    for (size_t i = 0; i < runList.size(); i++) {
+        auto& testCase = runList[i];
         try {
+            // point current case to the snapshot element so asserts update its counters safely
             g_currentCase = &testCase;
             testCase.function();
             g_currentCase = nullptr;
@@ -108,6 +146,7 @@ void runAllTests()
         g_passCount += testCase.passCount;
         g_failCount += testCase.failCount;
     }
+
     std::cout << colorize(std::string("Total Pass :") + std::to_string(g_passCount) + "  Fail :" + std::to_string(g_failCount), COLOR_YELLOW) << std::endl;
 }
 
@@ -183,17 +222,46 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 }
 }   // namespace ca::test
 
-#ifdef TEST_USE_DEFAULT_MAIN
+#ifdef TEST_SELF_MAIN
+
+
+struct SelfTestStaticInitPrinter {
+    SelfTestStaticInitPrinter() {
+        std::cout << "[self_test] self_test_main static init" << std::endl;
+        FILE* f = fopen("self_test_main_init.txt", "w");
+        if (f) { fputs("init", f); fclose(f); }
+    }
+} g_selfTestInitPrinter;
 
 int main()
 {
-    std::cout << "[test] main start" << std::endl;
-    ca::test::runAllTests();
-    std::cout << "[test] main exit" << std::endl;
+    std::cout << "[self_test] start" << std::endl;
+    std::fflush(stdout);
+    // debug: write a file so we know main was reached
+    {
+        FILE* f = fopen("self_test_started.txt", "w");
+        if (f) {
+            fputs("started", f);
+            fclose(f);
+        }
+    }
+
+    // only test self (compare base names to avoid absolute/relative mismatch)
+    ca::test::setTestFilterPredicate([](const ca::test::TestCase& tc) {
+        return ca::test::baseName(tc.file) == ca::test::baseName(__FILE__);
+    });
+
+    int fails = ca::test::runAllTestsAndGetFailCount();
+    if (fails > 0) {
+        std::cout << "[self_test] FAILS: " << fails << std::endl;
+        return 1;
+    }
+    std::cout << "[self_test] OK" << std::endl;
     return 0;
 }
 
-#endif   // TEST_USE_DEFAULT_MAIN
+
+#endif   // TEST_SELF_MAIN
 
 
 #ifdef TEST_ENABLE

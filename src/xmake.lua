@@ -152,10 +152,10 @@ target("ca-self_test")
 
     add_includedirs(".")
     add_defines("TEST_ENABLE=1") -- enable test cases but DO NOT define TEST_USE_DEFAULT_MAIN
+    add_defines("TEST_SELF_MAIN=1")
 
     add_files("base/*.cpp")
     add_files("test/*.cpp")
-    add_files("test/self_test_main.cpp")
     add_files("collection/*.cpp")
 
     if has_config("network") then
