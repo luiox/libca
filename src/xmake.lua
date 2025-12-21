@@ -1,3 +1,17 @@
+-- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
+target("ca-self_test")
+    set_kind("binary")
+    add_includedirs("$(projectdir)/third_party")
+    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+
+    add_includedirs(".")
+    -- 启用测试
+    add_defines("TEST_ENABLE=1")
+    -- 使用self test自定义的main函数
+    add_defines("TEST_SELF_MAIN=1")
+
+    add_files("test/*.cpp")
+
 -- 最基础的库
 target("ca-base")
     set_kind("static")
@@ -142,27 +156,6 @@ target("ca-test")
         add_defines("USE_LIBCA_NETWORK=1")
         add_files("network/*.cpp")
     end
-
--- A small self-test executable that runs the test framework and returns non-zero on failures
-target("ca-self_test")
-    set_kind("binary")
-    add_includedirs("$(projectdir)/third_party")
-    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
-    add_links("libiconv")
-
-    add_includedirs(".")
-    add_defines("TEST_ENABLE=1") -- enable test cases but DO NOT define TEST_USE_DEFAULT_MAIN
-    add_defines("TEST_SELF_MAIN=1")
-
-    add_files("base/*.cpp")
-    add_files("test/*.cpp")
-    add_files("collection/*.cpp")
-
-    if has_config("network") then
-        add_defines("USE_LIBCA_NETWORK=1")
-        add_files("network/*.cpp")
-    end
-
 
 target("ca-win32")
     set_kind("binary")
