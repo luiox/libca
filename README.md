@@ -30,3 +30,13 @@ ByteBuffer is a byte buffer that can be used to store and manipulate binary data
 
 Format is a tool that provides a way to format strings in a similar way to format string like `xxx {}`.
 
+
+# How to run
+
+test
+
+```shell
+xmake build ca-test
+xmake run ca-test
+```
+
