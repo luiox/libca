@@ -15,11 +15,14 @@ static bool enableAnsiColors()
 {
 #ifdef _WIN32
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) return false;
+    if (hOut == INVALID_HANDLE_VALUE)
+        return false;
     DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) return false;
+    if (!GetConsoleMode(hOut, &dwMode))
+        return false;
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (!SetConsoleMode(hOut, dwMode)) return false;
+    if (!SetConsoleMode(hOut, dwMode))
+        return false;
     return true;
 #else
     return isatty(fileno(stdout));
@@ -30,33 +33,37 @@ static bool g_enableColors = false;
 
 static std::string colorize(const std::string& s, const char* code)
 {
-    if (!g_enableColors) return s;
+    if (!g_enableColors)
+        return s;
     return std::string(code) + s + "\x1b[0m";
 }
-static const char* COLOR_RED = "\x1b[31m";
-static const char* COLOR_GREEN = "\x1b[32m";
+
+static const char* COLOR_RED    = "\x1b[31m";
+static const char* COLOR_GREEN  = "\x1b[32m";
 static const char* COLOR_YELLOW = "\x1b[33m";
-static const char* COLOR_CYAN = "\x1b[36m";
+static const char* COLOR_CYAN   = "\x1b[36m";
 
 namespace ca::test {
 
-    TestCaseRegister::TestCaseRegister(const std::string& name, std::function<void()> func, const char* file)
-    {
-        ca::test::registerTestCase(name, func, file);
-    }
+TestCaseRegister::TestCaseRegister(const std::string& name, std::function<void()> func,
+                                   const char* file)
+{
+    ca::test::registerTestCase(name, func, file);
+}
 
 static std::vector<TestCase>& getTestCases()
 {
     static std::vector<TestCase> s_testCases;
     return s_testCases;
 }
-static int                   g_passCount = 0;
-static int                   g_failCount = 0;
-static bool                  g_needStop  = false;
-static TestCase*             g_currentCase = nullptr;
+
+static int       g_passCount   = 0;
+static int       g_failCount   = 0;
+static bool      g_needStop    = false;
+static TestCase* g_currentCase = nullptr;
 // logging options
-static bool                  g_logRegistrations = true;
-static bool                  g_printPasses = true;
+static bool g_logRegistrations = true;
+static bool g_printPasses      = true;
 
 static inline std::string baseName(const std::string& path)
 {
@@ -74,7 +81,8 @@ void setTestFilterPredicate(const std::function<bool(const TestCase&)>& predicat
 void setOnlyRunTestsFromFile(const std::string& filename)
 {
     // capture filename by value to ensure lifetime
-    setTestFilterPredicate([filename](const TestCase& tc){ return baseName(tc.file) == baseName(filename); });
+    setTestFilterPredicate(
+        [filename](const TestCase& tc) { return baseName(tc.file) == baseName(filename); });
 }
 
 void setLogRegistrations(bool enable)
@@ -89,10 +97,11 @@ void setPrintPasses(bool enable)
 
 void registerTestCase(const std::string& name, std::function<void()> func, const char* file)
 {
-    auto &g_testCases = getTestCases();
+    auto& g_testCases = getTestCases();
     g_testCases.emplace_back(name, func, 0, 0, (file ? file : std::string()));
     if (g_logRegistrations) {
-        std::cout << "[test] registered: " << name << " (total " << g_testCases.size() << ")" << std::endl;
+        std::cout << "[test] registered: " << name << " (total " << g_testCases.size() << ")"
+                  << std::endl;
     }
     // debug: append to registrations log
     {
@@ -110,25 +119,29 @@ void runAllTests()
     // enable color output if possible
     g_enableColors = enableAnsiColors();
 
-    auto &g_testCases = getTestCases();
+    auto& g_testCases = getTestCases();
 
     // Build a snapshot list of tests to run (avoid mutation/invalidated references while running)
     std::vector<TestCase> runList;
-    for (const auto &tc : g_testCases) {
+    for (const auto& tc : g_testCases) {
         if (g_testFilterPredicate) {
-            if (g_testFilterPredicate(tc)) runList.push_back(tc);
+            if (g_testFilterPredicate(tc))
+                runList.push_back(tc);
         }
         else {
             runList.push_back(tc);
         }
     }
 
-    std::cout << colorize(std::string("Running ") + std::to_string(runList.size()) + " test cases...", COLOR_CYAN) << std::endl;
+    std::cout << colorize(
+                     std::string("Running ") + std::to_string(runList.size()) + " test cases...",
+                     COLOR_CYAN)
+              << std::endl;
 
     // Reset counters for this run
     g_passCount = 0;
     g_failCount = 0;
-    g_needStop = false;
+    g_needStop  = false;
 
     for (size_t i = 0; i < runList.size(); i++) {
         auto& testCase = runList[i];
@@ -137,23 +150,36 @@ void runAllTests()
             g_currentCase = &testCase;
             testCase.function();
             g_currentCase = nullptr;
-            if (g_printPasses) std::cout << colorize(std::string("Test '") + testCase.name + "' passed " + std::to_string(testCase.passCount) + ".", COLOR_GREEN) << std::endl;
+            if (g_printPasses)
+                std::cout << colorize(std::string("Test '") + testCase.name + "' passed " +
+                                          std::to_string(testCase.passCount) + ".",
+                                      COLOR_GREEN)
+                          << std::endl;
         }
         catch (const std::exception& e) {
-            if (g_currentCase) g_currentCase->failCount++;
-            std::cout << colorize(std::string("Test '") + testCase.name + "' failed: " + e.what(), COLOR_RED) << std::endl;
+            if (g_currentCase)
+                g_currentCase->failCount++;
+            std::cout << colorize(std::string("Test '") + testCase.name + "' failed: " + e.what(),
+                                  COLOR_RED)
+                      << std::endl;
             if (g_needStop) {
                 exit(1);
             }
         }
         catch (...) {
-            std::cout << colorize(std::string("Test '") + testCase.name + "' failed with unknown exception.", COLOR_RED) << std::endl;
+            std::cout << colorize(std::string("Test '") + testCase.name +
+                                      "' failed with unknown exception.",
+                                  COLOR_RED)
+                      << std::endl;
         }
         g_passCount += testCase.passCount;
         g_failCount += testCase.failCount;
     }
 
-    std::cout << colorize(std::string("Total Pass :") + std::to_string(g_passCount) + "  Fail :" + std::to_string(g_failCount), COLOR_YELLOW) << std::endl;
+    std::cout << colorize(std::string("Total Pass :") + std::to_string(g_passCount) +
+                              "  Fail :" + std::to_string(g_failCount),
+                          COLOR_YELLOW)
+              << std::endl;
 }
 
 int runAllTestsAndGetFailCount()
@@ -166,24 +192,29 @@ int runAllTestsAndGetFailCount()
 void requireTrue(const char* file, int line, bool condition, const std::string& message)
 {
     if (condition) {
-        if (g_currentCase) g_currentCase->passCount++;
+        if (g_currentCase)
+            g_currentCase->passCount++;
     }
     else {
         g_needStop = true;
         std::stringstream ss;
         ss << "requireTrue fail!" << std::endl << "file :" << file << ", line :" << line;
-        if (!message.empty()) ss << "\n" << message;
+        if (!message.empty())
+            ss << "\n" << message;
         throw std::runtime_error(ss.str());
     }
 }
+
 void requireFalse(const char* file, int line, bool condition, const std::string& message)
 {
     requireTrue(file, line, !condition, message);
 }
+
 void requireEqual(const char* file, int line, double expect, double real, double delta)
 {
     if (fabs(expect - real) < delta) {
-        if (g_currentCase) g_currentCase->passCount++;
+        if (g_currentCase)
+            g_currentCase->passCount++;
     }
     else {
         g_needStop = true;
@@ -198,28 +229,35 @@ void requireEqual(const char* file, int line, double expect, double real, double
 void assertTrue(const char* file, int line, bool condition, const std::string& message)
 {
     if (condition) {
-        if (g_currentCase) g_currentCase->passCount++;
+        if (g_currentCase)
+            g_currentCase->passCount++;
     }
     else {
-        if (g_currentCase) g_currentCase->failCount++;
+        if (g_currentCase)
+            g_currentCase->failCount++;
         std::stringstream ss;
         ss << "assertTrue fail!" << std::endl << "file :" << file << ", line :" << line;
-        if (!message.empty()) ss << "\n" << message;
+        if (!message.empty())
+            ss << "\n" << message;
         std::cerr << colorize(ss.str(), COLOR_RED) << std::endl;
         // do not throw, continue testing
     }
 }
+
 void assertFalse(const char* file, int line, bool condition, const std::string& message)
 {
     assertTrue(file, line, !condition, message);
 }
+
 void assertEqual(const char* file, int line, double expect, double real, double delta)
 {
     if (fabs(expect - real) < delta) {
-        if (g_currentCase) g_currentCase->passCount++;
+        if (g_currentCase)
+            g_currentCase->passCount++;
     }
     else {
-        if (g_currentCase) g_currentCase->failCount++;
+        if (g_currentCase)
+            g_currentCase->failCount++;
         std::stringstream ss;
         ss << "assertEqual fail!" << std::endl << "file :" << file << ", line :" << line;
         ss << "\nexpect=" << expect << ", real=" << real << ", delta=" << delta;
@@ -231,11 +269,16 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 #ifdef TEST_SELF_MAIN
 
 
-struct SelfTestStaticInitPrinter {
-    SelfTestStaticInitPrinter() {
+struct SelfTestStaticInitPrinter
+{
+    SelfTestStaticInitPrinter()
+    {
         std::cout << "[self_test] self_test_main static init" << std::endl;
         FILE* f = fopen("self_test_main_init.txt", "w");
-        if (f) { fputs("init", f); fclose(f); }
+        if (f) {
+            fputs("init", f);
+            fclose(f);
+        }
     }
 } g_selfTestInitPrinter;
 

@@ -142,7 +142,6 @@ void assertEqual(const char* file, int line, double expect, double real, double 
     TEST_FUNCTION_AUTO_REGISTER2(function_name, register_name, test_case_name)
 
 // 定义一个测试函数
-
 #define TEST_CASE_IMPL(name, id)                                            \
     TEST_FUNCTION_STATEMENT( MAKE_CONCAT(ca_test_test_func_, id) )            \
     static ca::test::TestCaseRegister MAKE_CONCAT(ca_test_Test_Register_reg_instance_, id) (MAKE_STRING(name), MAKE_CONCAT(ca_test_test_func_, id), __FILE__); \
