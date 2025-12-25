@@ -1,16 +1,3 @@
--- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
-target("ca-self_test")
-    set_kind("binary")
-    add_includedirs("$(projectdir)/third_party")
-    add_linkdirs("$(projectdir)/third_party/libiconv/lib")
-
-    add_includedirs(".")
-    -- 启用测试
-    add_defines("TEST_ENABLE=1")
-    -- 使用self test自定义的main函数
-    add_defines("TEST_SELF_MAIN=1")
-
-    add_files("test/*.cpp")
 
 --------------------------------------------------------------------------------
 
@@ -24,21 +11,10 @@ includes("em_log")
 
 -------------------------------------------------------------------------------
 
--- 最基础的库
-target("ca-base")
-    set_kind("static")
-    add_files("base/**.cpp")
-    add_includedirs(".", { public = true })
-
--------------------------------------------------------------------------------
--- 特殊的组件库
+includes("test")
+includes("base")
 
 
--- C++的测试库
-target("ca-test")
-    set_kind("static")
-    -- add_files("em_test/**.c")
-    add_deps("ca-base")
 
 -------------------------------------------------------------------------------
 
