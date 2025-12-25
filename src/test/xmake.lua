@@ -18,5 +18,7 @@ target("ca-self_test")
     add_defines("TEST_ENABLE=1")
     -- 使用self test自定义的main函数
     add_defines("TEST_SELF_MAIN=1")
+    -- 打开成功断言的信息打印
+    add_defines("TEST_USE_SUCCESS_MSG=1")
 
     add_files("*.cpp")

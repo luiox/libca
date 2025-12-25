@@ -192,13 +192,25 @@ int runAllTestsAndGetFailCount()
 void requireTrue(const char* file, int line, bool condition, const std::string& message)
 {
     if (condition) {
-        if (g_currentCase)
+        if (g_currentCase) {
             g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "REQUIRE_TRUE(" << message << ") success ";
+                else
+                    ss << "REQUIRE_TRUE success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
     }
     else {
         g_needStop = true;
         std::stringstream ss;
-        ss << "requireTrue fail!" << std::endl << "file :" << file << ", line :" << line;
+        ss << "requireTrue fail! " << "file :" << file << ", line :" << line;
         if (!message.empty())
             ss << "\n" << message;
         throw std::runtime_error(ss.str());
@@ -207,20 +219,56 @@ void requireTrue(const char* file, int line, bool condition, const std::string& 
 
 void requireFalse(const char* file, int line, bool condition, const std::string& message)
 {
-    requireTrue(file, line, !condition, message);
+    if (!condition) {
+        if (g_currentCase) {
+            g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "REQUIRE_FALSE(" << message << ") success ";
+                else
+                    ss << "REQUIRE_FALSE success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
+    }
+    else {
+        g_needStop = true;
+        std::stringstream ss;
+        ss << "requireFalse fail! " << "file :" << file << ", line :" << line;
+        if (!message.empty())
+            ss << "\n" << message;
+        throw std::runtime_error(ss.str());
+    }
 }
 
-void requireEqual(const char* file, int line, double expect, double real, double delta)
+void requireEqual(const char* file, int line, double expect, double real, const std::string& message, double delta)
 {
     if (fabs(expect - real) < delta) {
-        if (g_currentCase)
+        if (g_currentCase) {
             g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "REQUIRE_EQUAL(" << message << ") success ";
+                else
+                    ss << "REQUIRE_EQUAL success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
     }
     else {
         g_needStop = true;
         std::stringstream ss;
         ss << "requireEqual fail!" << std::endl << "file :" << file << ", line :" << line;
         ss << "\nexpect=" << expect << ", real=" << real << ", delta=" << delta;
+        if (!message.empty()) ss << "\n" << message;
         throw std::runtime_error(ss.str());
     }
 }
@@ -229,8 +277,20 @@ void requireEqual(const char* file, int line, double expect, double real, double
 void assertTrue(const char* file, int line, bool condition, const std::string& message)
 {
     if (condition) {
-        if (g_currentCase)
+        if (g_currentCase) {
             g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "ASSERT_TRUE(" << message << ") success " ;
+                else
+                    ss << "ASSERT_TRUE success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
     }
     else {
         if (g_currentCase)
@@ -246,14 +306,50 @@ void assertTrue(const char* file, int line, bool condition, const std::string& m
 
 void assertFalse(const char* file, int line, bool condition, const std::string& message)
 {
-    assertTrue(file, line, !condition, message);
+    if (!condition) {
+        if (g_currentCase) {
+            g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "ASSERT_FALSE(" << message << ") success ";
+                else
+                    ss << "ASSERT_FALSE success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
+    }
+    else {
+        if (g_currentCase)
+            g_currentCase->failCount++;
+        std::stringstream ss;
+        ss << "assertFalse fail!" << std::endl << "file :" << file << ", line :" << line;
+        if (!message.empty())
+            ss << "\n" << message;
+        std::cerr << colorize(ss.str(), COLOR_RED) << std::endl;
+    }
 }
 
-void assertEqual(const char* file, int line, double expect, double real, double delta)
+void assertEqual(const char* file, int line, double expect, double real, const std::string& message, double delta)
 {
     if (fabs(expect - real) < delta) {
-        if (g_currentCase)
+        if (g_currentCase) {
             g_currentCase->passCount++;
+#if TEST_USE_SUCCESS_MSG
+            {
+                std::ostringstream ss;
+                if (!message.empty())
+                    ss << "ASSERT_EQUAL(" << message << ") success ";
+                else
+                    ss << "ASSERT_EQUAL success ";
+                ss << "file :" << file << ", line :" << line;
+                std::cout << colorize(ss.str(), COLOR_GREEN) << std::endl;
+            }
+#endif
+        }
     }
     else {
         if (g_currentCase)
@@ -261,6 +357,7 @@ void assertEqual(const char* file, int line, double expect, double real, double 
         std::stringstream ss;
         ss << "assertEqual fail!" << std::endl << "file :" << file << ", line :" << line;
         ss << "\nexpect=" << expect << ", real=" << real << ", delta=" << delta;
+        if (!message.empty()) ss << "\n" << message;
         std::cerr << colorize(ss.str(), COLOR_RED) << std::endl;
     }
 }
@@ -279,14 +376,14 @@ int main()
     return 0;
 }
 
-#endif // TEST_USE_DEFAULT_MAIN
+#endif   // TEST_USE_DEFAULT_MAIN
 
 ///////////////////////////////////////////////////////////////////////////////
 // 测试代码
 
 #if TEST_ENABLE
-#ifdef TEST_SELF_MAIN
-#    include "Test.hpp"
+#    ifdef TEST_SELF_MAIN
+#        include "Test.hpp"
 
 // TEST_FUNCTION_STATEMENT(func)
 // TEST_FUNCTION_AUTO_REGISTER(func, reg, inst, case_name)
@@ -316,8 +413,8 @@ TEST_CASE("Test Framework Test")
     REQUIRE_EQUAL("foo", s2);
 }
 
-#endif // !TEST_SELF_MAIN
-#endif   // TEST_ENABLE
+#    endif   // !TEST_SELF_MAIN
+#endif       // TEST_ENABLE
 
 #if TEST_SELF_MAIN
 struct SelfTestStaticInitPrinter

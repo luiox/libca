@@ -1,8 +1,8 @@
 -- 最基础的库
-target("ca-base")
-    set_kind("static")
-    add_files("**.cpp")
-    add_includedirs(".", { public = true })
+-- target("ca-base")
+--     set_kind("static")
+--     add_files("**.cpp")
+--     add_includedirs(".", { public = true })
     -- add_includedirs("$(projectdir)/third_party")
     -- add_linkdirs("$(projectdir)/third_party/libiconv/lib")
 
@@ -17,4 +17,7 @@ target("ca-base_test")
     add_defines("TEST_ENABLE=1")
     -- 使用默认的main函数
     add_defines("TEST_USE_DEFAULT_MAIN=1")
+    -- 开启成功的断言信息
+    add_defines("TEST_USE_SUCCESS_MSG=1")
+
     

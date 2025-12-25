@@ -168,7 +168,7 @@ const uint8_t* ByteBuffer::data() const noexcept { return buffer_; }
 using namespace ca;
 using namespace ca::test;
 
-TEST_CASE("ByteBuffer basic operations")
+TEST_CASE("ByteBuffer_allocate_put_flip_get")
 {
     // allocate, put, flip, get
     ByteBuffer b = ByteBuffer::allocate(5);
@@ -184,15 +184,23 @@ TEST_CASE("ByteBuffer basic operations")
     ASSERT_EQUAL(1, b.position());
     ASSERT_EQUAL(0x22, (int)b.get());
     ASSERT_FALSE(b.hasRemaining());
+}
 
+TEST_CASE("ByteBuffer_wrap_and_index_put")
+{
     // wrap external buffer and index put
     uint8_t arr[4] = {1, 2, 3, 4};
     ByteBuffer wb = ByteBuffer::wrap(arr, 4);
     ASSERT_EQUAL(4, wb.capacity());
+    // diagnostic: ensure underlying pointer matches
+    ASSERT_EQUAL((size_t)arr, (size_t)wb.data());
     ASSERT_EQUAL(1, (int)wb.get());
     wb.put(0, 9);
     ASSERT_EQUAL(9, (int)arr[0]);
+}
 
+TEST_CASE("ByteBuffer_memcpy_slice_compact")
+{
     // put/get with memcpy, slice and compact
     ByteBuffer b2 = ByteBuffer::allocate(6);
     const uint8_t src[4] = {11, 12, 13, 14};
@@ -208,11 +216,16 @@ TEST_CASE("ByteBuffer basic operations")
     b2.get(); b2.get(); // pos = 2
     ByteBuffer s = b2.slice();
     ASSERT_EQUAL(2, s.capacity());
+    // diagnostic: check slice pointer and content
+    ASSERT_EQUAL((size_t)(b2.data() + 2), (size_t)s.data());
     ASSERT_EQUAL(3, (int)s.get()); // slice starts from original position
     b2.compact();
     ASSERT_EQUAL(2, b2.position());
     ASSERT_EQUAL(b2.capacity(), b2.limit());
+}
 
+TEST_CASE("ByteBuffer_mark_reset")
+{
     // mark/reset
     ByteBuffer b3 = ByteBuffer::allocate(3);
     b3.put(10); b3.put(20);
@@ -222,7 +235,10 @@ TEST_CASE("ByteBuffer basic operations")
     ASSERT_EQUAL(20, (int)b3.get());
     b3.reset();
     ASSERT_EQUAL(20, (int)b3.get());
+}
 
+TEST_CASE("ByteBuffer_move_semantics")
+{
     // move semantics
     ByteBuffer b4 = ByteBuffer::allocate(4);
     b4.put(7); b4.put(8);

@@ -56,35 +56,40 @@ void requireTrue(const char* file, int line, bool condition, const std::string& 
 void requireFalse(const char* file, int line, bool condition, const std::string& message = "");
 void requireEqual(const char* file, int line, double expect, double real, double delta = 0.00001);
 
-// C-string overloads for requireEqual
-inline void requireEqual(const char* file, int line, const char* expect, const char* real)
+// C-string overloads for requireEqual (add optional message)
+inline void requireEqual(const char* file, int line, const char* expect, const char* real, const std::string& message = "")
 {
     if (expect && real && std::strcmp(expect, real) == 0) {
-        requireTrue(file, line, true);
+        requireTrue(file, line, true, message);
     }
     else {
         std::ostringstream ss;
         ss << "requireEqual fail! expect=" << (expect ? expect : "(null)") << ", real=" << (real ? real : "(null)");
+        if (!message.empty()) ss << "\n" << message;
         requireTrue(file, line, false, ss.str());
     }
 }
 
-// 通用模板，用于大多数类型（内联以保持可见）
+// 通用模板，用于大多数类型（内联以保持可见），增加 message 参数
 template<typename T, typename U>
-inline void requireEqual(const char* file, int line, const T& expect, const U& real)
+inline void requireEqual(const char* file, int line, const T& expect, const U& real, const std::string& message = "")
 {
     if (expect == real) {
-        requireTrue(file, line, true);
+        requireTrue(file, line, true, message);
     }
     else {
         std::ostringstream ss;
         ss << "requireEqual fail! expect=" << expect << ", real=" << real;
+        if (!message.empty()) ss << "\n" << message;
         requireTrue(file, line, false, ss.str());
     }
 }
 
 // 断言，如果失败会继续测试（非致命）
 void assertTrue(const char* file, int line, bool condition, const std::string& message = "");
+
+// 继续保留 double 的近似比较重载（增加可选消息参数）
+void requireEqual(const char* file, int line, double expect, double real, const std::string& message = "", double delta = 0.00001);
 void assertFalse(const char* file, int line, bool condition, const std::string& message = "");
 
 // C-string overloads (compare contents, not pointers)
@@ -114,8 +119,37 @@ inline void assertEqual(const char* file, int line, const T& expect, const U& re
     }
 }
 
-// 继续保留 double 的近似比较重载
-void assertEqual(const char* file, int line, double expect, double real, double delta = 0.00001);
+// 继续保留 double 的近似比较重载（增加可选消息参数，并把 message 放在 delta 之前以方便宏使用）
+void assertEqual(const char* file, int line, double expect, double real, const std::string& message = "", double delta = 0.00001);
+
+// C-string overloads (compare contents, not pointers)
+inline void assertEqual(const char* file, int line, const char* expect, const char* real, const std::string& message = "")
+{
+    if (expect && real && std::strcmp(expect, real) == 0) {
+        assertTrue(file, line, true, message);
+    }
+    else {
+        std::ostringstream ss;
+        ss << "assertEqual fail! expect=" << (expect ? expect : "(null)") << ", real=" << (real ? real : "(null)");
+        if (!message.empty()) ss << "\n" << message;
+        assertTrue(file, line, false, ss.str());
+    }
+}
+
+// 通用模板，用于大多数类型（非致命），增加 message 参数
+template<typename T, typename U>
+inline void assertEqual(const char* file, int line, const T& expect, const U& real, const std::string& message = "")
+{
+    if (expect == real) {
+        assertTrue(file, line, true, message);
+    }
+    else {
+        std::ostringstream ss;
+        ss << "assertEqual fail! expect=" << expect << ", real=" << real;
+        if (!message.empty()) ss << "\n" << message;
+        assertTrue(file, line, false, ss.str());
+    }
+}
 
 }   // namespace ca::test
 
@@ -153,15 +187,19 @@ void assertEqual(const char* file, int line, double expect, double real, double 
     function_name(__FILE__, __LINE__, arg1, arg2)
 #define TEST_FUNCTION_CALL_ARG1(function_name, arg) function_name(__FILE__, __LINE__, arg)
 
-// 断言宏，如果失败会终止测试
-#define REQUIRE_TRUE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::requireTrue, condition)
-#define REQUIRE_FALSE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::requireFalse, condition)
-#define REQUIRE_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(ca::test::requireEqual, expect, real)
+#define MAKE_EQUAL_STRING2(right) " == " MAKE_STRING(right)
+#define MAKE_EQUAL_STRING(left, right) MAKE_STRING(left) MAKE_EQUAL_STRING2(right)
 
-// 断言宏，如果失败会继续测试
-#define ASSERT_TRUE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::assertTrue, condition)
-#define ASSERT_FALSE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::assertFalse, condition)
-#define ASSERT_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(ca::test::assertEqual, expect, real)
+// 断言宏，如果失败会终止测试
+#define REQUIRE_TRUE(condition) ca::test::requireTrue(__FILE__, __LINE__, (condition), MAKE_STRING(condition))
+#define REQUIRE_FALSE(condition) ca::test::requireFalse(__FILE__, __LINE__, (condition), MAKE_STRING(condition))
+#define REQUIRE_EQUAL(expect, real) ca::test::requireEqual(__FILE__, __LINE__, (expect), (real), MAKE_EQUAL_STRING(expect, real))
+
+// 断言宏，如果失败会继续测试（非致命）
+#define ASSERT_TRUE(condition) ca::test::assertTrue(__FILE__, __LINE__, (condition), MAKE_STRING(condition))
+#define ASSERT_FALSE(condition) ca::test::assertFalse(__FILE__, __LINE__, (condition), MAKE_STRING(condition))
+#define ASSERT_EQUAL(expect, real) ca::test::assertEqual(__FILE__, __LINE__, (expect), (real), MAKE_EQUAL_STRING(expect, real))
+
 
 // 配置通常是在包含此头文件之前定义，或者在编译器命令行中定义
 // 控制是否启用测试代码
@@ -171,6 +209,10 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 // 控制是否启用自测试的 main 函数
 #ifndef TEST_USE_DEFAULT_MAIN
 #    define TEST_USE_DEFAULT_MAIN 0
+#endif
+// 控制成功的断言等是否也显示行号
+#ifndef TEST_USE_SUCCESS_MSG
+#    define TEST_USE_SUCCESS_MSG 0
 #endif
 
 #endif   // !LIBCA_TEST_TEST_HPP
