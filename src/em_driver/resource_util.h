@@ -11,7 +11,7 @@
 #ifndef RESOURCE_UTIL_H
 #define RESOURCE_UTIL_H
 
-#include "../base/datatype.h" 
+#include "../em_base/datatype.h" 
 
 #define RESOURCE_MAX_SIZE 0xFF
 

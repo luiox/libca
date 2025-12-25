@@ -11,7 +11,7 @@
 #ifndef MTLIB_DRIVER_SOFT_I2C_H
 #define MTLIB_DRIVER_SOFT_I2C_H
 
-#include "../base/datatype.h"
+#include "../em_base/datatype.h"
 #include "vhil.h"
 
 // 写控制bit

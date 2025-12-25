@@ -11,7 +11,7 @@
 #ifndef CRC_H
 #define CRC_H
 
-#include "../base/datatype.h" 
+#include "../em_base/datatype.h" 
 
 // CRC-32-IEEE 802.3
 // x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1

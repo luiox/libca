@@ -11,7 +11,7 @@
 #ifndef MYLIB_UTILITY_DEBUG_H
 #define MYLIB_UTILITY_DEBUG_H
 
-#include "../base/base_config.h"
+#include "../em_base/base_config.h"
 #include "datatype.h"
 #include <stdarg.h>
 

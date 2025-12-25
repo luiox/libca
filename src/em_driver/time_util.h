@@ -2,7 +2,7 @@
 #ifndef TIMEUTIL_H
 #define TIMEUTIL_H
 
-#include "../base/datatype.h"   
+#include "../em_base/datatype.h"   
 #include <stdbool.h>
 
 // 阻塞延时函数

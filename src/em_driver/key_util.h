@@ -11,7 +11,7 @@
 #ifndef KEY_UTIL_H
 #define KEY_UTIL_H
 
-#include "../base/datatype.h" 
+#include "../em_base/datatype.h" 
 
 #define KEY_STATE_PRESS 1
 #define KEY_STATE_RELEASE 0
