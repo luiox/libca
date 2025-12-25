@@ -10,9 +10,11 @@ target("ca-base")
 target("ca-base_test")
     set_kind("binary")
     add_files("ByteBuffer.cpp")
-    -- 启用测试
-    add_defines("TEST_ENABLE=1")
+
     add_files("../test/Test.cpp")
 
-    add_defines("TEST_USE_DEFAULT_MAIN=1")
+    -- 启用测试
     add_defines("TEST_ENABLE=1")
+    -- 使用默认的main函数
+    add_defines("TEST_USE_DEFAULT_MAIN=1")
+    

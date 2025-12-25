@@ -163,6 +163,14 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 #define ASSERT_FALSE(condition) TEST_FUNCTION_CALL_ARG1(ca::test::assertFalse, condition)
 #define ASSERT_EQUAL(expect, real) TEST_FUNCTION_CALL_ARG2(ca::test::assertEqual, expect, real)
 
-
+// 配置通常是在包含此头文件之前定义，或者在编译器命令行中定义
+// 控制是否启用测试代码
+#ifndef TEST_ENABLE
+#    define TEST_ENABLE 0
+#endif
+// 控制是否启用自测试的 main 函数
+#ifndef TEST_USE_DEFAULT_MAIN
+#    define TEST_USE_DEFAULT_MAIN 0
+#endif
 
 #endif   // !LIBCA_TEST_TEST_HPP

@@ -266,19 +266,60 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 }
 }   // namespace ca::test
 
-#ifdef TEST_USE_DEFAULT_MAIN
+#if TEST_USE_DEFAULT_MAIN
 
 int main()
 {
-    ca::test::runAllTestsAndGetFailCount();
+    int fails = ca::test::runAllTestsAndGetFailCount();
+    if (fails > 0) {
+        std::cout << "FAILS: " << fails << std::endl;
+        return 1;
+    }
+    std::cout << "OK" << std::endl;
     return 0;
 }
 
 #endif // TEST_USE_DEFAULT_MAIN
 
+///////////////////////////////////////////////////////////////////////////////
+// 测试代码
+
+#if TEST_ENABLE
 #ifdef TEST_SELF_MAIN
+#    include "Test.hpp"
 
+// TEST_FUNCTION_STATEMENT(func)
+// TEST_FUNCTION_AUTO_REGISTER(func, reg, inst, case_name)
+// TEST_FUNCTION_DEFINE(func)
+//{
+//
+// }
 
+using namespace ca::test;
+
+TEST_CASE("Test Framework Test")
+{
+    TEST_FUNCTION_CALL_ARG1(assertTrue, true);
+
+    ASSERT_TRUE(true);
+    ASSERT_FALSE(1 == 2);
+    ASSERT_EQUAL(1, 1);
+    ASSERT_EQUAL("hello", "hello");
+    std::string s1 = "foo";
+    ASSERT_EQUAL("foo", s1);
+
+    REQUIRE_TRUE(1 == 1);
+    REQUIRE_FALSE(2 == 3);
+    REQUIRE_EQUAL(1, 1);
+    REQUIRE_EQUAL("hello", "hello");
+    std::string s2 = "foo";
+    REQUIRE_EQUAL("foo", s2);
+}
+
+#endif // !TEST_SELF_MAIN
+#endif   // TEST_ENABLE
+
+#if TEST_SELF_MAIN
 struct SelfTestStaticInitPrinter
 {
     SelfTestStaticInitPrinter()
@@ -321,39 +362,3 @@ int main()
 
 
 #endif   // TEST_SELF_MAIN
-
-
-#ifdef TEST_ENABLE
-#ifdef TEST_SELF_MAIN
-#    include "Test.hpp"
-
-// TEST_FUNCTION_STATEMENT(func)
-// TEST_FUNCTION_AUTO_REGISTER(func, reg, inst, case_name)
-// TEST_FUNCTION_DEFINE(func)
-//{
-//
-// }
-
-using namespace ca::test;
-
-TEST_CASE("Test Framework Test")
-{
-    TEST_FUNCTION_CALL_ARG1(assertTrue, true);
-
-    ASSERT_TRUE(true);
-    ASSERT_FALSE(1 == 2);
-    ASSERT_EQUAL(1, 1);
-    ASSERT_EQUAL("hello", "hello");
-    std::string s1 = "foo";
-    ASSERT_EQUAL("foo", s1);
-
-    REQUIRE_TRUE(1 == 1);
-    REQUIRE_FALSE(2 == 3);
-    REQUIRE_EQUAL(1, 1);
-    REQUIRE_EQUAL("hello", "hello");
-    std::string s2 = "foo";
-    REQUIRE_EQUAL("foo", s2);
-}
-
-#endif
-#endif   // TEST_ENABLE
