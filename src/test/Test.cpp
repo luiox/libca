@@ -266,6 +266,16 @@ void assertEqual(const char* file, int line, double expect, double real, double 
 }
 }   // namespace ca::test
 
+#ifdef TEST_USE_DEFAULT_MAIN
+
+int main()
+{
+    ca::test::runAllTestsAndGetFailCount();
+    return 0;
+}
+
+#endif // TEST_USE_DEFAULT_MAIN
+
 #ifdef TEST_SELF_MAIN
 
 
@@ -314,7 +324,7 @@ int main()
 
 
 #ifdef TEST_ENABLE
-
+#ifdef TEST_SELF_MAIN
 #    include "Test.hpp"
 
 // TEST_FUNCTION_STATEMENT(func)
@@ -345,5 +355,5 @@ TEST_CASE("Test Framework Test")
     REQUIRE_EQUAL("foo", s2);
 }
 
-
+#endif
 #endif   // TEST_ENABLE

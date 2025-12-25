@@ -1,119 +1,84 @@
 #ifndef LIBCA_BASE_BYTE_BUFFER_HPP
 #define LIBCA_BASE_BYTE_BUFFER_HPP
 
-#include <iostream>
 #include <cstdint>
 #include <cstring>
-#include "Platform.hpp"
+#include <memory>
+#include <stdexcept>
+#include <limits>
+#include <algorithm>
+#include "DllExport.hpp"
 
 namespace ca {
 
 class LIBCA_API ByteBuffer
 {
 private:
-    size_t   position_;
-    size_t   limit_;
-    size_t   capacity_;
-    uint8_t* buffer_;
-    size_t   mark_;
+    size_t                      position_{0};
+    size_t                      limit_{0};
+    size_t                      capacity_{0};
+    uint8_t*                    buffer_{nullptr};
+    std::unique_ptr<uint8_t[]>  owned_;
+    bool                        owns_{false};
+    size_t                      mark_{std::numeric_limits<size_t>::max()};
+
+    void ensureRemaining(size_t n) const;
+    void checkIndex(size_t index) const;
 
 public:
-    ByteBuffer();
-
+    ByteBuffer() = default;
     explicit ByteBuffer(size_t size);
 
-    ~ByteBuffer();
+    // non-copyable
+    ByteBuffer(const ByteBuffer&) = delete;
+    ByteBuffer& operator=(const ByteBuffer&) = delete;
+
+    // movable
+    ByteBuffer(ByteBuffer&&) noexcept = default;
+    ByteBuffer& operator=(ByteBuffer&&) noexcept = default;
+
+    ~ByteBuffer() = default;
 
     static ByteBuffer allocate(size_t size) { return ByteBuffer(size); }
 
-    // 包装一个现有的字节数组
-    static ByteBuffer wrap(uint8_t* array, size_t size)
-    {
-        ByteBuffer bb;
-        bb.buffer_   = array;
-        bb.capacity_ = size;
-        bb.limit_    = size;
-        bb.position_ = 0;
-        bb.mark_     = 0;
-        return bb;
-    }
+    // wrap existing (non-owning)
+    static ByteBuffer wrap(uint8_t* array, size_t size);
+    static ByteBuffer wrap(uint8_t* array, size_t offset, size_t length);
 
-    // 包装一个现有的字节数组的一部分
-    static ByteBuffer wrap(uint8_t* array, size_t offset, size_t length)
-    {
-        ByteBuffer bb;
-        bb.buffer_   = array + offset;
-        bb.capacity_ = length;
-        bb.limit_    = length;
-        bb.position_ = 0;
-        bb.mark_     = 0;
-        return bb;
-    }
-
-    // // 获取当前位置
-    // size_t position() const { return position_; }
-
-    // // 设置当前位置
-    // void position(size_t newPosition) { position_ = newPosition; }
-
-    // // 获取限制
-    // size_t limit() const { return limit_; }
-
-    // // 设置限制
-    // void limit(size_t newLimit) { limit_ = newLimit; }
-
-    // // 获取容量
+    // position/limit/capacity
     [[nodiscard]] size_t capacity() const;
+    [[nodiscard]] size_t position() const;
+    void position(size_t newPosition);
 
-    // // 标记当前位置
-    // void mark() { mark_ = position_; }
+    [[nodiscard]] size_t limit() const;
+    void limit(size_t newLimit);
 
-    // // 重置到标记位置
-    // void reset() { position_ = mark_; }
+    [[nodiscard]] size_t remaining() const;
+    [[nodiscard]] bool hasRemaining() const;
 
-    // // 清除缓冲区
-    // void clear()
-    // {
-    //     position_ = 0;
-    //     limit_    = capacity_;
-    //     mark_     = 0;
-    // }
+    // mark/reset/clear/flip/rewind
+    void mark();
+    void reset();
+    void clear();
+    void flip();
+    void rewind();
 
-    // // 反转缓冲区
-    // void flip()
-    // {
-    //     limit_    = position_;
-    //     position_ = 0;
-    // }
+    // basic get/put
+    uint8_t get();
+    uint8_t get(size_t index) const;
+    void get(uint8_t* dst, size_t offset, size_t length);
 
-    // // 重绕缓冲区
-    // void rewind() { position_ = 0; }
+    void put(uint8_t b);
+    void put(size_t index, uint8_t b);
+    void put(const uint8_t* src, size_t offset, size_t length);
 
-    // // 读取单个字节
-    // uint8_t get() { return buffer_[position_++]; }
+    // slice/compact
+    ByteBuffer slice() const;
+    void compact();
 
-    // // 读取指定索引处的字节
-    // uint8_t get(size_t index) { return buffer_[index]; }
-
-    // // 将字节从此缓冲区传输到给定的目标数组
-    // void get(uint8_t* dst, size_t offset, size_t length)
-    // {
-    //     std::memcpy(dst + offset, buffer_ + position_, length);
-    //     position_ += length;
-    // }
-
-    // // 将单个字节写入缓冲区的当前位置
-    // void put(uint8_t b) { buffer_[position_++] = b; }
-
-    // // 将字节写入指定索引处的缓冲区
-    // void put(size_t index, uint8_t b) { buffer_[index] = b; }
-
-    // // 将给定数组中的字节序列写入此缓冲区的当前位置
-    // void put(const uint8_t* src, size_t offset, size_t length)
-    // {
-    //     std::memcpy(buffer_ + position_, src + offset, length);
-    //     position_ += length;
-    // }
+    // raw access
+    uint8_t* data() noexcept;
+    const uint8_t* data() const noexcept;
 };
 
 }   // namespace ca

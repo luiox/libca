@@ -3,3 +3,16 @@ target("ca-base")
     set_kind("static")
     add_files("**.cpp")
     add_includedirs(".", { public = true })
+    -- add_includedirs("$(projectdir)/third_party")
+    -- add_linkdirs("$(projectdir)/third_party/libiconv/lib")
+
+
+target("ca-base_test")
+    set_kind("binary")
+    add_files("ByteBuffer.cpp")
+    -- 启用测试
+    add_defines("TEST_ENABLE=1")
+    add_files("../test/Test.cpp")
+
+    add_defines("TEST_USE_DEFAULT_MAIN=1")
+    add_defines("TEST_ENABLE=1")
