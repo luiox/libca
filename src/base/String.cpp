@@ -797,7 +797,7 @@ const char* SmallString::cStr()
 
 }   // namespace ca
 
-#ifdef TEST_ENABLE
+#if TEST_ENABLE
 
 #include "StringUtil.hpp"
 #include "Charset.hpp"

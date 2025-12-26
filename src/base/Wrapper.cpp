@@ -1,6 +1,6 @@
 #include "Wrapper.hpp"
 
-#ifdef TEST_ENABLE
+#if TEST_ENABLE
 
 #    include "../test/Test.hpp"
 

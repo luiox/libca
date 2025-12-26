@@ -5,7 +5,7 @@
 using namespace std;
 using namespace ca;
 
-#ifdef TEST_ENABLE
+#if TEST_ENABLE
 
 #    include "../test/Test.hpp"
 
