@@ -1,23 +1,32 @@
 #include "test.h"
 
-#ifdef LIBCA_USE_TEST
+#if TEST_ENABLE
 
-// TEST_CASE(test_module)
-// {
-//     int result = 2 + 2;
-//     TEST_ASSERT_EQUAL_INT(4, result);
-// }
+TEST_CASE(test_module)
+{
+    int result = 2 + 2;
+    TEST_ASSERT_EQUAL_INT(4, result);
+}
 
 int total_tests = 0;
 
 int passed_tests = 0;
 
-// 全局测试用例数组
-test_t* tests = NULL;
+#if defined(_MSC_VER)
+__declspec(allocate(".test$a")) const test_t* _test_start = NULL;
+__declspec(allocate(".test$z")) const test_t* _test_stop  = NULL;
+#endif
 
-// 测试用例数量
-int num_tests = 0;
-int cur_num   = 0;
+#if TEST_SELF_MAIN
+
+int main(int argc, char** argv)
+{
+    printf("Start running tests...\n");
+    run_tests();
+    return LIBCA_TEST_SUCCESS;
+}
+
+#endif
 
 
-#endif   // LIBCA_USE_TEST
+#endif   // TEST_ENABLE

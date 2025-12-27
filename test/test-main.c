@@ -6,6 +6,5 @@ int main(int argc, char** argv)
 {
     printf("Start running tests...\n");
     run_tests();
-    free(tests);
     return LIBCA_TEST_SUCCESS;
 }
