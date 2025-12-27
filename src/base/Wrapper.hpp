@@ -76,20 +76,6 @@ public:
     MeyersSingleton& operator=(const MeyersSingleton&) = delete;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-
-// NoCopyable
-
-class NoCopyable
-{
-protected:
-    NoCopyable() =default;
-    ~NoCopyable() = default;
-
-public:
-    NoCopyable(const NoCopyable&) = delete;
-    NoCopyable& operator=(const NoCopyable&) = delete;
-};
 
 }   // namespace ca
 
