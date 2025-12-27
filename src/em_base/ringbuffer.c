@@ -148,3 +148,66 @@ position_size_t ringbuffer_free(const ringbuffer_t* rb)
     assert(rb);
     return rb->size - rb->used;
 }
+
+#if TEST_ENABLE
+
+#include "../em_test/test.h"
+
+TEST_CASE(ringbuffer_basic)
+{
+    uint8_t      buf[16];
+    ringbuffer_t rb;
+    uint8_t      data_to_write[] = {0x01, 0x02, 0x03, 0x04};
+    uint8_t      data_to_read[4] = {0};
+
+    ringbuffer_init(&rb, buf, 16);
+
+    // 测试初始状态
+    TEST_ASSERT_EQUAL_INT(0, ringbuffer_used(&rb));
+    TEST_ASSERT_EQUAL_INT(16, ringbuffer_free(&rb));
+
+    // 测试写入
+    position_size_t written = ringbuffer_write(&rb, data_to_write, 4);
+    TEST_ASSERT_EQUAL_INT(4, written);
+    TEST_ASSERT_EQUAL_INT(4, ringbuffer_used(&rb));
+    TEST_ASSERT_EQUAL_INT(12, ringbuffer_free(&rb));
+
+    // 测试读取
+    position_size_t read = ringbuffer_read(&rb, data_to_read, 4);
+    TEST_ASSERT_EQUAL_INT(4, read);
+    TEST_ASSERT_EQUAL_INT(0, ringbuffer_used(&rb));
+    TEST_ASSERT_EQUAL_INT(0x01, data_to_read[0]);
+    TEST_ASSERT_EQUAL_INT(0x04, data_to_read[3]);
+}
+
+TEST_CASE(ringbuffer_wrap_around)
+{
+    uint8_t      buf[8];
+    ringbuffer_t rb;
+    uint8_t      data1[] = {1, 2, 3, 4, 5, 6};
+    uint8_t      data2[] = {7, 8};
+    uint8_t      read_buf[8];
+
+    ringbuffer_init(&rb, buf, 8);
+
+    // 写入6字节
+    ringbuffer_write(&rb, data1, 6);
+    // 读取4字节，此时 read=4, write=6, used=2
+    ringbuffer_read(&rb, read_buf, 4);
+    TEST_ASSERT_EQUAL_INT(2, ringbuffer_used(&rb));
+
+    // 再次写入4字节，会发生回环 (6+4=10, 10%8=2)
+    position_size_t written = ringbuffer_write(&rb, data2, 4);
+    // 剩余空间是 8-2=6，所以4字节应该能全部写进去
+    TEST_ASSERT_EQUAL_INT(4, written);
+    TEST_ASSERT_EQUAL_INT(6, ringbuffer_used(&rb));
+
+    // 读取所有数据验证正确性
+    ringbuffer_read(&rb, read_buf, 6);
+    TEST_ASSERT_EQUAL_INT(5, read_buf[0]);
+    TEST_ASSERT_EQUAL_INT(6, read_buf[1]);
+    TEST_ASSERT_EQUAL_INT(7, read_buf[2]);
+    TEST_ASSERT_EQUAL_INT(8, read_buf[3]);
+}
+
+#endif
