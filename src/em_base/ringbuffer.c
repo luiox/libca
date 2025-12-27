@@ -7,7 +7,7 @@
  * @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
  * @param size 缓冲区大小
  */
-void ringbuffer_init(ringbuffer_t* rb, uint8_t* buffer, postion_size_t size)
+void ringbuffer_init(ringbuffer_t* rb, uint8_t* buffer, position_size_t size)
 {
     assert(rb);
     assert(buffer);
@@ -34,60 +34,105 @@ void ringbuffer_reset(ringbuffer_t* rb)
  * @brief 往环形缓冲区里写数据.
  * @param rb 环形缓冲区指针
  * @param data 指向数据的指针
- * @param size 写入的数据大小
- * @return 是否写入成功
+ * @param size 期望写入的数据大小
+ * @return position_size_t 实际写入的数据大小
  */
-bool ringbuffer_write(ringbuffer_t* rb, uint8_t* data, postion_size_t size)
+position_size_t ringbuffer_write(ringbuffer_t* rb, const uint8_t* data, position_size_t size)
 {
     assert(rb);
     assert(data);
-    if (ringbuffer_get_free_size(rb) < size) {
-        // 缓冲区容量不够
-        return false;
+    
+    position_size_t free_size = ringbuffer_free(rb);
+    if (size > free_size) {
+        size = free_size;
     }
+
     // 写入数据
-    for (postion_size_t i = 0; i < size; i++) {
+    for (position_size_t i = 0; i < size; i++) {
         rb->buffer[rb->write] = data[i];
-        // 设置写指针位置
-        // 如果可以的话确保这是原子的操作，否则可能会导致数据不一致
         rb->write = (rb->write + 1) & (rb->size - 1);
     }
     rb->used += size;
-    return true;
+    return size;
 }
 
 /**
  * @brief 从环形缓冲区里读数据.
  * @param rb 环形缓冲区指针
  * @param buf 指向读取缓冲区的指针
- * @param size 读取的数据大小
- * @param 是否读取成功
+ * @param size 期望读取的数据大小
+ * @return position_size_t 实际读取的数据大小
  */
-bool ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, postion_size_t size)
+position_size_t ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, position_size_t size)
 {
     assert(rb);
     assert(buf);
-    if (ringbuffer_get_data_size(rb) < size) {
-        // 缓冲区内容不够读取
-        return false;
+
+    position_size_t used_size = ringbuffer_used(rb);
+    if (size > used_size) {
+        size = used_size;
     }
+
     // 读取数据
-    for (postion_size_t i = 0; i < size; i++) {
+    for (position_size_t i = 0; i < size; i++) {
         buf[i] = rb->buffer[rb->read];
-        // 设置读指针位置
-        // 如果可以的话确保这是原子的操作，否则可能会导致数据不一致
         rb->read = (rb->read + 1) & (rb->size - 1);
     }
     rb->used -= size;
-    return true;
+    return size;
+}
+
+/**
+ * @brief 预览环形缓冲区里的数据（不弹出）.
+ * @param rb 环形缓冲区指针
+ * @param buf 指向读取缓冲区的指针
+ * @param size 期望预览的数据大小
+ * @return position_size_t 实际预览的数据大小
+ */
+position_size_t ringbuffer_peek(const ringbuffer_t* rb, uint8_t* buf, position_size_t size)
+{
+    assert(rb);
+    assert(buf);
+
+    position_size_t used_size = ringbuffer_used(rb);
+    if (size > used_size) {
+        size = used_size;
+    }
+
+    position_size_t read_ptr = rb->read;
+    for (position_size_t i = 0; i < size; i++) {
+        buf[i] = rb->buffer[read_ptr];
+        read_ptr = (read_ptr + 1) & (rb->size - 1);
+    }
+    return size;
+}
+
+/**
+ * @brief 跳过（丢弃）环形缓冲区里的数据.
+ * @param rb 环形缓冲区指针
+ * @param size 期望跳过的数据大小
+ * @return position_size_t 实际跳过的数据大小
+ */
+position_size_t ringbuffer_skip(ringbuffer_t* rb, position_size_t size)
+{
+    assert(rb);
+    
+    position_size_t used_size = ringbuffer_used(rb);
+    if (size > used_size) {
+        size = used_size;
+    }
+
+    rb->read = (rb->read + size) & (rb->size - 1);
+    rb->used -= size;
+    return size;
 }
 
 /**
  * @brief 获取环形缓冲区里的数据大小.
  * @param rb 环形缓冲区指针
- * @return 数据大小
+ * @return position_size_t 已使用的大小
  */
-postion_size_t ringbuffer_get_data_size(ringbuffer_t* rb)
+position_size_t ringbuffer_used(const ringbuffer_t* rb)
 {
     assert(rb);
     return rb->used;
@@ -96,9 +141,9 @@ postion_size_t ringbuffer_get_data_size(ringbuffer_t* rb)
 /**
  * @brief 获取环形缓冲区里的空闲大小.
  * @param rb 环形缓冲区指针
- * @return 空闲大小
+ * @return position_size_t 空闲大小
  */
-postion_size_t ringbuffer_get_free_size(ringbuffer_t* rb)
+position_size_t ringbuffer_free(const ringbuffer_t* rb)
 {
     assert(rb);
     return rb->size - rb->used;
