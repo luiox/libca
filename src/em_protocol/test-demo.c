@@ -1,9 +1,11 @@
 // 这个文件用于模拟如何使用
 #include "file_transfer.h"
 #include "xmodem.h"
+#include "ymodem.h"
 #include <stdio.h>
 
 // --- 模拟硬件底层接口 ---
+// ... (保持不变)
 
 // 模拟串口发送
 void uart_send(const uint8_t* data, size_t length) {
@@ -23,6 +25,7 @@ void write_flash(uint32_t address, const uint8_t* data, size_t length) {
 
 file_transfer_t g_ft; // 统一的协议句柄
 xmodem_t g_xm;        // XModem 私有数据
+ymodem_t g_ym;        // YModem 私有数据
 ringbuffer_t g_rb;
 ringbuffer_t g_sb;
 
@@ -35,6 +38,10 @@ uint8_t sb_mem[128];
 void on_data_received(const u8* data, usize len, usize offset) {
     // 协议解析出一块完整数据后，会调用这里
     write_flash(0x08020000 + offset, data, len);
+}
+
+void on_ymodem_file_info(const char* filename, usize file_size) {
+    printf("[YMODEM] Receiving file: %s, size: %zu bytes\n", filename, file_size);
 }
 
 // --- 辅助函数：处理协议生成的回复 ---
@@ -58,12 +65,20 @@ int main() {
     ringbuffer_init(&g_rb, rb_mem, sizeof(rb_mem));
     ringbuffer_init(&g_sb, sb_mem, sizeof(sb_mem));
 
-    // 2. 初始化协议私有数据
-    xmodem_proto_init(&g_xm, &g_rb, &g_sb);
-    xmodem_set_on_data_cb(&g_xm, on_data_received);
+    // 2. 选择协议并初始化
+    // 切换协议只需要改变这里的 TP_XMODEM 为 TP_YMODEM
+    transfer_protocol_enum target_proto = TP_YMODEM;
 
-    // 3. 初始化统一协议接口，关联具体的协议实例
-    file_transfer_init(&g_ft, TP_XMODEM, &g_xm);
+    if (target_proto == TP_XMODEM) {
+        xmodem_proto_init(&g_xm, &g_rb, &g_sb);
+        xmodem_set_on_data_cb(&g_xm, on_data_received);
+        file_transfer_init(&g_ft, TP_XMODEM, &g_xm);
+    } else if (target_proto == TP_YMODEM) {
+        ymodem_proto_init(&g_ym, &g_rb, &g_sb);
+        ymodem_set_on_data_cb(&g_ym, on_data_received);
+        ymodem_set_on_file_info_cb(&g_ym, on_ymodem_file_info);
+        file_transfer_init(&g_ft, TP_YMODEM, &g_ym);
+    }
 
     printf("File Transfer Demo Started (Protocol: %d)...\n", g_ft.proto);
 
