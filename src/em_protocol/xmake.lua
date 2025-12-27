@@ -1,5 +1,6 @@
 target("ca-em_protocol")
     set_kind("static")
     add_files("**.c")
+    remove_files("test-*.c")
     add_includedirs(".", { public = true })
     add_deps("ca-em_base")

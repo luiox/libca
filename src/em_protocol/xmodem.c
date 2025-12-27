@@ -1,5 +1,5 @@
 #include "xmodem.h"
-#include <cassert>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -25,7 +25,29 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 	return 0;
 }
 
-// 2. 核心处理：输出字节流
+// 2. 核心处理：驱动定时器
+// owner: 协议对象实例指针
+// ms_delta: 距离上次调用过去的时间（毫秒）
+// 返回值: >0 表示因为超时产生了需要回复的数据长度
+static i32 xmodem_tick(void* owner, u32 ms_delta) {
+	assert(owner != NULL);
+	xmodem_t* xm = (xmodem_t*)owner;
+
+	// 处理超时逻辑，例如：
+	// if (xm->state == STATE_WAIT_SOH) {
+	//     xm->timer += ms_delta;
+	//     if (xm->timer > 3000) { // 3秒超时
+	//         u8 nak = NAK;
+	//         ringbuffer_write(xm->sb, &nak, 1);
+	//         xm->timer = 0;
+	//         return 1;
+	//     }
+	// }
+
+	return 0;
+}
+
+// 3. 核心处理：输出字节流
 // out_buf: 用于存放待发送数据的缓冲区
 // out_len: 缓冲区大小
 // 返回值: 实际填入的数据长度 (如果为0，表示暂时不需要发数据)
@@ -35,21 +57,24 @@ static i32 xmodem_poll(void* owner, u8* out_buf, usize out_len) {
 
 	xmodem_t* xm = (xmodem_t*)owner;
 
-	// 根据状态机的状态，生成需要发送的数据到out_buf
-
-	// 返回实际填入的数据长度
-
-	return 0;
+	// 从发送缓冲区读取数据到 out_buf
+	return ringbuffer_read(xm->sb, out_buf, out_len);
 }
 
-void xmodem_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb)
+// xmodem实现的文件传输协议操作接口
+const file_transfer_ops_t g_xmodem_ops = {
+	.process = xmodem_process,
+	.tick = xmodem_tick,
+	.poll = xmodem_poll
+};
+
+void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb)
 {
 	xm->rb = rb;
 	xm->sb = sb;
-	xm->ops.cbs = &xm->cbs;
-	xm->ops.process = xmodem_process;
-	xm->ops.poll = xmodem_poll;
 	xm->state = 0;
+	xm->offset = 0;
+	xm->timer = 0;
 	xm->cbs.on_data = NULL;
 	xm->cbs.on_complete = NULL;
 }

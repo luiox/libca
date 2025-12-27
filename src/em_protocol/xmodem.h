@@ -22,8 +22,6 @@ typedef struct {
 }xmodem_cbs_t;
 
 typedef struct{
-    // 文件传输协议操作接口
-    file_transfer_ops_t ops;
     // 接收缓冲区
     ringbuffer_t* rb;
     // 发送缓冲区
@@ -33,11 +31,20 @@ typedef struct{
 
     // 状态机
     u8 state;
+    // 偏移量
+    usize offset;
+    // 定时器
+    u32 timer;
 
 }xmodem_t;
 
-void xmodem_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb);
+/**
+ * @brief 初始化 XModem 协议私有数据
+ */
+void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb);
+// 如果设置该回调，那就是相当于流式接收数据
 void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset));
+// 如果仅仅设置该回调，那就是等文件接收完成后一次性提供数据
 void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len));
 
 
