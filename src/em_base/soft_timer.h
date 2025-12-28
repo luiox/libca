@@ -1,5 +1,5 @@
 /**
- * @file timer.h
+ * @file soft_timer.h
  * @author canrad (1517807724@qq.com)
  * @brief 嵌入式时间管理与软件定时器基础组件
  * @version 0.1
@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#ifndef LIBCA_EM_TIMER_H
-#define LIBCA_EM_TIMER_H
+#ifndef LIBCA_EM_SOFT_TIMER_H
+#define LIBCA_EM_SOFT_TIMER_H
 
 #include "datatype.h"
 
@@ -40,10 +40,24 @@ timestamp_t time_get_us(void);
 
 // 软件定时器
 typedef struct {
-    uint32_t start;     // 计时开始时间
-    uint32_t interval;  // 超时周期
+    timestamp_t start; // 计时开始时间
+    u32 interval; // 超时周期
 } soft_timer_t;
 
+// 设置软件定时器的超时时间
+static inline void soft_timer_set(soft_timer_t* t, timestamp_t interval) {
+    t->start = time_get_ms(); // 默认使用 ms
+    t->interval = interval;
+}
 
+// 开启软件定时器
+static inline void soft_timer_start(soft_timer_t* t) {
+    t->start = time_get_ms(); // 默认使用 ms
+}
 
-#endif // LIBCA_EM_TIMER_H
+// 检查软件定时器是否超时
+static inline bool soft_timer_is_timeout(soft_timer_t* t) {
+    return (time_get_ms() - t->start) >= t->interval;
+}
+
+#endif // LIBCA_EM_SOFT_TIMER_H
