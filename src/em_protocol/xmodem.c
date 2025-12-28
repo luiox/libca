@@ -72,11 +72,25 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 				usize data_len = (first_byte == XMODEM_SOH) ? 128 : 1024;
 				usize packet_len = 1 + 1 + 1 + data_len + (xm->use_crc ? 2 : 1);
 
+				// 检查 RingBuffer 是否足够大以容纳一个完整的包
+				if (xm->rb->size < packet_len) {
+					if (xm->cbs.on_error) {
+						if (xm->cbs.on_error(XMODEM_ERR_RB_TOO_SMALL, xm) != 0) {
+							// 如果用户未解决错误，则跳过该字节以尝试同步
+							ringbuffer_read(xm->rb, &first_byte, 1);
+							continue;
+						}
+					} else {
+						ringbuffer_read(xm->rb, &first_byte, 1);
+						continue;
+					}
+				}
+
 				if (ringbuffer_used(xm->rb) < packet_len) {
 					break;
 				}
 
-				u8* packet = (u8*)malloc(packet_len);
+				u8* packet = xm->packet_buf;
 				ringbuffer_peek(xm->rb, packet, packet_len);
 
 				u8 pkt_num = packet[1];
@@ -129,7 +143,6 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 					ringbuffer_read(xm->rb, &first_byte, 1);
 					reply_len++;
 				}
-				free(packet);
 			} else {
 				// Garbage, consume
 				ringbuffer_read(xm->rb, &first_byte, 1);
@@ -196,6 +209,7 @@ void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb)
 	xm->timer = 0;
 	xm->cbs.on_data = NULL;
 	xm->cbs.on_complete = NULL;
+	xm->cbs.on_error = NULL;
 }
 
 void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset))
@@ -206,6 +220,11 @@ void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize l
 void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len))
 {
 	xm->cbs.on_complete = on_complete;
+}
+
+void xmodem_set_on_error_cb(xmodem_t* xm, i32 (*on_error)(i32 err_code, void* err_data))
+{
+	xm->cbs.on_error = on_error;
 }
 
 #if TEST_ENABLE
@@ -229,6 +248,14 @@ static void test_on_complete(const u8* data, usize len)
 {
 	printf("  on_complete: total_len=%d\n", (int)len);
 	g_complete = true;
+}
+
+static bool g_error_triggered = false;
+static i32 test_on_error(i32 err_code, void* err_data)
+{
+	printf("  on_error: code=%d\n", err_code);
+	g_error_triggered = true;
+	return 0; // Handled
 }
 
 TEST_CASE(xmodem_initial_timeout_nak)
@@ -293,8 +320,8 @@ TEST_CASE(xmodem_receive_checksum_packet)
 	xmodem_process(&xm, packet, 132);
 	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
 	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
-	TEST_ASSERT_EQUAL_INT(128, xm.offset);
-	TEST_ASSERT_EQUAL_INT(2, xm.packet_num);
+	TEST_ASSERT_EQUAL_INT(128, (int)xm.offset);
+	TEST_ASSERT_EQUAL_INT(2, (int)xm.packet_num);
 }
 
 TEST_CASE(xmodem_receive_crc_packet)
@@ -386,6 +413,27 @@ TEST_CASE(xmodem_full_transfer_integration)
 	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
 	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
 	TEST_ASSERT_EQUAL_INT(true, g_complete);
+	printf("  integration test finished\n");
+}
+
+TEST_CASE(xmodem_ringbuffer_too_small)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[64], sb_buf[64]; // Too small for 128B packet
+	u8           packet[132];
+
+	ringbuffer_init(&rb, rb_buf, 64);
+	ringbuffer_init(&sb, sb_buf, 64);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_error_cb(&xm, test_on_error);
+	xm.state = STATE_WAIT_PACKET;
+	g_error_triggered = false;
+
+	packet[0] = XMODEM_SOH;
+	xmodem_process(&xm, packet, 1);
+	// Should trigger on_error because rb size (64) < packet_len (132)
+	TEST_ASSERT_EQUAL_INT(true, g_error_triggered);
 }
 
 #endif

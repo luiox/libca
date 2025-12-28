@@ -14,11 +14,16 @@
 #include "file_transfer.h"
 #include "../em_base/ringbuffer.h"
 
+#define XMODEM_ERR_NONE           0
+#define XMODEM_ERR_RB_TOO_SMALL   1
+
 typedef struct {
     // 如果设置了该回调，则在每接收到一块数据时调用
     void (*on_data)(const u8 *data, usize len, usize offset);
     // 如果设置了该回调，则在文件传输完成时调用
     void (*on_complete)(const u8 *data, usize len);
+    // 错误处理回调，返回0表示错误已处理
+    i32 (*on_error)(i32 err_code, void* err_data);
 }xmodem_cbs_t;
 
 typedef struct{
@@ -40,6 +45,9 @@ typedef struct{
     // 定时器
     u32 timer;
 
+    // 临时包缓冲区，避免动态分配
+    u8 packet_buf[1029];
+
 }xmodem_t;
 
 /**
@@ -50,6 +58,8 @@ void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb);
 void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset));
 // 如果仅仅设置该回调，那就是等文件接收完成后一次性提供数据
 void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len));
+// 设置错误处理回调
+void xmodem_set_on_error_cb(xmodem_t* xm, i32 (*on_error)(i32 err_code, void* err_data));
 
 
 
