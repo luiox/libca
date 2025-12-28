@@ -1,7 +1,7 @@
 /**
  * @file xmodem.h
  * @author canrad (1517807724@qq.com)
- * @brief ÊµÏÖXMODEMÎÄ¼ş´«ÊäĞ­ÒéÏà¹ØµÄ½Ó¿Ú
+ * @brief å®ç°XMODEMæ–‡ä»¶ä¼ è¾“åè®®ç›¸å…³çš„æ¥å£
  * @version 0.1
  * @date 2025-12-27
  * 
@@ -15,40 +15,40 @@
 #include "../em_base/ringbuffer.h"
 
 typedef struct {
-    // Èç¹ûÉèÖÃÁË¸Ã»Øµ÷£¬ÔòÔÚÃ¿½ÓÊÕµ½Ò»¿éÊı¾İÊ±µ÷ÓÃ
+    // å¦‚æœè®¾ç½®äº†è¯¥å›è°ƒï¼Œåˆ™åœ¨æ¯æ¥æ”¶åˆ°ä¸€å—æ•°æ®æ—¶è°ƒç”¨
     void (*on_data)(const u8 *data, usize len, usize offset);
-    // Èç¹ûÉèÖÃÁË¸Ã»Øµ÷£¬ÔòÔÚÎÄ¼ş´«ÊäÍê³ÉÊ±µ÷ÓÃ
+    // å¦‚æœè®¾ç½®äº†è¯¥å›è°ƒï¼Œåˆ™åœ¨æ–‡ä»¶ä¼ è¾“å®Œæˆæ—¶è°ƒç”¨
     void (*on_complete)(const u8 *data, usize len);
 }xmodem_cbs_t;
 
 typedef struct{
-    // ½ÓÊÕ»º³åÇø
+    // æ¥æ”¶ç¼“å†²åŒº
     ringbuffer_t* rb;
-    // ·¢ËÍ»º³åÇø
+    // å‘é€ç¼“å†²åŒº
     ringbuffer_t* sb;
-    // »Øµ÷¼¯
+    // å›è°ƒé›†
     xmodem_cbs_t cbs;
 
-    // ×´Ì¬»ú
+    // çŠ¶æ€æœº
     u8 state;
-    // ÆÚÍûµÄ°üĞòºÅ
+    // æœŸæœ›çš„åŒ…åºå·
     u8 packet_num;
-    // ÊÇ·ñÊ¹ÓÃCRCĞ£Ñé
+    // æ˜¯å¦ä½¿ç”¨CRCæ ¡éªŒ
     u8 use_crc;
-    // Æ«ÒÆÁ¿
+    // åç§»é‡
     usize offset;
-    // ¶¨Ê±Æ÷
+    // å®šæ—¶å™¨
     u32 timer;
 
 }xmodem_t;
 
 /**
- * @brief ³õÊ¼»¯ XModem Ğ­ÒéË½ÓĞÊı¾İ
+ * @brief åˆå§‹åŒ– XModem åè®®ç§æœ‰æ•°æ®
  */
 void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb);
-// Èç¹ûÉèÖÃ¸Ã»Øµ÷£¬ÄÇ¾ÍÊÇÏàµ±ÓÚÁ÷Ê½½ÓÊÕÊı¾İ
+// å¦‚æœè®¾ç½®è¯¥å›è°ƒï¼Œé‚£å°±æ˜¯ç›¸å½“äºæµå¼æ¥æ”¶æ•°æ®
 void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset));
-// Èç¹û½ö½öÉèÖÃ¸Ã»Øµ÷£¬ÄÇ¾ÍÊÇµÈÎÄ¼ş½ÓÊÕÍê³ÉºóÒ»´ÎĞÔÌá¹©Êı¾İ
+// å¦‚æœä»…ä»…è®¾ç½®è¯¥å›è°ƒï¼Œé‚£å°±æ˜¯ç­‰æ–‡ä»¶æ¥æ”¶å®Œæˆåä¸€æ¬¡æ€§æä¾›æ•°æ®
 void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len));
 
 

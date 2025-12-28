@@ -1,4 +1,4 @@
-﻿//
+//
 // @brief string for libca
 // @author Canrad
 // @date 2023/10/11

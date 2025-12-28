@@ -1,4 +1,4 @@
-﻿#include "winui.hpp"
+#include "winui.hpp"
 #include "../../collection/Collection.hpp"
 
 #define MAX_LOADSTRING 100

@@ -33,10 +33,10 @@ static u8 calculate_checksum(const u8* data, usize len) {
 	return checksum;
 }
 
-// 1. ºËÐÄ´¦Àí£ºÊäÈë×Ö½ÚÁ÷
-// in_buf: ´®¿ÚÊÕµ½µÄÊý¾Ý
-// in_len: Êý¾Ý³¤¶È
-// ·µ»ØÖµ: >0 ±íÊ¾´¦ÀíºóÉú³ÉÁËÐèÒª»Ø¸´µÄÊý¾Ý³¤¶È£¬0 ±íÊ¾ÎÞ»Ø¸´
+// 1. æ ¸å¿ƒå¤„ç†ï¼šè¾“å…¥å­—èŠ‚æµ
+// in_buf: ä¸²å£æ”¶åˆ°çš„æ•°æ®
+// in_len: æ•°æ®é•¿åº¦
+// è¿”å›žå€¼: >0 è¡¨ç¤ºå¤„ç†åŽç”Ÿæˆäº†éœ€è¦å›žå¤çš„æ•°æ®é•¿åº¦ï¼Œ0 è¡¨ç¤ºæ— å›žå¤
 static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 	assert(owner != NULL);
 	assert(in_buf != NULL);
@@ -44,7 +44,7 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 	xmodem_t* xm = (xmodem_t*)owner;
 	i32 reply_len = 0;
 
-	// °Ñ½ÓÊÕµ½µÄÊý¾ÝÐ´Èë½ÓÊÕ»º³åÇø
+	// æŠŠæŽ¥æ”¶åˆ°çš„æ•°æ®å†™å…¥æŽ¥æ”¶ç¼“å†²åŒº
 	ringbuffer_write(xm->rb, (uint8_t*)in_buf, in_len);
 
 	while (ringbuffer_used(xm->rb) > 0) {
@@ -149,10 +149,10 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 	return reply_len;
 }
 
-// 2. ºËÐÄ´¦Àí£ºÇý¶¯¶¨Ê±Æ÷
-// owner: Ð­Òé¶ÔÏóÊµÀýÖ¸Õë
-// ms_delta: ¾àÀëÉÏ´Îµ÷ÓÃ¹ýÈ¥µÄÊ±¼ä£¨ºÁÃë£©
-// ·µ»ØÖµ: >0 ±íÊ¾ÒòÎª³¬Ê±²úÉúÁËÐèÒª»Ø¸´µÄÊý¾Ý³¤¶È
+// 2. æ ¸å¿ƒå¤„ç†ï¼šé©±åŠ¨å®šæ—¶å™¨
+// owner: åè®®å¯¹è±¡å®žä¾‹æŒ‡é’ˆ
+// ms_delta: è·ç¦»ä¸Šæ¬¡è°ƒç”¨è¿‡åŽ»çš„æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
+// è¿”å›žå€¼: >0 è¡¨ç¤ºå› ä¸ºè¶…æ—¶äº§ç”Ÿäº†éœ€è¦å›žå¤çš„æ•°æ®é•¿åº¦
 static i32 xmodem_tick(void* owner, u32 ms_delta) {
 	assert(owner != NULL);
 	xmodem_t* xm = (xmodem_t*)owner;
@@ -170,21 +170,21 @@ static i32 xmodem_tick(void* owner, u32 ms_delta) {
 	return 0;
 }
 
-// 3. ºËÐÄ´¦Àí£ºÊä³ö×Ö½ÚÁ÷
-// out_buf: ÓÃÓÚ´æ·Å´ý·¢ËÍÊý¾ÝµÄ»º³åÇø
-// out_len: »º³åÇø´óÐ¡
-// ·µ»ØÖµ: Êµ¼ÊÌîÈëµÄÊý¾Ý³¤¶È (Èç¹ûÎª0£¬±íÊ¾ÔÝÊ±²»ÐèÒª·¢Êý¾Ý)
+// 3. æ ¸å¿ƒå¤„ç†ï¼šè¾“å‡ºå­—èŠ‚æµ
+// out_buf: ç”¨äºŽå­˜æ”¾å¾…å‘é€æ•°æ®çš„ç¼“å†²åŒº
+// out_len: ç¼“å†²åŒºå¤§å°
+// è¿”å›žå€¼: å®žé™…å¡«å…¥çš„æ•°æ®é•¿åº¦ (å¦‚æžœä¸º0ï¼Œè¡¨ç¤ºæš‚æ—¶ä¸éœ€è¦å‘æ•°æ®)
 static i32 xmodem_poll(void* owner, u8* out_buf, usize out_len) {
 	assert(owner != NULL);
 	assert(out_buf != NULL);
 
 	xmodem_t* xm = (xmodem_t*)owner;
 
-	// ´Ó·¢ËÍ»º³åÇø¶ÁÈ¡Êý¾Ýµ½ out_buf
+	// ä»Žå‘é€ç¼“å†²åŒºè¯»å–æ•°æ®åˆ° out_buf
 	return ringbuffer_read(xm->sb, out_buf, out_len);
 }
 
-// xmodemÊµÏÖµÄÎÄ¼þ´«ÊäÐ­Òé²Ù×÷½Ó¿Ú
+// xmodemå®žçŽ°çš„æ–‡ä»¶ä¼ è¾“åè®®æ“ä½œæŽ¥å£
 const file_transfer_ops_t g_xmodem_ops = {
 	.process = xmodem_process,
 	.tick = xmodem_tick,
@@ -202,6 +202,16 @@ void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb)
 	xm->timer = 0;
 	xm->cbs.on_data = NULL;
 	xm->cbs.on_complete = NULL;
+}
+
+void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset))
+{
+	xm->cbs.on_data = on_data;
+}
+
+void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len))
+{
+	xm->cbs.on_complete = on_complete;
 }
 
 #if TEST_ENABLE
@@ -303,13 +313,3 @@ TEST_CASE(xmodem_basic_transfer)
 }
 
 #endif
-
-void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset))
-{
-	xm->cbs.on_data = on_data;
-}
-
-void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len))
-{
-	xm->cbs.on_complete = on_complete;
-}
