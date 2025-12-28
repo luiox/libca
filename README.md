@@ -46,7 +46,7 @@ xmake test -g test
 
 if you want to watch the output detail, add `-v` argument.
 ```shell
-xmake test -g test
+xmake test -g test -v
 ```
 
 
