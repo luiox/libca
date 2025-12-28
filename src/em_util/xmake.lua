@@ -4,4 +4,10 @@ target("ca-em_util")
     add_files("**.c")
     add_deps("ca-em_base")
 
+target("test-ringbuffer_util")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("ringbuffer_util.c")
+    add_deps("ca-em_base")
+
 

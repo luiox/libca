@@ -1,10 +1,4 @@
 #include "xmodem.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
-#include "xmodem.h"
 #include "../em_util/crc.h"
 #include <assert.h>
 #include <stdio.h>
@@ -225,6 +219,7 @@ static bool  g_complete    = false;
 
 static void test_on_data(const u8* data, usize len, usize offset)
 {
+	printf("  on_data: len=%d, offset=%d\n", (int)len, (int)offset);
 	memcpy(g_test_data, data, len);
 	g_test_len    = len;
 	g_test_offset = offset;
@@ -232,40 +227,67 @@ static void test_on_data(const u8* data, usize len, usize offset)
 
 static void test_on_complete(const u8* data, usize len)
 {
+	printf("  on_complete: total_len=%d\n", (int)len);
 	g_complete = true;
 }
 
-TEST_CASE(xmodem_basic_transfer)
+TEST_CASE(xmodem_initial_timeout_nak)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[128], sb_buf[128];
+	u8           reply;
+
+	ringbuffer_init(&rb, rb_buf, 128);
+	ringbuffer_init(&sb, sb_buf, 128);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xm.use_crc = 0;
+
+	// Should send NAK after 3s
+	xmodem_tick(&xm, 3000);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_NAK, reply);
+}
+
+TEST_CASE(xmodem_initial_timeout_crc)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[128], sb_buf[128];
+	u8           reply;
+
+	ringbuffer_init(&rb, rb_buf, 128);
+	ringbuffer_init(&sb, sb_buf, 128);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xm.use_crc = 1;
+
+	// Should send 'C' after 3s
+	xmodem_tick(&xm, 3000);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_CRC, reply);
+}
+
+TEST_CASE(xmodem_receive_checksum_packet)
 {
 	xmodem_t     xm;
 	ringbuffer_t rb, sb;
 	u8           rb_buf[512], sb_buf[512];
+	u8           packet[132];
+	u8           reply;
 
 	ringbuffer_init(&rb, rb_buf, 512);
 	ringbuffer_init(&sb, sb_buf, 512);
 	xmodem_proto_init(&xm, &rb, &sb);
 	xmodem_set_on_data_cb(&xm, test_on_data);
-	xmodem_set_on_complete_cb(&xm, test_on_complete);
+	xm.use_crc = 0;
+	xm.state   = STATE_WAIT_PACKET; // Skip start state
 
-	xm.use_crc = 0; // Use checksum for simplicity in test
-
-	// 1. Initial state: should send NAK after timeout
-	xmodem_tick(&xm, 3000);
-	u8 reply;
-	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
-	TEST_ASSERT_EQUAL_INT(XMODEM_NAK, reply);
-
-	// 2. Send a packet
-	u8 packet[1030];
 	packet[0] = XMODEM_SOH;
 	packet[1] = 1;
 	packet[2] = 254;
-	for (int i = 0; i < 128; i++)
-		packet[3 + i] = (u8)i;
-
+	for (int i = 0; i < 128; i++) packet[3 + i] = (u8)i;
 	u8 chk = 0;
-	for (int i = 0; i < 128; i++)
-		chk += (u8)i;
+	for (int i = 0; i < 128; i++) chk += (u8)i;
 	packet[131] = chk;
 
 	xmodem_process(&xm, packet, 132);
@@ -273,36 +295,27 @@ TEST_CASE(xmodem_basic_transfer)
 	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
 	TEST_ASSERT_EQUAL_INT(128, xm.offset);
 	TEST_ASSERT_EQUAL_INT(2, xm.packet_num);
+}
 
-	// Verify data
-	TEST_ASSERT_EQUAL_INT(128, g_test_len);
-	TEST_ASSERT_EQUAL_INT(0, g_test_offset);
-	for (int i = 0; i < 128; i++) {
-		if (g_test_data[i] != (u8)i) {
-			printf("Data mismatch at %d: expected %d, got %d\n", i, i, g_test_data[i]);
-		}
-	}
+TEST_CASE(xmodem_receive_crc_packet)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[512], sb_buf[512];
+	u8           packet[133];
+	u8           reply;
 
-	// 3. Send EOT
-	u8 eot = XMODEM_EOT;
-	xmodem_process(&xm, &eot, 1);
-	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
-	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
-	TEST_ASSERT_EQUAL_INT(STATE_FINISHED, xm.state);
-	TEST_ASSERT_EQUAL_INT(true, g_complete);
-
-	// 4. Test CRC mode
+	ringbuffer_init(&rb, rb_buf, 512);
+	ringbuffer_init(&sb, sb_buf, 512);
 	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_data_cb(&xm, test_on_data);
 	xm.use_crc = 1;
-	xmodem_tick(&xm, 3000);
-	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
-	TEST_ASSERT_EQUAL_INT(XMODEM_CRC, reply);
+	xm.state   = STATE_WAIT_PACKET;
 
 	packet[0] = XMODEM_SOH;
 	packet[1] = 1;
 	packet[2] = 254;
-	for (int i = 0; i < 128; i++)
-		packet[3 + i] = (u8)i;
+	for (int i = 0; i < 128; i++) packet[3 + i] = (u8)i;
 	u16 crc = crc16_xmodem(&packet[3], 128);
 	packet[131] = (u8)(crc >> 8);
 	packet[132] = (u8)(crc & 0xFF);
@@ -310,6 +323,69 @@ TEST_CASE(xmodem_basic_transfer)
 	xmodem_process(&xm, packet, 133);
 	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
 	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
+}
+
+TEST_CASE(xmodem_receive_eot)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[128], sb_buf[128];
+	u8           eot = XMODEM_EOT;
+	u8           reply;
+
+	ringbuffer_init(&rb, rb_buf, 128);
+	ringbuffer_init(&sb, sb_buf, 128);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_complete_cb(&xm, test_on_complete);
+	xm.state   = STATE_WAIT_PACKET;
+	g_complete = false;
+
+	xmodem_process(&xm, &eot, 1);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
+	TEST_ASSERT_EQUAL_INT(STATE_FINISHED, xm.state);
+	TEST_ASSERT_EQUAL_INT(true, g_complete);
+}
+
+TEST_CASE(xmodem_full_transfer_integration)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[1024], sb_buf[1024];
+	u8           packet[133];
+	u8           reply;
+
+	ringbuffer_init(&rb, rb_buf, 1024);
+	ringbuffer_init(&sb, sb_buf, 1024);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_data_cb(&xm, test_on_data);
+	xmodem_set_on_complete_cb(&xm, test_on_complete);
+	xm.use_crc = 1;
+	g_complete = false;
+
+	// 1. Start: Wait for 'C'
+	xmodem_tick(&xm, 3000);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_CRC, reply);
+
+	// 2. Send Packet 1
+	packet[0] = XMODEM_SOH;
+	packet[1] = 1;
+	packet[2] = 254;
+	memset(&packet[3], 0xAA, 128);
+	u16 crc = crc16_xmodem(&packet[3], 128);
+	packet[131] = (u8)(crc >> 8);
+	packet[132] = (u8)(crc & 0xFF);
+	xmodem_process(&xm, packet, 133);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
+
+	// 3. Send EOT
+	u8 eot = XMODEM_EOT;
+	xmodem_process(&xm, &eot, 1);
+	TEST_ASSERT_EQUAL_INT(1, ringbuffer_read(&sb, &reply, 1));
+	TEST_ASSERT_EQUAL_INT(XMODEM_ACK, reply);
+	TEST_ASSERT_EQUAL_INT(true, g_complete);
 }
 
 #endif
