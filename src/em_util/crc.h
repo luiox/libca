@@ -21,4 +21,8 @@ u32 crc32_ieee(const void* data, usize size);
 // x^16 + x^15 + x^2 + 1
 u16 crc16_modbus(const void* data, usize size);
 
+// CRC-16-xmodem
+// x^16 + x^12 + x^5 + 1
+u16 crc16_xmodem(const void* data, usize size);
+
 #endif // CRC_H

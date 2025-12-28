@@ -93,3 +93,20 @@ u16 crc16_modbus(const void* data, usize size)
     }
     return (crchi << 8 | crclo);
 }
+
+u16 crc16_xmodem(const void* data, usize size)
+{
+    u16       crc = 0;
+    const u8* p = (const u8*)data;
+    for (usize i = 0; i < size; i++) {
+        crc ^= (u16)p[i] << 8;
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x8000) {
+                crc = (crc << 1) ^ 0x1021;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    return crc;
+}

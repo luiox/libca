@@ -31,6 +31,10 @@ typedef struct{
 
     // 状态机
     u8 state;
+    // 期望的包序号
+    u8 packet_num;
+    // 是否使用CRC校验
+    u8 use_crc;
     // 偏移量
     usize offset;
     // 定时器
