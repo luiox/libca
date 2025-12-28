@@ -17,7 +17,7 @@ includes("em_base")
 includes("em_test")
 includes("em_protocol")
 includes("em_util")
-
+includes("em_component")
 
 -------------------------------------------------------------------------------
 

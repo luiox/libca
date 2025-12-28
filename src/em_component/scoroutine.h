@@ -12,7 +12,7 @@
 #ifndef LIBCA_SCOROUTINE_H
 #define LIBCA_SCOROUTINE_H
 
-#include "../base/datatype.h"
+#include "../em_base/datatype.h"
 
 typedef struct
 {
