@@ -10,6 +10,11 @@ rule("em_test")
         -- 自动为使用此规则的目标添加头文件搜索路径
         target:add("includedirs", os.scriptdir(), {public = true})
         
+        -- 设置组别为 test，方便管理
+        target:set("group", "test")
+        
+        -- 自动将目标注册为 xmake test 可识别的测试项
+        target:add("tests", target:name())
         if configs then
             -- 如果配置了 test_enable，则开启测试宏
             if configs.test_enable then

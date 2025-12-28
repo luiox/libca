@@ -33,10 +33,20 @@ Format is a tool that provides a way to format strings in a similar way to forma
 
 # How to run
 
-test
+test one target, xmake will build and run it.
 
 ```shell
-xmake build ca-test
-xmake run ca-test
+xmake run target_name
 ```
+
+if you want to run all test.
+```shell
+xmake test -g test
+```
+
+if you want to watch the output detail, add `-v` argument.
+```shell
+xmake test -g test
+```
+
 
