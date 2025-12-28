@@ -17,6 +17,7 @@ enum {
 	STATE_WAIT_START,
 	STATE_WAIT_PACKET,
 	STATE_FINISHED,
+	STATE_ERROR,
 };
 
 static u8 calculate_checksum(const u8* data, usize len) {
@@ -67,6 +68,13 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 					xm->cbs.on_complete(NULL, xm->offset);
 				}
 				reply_len++;
+				break;
+			} else if (first_byte == XMODEM_CAN) {
+				ringbuffer_read(xm->rb, &first_byte, 1);
+				xm->state = STATE_ERROR;
+				if (xm->cbs.on_error) {
+					xm->cbs.on_error(XMODEM_ERR_CANCELLED, xm);
+				}
 				break;
 			} else if (first_byte == XMODEM_SOH || first_byte == XMODEM_STX) {
 				usize data_len = (first_byte == XMODEM_SOH) ? 128 : 1024;
@@ -121,6 +129,8 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 						}
 						xm->offset += data_len;
 						xm->packet_num++;
+						xm->retry_count = 0; // Reset retry on success
+						xm->timer = 0;       // Reset timeout on success
 					} else if (pkt_num == (u8)(xm->packet_num - 1)) {
 						// Duplicate packet, just ACK it (sender might not have received previous ACK)
 					} else {
@@ -167,8 +177,32 @@ static i32 xmodem_tick(void* owner, u32 ms_delta) {
 	if (xm->state == STATE_WAIT_START) {
 		xm->timer += ms_delta;
 		if (xm->timer >= 3000) {
+			xm->retry_count++;
+			if (xm->retry_count > xm->max_retries) {
+				xm->state = STATE_ERROR;
+				if (xm->cbs.on_error) {
+					xm->cbs.on_error(XMODEM_ERR_RETRY_EXCEED, xm);
+				}
+				return 0;
+			}
 			u8 start_char = xm->use_crc ? XMODEM_CRC : XMODEM_NAK;
 			ringbuffer_write(xm->sb, &start_char, 1);
+			xm->timer = 0;
+			return 1;
+		}
+	} else if (xm->state == STATE_WAIT_PACKET) {
+		xm->timer += ms_delta;
+		if (xm->timer >= 3000) { // 3s timeout for packet
+			xm->retry_count++;
+			if (xm->retry_count > xm->max_retries) {
+				xm->state = STATE_ERROR;
+				if (xm->cbs.on_error) {
+					xm->cbs.on_error(XMODEM_ERR_RETRY_EXCEED, xm);
+				}
+				return 0;
+			}
+			u8 nak = XMODEM_NAK;
+			ringbuffer_write(xm->sb, &nak, 1);
 			xm->timer = 0;
 			return 1;
 		}
@@ -207,6 +241,8 @@ void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb)
 	xm->use_crc = 1; // Default to CRC
 	xm->offset = 0;
 	xm->timer = 0;
+	xm->retry_count = 0;
+	xm->max_retries = 10;
 	xm->cbs.on_data = NULL;
 	xm->cbs.on_complete = NULL;
 	xm->cbs.on_error = NULL;
@@ -433,6 +469,49 @@ TEST_CASE(xmodem_ringbuffer_too_small)
 	packet[0] = XMODEM_SOH;
 	xmodem_process(&xm, packet, 1);
 	// Should trigger on_error because rb size (64) < packet_len (132)
+	TEST_ASSERT_EQUAL_INT(true, g_error_triggered);
+}
+
+TEST_CASE(xmodem_cancel_by_sender)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[128], sb_buf[128];
+	u8           can = XMODEM_CAN;
+
+	ringbuffer_init(&rb, rb_buf, 128);
+	ringbuffer_init(&sb, sb_buf, 128);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_error_cb(&xm, test_on_error);
+	xm.state = STATE_WAIT_PACKET;
+	g_error_triggered = false;
+
+	xmodem_process(&xm, &can, 1);
+	TEST_ASSERT_EQUAL_INT(STATE_ERROR, xm.state);
+	TEST_ASSERT_EQUAL_INT(true, g_error_triggered);
+}
+
+TEST_CASE(xmodem_timeout_retry_exceed)
+{
+	xmodem_t     xm;
+	ringbuffer_t rb, sb;
+	u8           rb_buf[128], sb_buf[128];
+
+	ringbuffer_init(&rb, rb_buf, 128);
+	ringbuffer_init(&sb, sb_buf, 128);
+	xmodem_proto_init(&xm, &rb, &sb);
+	xmodem_set_on_error_cb(&xm, test_on_error);
+	xm.max_retries = 2;
+	g_error_triggered = false;
+
+	// 1st timeout
+	xmodem_tick(&xm, 3000);
+	// 2nd timeout
+	xmodem_tick(&xm, 3000);
+	// 3rd timeout -> exceed
+	xmodem_tick(&xm, 3000);
+
+	TEST_ASSERT_EQUAL_INT(STATE_ERROR, xm.state);
 	TEST_ASSERT_EQUAL_INT(true, g_error_triggered);
 }
 

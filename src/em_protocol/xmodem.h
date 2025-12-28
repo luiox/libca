@@ -16,6 +16,9 @@
 
 #define XMODEM_ERR_NONE           0
 #define XMODEM_ERR_RB_TOO_SMALL   1
+#define XMODEM_ERR_TIMEOUT        2
+#define XMODEM_ERR_RETRY_EXCEED   3
+#define XMODEM_ERR_CANCELLED      4
 
 typedef struct {
     // 如果设置了该回调，则在每接收到一块数据时调用
@@ -44,6 +47,10 @@ typedef struct{
     usize offset;
     // 定时器
     u32 timer;
+    // 重试次数
+    u8 retry_count;
+    // 最大重试次数
+    u8 max_retries;
 
     // 临时包缓冲区，避免动态分配
     u8 packet_buf[1029];
