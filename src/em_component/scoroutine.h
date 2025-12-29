@@ -32,7 +32,7 @@ typedef void (*sc_task_t)(scoroutine_t *ctx);
 struct scoroutine
 {
     sc_task_t cfunc;
-#ifdef SC_HAS_LABEL_SUPPORT
+#if SC_HAS_LABEL_SUPPORT
     void *state;
 #else
     u32 state;
@@ -47,7 +47,7 @@ struct scoroutine
 // 关闭 clang-format 以保持宏定义的紧凑性
 // clang-format off
 
-#ifdef SC_HAS_LABEL_SUPPORT
+#if SC_HAS_LABEL_SUPPORT
 
 #define SC_YIELD_WITH_ID(id)                                                   \
     do {                                                                       \

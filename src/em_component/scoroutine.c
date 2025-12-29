@@ -168,7 +168,7 @@ TEST_CASE(scoroutine_nesting)
     TEST_ASSERT(sc_is_finished(&parent_ctx));
 }
 
-#    ifdef SC_HAS_LABEL_SUPPORT
+#if SC_HAS_LABEL_SUPPORT
 // 演示嵌套 switch 冲突解决
 void test_task_nested_switch(scoroutine_t* ctx)
 {
@@ -198,6 +198,69 @@ TEST_CASE(scoroutine_nested_switch)
     test_task_nested_switch(&ctx);
     TEST_ASSERT_EQUAL_INT(200, g_test_counter);
 }
-#    endif
+#endif
+
+// 演示：LED 闪烁任务 (使用上下文存储计数)
+typedef struct
+{
+    scoroutine_t base;
+    u32          count;
+} led_ctx_t;
+
+void led_blink_task(scoroutine_t* ctx)
+{
+    led_ctx_t* self = (led_ctx_t*)ctx;
+    sc_begin(ctx);
+
+    for (;;) {
+        printf("  [LED] ON\n");
+        for (self->count = 0; self->count < 2; self->count++) {
+            sc_yield();
+        }
+
+        printf("  [LED] OFF\n");
+        for (self->count = 0; self->count < 3; self->count++) {
+            sc_yield();
+        }
+    }
+
+    sc_end();
+}
+
+// 演示：按键检测任务 (多步处理)
+void button_check_task(scoroutine_t* ctx)
+{
+    sc_begin(ctx);
+
+    for (;;) {
+        printf("  [Button] Checking...\n");
+        // 模拟检测到按键
+        printf("  [Button] PRESSED! Processing step 1...\n");
+        sc_yield();
+
+        printf("  [Button] Processing step 2...\n");
+        sc_yield();
+
+        printf("  [Button] Processing step 3... Done!\n");
+        sc_yield();
+    }
+
+    sc_end();
+}
+
+TEST_CASE(scoroutine_demo_tasks)
+{
+    static led_ctx_t    led_ctx;
+    static scoroutine_t btn_ctx;
+    memset(&led_ctx, 0, sizeof(led_ctx));
+    memset(&btn_ctx, 0, sizeof(btn_ctx));
+
+    printf("\n--- Running Demo Tasks for 10 ticks ---\n");
+    for (int i = 0; i < 10; i++) {
+        printf("Tick %d:\n", i);
+        led_blink_task(&led_ctx.base);
+        button_check_task(&btn_ctx);
+    }
+}
 
 #endif
