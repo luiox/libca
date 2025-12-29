@@ -16,18 +16,7 @@
 #include <stdio.h>
 
 
-void f()
-{
-    ini_kv_t lpid_kvs[3];
-    ini_kv_t rpid_kvs[3];
-    ini_section_t lpid_section = {"lpid", lpid_kvs};
-    ini_section_t rpid_section = {"rpid", rpid_kvs};
-    ini_section_t sections[] = {lpid_section, rpid_section};
-    ini_t ini = {sections, array_size(sections)};
-    u8 buf[1024];
-    ini_to_str(&ini, buf);
 
-}
 
 // // 将u32转换为小端序字节数组
 // static void u32_to_le_bytes(u32 value, u8* bytes) {
@@ -216,6 +205,18 @@ void f()
 //     }
 // }
 
+void f()
+{
+    ini_kv_t lpid_kvs[3];
+    ini_kv_t rpid_kvs[3];
+    ini_section_t lpid_section = {"lpid", lpid_kvs};
+    ini_section_t rpid_section = {"rpid", rpid_kvs};
+    ini_section_t sections[] = {lpid_section, rpid_section};
+    ini_t ini = {sections, array_size(sections)};
+    u8 buf[1024];
+    // ini_to_str(&ini, buf);
+
+}
 
 #if TEST_ENABLE
 

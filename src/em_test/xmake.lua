@@ -30,7 +30,7 @@ rule("em_test")
     end)
 
 -- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
-target("ca-em_self_test")
+target("test-em_self_test")
     set_kind("binary")
 
     -- 应用 em_test 规则，并通过第二个参数（table）传递自定义配置
