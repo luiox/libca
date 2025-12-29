@@ -1,6 +1,7 @@
 -- 嵌入式日志库
 target("ca-em_log")
     set_kind("static")
+    set_group("em")
     add_files("*.c")
     add_deps("ca-em_base")  
 

@@ -11,7 +11,7 @@ rule("em_test")
         target:add("includedirs", os.scriptdir(), {public = true})
         
         -- 设置组别为 test，方便管理
-        target:set("group", "test")
+        target:set("group", "em/test")
         
         -- 自动将目标注册为 xmake test 可识别的测试项
         target:add("tests", target:name())
