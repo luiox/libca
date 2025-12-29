@@ -9,10 +9,21 @@
 #include <stdlib.h>
 #include <math.h>
 
+// 关闭clangformat对宏的格式化
+// clang-format off
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                                \
     do {                                                                                       \
         if ((expected) != (actual)) {                                                          \
-            printf("Test failed: line %d, expected %d, got %d\n", __LINE__, expected, actual); \
+            printf("Test failed: line %d, expected %d, got %d\n", __LINE__, (int)(expected), (int)(actual)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_EQUAL_UINT(expected, actual)                                               \
+    do {                                                                                       \
+        if ((expected) != (actual)) {                                                          \
+            printf("Test failed: line %d, expected %u, got %u\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
 
@@ -20,6 +31,7 @@
     do {                                                                                       \
         if (!(condition)) {                                                                    \
             printf("Test failed: line %d, condition %s is false\n", __LINE__, #condition);     \
+            current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
 
@@ -29,6 +41,7 @@
     do {                                                                                       \
         if (fabs((expected) - (actual)) > (epsilon)) {                                         \
             printf("Test failed: line %d, expected %f, got %f\n", __LINE__, (double)(expected), (double)(actual)); \
+            current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
 
@@ -36,8 +49,98 @@
     do {                                                                                       \
         if (strcmp((expected), (actual)) != 0) {                                               \
             printf("Test failed: line %d, expected \"%s\", got \"%s\"\n", __LINE__, (expected), (actual)); \
+            current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
+
+#define TEST_ASSERT_NOT_EQUAL_INT(expected, actual)                                            \
+    do {                                                                                       \
+        if ((expected) == (actual)) {                                                          \
+            printf("Test failed: line %d, expected %d to not equal %d\n", __LINE__, (int)(expected), (int)(actual)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_NOT_EQUAL_UINT(expected, actual)                                           \
+    do {                                                                                       \
+        if ((expected) == (actual)) {                                                          \
+            printf("Test failed: line %d, expected %u to not equal %u\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_TRUE(condition)                                                            \
+    do {                                                                                       \
+        if (!(condition)) {                                                                    \
+            printf("Test failed: line %d, expected true but got false\n", __LINE__);           \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_FALSE(condition)                                                           \
+    do {                                                                                       \
+        if ((condition)) {                                                                     \
+            printf("Test failed: line %d, expected false but got true\n", __LINE__);           \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_NULL(pointer)                                                              \
+    do {                                                                                       \
+        if ((pointer) != NULL) {                                                               \
+            printf("Test failed: line %d, expected NULL pointer\n", __LINE__);                 \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_NOT_NULL(pointer)                                                          \
+    do {                                                                                       \
+        if ((pointer) == NULL) {                                                               \
+            printf("Test failed: line %d, expected non-NULL pointer\n", __LINE__);             \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_EQUAL_PTR(expected, actual)                                                \
+    do {                                                                                       \
+        if ((expected) != (actual)) {                                                          \
+            printf("Test failed: line %d, expected pointer %p, got %p\n", __LINE__, (void*)(expected), (void*)(actual)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_EQUAL_MEMORY(expected, actual, size)                                       \
+    do {                                                                                       \
+        if (memcmp((expected), (actual), (size)) != 0) {                                       \
+            printf("Test failed: line %d, memory mismatch\n", __LINE__);                       \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_INT_WITHIN(min, max, actual)                                               \
+    do {                                                                                       \
+        if ((actual) < (min) || (actual) > (max)) {                                            \
+            printf("Test failed: line %d, expected %d to be within [%d, %d]\n", __LINE__, (int)(actual), (int)(min), (int)(max)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_UINT_WITHIN(min, max, actual)                                              \
+    do {                                                                                       \
+        if ((actual) < (min) || (actual) > (max)) {                                            \
+            printf("Test failed: line %d, expected %u to be within [%u, %u]\n", __LINE__, (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_EQUAL_HEX(expected, actual)                                                \
+    do {                                                                                       \
+        if ((expected) != (actual)) {                                                          \
+            printf("Test failed: line %d, expected 0x%X, got 0x%X\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+// clang-format on
 
 // 定义测试用例结构体
 typedef struct
@@ -50,6 +153,11 @@ extern int total_tests;
 
 extern int passed_tests;
 
+extern int failed_tests;
+
+extern int current_test_failed;
+
+// clang-format off
 #if defined(_MSC_VER)
 #    pragma section(".test$a", read)
 #    pragma section(".test$m", read)
@@ -66,52 +174,70 @@ extern int passed_tests;
     TEST_CASE_ALLOC const test_t* name##_ptr = &name##_data;       \
     static void          name##_test()
 
+// clang-format on
+
 #if !defined(_MSC_VER)
 extern const test_t __start_test_array[];
 extern const test_t __stop_test_array[];
 #endif
 
 // 测试运行器
-static void run_tests()
+static int run_tests()
 {
+    total_tests = 0;
+    passed_tests = 0;
+    failed_tests = 0;
+
 #if defined(_MSC_VER)
     extern const test_t* const _test_start;
     extern const test_t* const _test_stop;
     const test_t** begin = (const test_t**)&_test_start;
     const test_t** end   = (const test_t**)&_test_stop;
 
-    int count = 0;
     // 计算个数
     for (const test_t** it = begin; it <= end; it++) {
         if (*it != NULL && (*it)->name != NULL) {
-            count++;
+            total_tests++;
         }
     }
-    printf("num_tests = %d\n", count);
+    printf("num_tests = %d\n", total_tests);
 
     for (const test_t** it = begin; it <= end; it++) {
         if (*it == NULL || (*it)->name == NULL) {
             continue;
         }
         printf("Running test: %s\n", (*it)->name);
+        current_test_failed = 0;
         (*it)->func();
+        if (current_test_failed) {
+            failed_tests++;
+        } else {
+            passed_tests++;
+        }
     }
 #else
     const test_t *begin = __start_test_array;
     const test_t *end   = __stop_test_array;
     
-    int count = 0;
     for (const test_t* t = begin; t < end; t++) {
-        if (t->name != NULL) count++;
+        if (t->name != NULL) total_tests++;
     }
-    printf("num_tests = %d\n", count);
+    printf("num_tests = %d\n", total_tests);
 
     for (const test_t* t = begin; t < end; t++) {
         if (t->name == NULL) continue;
         printf("Running test: %s\n", t->name);
+        current_test_failed = 0;
         t->func();
+        if (current_test_failed) {
+            failed_tests++;
+        } else {
+            passed_tests++;
+        }
     }
 #endif
+    printf("\nTests finished: %d total, %d passed, %d failed\n", total_tests, passed_tests, failed_tests);
+    return failed_tests;
 }
 
 // #ifdef LIBCA_TEST_CONFIG_WITH_MAIN
