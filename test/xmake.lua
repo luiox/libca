@@ -1,8 +1,3 @@
-target("test-pid")
-    set_kind("binary")
-    add_deps("libca-em")
-    add_files("test-pid.c")
-
 target("test-ping_pong_buffer")
     set_kind("binary")
     add_deps("libca-em")
@@ -27,11 +22,6 @@ target("test-sco")
     set_kind("binary")
     add_deps("libca-em")
     add_files("test-scoroutine.c")
-
-target("test-datatype")
-    set_kind("binary")
-    add_deps("libca-em")
-    add_files("test-datatype.c")
 
 target("test-log")
     set_kind("binary")

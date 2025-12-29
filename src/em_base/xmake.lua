@@ -20,3 +20,9 @@ target("ca-em_string_util_test")
     set_kind("binary")
     add_files("string_util.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
+
+-- datatype的单元测试
+target("ca-em_datatype_test")
+    set_kind("binary")
+    add_files("datatype.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
