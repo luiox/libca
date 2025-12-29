@@ -16,6 +16,13 @@
         }                                                                                      \
     } while (0)
 
+#define TEST_ASSERT(condition)                                                                 \
+    do {                                                                                       \
+        if (!(condition)) {                                                                    \
+            printf("Test failed: line %d, condition %s is false\n", __LINE__, #condition);     \
+        }                                                                                      \
+    } while (0)
+
 #define DEFAULT_EPSILON 0.000001
 
 #define TEST_ASSERT_EQUAL_FLOAT(expected, actual, epsilon)                                     \
