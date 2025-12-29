@@ -104,7 +104,7 @@ doubly_linked_list_node_t* doubly_linked_list_pop_front(doubly_linked_list_t* li
         // 把原来头结点的下一个结点的prev设置为空
         list->head->next->prev = NULL;
         // 把原来头结点的下一个结点设置为头结点
-        list->head = list->tail->prev;
+        list->head = list->head->next;
     }
     list->size--;
     return node;
@@ -167,9 +167,9 @@ TEST_CASE(doubly_linked_list_init)
 {
     doubly_linked_list_t list;
     doubly_linked_list_init(&list);
-    TEST_ASSERT(list.head == NULL);
-    TEST_ASSERT(list.tail == NULL);
-    TEST_ASSERT_EQUAL_INT(0, (int)list.size);
+    TEST_ASSERT_NULL(list.head);
+    TEST_ASSERT_NULL(list.tail);
+    TEST_ASSERT_EQUAL_UINT(0, list.size);
 }
 
 TEST_CASE(doubly_linked_list_push_pop)
@@ -183,34 +183,34 @@ TEST_CASE(doubly_linked_list_push_pop)
 
     // Test push_back
     doubly_linked_list_push_back(&list, &node1);
-    TEST_ASSERT(list.head == &node1);
-    TEST_ASSERT(list.tail == &node1);
-    TEST_ASSERT_EQUAL_INT(1, (int)list.size);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.head);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.tail);
+    TEST_ASSERT_EQUAL_UINT(1, list.size);
 
     doubly_linked_list_push_back(&list, &node2);
-    TEST_ASSERT(list.head == &node1);
-    TEST_ASSERT(list.tail == &node2);
-    TEST_ASSERT_EQUAL_INT(2, (int)list.size);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.head);
+    TEST_ASSERT_EQUAL_PTR(&node2, list.tail);
+    TEST_ASSERT_EQUAL_UINT(2, list.size);
 
     // Test pop_back
     doubly_linked_list_node_t* popped = doubly_linked_list_pop_back(&list);
-    TEST_ASSERT(popped == &node2);
-    TEST_ASSERT(list.head == &node1);
-    TEST_ASSERT(list.tail == &node1);
-    TEST_ASSERT_EQUAL_INT(1, (int)list.size);
+    TEST_ASSERT_EQUAL_PTR(&node2, popped);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.head);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.tail);
+    TEST_ASSERT_EQUAL_UINT(1, list.size);
 
     // Test push_front
     doubly_linked_list_push_front(&list, &node2);
-    TEST_ASSERT(list.head == &node2);
-    TEST_ASSERT(list.tail == &node1);
-    TEST_ASSERT_EQUAL_INT(2, (int)list.size);
+    TEST_ASSERT_EQUAL_PTR(&node2, list.head);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.tail);
+    TEST_ASSERT_EQUAL_UINT(2, list.size);
 
     // Test pop_front
     popped = doubly_linked_list_pop_front(&list);
-    TEST_ASSERT(popped == &node2);
-    TEST_ASSERT(list.head == &node1);
-    TEST_ASSERT(list.tail == &node1);
-    TEST_ASSERT_EQUAL_INT(1, (int)list.size);
+    TEST_ASSERT_EQUAL_PTR(&node2, popped);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.head);
+    TEST_ASSERT_EQUAL_PTR(&node1, list.tail);
+    TEST_ASSERT_EQUAL_UINT(1, list.size);
 }
 
 TEST_CASE(doubly_linked_list_iteration)

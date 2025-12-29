@@ -133,15 +133,13 @@ TEST_CASE("crc16_modbus_basic")
 {
     u8  data[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x01};
     u16 crc    = crc16_modbus(data, sizeof(data));
-    printf("crc16_modbus_basic: 0x%04X\n", crc);
-    TEST_ASSERT_EQUAL_HEX(0x840A, crc);
+    TEST_ASSERT_EQUAL_HEX(0x0A84, crc);
 }
 
 TEST_CASE("crc16_modbus_string")
 {
     const char* data = "123456789";
     u16         crc  = crc16_modbus(data, strlen(data));
-    printf("crc16_modbus_string: 0x%04X\n", crc);
     TEST_ASSERT_EQUAL_HEX(0x4B37, crc);
 }
 
@@ -158,10 +156,12 @@ TEST_CASE("crc16_xmodem_string")
     u16         crc  = crc16_xmodem(data, strlen(data));
     TEST_ASSERT_EQUAL_HEX(0x31C3, crc);
 }
+
 TEST_CASE("crc32 ieee with spaces")
 {
     const char* data = "123456789";
     u32         crc  = crc32_ieee(data, strlen(data));
     TEST_ASSERT_EQUAL_HEX(0xCBF43926, crc);
 }
+
 #endif
