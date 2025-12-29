@@ -167,12 +167,18 @@ extern int current_test_failed;
 #    define TEST_CASE_ALLOC __attribute__((used, section("test_array")))
 #endif
 
+#define TEST_UNIQUE_ID __LINE__
+#define TEST_MAKE_STRING(a) #a
+#define TEST_CONCAT_IMPL(a, b) a##b
+#define TEST_CONCAT(a, b) TEST_CONCAT_IMPL(a, b)
+#define TEST_UNIQUE_NAME(prefix, id) TEST_CONCAT(prefix, id)
+
 // 定义一个宏来声明测试用例
-#define TEST_CASE(name)                                            \
-    static void          name##_test();                            \
-    static const test_t  name##_data = {#name, name##_test};       \
-    TEST_CASE_ALLOC const test_t* name##_ptr = &name##_data;       \
-    static void          name##_test()
+#define TEST_CASE(name)                                                                        \
+    static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void);                         \
+    static const test_t  TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID) = {TEST_MAKE_STRING(name), TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)}; \
+    TEST_CASE_ALLOC const test_t* TEST_UNIQUE_NAME(test_ptr_, TEST_UNIQUE_ID) = &TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID); \
+    static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void)
 
 // clang-format on
 
