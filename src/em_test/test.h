@@ -27,15 +27,15 @@
 
 #define TEST_ASSERT_EQUAL_FLOAT(expected, actual, epsilon)                                     \
     do {                                                                                       \
-        if (fabs(expected) - (actual) > epsilon) {                                             \
-            printf("Test failed: line %d, expected %d, got %d\n", __LINE__, expected, actual); \
+        if (fabs((expected) - (actual)) > (epsilon)) {                                         \
+            printf("Test failed: line %d, expected %f, got %f\n", __LINE__, (double)(expected), (double)(actual)); \
         }                                                                                      \
     } while (0)
 
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                                             \
     do {                                                                                       \
         if (strcmp((expected), (actual)) != 0) {                                               \
-            printf("Test failed: line %d, expected %d, got %d\n", __LINE__, expected, actual); \
+            printf("Test failed: line %d, expected \"%s\", got \"%s\"\n", __LINE__, (expected), (actual)); \
         }                                                                                      \
     } while (0)
 

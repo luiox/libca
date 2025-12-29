@@ -301,6 +301,92 @@ char* str_trim(char* str)
     return str;
 }
 
+#if TEST_ENABLE
+
+#include "test.h"
+
+TEST_CASE(test_str_len_case)
+{
+    TEST_ASSERT_EQUAL_INT(str_len("abc"), 3);
+    TEST_ASSERT_EQUAL_INT(str_len(""), 0);
+}
+
+TEST_CASE(test_str_cpy_case)
+{
+    char buf[10];
+    str_cpy(buf, "hello", sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING(buf, "hello");
+}
+
+TEST_CASE(test_str_cmp_case)
+{
+    TEST_ASSERT_EQUAL_INT(str_cmp("abc", "abc", 3), 0);
+    TEST_ASSERT(str_cmp("abc", "abd", 3) < 0);
+}
+
+TEST_CASE(test_str_chr_case)
+{
+    TEST_ASSERT(str_chr("hello", 'e') != NULL);
+    TEST_ASSERT(str_chr("hello", 'z') == NULL);
+}
+
+TEST_CASE(test_str_str_case)
+{
+    TEST_ASSERT(str_str("abcdef", "cd") != NULL);
+    TEST_ASSERT(str_str("abcdef", "gh") == NULL);
+}
+
+TEST_CASE(test_str_tok_case)
+{
+    char  buf2[32] = "a,b,c";
+    char* token    = str_tok(buf2, ",");
+    TEST_ASSERT_EQUAL_STRING(token, "a");
+    token = str_tok(NULL, ",");
+    TEST_ASSERT_EQUAL_STRING(token, "b");
+    token = str_tok(NULL, ",");
+    TEST_ASSERT_EQUAL_STRING(token, "c");
+    token = str_tok(NULL, ",");
+    TEST_ASSERT(token == NULL);
+}
+
+TEST_CASE(test_str_to_upper_case)
+{
+    char buf3[16] = "abcDEF";
+    str_to_upper(buf3);
+    TEST_ASSERT_EQUAL_STRING(buf3, "ABCDEF");
+}
+
+TEST_CASE(test_str_to_lower_case)
+{
+    char buf4[16] = "ABCdef";
+    str_to_lower(buf4);
+    TEST_ASSERT_EQUAL_STRING(buf4, "abcdef");
+}
+
+TEST_CASE(test_str_reverse_case)
+{
+    char buf5[16] = "abcdef";
+    str_reverse(buf5);
+    TEST_ASSERT_EQUAL_STRING(buf5, "fedcba");
+}
+
+TEST_CASE(test_hex_str_to_uint_case)
+{
+    u32 val = 0;
+    TEST_ASSERT(hex_str_to_uint("1A3F", &val));
+    TEST_ASSERT_EQUAL_INT(val, 0x1A3F);
+    TEST_ASSERT(!hex_str_to_uint("xyz", &val));
+}
+
+TEST_CASE(test_uint_to_hex_str_case)
+{
+    char buf6[9];
+    uint_to_hex_str(0x1A3F, buf6, sizeof(buf6));
+    TEST_ASSERT_EQUAL_STRING(buf6, "1A3F");
+}
+
+#endif
+
 
 // #include <libca/core/string.h>
 // #include <stdio.h>
