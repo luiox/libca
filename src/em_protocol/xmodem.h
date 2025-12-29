@@ -20,7 +20,7 @@
 #define XMODEM_ERR_RETRY_EXCEED   3
 #define XMODEM_ERR_CANCELLED      4
 
-typedef struct {
+typedef struct xmodem_cbs {
     // 如果设置了该回调，则在每接收到一块数据时调用 (Receiver)
     void (*on_data)(const u8 *data, usize len, usize offset);
     // 如果设置了该回调，则在文件传输完成时调用 (Receiver/Transmitter)
@@ -32,7 +32,7 @@ typedef struct {
     usize (*on_tx_fetch)(u8 *buf, usize len, usize offset);
 }xmodem_cbs_t;
 
-typedef struct{
+typedef struct xmodem {
     // 接收缓冲区
     ringbuffer_t* rb;
     // 发送缓冲区

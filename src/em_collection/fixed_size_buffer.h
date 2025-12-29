@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct fixed_size_buffer {
     uint8_t* buffer;
     uint32_t capacity;
     uint32_t head;

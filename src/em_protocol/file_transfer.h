@@ -16,7 +16,7 @@
 typedef void* cbs_t;
 
 // 文件传输协议接口
-typedef struct {
+typedef struct file_transfer_ops {
     /**
      * @brief 核心处理：输入字节流
      * 
@@ -61,7 +61,7 @@ typedef enum {
     TP_ZMODEM
 } transfer_protocol_enum;
 
-typedef struct {
+typedef struct file_transfer {
     // 传输协议类型
     transfer_protocol_enum proto;
     // 指向实际协议操作接口对象的指针

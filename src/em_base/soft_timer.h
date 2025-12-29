@@ -39,7 +39,7 @@ timestamp_t time_get_ms(void);
 timestamp_t time_get_us(void);
 
 // 软件定时器
-typedef struct {
+typedef struct soft_timer {
     timestamp_t start; // 计时开始时间
     u32 interval; // 超时周期
 } soft_timer_t;

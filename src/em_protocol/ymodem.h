@@ -14,7 +14,7 @@
 #include "file_transfer.h"
 #include "../em_base/ringbuffer.h"
 
-typedef struct {
+typedef struct ymodem_cbs {
     // 如果设置了该回调，则在每接收到一块数据时调用
     void (*on_data)(const u8 *data, usize len, usize offset);
     // 如果设置了该回调，则在文件传输完成时调用
@@ -23,7 +23,7 @@ typedef struct {
     void (*on_file_info)(const char *filename, usize file_size);
 } ymodem_cbs_t;
 
-typedef struct {
+typedef struct ymodem {
     ringbuffer_t* rb;
     ringbuffer_t* sb;
     ymodem_cbs_t cbs;

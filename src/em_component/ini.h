@@ -34,17 +34,17 @@ void ini_write_str(u8* buf);
 #define INI_MAX_VALUE_LEN 16
 #define INI_MAX_SECTION_NAME_LEN 16
 
-typedef struct{
+typedef struct ini_kv {
     char key[INI_MAX_KEY_LEN];
     char value[INI_MAX_VALUE_LEN];
 }ini_kv_t;
 
-typedef struct{
+typedef struct ini_section {
     char name[INI_MAX_SECTION_NAME_LEN];
     ini_kv_t* kvs;
 }ini_section_t;
 
-typedef struct{
+typedef struct ini {
     ini_section_t* sections;
     u32 section_num;
 }ini_t;

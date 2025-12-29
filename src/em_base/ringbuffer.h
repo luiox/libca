@@ -22,7 +22,7 @@ typedef uint32_t position_size_t;
 #define RINGBUFFER_SIZE_GEN(n) (1 << n)
 
 // 环形缓冲区结构体
-typedef struct
+typedef struct ringbuffer
 {
     uint8_t*       buffer;   // 缓冲区，要求是2的幂次方
     position_size_t size;     // 缓冲区大小

@@ -58,9 +58,9 @@ typedef volatile size_t vsize;
 
 // 对于仅需要存位级别的数据，但是不需要很精准控制高低位的情况下可以使用下面这个
 // 8个位
-typedef union
+typedef union bits8
 {
-    struct
+    struct bits8_u
     {
         u8 b0 : 1;   // 位0
         u8 b1 : 1;   // 位1
@@ -75,9 +75,9 @@ typedef union
 } bits8_t;
 
 // 16个位
-typedef union
+typedef union bits16
 {
-    struct
+    struct bits16_u
     {
         u8 b0 : 1;    // 位0
         u8 b1 : 1;    // 位1

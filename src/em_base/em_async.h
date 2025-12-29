@@ -21,7 +21,7 @@ typedef void (*em_async_work_func_t)(void* arg);
 /**
  * @brief 异步工作项结构体
  */
-typedef struct {
+typedef struct em_async_work_item {
     em_async_work_func_t func;  // 执行函数
     void*                arg;   // 函数参数
 } em_async_work_item_t;
@@ -29,7 +29,7 @@ typedef struct {
 /**
  * @brief 异步执行器上下文
  */
-typedef struct {
+typedef struct em_async {
     ringbuffer_t rb;            // 内部环形缓冲区
     void (*on_notify)(void);    // 提交新任务时的通知回调（用于唤醒 RTOS 任务）
 } em_async_t;

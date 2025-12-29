@@ -19,12 +19,12 @@
 #define SKV_MAX_KEY_LEN 16
 #define SKV_MAX_VALUE_LEN 16
 
-typedef struct{
+typedef struct skv_kv {
     char key[SKV_MAX_KEY_LEN];
     char value[SKV_MAX_VALUE_LEN];
 }skv_kv_t;
 
-typedef struct {
+typedef struct skv {
     skv_kv_t* kvs;
     u32 num;
 }skv_t;
