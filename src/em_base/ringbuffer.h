@@ -9,8 +9,7 @@
 #ifndef RINGBUFFER_H
 #define RINGBUFFER_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "datatype.h"
 
 // 如果定义了USE_LESS_MEMORY，则使用uint16_t作为位置大小类型，否则使用uint32_t
 #ifdef USE_LESS_MEMORY
@@ -94,5 +93,35 @@ position_size_t ringbuffer_used(const ringbuffer_t* rb);
  * @return position_size_t 空闲大小
  */
 position_size_t ringbuffer_free(const ringbuffer_t* rb);
+
+
+// 工具函数
+
+// 读取单个字节
+u8 ringbuffer_read_u8(ringbuffer_t* rb);
+// 写入单个字节
+void ringbuffer_write_u8(ringbuffer_t* rb, u8 value);
+
+// 读取 16 位整数
+i16 ringbuffer_read_i16(ringbuffer_t* rb);
+u16 ringbuffer_read_u16(ringbuffer_t* rb);
+// 写入 16 位整数
+void ringbuffer_write_i16(ringbuffer_t* rb, i16 value);
+void ringbuffer_write_u16(ringbuffer_t* rb, u16 value);
+
+// 读取 32 位整数
+i32 ringbuffer_read_i32(ringbuffer_t* rb);
+u32 ringbuffer_read_u32(ringbuffer_t* rb);
+// 写入 32 位整数
+void ringbuffer_write_i32(ringbuffer_t* rb, i32 value);
+void ringbuffer_write_u32(ringbuffer_t* rb, u32 value);
+
+// 读取浮点数
+float ringbuffer_read_float(ringbuffer_t* rb);
+// 写入浮点数
+void ringbuffer_write_float(ringbuffer_t* rb, float value);
+
+// 计算缓冲区中所有数据的校验和
+u8 ringbuffer_calculate_checksum(const ringbuffer_t* rb);
 
 #endif   // !RINGBUFFER_H
