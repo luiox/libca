@@ -114,3 +114,80 @@ u8 ping_pong_buffer_is_writing(ping_pong_buffer_t* ping_pong_buf)
 {
     return ping_pong_buf->write_flag == PING_PONG_BUFFER_WRITING;
 }
+
+#if TEST_ENABLE
+
+#include "../em_test/test.h"
+
+#define TEST_BUFFER_SIZE 256
+static u8 test_buffer1[TEST_BUFFER_SIZE];
+static u8 test_buffer2[TEST_BUFFER_SIZE];
+
+TEST_CASE(ping_pong_buffer_init)
+{
+    ping_pong_buffer_t ping_pong_buf;
+    ping_pong_buffer_init(&ping_pong_buf, test_buffer1, test_buffer2, TEST_BUFFER_SIZE);
+
+    TEST_ASSERT_EQUAL_INT(TEST_BUFFER_SIZE, (int)ping_pong_buffer_get_size(&ping_pong_buf));
+    TEST_ASSERT(ping_pong_buffer_get_read_buffer(&ping_pong_buf) == test_buffer1);
+    TEST_ASSERT(ping_pong_buffer_get_write_buffer(&ping_pong_buf) == test_buffer2);
+    TEST_ASSERT_EQUAL_INT(0, ping_pong_buffer_is_writing(&ping_pong_buf));
+}
+
+TEST_CASE(ping_pong_buffer_write_and_switch)
+{
+    ping_pong_buffer_t ping_pong_buf;
+    ping_pong_buffer_init(&ping_pong_buf, test_buffer1, test_buffer2, TEST_BUFFER_SIZE);
+
+    // 开始写入
+    ping_pong_buffer_start_write(&ping_pong_buf);
+    TEST_ASSERT_EQUAL_INT(1, ping_pong_buffer_is_writing(&ping_pong_buf));
+
+    // 写入过程中尝试切换（应该失败）
+    u8 result = ping_pong_buffer_switch(&ping_pong_buf);
+    TEST_ASSERT_EQUAL_INT(0, result);
+    TEST_ASSERT(ping_pong_buffer_get_read_buffer(&ping_pong_buf) == test_buffer1);
+
+    // 结束写入
+    ping_pong_buffer_end_write(&ping_pong_buf);
+    TEST_ASSERT_EQUAL_INT(0, ping_pong_buffer_is_writing(&ping_pong_buf));
+
+    // 再次尝试切换（应该成功）
+    result = ping_pong_buffer_switch(&ping_pong_buf);
+    TEST_ASSERT_EQUAL_INT(1, result);
+    TEST_ASSERT(ping_pong_buffer_get_read_buffer(&ping_pong_buf) == test_buffer2);
+    TEST_ASSERT(ping_pong_buffer_get_write_buffer(&ping_pong_buf) == test_buffer1);
+}
+
+TEST_CASE(ping_pong_buffer_data_integrity)
+{
+    ping_pong_buffer_t ping_pong_buf;
+    ping_pong_buffer_init(&ping_pong_buf, test_buffer1, test_buffer2, TEST_BUFFER_SIZE);
+
+    u8* write_buf = ping_pong_buffer_get_write_buffer(&ping_pong_buf);
+    for (int i = 0; i < 10; i++) {
+        write_buf[i] = i + 1;
+    }
+
+    ping_pong_buffer_switch(&ping_pong_buf);
+
+    u8* read_buf = ping_pong_buffer_get_read_buffer(&ping_pong_buf);
+    for (int i = 0; i < 10; i++) {
+        TEST_ASSERT_EQUAL_INT(i + 1, read_buf[i]);
+    }
+}
+
+TEST_CASE(ping_pong_buffer_clear)
+{
+    for (int i = 0; i < TEST_BUFFER_SIZE; i++) {
+        test_buffer1[i] = 0xFF;
+    }
+
+    ping_pong_buffer_clear(test_buffer1, TEST_BUFFER_SIZE);
+
+    for (int i = 0; i < TEST_BUFFER_SIZE; i++) {
+        TEST_ASSERT_EQUAL_INT(0, test_buffer1[i]);
+    }
+}
+
+#endif

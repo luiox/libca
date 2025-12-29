@@ -10,7 +10,7 @@
  */
 
 #include "ini.h"
-#include "../base/string_util.h"
+#include "../em_base/string_util.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -215,3 +215,17 @@ void f()
 //         *ptr = '\0';
 //     }
 // }
+
+
+#if TEST_ENABLE
+
+#include "../em_test/test.h"
+
+TEST_CASE(ini_basic)
+{
+    // Placeholder test for ini
+    TEST_ASSERT(1);
+}
+
+#endif
+
