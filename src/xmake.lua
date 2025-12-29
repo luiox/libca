@@ -15,8 +15,10 @@ includes("test")
 includes("base")
 includes("em_base")
 includes("em_test")
+includes("em_collection")
 includes("em_protocol")
 includes("em_util")
+includes("em_log")
 includes("em_component")
 
 -------------------------------------------------------------------------------

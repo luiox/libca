@@ -110,3 +110,58 @@ u16 crc16_xmodem(const void* data, usize size)
     }
     return crc;
 }
+
+#if TEST_ENABLE
+
+#include "../em_test/test.h"
+
+TEST_CASE("crc32_ieee_basic")
+{
+    u8  data[] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
+    u32 crc    = crc32_ieee(data, sizeof(data));
+    TEST_ASSERT_EQUAL_HEX(0xf5a6aa3a, crc);
+}
+
+TEST_CASE("crc32_ieee_string")
+{
+    const char* data = "123456789";
+    u32         crc  = crc32_ieee(data, strlen(data));
+    TEST_ASSERT_EQUAL_HEX(0xCBF43926, crc);
+}
+
+TEST_CASE("crc16_modbus_basic")
+{
+    u8  data[] = {0x01, 0x03, 0x00, 0x00, 0x00, 0x01};
+    u16 crc    = crc16_modbus(data, sizeof(data));
+    TEST_ASSERT_EQUAL_HEX(0x0A84, crc);
+}
+
+TEST_CASE("crc16_modbus_string")
+{
+    const char* data = "123456789";
+    u16         crc  = crc16_modbus(data, strlen(data));
+    TEST_ASSERT_EQUAL_HEX(0x4B37, crc);
+}
+
+TEST_CASE("crc16_xmodem_basic")
+{
+    u8  data[] = {0x01, 0x02, 0x03};
+    u16 crc    = crc16_xmodem(data, sizeof(data));
+    TEST_ASSERT_EQUAL_HEX(0x6131, crc);
+}
+
+TEST_CASE("crc16_xmodem_string")
+{
+    const char* data = "123456789";
+    u16         crc  = crc16_xmodem(data, strlen(data));
+    TEST_ASSERT_EQUAL_HEX(0x31C3, crc);
+}
+
+TEST_CASE("crc32 ieee with spaces")
+{
+    const char* data = "123456789";
+    u32         crc  = crc32_ieee(data, strlen(data));
+    TEST_ASSERT_EQUAL_HEX(0xCBF43926, crc);
+}
+
+#endif

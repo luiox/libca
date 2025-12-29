@@ -11,7 +11,7 @@ rule("em_test")
         target:add("includedirs", os.scriptdir(), {public = true})
         
         -- 设置组别为 test，方便管理
-        target:set("group", "test")
+        target:set("group", "em/test")
         
         -- 自动将目标注册为 xmake test 可识别的测试项
         target:add("tests", target:name())
@@ -30,7 +30,7 @@ rule("em_test")
     end)
 
 -- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
-target("ca-em_self_test")
+target("test-em_self_test")
     set_kind("binary")
 
     -- 应用 em_test 规则，并通过第二个参数（table）传递自定义配置

@@ -10,7 +10,7 @@
  */
 
 #include "skv.h"
-#include "../base/string_util.h"
+#include "../em_base/string_util.h"
 
 void skv_init(skv_t* skv, skv_kv_t* kvs, u32 num) {
     skv->kvs = kvs;
@@ -98,7 +98,7 @@ void skv_from_str(skv_t* skv, char* buf) {
                 char* key = line;
                 char* value = equal_pos + 1;
                 
-                // 插入键值对
+                // ?????
                 skv_put(skv, key, value);
             }
         }
@@ -106,3 +106,72 @@ void skv_from_str(skv_t* skv, char* buf) {
         line = str_tok(NULL, "\n");
     }
 }
+#if TEST_ENABLE
+
+#include "../em_test/test.h"
+#include <string.h>
+
+TEST_CASE(skv_basic)
+{
+    skv_kv_t kvs[10];
+    skv_t    skv;
+    char     value[SKV_MAX_VALUE_LEN];
+
+    memset(kvs, 0, sizeof(kvs));
+    skv_init(&skv, kvs, 10);
+    
+    // ????
+    TEST_ASSERT(skv_put(&skv, "name", "skv") == true);
+    
+    // ????
+    TEST_ASSERT(skv_get(&skv, "name", value) == true);
+    TEST_ASSERT_EQUAL_STRING("skv", value);
+    
+    // ????
+    TEST_ASSERT(skv_put(&skv, "name", "skv_updated") == true);
+    
+    // ???????
+    TEST_ASSERT(skv_get(&skv, "name", value) == true);
+    TEST_ASSERT_EQUAL_STRING("skv_updated", value);
+}
+
+TEST_CASE(skv_serialization)
+{
+    skv_kv_t kvs[10];
+    skv_t    skv;
+    char     buf[1024];
+    char     value[SKV_MAX_VALUE_LEN];
+
+    memset(kvs, 0, sizeof(kvs));
+    skv_init(&skv, kvs, 10);
+    skv_put(&skv, "name", "skv_updated");
+    
+    // ???
+    skv_to_str(&skv, buf);
+    
+    // ??????
+    memset(kvs, 0, sizeof(kvs));
+    skv_init(&skv, kvs, 10);
+    
+    // ????
+    skv_from_str(&skv, buf);
+    
+    // ??????????
+    TEST_ASSERT(skv_get(&skv, "name", value) == true);
+    TEST_ASSERT_EQUAL_STRING("skv_updated", value);
+}
+
+TEST_CASE(skv_capacity)
+{
+    skv_kv_t kvs[3];
+    skv_t    skv;
+    memset(kvs, 0, sizeof(kvs));
+    skv_init(&skv, kvs, 3);
+    
+    TEST_ASSERT(skv_put(&skv, "k1", "v1") == true);
+    TEST_ASSERT(skv_put(&skv, "k2", "v2") == true);
+    TEST_ASSERT(skv_put(&skv, "k3", "v3") == true);
+    TEST_ASSERT(skv_put(&skv, "k4", "v4") == false);
+}
+
+#endif

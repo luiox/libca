@@ -41,12 +41,12 @@ xmake run target_name
 
 if you want to run all test.
 ```shell
-xmake test -g test
+xmake test -g em/test
 ```
 
 if you want to watch the output detail, add `-v` argument.
 ```shell
-xmake test -g test -v
+xmake test -g em/test -v
 ```
 
 

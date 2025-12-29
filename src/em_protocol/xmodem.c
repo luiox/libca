@@ -695,13 +695,6 @@ static usize test_on_tx_fetch(u8* buf, usize len, usize offset)
 	return len;
 }
 
-#define TEST_ASSERT_TRUE(expr)                                                                 \
-    do {                                                                                       \
-        if (!(expr)) {                                                                         \
-            printf("Test failed: line %d, expected true\n", __LINE__);                         \
-        }                                                                                      \
-    } while (0)
-
 TEST_CASE(xmodem_transmitter_basic)
 {
 	xmodem_t     xm;
