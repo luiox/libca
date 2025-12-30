@@ -183,8 +183,8 @@ extern int current_test_failed;
 // clang-format on
 
 #if !defined(_MSC_VER)
-extern const test_t __start_test_array[];
-extern const test_t __stop_test_array[];
+extern const test_t* __start_test_array[];
+extern const test_t* __stop_test_array[];
 #endif
 
 // 测试运行器
@@ -222,19 +222,19 @@ static int run_tests()
         }
     }
 #else
-    const test_t *begin = __start_test_array;
-    const test_t *end   = __stop_test_array;
+    const test_t **begin = (const test_t **)__start_test_array;
+    const test_t **end   = (const test_t **)__stop_test_array;
     
-    for (const test_t* t = begin; t < end; t++) {
-        if (t->name != NULL) total_tests++;
+    for (const test_t** t = begin; t < end; t++) {
+        if (*t != NULL && (*t)->name != NULL) total_tests++;
     }
     printf("num_tests = %d\n", total_tests);
 
-    for (const test_t* t = begin; t < end; t++) {
-        if (t->name == NULL) continue;
-        printf("Running test: %s\n", t->name);
+    for (const test_t** t = begin; t < end; t++) {
+        if (*t == NULL || (*t)->name == NULL) continue;
+        printf("Running test: %s\n", (*t)->name);
         current_test_failed = 0;
-        t->func();
+        (*t)->func();
         if (current_test_failed) {
             failed_tests++;
         } else {

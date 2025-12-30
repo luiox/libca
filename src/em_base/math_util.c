@@ -28,35 +28,6 @@ float clampf(float value, float min, float max)
     return value;
 }
 
-// 快速sin(x)（5阶泰勒展开法）
-CA_FORCE_INLINE float fast_sinf(float x)
-{
-    // const float B = 4.0f / 3.14159265f;
-    // const float C = -4.0f / (3.14159265f * 3.14159265f);
-    const float B = 1.27324f;
-    const float C = -0.405285f;
-    // 二阶补偿
-    const float P = 0.225f;
-
-    float y = B * x + C * x * fabsf(x);
-
-    y = P * (y * fabsf(y) - y) + y;
-    return y;
-}
-
-CA_FORCE_INLINE float math_fabs(float x) {
-#if defined(__IEEE_754__)
-    union {
-        float f;
-        uint32_t u;
-    } converter = {x};
-    converter.u &= 0x7FFFFFFFu;
-    return converter.f;
-#else
-    return (x < 0.0f) ? -x : x;
-#endif
-}
-
 // constrain a value
 float constrain_float(float amt, float low, float high)
 {
