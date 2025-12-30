@@ -1,28 +1,32 @@
 /**
  * @file crc.h
- * @author canrad (1517807724@qq.com)
- * @brief 常用的CRC校验算法实现，包含朴素实现，打表法实现
- * @version 0.1
- * @date 2025-07-25
- * 
- * @copyright Copyright (c) 2025
- * 
+ * @brief 常用的CRC校验算法实现。
+ * 不带 _fast 后缀的函数为朴素实现（多项式计算），带 _fast 后缀的为查表实现。
+ * 参数均为 (data, size)，返回计算得到的 CRC 值。
  */
 #ifndef CRC_H
 #define CRC_H
 
-#include "../em_base/datatype.h" 
+#include "../em_base/datatype.h"
 
-// CRC-32-IEEE 802.3
-// x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1
+// CRC-32/IEEE 802.3
+// 多项式: 0x04C11DB7 (x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1)
 u32 crc32_ieee(const void* data, usize size);
+u32 crc32_ieee_fast(const void* data, usize size);
 
-// CRC-16-modbus
-// x^16 + x^15 + x^2 + 1
+// CRC-16/MODBUS
+// 多项式: 0x8005 (x^16 + x^15 + x^2 + 1)
 u16 crc16_modbus(const void* data, usize size);
+u16 crc16_modbus_fast(const void* data, usize size);
 
-// CRC-16-xmodem
-// x^16 + x^12 + x^5 + 1
+// CRC-16/XMODEM
+// 多项式: 0x1021 (x^16 + x^12 + x^5 + 1)
 u16 crc16_xmodem(const void* data, usize size);
+u16 crc16_xmodem_fast(const void* data, usize size);
+
+// CRC-16/YMODEM
+// 多项式: 0x1021 (x^16 + x^12 + x^5 + 1)
+u16 crc16_ymodem(const void* data, usize size);
+u16 crc16_ymodem_fast(const void* data, usize size);
 
 #endif // CRC_H
