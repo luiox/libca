@@ -20,18 +20,16 @@ jobs:
       with:
         path: |
           ~/.xmake
-          ~/.local/bin/xmake
-          ~/.local/bin/xrepo
           build
-        key: ${{ runner.os }}-xmake-v3.0.5-${{ hashFiles('**/xmake.lua') }}
+        key: ${{ runner.os }}-xmake-v2.9.6-${{ hashFiles('**/xmake.lua') }}
         restore-keys: |
-          ${{ runner.os }}-xmake-v3.0.5-
+          ${{ runner.os }}-xmake-v2.9.6-
           ${{ runner.os }}-xmake-
 
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
-        xmake-version: 3.0.5
+        xmake-version: 2.9.6
 
     - name: Configure xmake
       run: xmake config --toolchain=gcc --ccache=y -y
