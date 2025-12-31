@@ -502,9 +502,6 @@ static em_log_backend_t g_test_backend = {
     .flush = NULL
 };
 
-// Custom macro to include file and line number
-#define EM_LOG_TRACE(fmt, ...) EM_LOG_V("TRACE", "[%s:%d] " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-
 TEST_CASE(log_tags_and_levels) {
     em_log_init();
     
@@ -535,9 +532,13 @@ TEST_CASE(log_tags_and_levels) {
 
     // WIFI DEBUG should now pass
     memset(g_test_output_buf, 0, sizeof(g_test_output_buf));
+    int line = __LINE__ + 1;
     EM_LOG_D("WIFI", "WIFI Debug Packet");
     em_log_flush();
-    TEST_ASSERT_EQUAL_STRING("WIFI Debug Packet", g_test_output_buf);
+    
+    char expected[256];
+    snprintf(expected, sizeof(expected), "[%s:%d] WIFI Debug Packet", __FILE__, line);
+    TEST_ASSERT_EQUAL_STRING(expected, g_test_output_buf);
     TEST_ASSERT_EQUAL_STRING("WIFI", g_last_record.tag);
 
     // BLE DEBUG should still be filtered (Global is INFO)
@@ -573,7 +574,7 @@ TEST_CASE(log_trace_macro) {
     memset(g_test_output_buf, 0, sizeof(g_test_output_buf));
     
     int line = __LINE__ + 1;
-    EM_LOG_TRACE("Variable x=%d", 42);
+    EM_LOG_V("TRACE", "Variable x=%d", 42);
     em_log_flush();
     
     // Expected output: "[filename:line] Variable x=42"
@@ -594,14 +595,33 @@ TEST_CASE(log_tags_console_demo) {
     EM_LOG_W("HEAP", "Memory low: %d bytes free", 1024);
     EM_LOG_E("FLASH", "Write error at 0x08000000");
     
-    // Custom Trace with File/Line
-    #define LOG_WITH_LOC(level, tag, fmt, ...) \
-        em_log_write(level, tag, "[%s:%d] " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-        
-    LOG_WITH_LOC(EM_LOG_ERROR, "ASSERT", "Pointer is NULL");
+    // Debug log with file/line
+    EM_LOG_D("ASSERT", "Pointer is NULL (Debug info)");
     
     em_log_flush();
     printf("--- End Demo ---\n");
+}
+
+TEST_CASE(log_all_levels_console) {
+    em_log_init();
+    
+    // Allow all levels for console backend
+    g_console_backend.min_level = EM_LOG_VERBOSE;
+    em_log_backend_register(&g_console_backend);
+    
+    // Allow all levels globally
+    em_log_set_level(EM_LOG_VERBOSE);
+    
+    printf("\n--- All Levels Console Test ---\n");
+    
+    EM_LOG_E("TEST", "This is an ERROR message");
+    EM_LOG_W("TEST", "This is a WARN message");
+    EM_LOG_I("TEST", "This is an INFO message");
+    EM_LOG_D("TEST", "This is a DEBUG message");
+    EM_LOG_V("TEST", "This is a VERBOSE message");
+    
+    em_log_flush();
+    printf("--- End All Levels Test ---\n");
 }
 #endif
 

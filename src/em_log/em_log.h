@@ -86,16 +86,20 @@ void em_log_panic(void);
 #define EM_LOG_I(tag, ...) ((void)0)
 #endif
 
+/* Helper macros for stringification */
+#define _EM_LOG_STR(x) #x
+#define _EM_LOG_XSTR(x) _EM_LOG_STR(x)
+
 #if EM_LOG_LEVEL_DEFAULT >= EM_LOG_DEBUG
-#define EM_LOG_D(tag, ...) em_log_write(EM_LOG_DEBUG, tag, __VA_ARGS__)
+#define EM_LOG_D(tag, fmt, ...) em_log_write(EM_LOG_DEBUG, tag, "[" __FILE__ ":" _EM_LOG_XSTR(__LINE__) "] " fmt, ##__VA_ARGS__)
 #else
-#define EM_LOG_D(tag, ...) ((void)0)
+#define EM_LOG_D(tag, fmt, ...) ((void)0)
 #endif
 
 #if EM_LOG_LEVEL_DEFAULT >= EM_LOG_VERBOSE
-#define EM_LOG_V(tag, ...) em_log_write(EM_LOG_VERBOSE, tag, __VA_ARGS__)
+#define EM_LOG_V(tag, fmt, ...) em_log_write(EM_LOG_VERBOSE, tag, "[" __FILE__ ":" _EM_LOG_XSTR(__LINE__) "] " fmt, ##__VA_ARGS__)
 #else
-#define EM_LOG_V(tag, ...) ((void)0)
+#define EM_LOG_V(tag, fmt, ...) ((void)0)
 #endif
 
 #ifdef __cplusplus
