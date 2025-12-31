@@ -25,37 +25,53 @@ typedef enum em_log_level{
 
 ### 2.2 后端抽象与多后端支持 (Backend Interface & Multi-backend)
 ```c
+typedef struct em_log_record {
+    em_log_level_t level;
+    uint32_t timestamp;
+    const char* tag;      // 指向 Tag 字符串（若使用 Hash 则为 NULL 或 ID）
+    const char* payload;  // 格式化好的日志内容
+    size_t payload_len;
+} em_log_record_t;
+
 typedef struct em_log_backend {
     const char* name;
     em_log_level_t min_level; // 后端独立过滤：该后端接收的最低日志级别
     bool enabled;             // 是否启用该后端
     bool support_color;       // 是否支持彩色输出 (ANSI)
     void (*init)(struct em_log_backend* backend);
-    void (*output)(struct em_log_backend* backend, const char* str, usize len);
+    void (*output)(struct em_log_backend* backend, const em_log_record_t* record);
+    void (*panic_output)(struct em_log_backend* backend, const em_log_record_t* record); // 紧急模式下的同步输出（轮询模式，禁止中断依赖）
     void (*flush)(struct em_log_backend* backend);
     struct em_log_backend* next; // 链表指针，支持多个后端
 } em_log_backend_t;
 ```
 - **多后端绑定**：系统维护一个后端链表。通过 `em_log_backend_register(backend)` 将不同的输出器（如 UART, SD Card, RTT）挂载到系统。
-- **独立过滤**：每条日志在分发时，会遍历链表，并根据每个后端的 `min_level` 决定是否输出。这样可以实现“控制台输出 INFO 以上，文件记录 DEBUG 以上”的差异化配置。
+- **独立过滤**：每条日志在分发时，会遍历链表，并根据每个后端的 `min_level` 决定是否输出。
+- **灵活输出**：`output` 接口接收结构化的 `em_log_record_t`。
+    - **UART 后端**：可以现场拼接时间戳和颜色代码：`printf("[%d] %s", record->timestamp, record->payload)`。
+    - **Flash 后端**：可以直接存储二进制 Header 和 Payload，节省空间并减少字符串转换开销。
+- **Panic 支持**：`panic_output` 必须实现为死循环轮询发送（Polling Mode），严禁依赖中断或操作系统服务，确保在 HardFault 或关中断场景下仍能输出。
 
 ### 2.3 异步驱动机制 (Asynchronous Mechanism)
-`em_log` 的异步化深度依赖 `em_base/async` 组件提供的轻量级工作队列：
-- **生产者 (Producer)**：`log_printf` 将格式化后的字符串推入日志专用的 `RingBuffer`，随后调用 `em_async_submit` 提交一个“日志分发任务”到全局异步队列。
-- **中转站 (Work Queue)**：`em_async` 维护一个任务队列。在提交任务时，可以通过 `on_notify` 回调唤醒 RTOS 任务或设置标志位。
+`em_log` 的异步化深度依赖 `em_base/async` 组件，但为了避免高频日志淹没任务队列，采用 **"边缘触发 (Edge Triggered)"** 机制：
+- **生产者 (Producer)**：`log_printf` 将日志包写入 RingBuffer。仅当检测到“日志处理任务未处于活动状态”时，才调用 `em_async_submit` 提交任务。
 - **消费者 (Consumer)**：
-    - **RTOS 环境**：在一个独立的低优先级任务中循环调用 `em_async_process(async, 0)`。
-    - **裸机环境**：在 `main` 循环中调用 `em_async_process(async, max_items)`。
-- **平衡策略 (Balancing)**：在单线程（裸机）环境下，通过 `max_items` 限制单次轮询处理的任务数，防止日志分发占用过多 CPU 时间，从而平衡日志输出与主控制流。
-- **解耦输出**：`em_async` 只负责触发“分发任务”。具体的后端输出（如 UART DMA）由后端自行实现，`em_log` 仅负责将数据从日志缓冲区传递给后端接口。
+    - 任务被唤醒后，循环从 RingBuffer 读取数据包并分发，直到 RingBuffer 为空。
+    - 处理完毕后，清除“活动状态”标志，等待下一次唤醒。
+- **优势**：无论日志频率多高，在同一时刻 `em_async` 队列中最多只有一个日志分发任务，极大降低了调度开销。
 
-### 2.4 溢出策略 (Overflow Strategy)
-利用 `em_base/ringbuffer` 实现。
-- **异步流程**：`log_printf` -> 格式化字符串 (不含颜色) -> 写入日志 RingBuffer -> 提交 `em_async` 任务 -> `em_async_process` 执行任务 -> 遍历所有已注册且启用的 `backend` -> 根据 `min_level` 过滤 -> (可选) 后端着色 -> 调用 `backend->output`。
-- **策略选择**：支持通过宏或配置选择：
-    - **Overwrite (覆盖)**：缓冲区满时覆盖最旧数据，适用于“黑匣子”模式。
-    - **Discard (丢弃)**：缓冲区满时丢弃新日志，保证现有日志完整性。
-    - **Block (阻塞)**：仅在非中断环境下可选，确保日志不丢失。
+### 2.4 数据协议与溢出策略 (Data Protocol & Overflow Strategy)
+为了支持高效过滤和元数据保留，RingBuffer 内部存储**结构化数据包 (TLV)** 而非纯文本：
+- **Packet 结构**：`[Header: TotalLen | Level | TagHash | Timestamp] [Payload: Formatted String]`
+    - **Header**：定长头部，包含日志级别、Tag 哈希值（用于快速过滤）、**生产者时间戳**。
+    - **Payload**：格式化后的日志内容（不含颜色）。
+- **处理流程**：
+    1.  **Producer**: 获取时间戳 -> 生成 Header -> 格式化内容 -> 原子写入 RingBuffer。
+    2.  **Consumer**: 读取 Header -> 检查 `backend->min_level` -> (若通过) 读取 Payload 并输出 -> (若不通过) 跳过 Payload。
+- **溢出策略**：
+    - **Discard (默认)**：RingBuffer 满时丢弃新日志，并统计丢弃计数。
+    - **Overwrite**：覆盖最旧数据（需 RingBuffer 支持覆盖写模式）。
+    - **Block**：仅在非中断且允许阻塞的上下文中可选。
 
 ### 2.5 中断安全 (ISR Safety)
 - **命名约定**：提供 `_isr` 后缀的 API（如 `em_log_printf_isr`）。
@@ -68,7 +84,8 @@ typedef struct em_log_backend {
 
 ### 3.1 格式化输出与时间戳
 - **格式**：支持 `[Time][Level][Tag] Message`。
-- **时间戳抽象**：提供回调接口 `em_log_get_time_func_t`，允许用户自定义时间来源（如 RTOS Tick, CPU Cycles, RTC）。默认使用 `soft_timer` 提供的毫秒级计数。
+- **时间戳捕获**：时间戳必须在 **生产者 (log_printf)** 阶段获取并存入 Packet Header，以确保日志时间的准确性，避免因异步队列堆积导致的时间滞后。
+- **时间源**：提供回调接口 `em_log_get_time_func_t`，默认使用 `soft_timer`。
 
 ### 3.2 多级过滤与优化
 - **静态过滤 (Zero Cost)**：通过宏 `EM_LOG_LEVEL_DEFAULT` 在编译期剔除。利用 `__builtin_expect` 优化分支预测，确保关闭的日志级别对性能几乎零影响。
@@ -79,9 +96,9 @@ typedef struct em_log_backend {
 
 ### 3.3 异常现场保存 (Panic Log)
 当系统发生 `HardFault` 或断言失败时：
-1.  停止所有中断。
-2.  **自动 Flush**：强制将当前 RingBuffer 中的剩余日志同步写入后端。
-3.  直接同步调用 Flash 后端，将关键寄存器和堆栈信息写入 Flash 的特定扇区。
+1.  停止所有中断 ( `__disable_irq()` )。
+2.  **自动 Flush**：强制将当前 RingBuffer 中的剩余日志通过 `panic_output` 接口同步写入后端。
+3.  直接同步调用 Flash 后端的 `panic_output`，将关键寄存器和堆栈信息写入 Flash 的特定扇区。
 4.  下次启动时，`em_ota` 或 `em_log` 可以读取该区域并上报给上位机。
 
 ### 3.4 集成断言 (Integrated Assertions)
@@ -99,8 +116,10 @@ typedef struct em_log_backend {
 针对高频触发的日志（如传感器异常），支持限流机制：`EM_LOG_THROTTLE(ms, tag, level, fmt, ...)`，确保同一日志在指定时间内只打印一次。
 
 ### 3.7 线程安全与性能优化
-- **格式化缓冲区**：`log_printf` 内部使用互斥锁保护一个静态的格式化缓冲区，或者在栈空间足够的情况下使用局部变量，以确保多任务并发时的线程安全。
-- **标签过滤优化**：标签 (Tag) 建议使用结构体指针比较而非字符串比较。
+- **零拷贝格式化 (Zero-Copy)**：
+    - 优先尝试在 RingBuffer 中预留空间 (`reserve`)，直接将格式化结果写入 RingBuffer 内存，避免中间缓冲区的内存拷贝。
+    - 若 RingBuffer 不支持预留写入，则回退到栈上分配临时缓冲区（如 `char buf[128]`），避免使用全局静态锁，以减少多任务竞争。
+- **标签过滤优化**：标签 (Tag) 建议使用结构体指针比较或哈希值比较，而非字符串比较。
 - **内存所有权**：`em_log_backend_t` 实例必须由调用者保证其生命周期（通常定义为 `static` 或全局变量），因为系统链表会长期持有其指针。
 
 ### 3.8 彩色输出策略
