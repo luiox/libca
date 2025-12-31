@@ -19,6 +19,20 @@ jobs:
       with:
         xmake-version: latest
 
+    # --- 新增缓存部分开始 ---
+    - name: Cache xmake packages and build
+      uses: actions/cache@v4
+      with:
+        # 缓存 xmake 的全局目录（包含下载的依赖包）和本地的构建目录
+        path: |
+          ~/.local/share/xmake
+          .build
+        # 使用 xmake 版本和操作系统作为 key 的一部分
+        key: ${{ runner.os }}-xmake-${{ hashFiles('xmake.lua') }}
+        restore-keys: |
+          ${{ runner.os }}-xmake-
+    # --- 新增缓存部分结束 ---
+
     - name: Configure xmake
       run: xmake config --toolchain=gcc -y
 
