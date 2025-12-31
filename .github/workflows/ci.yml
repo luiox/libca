@@ -14,22 +14,15 @@ jobs:
       with:
         submodules: true
 
-    # --- 缓存部分移到安装之前 ---
-    - name: Cache xmake packages and build
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.xmake
-          build
-        key: ${{ runner.os }}-xmake-v2.9.6-${{ hashFiles('**/xmake.lua') }}
-        restore-keys: |
-          ${{ runner.os }}-xmake-v2.9.6-
-          ${{ runner.os }}-xmake-
-
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
-        xmake-version: 2.9.6
+        xmake-version: 3.0.5
+        actions-cache-key: ${{ runner.os }}-xmake-v3.0.5
+        package-cache: true
+        package-cache-key: ${{ runner.os }}-xmake-packages-${{ hashFiles('**/xmake.lua') }}
+        build-cache: true
+        build-cache-key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
 
     - name: Configure xmake
       run: xmake config --toolchain=gcc --ccache=y -y
