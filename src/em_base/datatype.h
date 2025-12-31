@@ -136,9 +136,9 @@ typedef void(*runnable_fn_t)(void);
 #define unused_param(param) (void)(param)
 
 // 是否是小端序
-bool is_little_endian();
+bool is_little_endian(void);
 // 是否是大端序
-bool is_big_endian();
+bool is_big_endian(void);
 
 // 以大端的方式解释一个数组
 

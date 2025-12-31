@@ -2,7 +2,7 @@
 
 static i8 endian_flag = -1;
 // 是否是小端序
-bool is_little_endian()
+bool is_little_endian(void)
 {
     if (endian_flag != -1) {
         return endian_flag == 1;
@@ -22,7 +22,7 @@ bool is_little_endian()
 }
 
 // 是否是大端序
-bool is_big_endian()
+bool is_big_endian(void)
 {
     return !is_little_endian();
 }
