@@ -303,7 +303,7 @@ char* str_trim(char* str)
 
 #if TEST_ENABLE
 
-#include "test.h"
+#include "../em_test/test.h"
 
 TEST_CASE(test_str_len_case)
 {

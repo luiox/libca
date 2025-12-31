@@ -297,4 +297,25 @@ void print_compiler_info();
 #endif
 
 
+///////////////////////////////////////////////////////////////////////////////
+// 定义编译器相关的一些宏
+// 建议内联的宏
+#define CA_SUGGEST_INLINE inline
+// 强制内联的宏
+#if defined(__GNUC__) || defined(__clang__)
+#define CA_FORCE_INLINE inline __attribute__((always_inline))
+#else
+#define CA_FORCE_INLINE inline
+#endif
+
+// 对于尽可能inline的情况下使用
+#if defined(__GNUC__) // GNU编译器
+    #define LIKELY_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER) // Microsoft Visual C++
+    #define LIKELY_INLINE __forceinline
+#else
+    #define LIKELY_INLINE inline
+#endif
+
+
 #endif   // !COMPILER_DETECT_H

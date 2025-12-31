@@ -29,7 +29,7 @@ bool is_big_endian()
 
 #if TEST_ENABLE
 
-#include "test.h"
+#include "../em_test/test.h"
 
 // 测试大端读取 u16
 TEST_CASE(test_big_endian_read_u16)

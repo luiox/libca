@@ -11,7 +11,7 @@
 #ifndef MATH_UTIL_H
 #define MATH_UTIL_H
 
-#include "base_config.h"
+#include "compiler_helper.h"
 #include "datatype.h"
 #include <stdbool.h>
 #include <math.h>
