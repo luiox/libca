@@ -61,7 +61,7 @@ void queue_clear(queue_t* queue)
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#    include "../em_test/test.h"
 
 // 用于测试的数据类型
 typedef struct
@@ -93,7 +93,7 @@ TEST_CASE(queue_basic)
     // 测试2: 向队列中添加元素
     queue_push(&queue, &data1);
     TEST_ASSERT(test_data_equal(queue_front(&queue), &data1));   // 队头应该是data1
-    TEST_ASSERT_EQUAL_INT(1, (int)queue_size(&queue));                        // 队列大小应该是1
+    TEST_ASSERT_EQUAL_INT(1, (int)queue_size(&queue));           // 队列大小应该是1
 
     // 测试3: 再次向队列中添加元素
     queue_push(&queue, &data2);
@@ -102,8 +102,8 @@ TEST_CASE(queue_basic)
     // 测试4: 从队列中弹出元素
     pop_data = *(test_data_t*)queue_front(&queue);
     queue_pop(&queue);
-    TEST_ASSERT(test_data_equal(&pop_data, &data1));   // 弹出的应该是data1
-    TEST_ASSERT_EQUAL_INT(1, (int)queue_size(&queue));              // 队列大小应该是1
+    TEST_ASSERT(test_data_equal(&pop_data, &data1));     // 弹出的应该是data1
+    TEST_ASSERT_EQUAL_INT(1, (int)queue_size(&queue));   // 队列大小应该是1
 
     // 测试5: 清空队列
     queue_clear(&queue);
@@ -111,7 +111,8 @@ TEST_CASE(queue_basic)
 
     // 测试6: 向空队列中添加和弹出元素
     queue_push(&queue, &data3);
-    TEST_ASSERT(!queue_empty(&queue));   // 队列不应该为空
+    // 队列不应该为空
+    TEST_ASSERT(!queue_empty(&queue));
     queue_pop(&queue);
     TEST_ASSERT(queue_empty(&queue));   // 队列应该为空
 }
