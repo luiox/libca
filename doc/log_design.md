@@ -13,7 +13,7 @@
 
 ### 2.1 日志分级 (Log Levels)
 ```c
-typedef enum {
+typedef enum em_log_level{
     EM_LOG_NONE = 0,
     EM_LOG_ERROR,
     EM_LOG_WARN,
@@ -23,26 +23,41 @@ typedef enum {
 } em_log_level_t;
 ```
 
-### 2.2 后端抽象 (Backend Interface)
+### 2.2 后端抽象与多后端支持 (Backend Interface & Multi-backend)
 ```c
-typedef struct {
+typedef struct em_log_backend {
     const char* name;
     em_log_level_t min_level; // 后端独立过滤：该后端接收的最低日志级别
-    void (*init)(void);
-    void (*output)(const char* str, usize len);
-    void (*flush)(void);
+    bool enabled;             // 是否启用该后端
+    bool support_color;       // 是否支持彩色输出 (ANSI)
+    void (*init)(struct em_log_backend* backend);
+    void (*output)(struct em_log_backend* backend, const char* str, usize len);
+    void (*flush)(struct em_log_backend* backend);
+    struct em_log_backend* next; // 链表指针，支持多个后端
 } em_log_backend_t;
 ```
+- **多后端绑定**：系统维护一个后端链表。通过 `em_log_backend_register(backend)` 将不同的输出器（如 UART, SD Card, RTT）挂载到系统。
+- **独立过滤**：每条日志在分发时，会遍历链表，并根据每个后端的 `min_level` 决定是否输出。这样可以实现“控制台输出 INFO 以上，文件记录 DEBUG 以上”的差异化配置。
 
-### 2.3 异步缓冲区与溢出策略
+### 2.3 异步驱动机制 (Asynchronous Mechanism)
+`em_log` 的异步化深度依赖 `em_base/async` 组件提供的轻量级工作队列：
+- **生产者 (Producer)**：`log_printf` 将格式化后的字符串推入日志专用的 `RingBuffer`，随后调用 `em_async_submit` 提交一个“日志分发任务”到全局异步队列。
+- **中转站 (Work Queue)**：`em_async` 维护一个任务队列。在提交任务时，可以通过 `on_notify` 回调唤醒 RTOS 任务或设置标志位。
+- **消费者 (Consumer)**：
+    - **RTOS 环境**：在一个独立的低优先级任务中循环调用 `em_async_process(async, 0)`。
+    - **裸机环境**：在 `main` 循环中调用 `em_async_process(async, max_items)`。
+- **平衡策略 (Balancing)**：在单线程（裸机）环境下，通过 `max_items` 限制单次轮询处理的任务数，防止日志分发占用过多 CPU 时间，从而平衡日志输出与主控制流。
+- **解耦输出**：`em_async` 只负责触发“分发任务”。具体的后端输出（如 UART DMA）由后端自行实现，`em_log` 仅负责将数据从日志缓冲区传递给后端接口。
+
+### 2.4 溢出策略 (Overflow Strategy)
 利用 `em_base/ringbuffer` 实现。
-- **异步流程**：`log_printf` -> 格式化字符串 -> 写入 RingBuffer -> `log_task` (低优先级) -> 调用 `backend->output`。
-- **溢出策略 (Overflow Strategy)**：支持通过宏或配置选择：
+- **异步流程**：`log_printf` -> 格式化字符串 (不含颜色) -> 写入日志 RingBuffer -> 提交 `em_async` 任务 -> `em_async_process` 执行任务 -> 遍历所有已注册且启用的 `backend` -> 根据 `min_level` 过滤 -> (可选) 后端着色 -> 调用 `backend->output`。
+- **策略选择**：支持通过宏或配置选择：
     - **Overwrite (覆盖)**：缓冲区满时覆盖最旧数据，适用于“黑匣子”模式。
     - **Discard (丢弃)**：缓冲区满时丢弃新日志，保证现有日志完整性。
     - **Block (阻塞)**：仅在非中断环境下可选，确保日志不丢失。
 
-### 2.4 中断安全 (ISR Safety)
+### 2.5 中断安全 (ISR Safety)
 - **命名约定**：提供 `_isr` 后缀的 API（如 `em_log_printf_isr`）。
 - **实现机制**：
     - **原子性**：RingBuffer 写入必须是原子操作或受中断锁保护。
@@ -58,9 +73,9 @@ typedef struct {
 ### 3.2 多级过滤与优化
 - **静态过滤 (Zero Cost)**：通过宏 `EM_LOG_LEVEL_DEFAULT` 在编译期剔除。利用 `__builtin_expect` 优化分支预测，确保关闭的日志级别对性能几乎零影响。
 - **动态过滤**：
-    - **全局级别**：`em_log_set_level(level)`。
+    - **全局级别**：`em_log_set_level(level)`，影响所有后端。
     - **标签过滤 (Tag-based)**：支持为特定模块（如 `NETWORK`）设置独立的日志级别。
-- **后端过滤**：每个后端（UART/Flash）可拥有独立的过滤级别。
+- **后端过滤**：每个后端（UART/Flash）可拥有独立的过滤级别 `min_level`。只有当日志级别高于或等于 `max(global_level, backend_min_level)` 时，该后端才会输出。
 
 ### 3.3 异常现场保存 (Panic Log)
 当系统发生 `HardFault` 或断言失败时：
@@ -82,6 +97,20 @@ typedef struct {
 
 ### 3.6 日志限流 (Throttling)
 针对高频触发的日志（如传感器异常），支持限流机制：`EM_LOG_THROTTLE(ms, tag, level, fmt, ...)`，确保同一日志在指定时间内只打印一次。
+
+### 3.7 线程安全与性能优化
+- **格式化缓冲区**：`log_printf` 内部使用互斥锁保护一个静态的格式化缓冲区，或者在栈空间足够的情况下使用局部变量，以确保多任务并发时的线程安全。
+- **标签过滤优化**：标签 (Tag) 建议使用结构体指针比较而非字符串比较。
+- **内存所有权**：`em_log_backend_t` 实例必须由调用者保证其生命周期（通常定义为 `static` 或全局变量），因为系统链表会长期持有其指针。
+
+### 3.8 彩色输出策略
+- **解耦存储与显示**：RingBuffer 中仅存储纯净的日志文本。
+- **按需着色**：在分发阶段，如果 `backend->support_color` 为真，分发器会在调用 `output` 前后自动发送 ANSI 颜色转义码。这保证了串口看到的是彩色日志，而 Flash 文件中保存的是易于解析的纯文本。
+
+### 3.9 多平台模拟与验证 (PC Simulation)
+为了在 Windows/Linux 上验证异步逻辑，建议采用以下模拟方案：
+- **方案 A：专用工作线程**。模拟 RTOS 环境，使用 `std::thread` 或系统原生线程运行 `async_process`，通过信号量同步。
+- **方案 B：主线程分时**。模拟裸机环境，在 `main` 循环中调用 `async_process` 并设置 `max_items`，观察日志输出对主逻辑循环频率的影响。
 
 ## 4. 与 EasyLogger 的区别
 - **更轻量**：剔除不必要的复杂配置。
