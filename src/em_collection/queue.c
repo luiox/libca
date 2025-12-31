@@ -77,6 +77,7 @@ static bool test_data_equal(void* a, void* b)
     return data_a->value == data_b->value;
 }
 
+// queue基础操作测试
 TEST_CASE(queue_basic)
 {
     queue_t     queue;
