@@ -195,8 +195,8 @@ u16 crc16_ymodem(const void* data, usize size)
     return crc16_xmodem(data, size);
 }
 
-#ifdef EM_TEST_ENABLE
-#    include "em_test/test.h"
+#if TEST_ENABLE
+#    include "../em_test/test.h"
 #    include <string.h>
 
 // CRC 模块单元测试

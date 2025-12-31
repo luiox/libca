@@ -7,6 +7,9 @@ rule("em_test")
         -- 第一个参数是类型 "rules"，第二个是规则名 "em_test"
         local configs = target:extraconf("rules", "em_test")
         
+        -- 添加测试的.c文件
+        target:add("files", path.join(os.scriptdir(), "test.c"))
+
         -- 自动为使用此规则的目标添加头文件搜索路径
         target:add("includedirs", os.scriptdir(), {public = true})
         
