@@ -14,24 +14,24 @@ jobs:
       with:
         submodules: true
 
-    - name: Setup xmake
-      uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: latest
-
-    # --- 新增缓存部分开始 ---
+    # --- 缓存部分移到安装之前，并包含 xmake 自身路径 ---
     - name: Cache xmake packages and build
       uses: actions/cache@v4
       with:
-        # 缓存 xmake 的全局目录（包含下载的依赖包）和本地的构建目录
         path: |
-          ~/.local/share/xmake
-          .build
-        # 使用 xmake 版本和操作系统作为 key 的一部分
-        key: ${{ runner.os }}-xmake-${{ hashFiles('xmake.lua') }}
+          ~/.xmake
+          ~/.local/bin/xmake
+          ~/.local/bin/xrepo
+          build
+        key: ${{ runner.os }}-xmake-v2.9.6-${{ hashFiles('**/xmake.lua') }}
         restore-keys: |
+          ${{ runner.os }}-xmake-v2.9.6-
           ${{ runner.os }}-xmake-
-    # --- 新增缓存部分结束 ---
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: 3.0.5
 
     - name: Configure xmake
       run: xmake config --toolchain=gcc -y
