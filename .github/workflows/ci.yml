@@ -14,15 +14,12 @@ jobs:
       with:
         submodules: true
 
+    # 参考https://github.com/xmake-io/github-action-setup-xmake的README配置缓存
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
         xmake-version: 3.0.5
-        actions-cache-key: ${{ runner.os }}-xmake-v3.0.5
-        package-cache: true
-        package-cache-key: ${{ runner.os }}-xmake-packages-${{ hashFiles('**/xmake.lua') }}
-        build-cache: true
-        build-cache-key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
+        actions-cache-folder: '.xmake-cache'
 
     - name: Configure xmake
       run: xmake config --toolchain=gcc --ccache=y -y
