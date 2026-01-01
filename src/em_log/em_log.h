@@ -58,6 +58,29 @@ void em_log_set_tag_level(const char* tag, em_log_level_t level);
 void em_log_write(em_log_level_t level, const char* tag, const char* fmt, ...);
 
 /**
+ * @brief Write a log message from ISR (Deferred formatting)
+ * @param level Log level
+ * @param tag Log tag (must be a static string)
+ * @param fmt Format string (must be a static string)
+ * @param num_args Number of integer arguments (0-4)
+ * @param ... Integer arguments (uintptr_t)
+ */
+void em_log_write_isr(em_log_level_t level, const char* tag, const char* fmt, int num_args, ...);
+
+/* Helper macros for ISR logging to auto-count arguments */
+// MSVC requires a workaround for __VA_ARGS__ expansion
+#define _EM_LOG_EXPAND(x) x
+#define _EM_LOG_NARG(...) _EM_LOG_EXPAND(_EM_LOG_NARG_(__VA_ARGS__, _EM_LOG_RSEQ_N()))
+#define _EM_LOG_NARG_(...) _EM_LOG_EXPAND(_EM_LOG_ARG_N(__VA_ARGS__))
+#define _EM_LOG_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
+#define _EM_LOG_RSEQ_N() 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+#define EM_LOG_ISR_I(tag, fmt, ...) em_log_write_isr(EM_LOG_INFO, tag, fmt, _EM_LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define EM_LOG_ISR_W(tag, fmt, ...) em_log_write_isr(EM_LOG_WARN, tag, fmt, _EM_LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define EM_LOG_ISR_E(tag, fmt, ...) em_log_write_isr(EM_LOG_ERROR, tag, fmt, _EM_LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define EM_LOG_ISR_D(tag, fmt, ...) em_log_write_isr(EM_LOG_DEBUG, tag, fmt, _EM_LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+
+/**
  * @brief Flush all logs (synchronous)
  */
 void em_log_flush(void);

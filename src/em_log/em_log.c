@@ -4,6 +4,19 @@
 #include "async.h"
 #include "soft_timer.h"
 #include "cpu_port.h"
+
+#ifdef _WIN32
+#include <windows.h>
+static CRITICAL_SECTION g_log_cs;
+static bool g_log_cs_init = false;
+#undef EM_CPU_ENTER_CRITICAL
+#undef EM_CPU_EXIT_CRITICAL
+#define EM_CPU_ENTER_CRITICAL() do { \
+    if (!g_log_cs_init) { InitializeCriticalSection(&g_log_cs); g_log_cs_init = true; } \
+    EnterCriticalSection(&g_log_cs); \
+} while(0)
+#define EM_CPU_EXIT_CRITICAL() LeaveCriticalSection(&g_log_cs)
+#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -114,7 +127,7 @@ void em_log_write(em_log_level_t level, const char* tag, const char* fmt, ...) {
     
     header.level = level;
     header.tag = tag;
-    header.reserved = 0;
+    header.type = LOG_PKT_TYPE_STRING;
 
     // Format Payload
     char buf[EM_LOG_FORMAT_BUF_SIZE];
@@ -145,14 +158,78 @@ void em_log_write(em_log_level_t level, const char* tag, const char* fmt, ...) {
     EM_CPU_EXIT_CRITICAL();
 }
 
+void em_log_write_isr(em_log_level_t level, const char* tag, const char* fmt, int num_args, ...) {
+    // 1. Global filter (Non-critical, fast)
+    if (level > g_log_level) return;
+
+    // 2. Prepare args (Stack operation, no interrupt disable)
+    // Limit args to 8 to prevent stack overflow and match cache size
+    if (num_args > 8) num_args = 8; 
+    
+    uintptr_t args_cache[8];
+    va_list va;
+    va_start(va, num_args);
+    for (int i = 0; i < num_args; i++) {
+        args_cache[i] = va_arg(va, uintptr_t);
+    }
+    va_end(va);
+
+    // 3. Prepare Header
+    log_packet_header_t header;
+    uint32_t now_ms = time_get_ms();
+    uint16_t now_us_offset = (uint16_t)(time_get_us() % 1000); 
+
+    header.time_sec = now_ms / 1000;
+    header.time_ms  = (uint16_t)(now_ms % 1000);
+    header.time_us  = now_us_offset;
+    header.level = level;
+    header.tag = tag;
+    header.type = LOG_PKT_TYPE_ISR_ARGS;
+    header.num_args = (uint8_t)num_args;
+    
+    // Calculate total length: Header + FmtPtr + Args
+    header.total_len = sizeof(header) + sizeof(const char*) + (num_args * sizeof(uintptr_t));
+
+    // 4. Short Critical Section: Memory Copy Only
+    EM_CPU_ENTER_CRITICAL();
+    
+    // Double check: prevent buffer full before entering critical section
+    if (ringbuffer_free(&g_log_rb) >= header.total_len) {
+        // Write Header
+        ringbuffer_write(&g_log_rb, (uint8_t*)&header, sizeof(header));
+        
+        // Write Fmt Ptr
+        ringbuffer_write(&g_log_rb, (uint8_t*)&fmt, sizeof(const char*));
+
+        // Write Args (RingBuffer usually handles small writes fast)
+        for (int i = 0; i < num_args; i++) {
+             ringbuffer_write(&g_log_rb, (uint8_t*)&args_cache[i], sizeof(uintptr_t));
+        }
+    } else {
+        g_log_drop_count++;
+    }
+    
+    EM_CPU_EXIT_CRITICAL();
+
+    // 5. Wake up consumer (Outside critical section!)
+    if (g_async && !g_log_task_active) {
+        // Use atomic flag or just submit. async_submit should be safe to call from ISR if implemented correctly.
+        if (async_submit(g_async, log_process_task, NULL)) {
+            g_log_task_active = true;
+        }
+    }
+}
+
 static void log_process_task(void* arg) {
     (void)arg;
     log_packet_header_t header;
     char payload_buf[EM_LOG_FORMAT_BUF_SIZE + 1];
 
     while (1) {
+        EM_CPU_ENTER_CRITICAL();
         // Peek header to check if we have enough data
         if (ringbuffer_used(&g_log_rb) < sizeof(header)) {
+            EM_CPU_EXIT_CRITICAL();
             break;
         }
         
@@ -160,6 +237,7 @@ static void log_process_task(void* arg) {
 
         if (ringbuffer_used(&g_log_rb) < header.total_len) {
             // Should not happen if write is atomic
+            EM_CPU_EXIT_CRITICAL();
             break;
         }
 
@@ -168,13 +246,48 @@ static void log_process_task(void* arg) {
         
         // Read payload
         uint16_t payload_len = header.total_len - sizeof(header);
-        // Safety check
-        if (payload_len > sizeof(payload_buf)) {
+        
+        if (header.type == LOG_PKT_TYPE_STRING) {
+            // Safety check
+            if (payload_len > sizeof(payload_buf)) {
+                ringbuffer_skip(&g_log_rb, payload_len);
+                EM_CPU_EXIT_CRITICAL();
+                continue;
+            }
+            
+            ringbuffer_read(&g_log_rb, (uint8_t*)payload_buf, payload_len);
+            EM_CPU_EXIT_CRITICAL();
+        } else if (header.type == LOG_PKT_TYPE_ISR_ARGS) {
+            const char* fmt;
+            uint8_t n_args = header.num_args;
+            uintptr_t args[16] = {0}; // Support up to 16 args in consumer
+            
+            ringbuffer_read(&g_log_rb, (uint8_t*)&fmt, sizeof(const char*));
+            // ringbuffer_read(&g_log_rb, &n_args, 1); // num_args is now in header
+            
+            for (int i = 0; i < n_args; i++) {
+                uintptr_t val;
+                ringbuffer_read(&g_log_rb, (uint8_t*)&val, sizeof(uintptr_t));
+                if (i < 16) {
+                    args[i] = val;
+                }
+            }
+            EM_CPU_EXIT_CRITICAL();
+            
+            // Format now (Pass all 16 args, snprintf ignores extra ones)
+            int len = snprintf(payload_buf, sizeof(payload_buf), fmt,
+                args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7],
+                args[8], args[9], args[10], args[11], args[12], args[13], args[14], args[15]);
+
+            if (len < 0) len = 0;
+            if (len >= sizeof(payload_buf)) len = sizeof(payload_buf) - 1;
+            payload_len = len + 1; // Include null terminator for record
+        } else {
+            // Unknown type
             ringbuffer_skip(&g_log_rb, payload_len);
+            EM_CPU_EXIT_CRITICAL();
             continue;
         }
-        
-        ringbuffer_read(&g_log_rb, (uint8_t*)payload_buf, payload_len);
         
         // Construct record
         em_log_record_t record;
@@ -622,6 +735,23 @@ TEST_CASE(log_all_levels_console) {
     
     em_log_flush();
     printf("--- End All Levels Test ---\n");
+}
+
+TEST_CASE(log_isr_deferred) {
+    em_log_init();
+    em_log_backend_register(&g_console_backend);
+    
+    printf("\n--- ISR Deferred Formatting Test ---\n");
+    
+    // Test Macros (Auto count)
+    EM_LOG_ISR_I("ISR", "ISR Enter Macro");
+    EM_LOG_ISR_I("ISR", "ADC Value: %d", 1024);
+    EM_LOG_ISR_W("ISR", "DMA Error: Ch%d Status=0x%x", 1, 0xFF);
+    EM_LOG_ISR_D("ISR", "Data: %02x %02x %02x %02x", 0xAA, 0xBB, 0xCC, 0xDD);
+    EM_LOG_ISR_I("ISR", "Many Args: %d %d %d %d %d", 1, 2, 3, 4, 5);
+    
+    em_log_flush();
+    printf("--- End ISR Test ---\n");
 }
 #endif
 
