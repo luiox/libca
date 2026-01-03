@@ -13,6 +13,10 @@
 
 #include "datatype.h"
 
+#if USE_CUSTOM_CPU_ADAPTER
+#include "cpu_adapter.h"
+#endif
+
 /**
  * @brief 进入临界区 (禁止中断/锁定)
  * @note 用户需根据具体平台实现此宏或函数
