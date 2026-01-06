@@ -38,11 +38,8 @@ typedef i64  i64;
 // 浮点数
 typedef float        f32;
 typedef double       f64;
-typedef volatile f32 vf32;
-typedef volatile f64 vf64;
 // size
 typedef size_t          usize;
-typedef volatile size_t vsize;
 
 // 对于仅需要存位级别的数据，但是不需要很精准控制高低位的情况下可以使用下面这个
 // 8个位
