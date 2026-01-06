@@ -15,7 +15,12 @@ static bool g_log_cs_init = false;
     EnterCriticalSection(&g_log_cs); \
 } while(0)
 #define EM_CPU_EXIT_CRITICAL() LeaveCriticalSection(&g_log_cs)
+
+#else
+#define EM_CPU_ENTER_CRITICAL() (void(0))
+#define EM_CPU_EXIT_CRITICAL() (void(0))
 #endif
+
 #include <stdio.h>
 #include <string.h>
 
