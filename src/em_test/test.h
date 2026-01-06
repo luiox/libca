@@ -14,7 +14,7 @@
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                                \
     do {                                                                                       \
         if ((expected) != (actual)) {                                                          \
-            printf("Test failed: line %d, expected %d, got %d\n", __LINE__, (int)(expected), (int)(actual)); \
+            printf("Test failed: %s:%d, expected %d, got %d\n", __FILE__, __LINE__, (int)(expected), (int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -22,7 +22,7 @@
 #define TEST_ASSERT_EQUAL_UINT(expected, actual)                                               \
     do {                                                                                       \
         if ((expected) != (actual)) {                                                          \
-            printf("Test failed: line %d, expected %u, got %u\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            printf("Test failed: %s:%d, expected %u, got %u\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -30,7 +30,7 @@
 #define TEST_ASSERT(condition)                                                                 \
     do {                                                                                       \
         if (!(condition)) {                                                                    \
-            printf("Test failed: line %d, condition %s is false\n", __LINE__, #condition);     \
+            printf("Test failed: %s:%d, condition %s is false\n", __FILE__, __LINE__, #condition);     \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -40,7 +40,7 @@
 #define TEST_ASSERT_EQUAL_FLOAT(expected, actual, epsilon)                                     \
     do {                                                                                       \
         if (fabs((expected) - (actual)) > (epsilon)) {                                         \
-            printf("Test failed: line %d, expected %f, got %f\n", __LINE__, (double)(expected), (double)(actual)); \
+            printf("Test failed: %s:%d, expected %f, got %f\n", __FILE__, __LINE__, (double)(expected), (double)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -48,7 +48,7 @@
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                                             \
     do {                                                                                       \
         if (strcmp((expected), (actual)) != 0) {                                               \
-            printf("Test failed: line %d, expected \"%s\", got \"%s\"\n", __LINE__, (expected), (actual)); \
+            printf("Test failed: %s:%d, expected \"%s\", got \"%s\"\n", __FILE__, __LINE__, (expected), (actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -56,7 +56,7 @@
 #define TEST_ASSERT_NOT_EQUAL_INT(expected, actual)                                            \
     do {                                                                                       \
         if ((expected) == (actual)) {                                                          \
-            printf("Test failed: line %d, expected %d to not equal %d\n", __LINE__, (int)(expected), (int)(actual)); \
+            printf("Test failed: %s:%d, expected %d to not equal %d\n", __FILE__, __LINE__, (int)(expected), (int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -64,7 +64,7 @@
 #define TEST_ASSERT_NOT_EQUAL_UINT(expected, actual)                                           \
     do {                                                                                       \
         if ((expected) == (actual)) {                                                          \
-            printf("Test failed: line %d, expected %u to not equal %u\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            printf("Test failed: %s:%d, expected %u to not equal %u\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -72,7 +72,7 @@
 #define TEST_ASSERT_TRUE(condition)                                                            \
     do {                                                                                       \
         if (!(condition)) {                                                                    \
-            printf("Test failed: line %d, expected true but got false\n", __LINE__);           \
+            printf("Test failed: %s:%d, expected true but got false\n", __FILE__, __LINE__);           \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -80,7 +80,7 @@
 #define TEST_ASSERT_FALSE(condition)                                                           \
     do {                                                                                       \
         if ((condition)) {                                                                     \
-            printf("Test failed: line %d, expected false but got true\n", __LINE__);           \
+            printf("Test failed: %s:%d, expected false but got true\n", __FILE__, __LINE__);           \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -88,7 +88,7 @@
 #define TEST_ASSERT_NULL(pointer)                                                              \
     do {                                                                                       \
         if ((pointer) != NULL) {                                                               \
-            printf("Test failed: line %d, expected NULL pointer\n", __LINE__);                 \
+            printf("Test failed: %s:%d, expected NULL pointer\n", __FILE__, __LINE__);                 \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -96,7 +96,7 @@
 #define TEST_ASSERT_NOT_NULL(pointer)                                                          \
     do {                                                                                       \
         if ((pointer) == NULL) {                                                               \
-            printf("Test failed: line %d, expected non-NULL pointer\n", __LINE__);             \
+            printf("Test failed: %s:%d, expected non-NULL pointer\n", __FILE__, __LINE__);             \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -104,7 +104,7 @@
 #define TEST_ASSERT_EQUAL_PTR(expected, actual)                                                \
     do {                                                                                       \
         if ((expected) != (actual)) {                                                          \
-            printf("Test failed: line %d, expected pointer %p, got %p\n", __LINE__, (void*)(expected), (void*)(actual)); \
+            printf("Test failed: %s:%d, expected pointer %p, got %p\n", __FILE__, __LINE__, (void*)(expected), (void*)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -112,7 +112,7 @@
 #define TEST_ASSERT_EQUAL_MEMORY(expected, actual, size)                                       \
     do {                                                                                       \
         if (memcmp((expected), (actual), (size)) != 0) {                                       \
-            printf("Test failed: line %d, memory mismatch\n", __LINE__);                       \
+            printf("Test failed: %s:%d, memory mismatch\n", __FILE__, __LINE__);                       \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -120,7 +120,7 @@
 #define TEST_ASSERT_INT_WITHIN(min, max, actual)                                               \
     do {                                                                                       \
         if ((actual) < (min) || (actual) > (max)) {                                            \
-            printf("Test failed: line %d, expected %d to be within [%d, %d]\n", __LINE__, (int)(actual), (int)(min), (int)(max)); \
+            printf("Test failed: %s:%d, expected %d to be within [%d, %d]\n", __FILE__, __LINE__, (int)(actual), (int)(min), (int)(max)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -128,7 +128,7 @@
 #define TEST_ASSERT_UINT_WITHIN(min, max, actual)                                              \
     do {                                                                                       \
         if ((actual) < (min) || (actual) > (max)) {                                            \
-            printf("Test failed: line %d, expected %u to be within [%u, %u]\n", __LINE__, (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max)); \
+            printf("Test failed: %s:%d, expected %u to be within [%u, %u]\n", __FILE__, __LINE__, (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
@@ -136,7 +136,7 @@
 #define TEST_ASSERT_EQUAL_HEX(expected, actual)                                                \
     do {                                                                                       \
         if ((expected) != (actual)) {                                                          \
-            printf("Test failed: line %d, expected 0x%X, got 0x%X\n", __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
+            printf("Test failed: %s:%d, expected 0x%X, got 0x%X\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
