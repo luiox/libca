@@ -511,6 +511,7 @@ TEST_CASE(log_multi_backend_demo) {
     }
 }
 
+/*
 // --- Async & Threading Test ---
 #include <windows.h>
 #include <process.h>
@@ -561,7 +562,7 @@ static void main_loop_process(void) {
     async_poll(&g_test_async); // 0 = process all
 }
 
-/*
+
 TEST_CASE(log_async_multithread) {
     log_init();
     
