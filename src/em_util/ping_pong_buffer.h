@@ -30,7 +30,7 @@ typedef struct
     u8* read_buffer; // 读缓冲区，通常用于解析数据
     u8* write_buffer; // 写缓冲区，通常给DMA使用
     usize buffer_size; // 缓冲区大小
-    vu8 write_flag;   // 写入标志，1表示正在写入，0表示空闲
+    volatile u8 write_flag;   // 写入标志，1表示正在写入，0表示空闲
 } ping_pong_buffer_t;
 
 // 函数声明

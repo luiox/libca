@@ -3,7 +3,7 @@
 #include "ringbuffer.h"
 #include "async.h"
 #include "soft_timer.h"
-#include "cpu_port.h"
+// #include "cpu_port.h"
 #include <stdio.h>
 #include <string.h>
 
