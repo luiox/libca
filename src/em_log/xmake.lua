@@ -5,9 +5,9 @@ target("ca-em_log")
     add_files("*.c")
     add_deps("ca-em_base")  
 
-target("test-log_util")
+target("test-log")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_files("log.c")
+    add_files("em_log.c")
     add_deps("ca-em_base")
 

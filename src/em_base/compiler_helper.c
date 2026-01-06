@@ -1,7 +1,7 @@
 #include "compiler_helper.h"
 #include "debug.h"
 
-void print_compiler_info()
+void print_compiler_info(void)
 {
     ca_dprintf("Compiler: %s %d.%d\n", COMPILER_NAME, COMPILER_VERSION_MAJOR, COMPILER_VERSION_MINOR);
     ca_dprintf("C Standard: %s\n", C_STANDARD_NAME);

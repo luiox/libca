@@ -40,7 +40,7 @@ timestamp_t time_get_us(void) {
 #include <windows.h>
 #include <process.h>
 
-static uint32_t win32_get_ms(void) {
+static u32 win32_get_ms(void) {
     return GetTickCount();
 }
 
@@ -76,13 +76,13 @@ TEST_CASE(soft_timer_win32_sim)
     soft_timer_set(&st, 50);
     
     // 启动一个线程来模拟异步更新 tick
-    uintptr_t thread_handle = _beginthread(timer_update_thread, 0, NULL);
+    HANDLE thread_handle = (HANDLE)_beginthread(timer_update_thread, 0, NULL);
     
     Sleep(100); // 等待线程更新 tick
     TEST_ASSERT_EQUAL_INT(true, soft_timer_is_timeout(&st));
     
     // 注意：实际项目中线程应该被正确关闭，这里仅作演示
-    TerminateThread((HANDLE)thread_handle, 0);
+    TerminateThread(thread_handle, 0);
 }
 
 #else

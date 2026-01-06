@@ -27,3 +27,9 @@ target("test-datatype")
     set_kind("binary")
     add_files("datatype.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
+
+-- async的单元测试
+target("test-async")
+    set_kind("binary")
+    add_files("async.c", "ringbuffer.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })

@@ -281,7 +281,7 @@
 #    define UNLIKELY(x) (x)
 #endif
 
-void print_compiler_info();
+void print_compiler_info(void);
 
 
 ///////////////////////////////////////////////////////////////////////////////

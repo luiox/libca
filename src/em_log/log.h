@@ -1,61 +1,172 @@
-#ifndef LOG_H
-#define LOG_H
+#pragma once
 
-#include <stdio.h>
+#include "../em_base/datatype.h"
 #include <stdarg.h>
 
-// 日志级别定义
-#define LOG_LEVEL_DEBUG 0
-#define LOG_LEVEL_INFO  1
-#define LOG_LEVEL_WARN  2
-#define LOG_LEVEL_ERROR 3
-
-// 默认日志级别为DEBUG
-#ifndef LOG_LEVEL
-#define LOG_LEVEL LOG_LEVEL_DEBUG
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-// 日志输出目标
-#define LOG_TARGET_CONSOLE 0
-#define LOG_TARGET_FILE    1
+/**
+ * @brief Log levels
+ */
+typedef enum {
+    LOG_LEVEL_NONE = 0,
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARN,
+    LOG_LEVEL_INFO,
+} log_level_t;
 
-// 前置声明
-struct log_config {
-    int level;           // 日志级别
-    int target;          // 输出目标
-    FILE *file;          // 日志文件指针
-    char file_path[256]; // 日志文件路径
+/**
+ * @brief Log record structure passed to backends
+ */
+typedef struct {
+    log_level_t level;
+    uint32_t time_sec;    /**< Seconds */
+    uint16_t time_ms;     /**< Milliseconds */
+    uint16_t time_us;     /**< Microseconds */
+    const char* tag;      /**< Tag string (must be static/persistent) */
+    const char* payload;  /**< Formatted log message */
+    size_t payload_len;   /**< Length of payload */
+} log_record_t;
+
+typedef struct log_backend log_backend_t;
+
+/**
+ * @brief Log backend interface
+ */
+struct log_backend {
+    const char* name;
+    log_level_t min_level; /**< Minimum level to output for this backend */
+    bool enabled;             /**< Enable/Disable this backend */
+    bool support_color;       /**< Whether this backend supports ANSI colors */
+    
+    /** Initialize the backend */
+    void (*init)(log_backend_t* backend);
+    
+    /** Output a log record (Normal context) */
+    void (*output)(log_backend_t* backend, const log_record_t* record);
+    
+    /** Output a log record (Panic/ISR context) - MUST be polling/blocking */
+    void (*panic_output)(log_backend_t* backend, const log_record_t* record);
+    
+    /** Flush any buffered data */
+    void (*flush)(log_backend_t* backend);
+    
+    log_backend_t* next;   /**< Linked list pointer (managed by log) */
 };
 
-// 函数声明
-void log_init(int level, int target, const char *file_path);
-void log_destroy(void);
-void log_print(int level, const char *tag, const char *fmt, ...);
-void log_vprint(int level, const char *tag, const char *fmt, va_list args);
-
-// 根据日志级别定义宏，方便使用
-#if LOG_LEVEL <= LOG_LEVEL_DEBUG
-#define LOG_DEBUG(tag, fmt, ...) log_print(LOG_LEVEL_DEBUG, tag, fmt, ##__VA_ARGS__)
-#else
-#define LOG_DEBUG(tag, fmt, ...) ((void)0)
+/* Configuration Macros (Can be overridden by build system) */
+#ifndef LOG_LEVEL_DEFAULT
+#define LOG_LEVEL_DEFAULT LOG_LEVEL_INFO
 #endif
 
-#if LOG_LEVEL <= LOG_LEVEL_INFO
-#define LOG_INFO(tag, fmt, ...) log_print(LOG_LEVEL_INFO, tag, fmt, ##__VA_ARGS__)
-#else
-#define LOG_INFO(tag, fmt, ...) ((void)0)
+#ifndef LOG_BUF_SIZE
+#define LOG_BUF_SIZE 128
 #endif
 
-#if LOG_LEVEL <= LOG_LEVEL_WARN
-#define LOG_WARN(tag, fmt, ...) log_print(LOG_LEVEL_WARN, tag, fmt, ##__VA_ARGS__)
+/* Public API */
+
+/**
+ * @brief Initialize the logging system
+ */
+void log_init(void);
+
+/**
+ * @brief Set the async context for background processing
+ * @param async Pointer to the async context
+ */
+void log_set_async(void* async);
+
+/**
+ * @brief Register a new backend
+ * @param backend Pointer to the backend structure (must be persistent)
+ */
+void log_backend_register(log_backend_t* backend);
+
+/**
+ * @brief Set the global log level filter
+ * @param level Minimum level to process
+ */
+void log_set_level(log_level_t level);
+
+/**
+ * @brief Set the log level for a specific tag
+ * @param tag Tag string (must be persistent/static)
+ * @param level Minimum level to process for this tag
+ */
+void log_set_tag_level(const char* tag, log_level_t level);
+
+/**
+ * @brief Write a log message
+ * @param level Log level
+ * @param tag Log tag (must be a static string)
+ * @param fmt Format string
+ * @param ... Arguments
+ */
+void log_write(log_level_t level, const char* tag, const char* fmt, ...);
+
+/**
+ * @brief Write a log message from ISR (Deferred formatting)
+ * @param level Log level
+ * @param tag Log tag (must be a static string)
+ * @param fmt Format string (must be a static string)
+ * @param num_args Number of integer arguments (0-4)
+ * @param ... Integer arguments (uintptr_t)
+ */
+void log_write_isr(log_level_t level, const char* tag, const char* fmt, int num_args, ...);
+
+/* Helper macros for ISR logging to auto-count arguments */
+// MSVC requires a workaround for __VA_ARGS__ expansion
+#define _LOG_EXPAND(x) x
+#define _LOG_NARG(...) _LOG_EXPAND(_LOG_NARG_(__VA_ARGS__, _LOG_RSEQ_N()))
+#define _LOG_NARG_(...) _LOG_EXPAND(_LOG_ARG_N(__VA_ARGS__))
+#define _LOG_ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
+#define _LOG_RSEQ_N() 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
+#define LOG_ISR_I(tag, fmt, ...) log_write_isr(LOG_LEVEL_INFO, tag, fmt, _LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define LOG_ISR_W(tag, fmt, ...) log_write_isr(LOG_LEVEL_WARN, tag, fmt, _LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+#define LOG_ISR_E(tag, fmt, ...) log_write_isr(LOG_LEVEL_ERROR, tag, fmt, _LOG_NARG(__VA_ARGS__), ##__VA_ARGS__)
+
+/**
+ * @brief Flush all logs (synchronous)
+ */
+void log_flush(void);
+
+/**
+ * @brief Panic mode: flush logs and switch to synchronous output
+ */
+void log_panic(void);
+
+/**
+ * @brief Output a record to all registered backends
+ * @param record The log record to output
+ */
+void log_output_all_backends(const log_record_t* record);
+
+/* Convenience Macros */
+#if LOG_LEVEL_DEFAULT >= LOG_LEVEL_ERROR
+#define LOG_E(tag, ...) log_write(LOG_LEVEL_ERROR, tag, __VA_ARGS__)
 #else
-#define LOG_WARN(tag, fmt, ...) ((void)0)
+#define LOG_E(tag, ...) ((void)0)
 #endif
 
-#if LOG_LEVEL <= LOG_LEVEL_ERROR
-#define LOG_ERROR(tag, fmt, ...) log_print(LOG_LEVEL_ERROR, tag, fmt, ##__VA_ARGS__)
+#if LOG_LEVEL_DEFAULT >= LOG_LEVEL_WARN
+#define LOG_W(tag, ...) log_write(LOG_LEVEL_WARN, tag, __VA_ARGS__)
 #else
-#define LOG_ERROR(tag, fmt, ...) ((void)0)
+#define LOG_W(tag, ...) ((void)0)
 #endif
 
-#endif // LOG_H
+#if LOG_LEVEL_DEFAULT >= LOG_LEVEL_INFO
+#define LOG_I(tag, ...) log_write(LOG_LEVEL_INFO, tag, __VA_ARGS__)
+#else
+#define LOG_I(tag, ...) ((void)0)
+#endif
+
+/* Helper macros for stringification */
+#define _LOG_STR(x) #x
+#define _LOG_XSTR(x) _LOG_STR(x)
+
+#ifdef __cplusplus
+}
+#endif
