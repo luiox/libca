@@ -181,7 +181,7 @@ extern int current_test_failed;
 #define TEST_CASE(name)                                                                        \
     static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void);                         \
     static const test_t  TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID) = {TEST_MAKE_STRING(name), TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)}; \
-    TEST_CASE_ALLOC const test_t* TEST_UNIQUE_NAME(test_ptr_, TEST_UNIQUE_ID) = &TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID); \
+    static TEST_CASE_ALLOC const test_t* TEST_UNIQUE_NAME(test_ptr_, TEST_UNIQUE_ID) = &TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID); \
     static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void)
 
 // clang-format on
