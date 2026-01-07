@@ -1,3 +1,15 @@
+/**
+ * @file log.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 实现一个异步的日志，仅适用于单核MCU
+ * 依赖soft_timer的时间获取接口以及可选的async异步工作队列
+ * 实现多后端，tag可以过滤，解耦耗时IO输出到异步实现
+ * @version 0.1
+ * @date 2026-01-07
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_LOG_LOG_H
 #define LIBCA_EM_LOG_LOG_H
 
@@ -65,7 +77,7 @@ struct log_backend {
 
 // 日志缓冲区大小定义
 #ifndef LOG_BUF_SIZE
-#define LOG_BUF_SIZE 256
+#define LOG_BUF_SIZE 512
 #endif
 
 // 初始化日志系统
