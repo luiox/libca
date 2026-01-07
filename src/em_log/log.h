@@ -76,8 +76,16 @@ struct log_backend {
 #endif
 
 // 日志缓冲区大小定义
-#ifndef LOG_BUF_SIZE
-#define LOG_BUF_SIZE 512
+#ifndef LOG_RB_SIZE
+#    define LOG_RB_SIZE 512
+#endif
+
+#ifndef LOG_FORMAT_BUF_SIZE
+#    define LOG_FORMAT_BUF_SIZE 128
+#endif
+
+#ifndef LOG_MAX_TAG_FILTERS
+#    define LOG_MAX_TAG_FILTERS 8
 #endif
 
 // 初始化日志系统
@@ -102,9 +110,12 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...);
 // 如果不使用异步，那么需要定期调用这个函数来输出日志
 void log_output_all_backends_handler(void);
 
-// 帮助性接口，用于辅助后端实现
-const char* log_level_to_string(log_level_t level);
+// 辅助性接口，用于辅助后端实现
 
+// 将日志级别转换为字符串
+const char* log_level_to_string(log_level_t level);
+// 获取不同等级日志的ANSI颜色码
+const char* log_level_to_ansi_color(log_level_t level);
 
 #ifdef __cplusplus
 }

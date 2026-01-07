@@ -20,18 +20,6 @@ typedef struct
 } log_packet_header_t;
 #pragma pack(pop)
 
-#ifndef LOG_RB_SIZE
-#    define LOG_RB_SIZE 2048
-#endif
-
-#ifndef LOG_FORMAT_BUF_SIZE
-#    define LOG_FORMAT_BUF_SIZE 128
-#endif
-
-#ifndef LOG_MAX_TAG_FILTERS
-#    define LOG_MAX_TAG_FILTERS 8
-#endif
-
 typedef struct
 {
     const char* tag;
@@ -208,7 +196,7 @@ static void log_process_task(void* arg)
 {
     (void)arg;
     log_packet_header_t h;
-    char                payload[LOG_BUF_SIZE];
+    char                payload[256];
 
     while (1) {
         CPU_ENTER_CRITICAL();
@@ -285,9 +273,25 @@ const char* log_level_to_string(log_level_t level)
     }
 }
 
+const char* log_level_to_ansi_color(log_level_t level)
+{
+    switch (level) {
+    case LOG_LEVEL_INFO:
+        return "\x1b[32m"; // 绿色
+    case LOG_LEVEL_WARN:
+        return "\x1b[33m"; // 黄色
+    case LOG_LEVEL_ERROR:
+        return "\x1b[31m"; // 红色
+    default:
+        return "\x1b[0m";  // 重置
+    }
+}
+
 #if TEST_ENABLE
 #include "../em_test/test.h"
 #include <string.h>
+
+#define LOG_BUF_SIZE 256
 
 static int test_backend_calls;
 static char test_payload[LOG_BUF_SIZE + 1];
@@ -325,7 +329,7 @@ static void test_backend_output(log_backend_t* b, const log_record_t* rec)
     test_payload[test_payload_len] = '\0';
 }
 
-/* Use a background thread to increment manual tick for tests */
+// 使用一个线程加随机数模拟时间更新
 #ifdef _WIN32
 #    include <windows.h>
 #    include <process.h>
@@ -353,9 +357,8 @@ static void* log_time_update_thread(void* arg) {
 
 #include <stdlib.h>
 
-/* Simulate microsecond jitter by returning ms*1000 + random(0..999)
- * and advance the ms tick by 1 after each call to avoid timing patterns leaking.
- */
+// 模拟一个get_us函数，返回带随机抖动的微秒时间
+// 为了防止在同一个ms内多次调用，可能前一次比后一次大，每次调用后推进1ms
 static timestamp_t test_us_provider(void) {
     timestamp_t ms = time_get_ms();
     timestamp_t val = (timestamp_t)(ms * 1000 + (u32)(rand() % 1000));
@@ -501,21 +504,25 @@ void console_output(log_backend_t* backend, const log_record_t* record)
 {
     // 按照时间的方式打印
     // [seconds.ms.us] [TAG] [LEVEL]: payload
-    printf("[%lu.%03u.%03u] [%s] [%s]: %.*s\n",
+    printf("%s[%lu.%03u.%03u] [%s] [%s]: %.*s%s\n",
+        backend->support_color ? log_level_to_ansi_color(record->level) : "",
         record->time_sec,
         record->time_ms,
         record->time_us,
         record->tag ? record->tag : "NO_TAG",
         log_level_to_string(record->level),
         (int)record->payload_len,
-        record->payload);
+        record->payload,
+        // 去除颜色
+        backend->support_color ? "\x1b[0m" : ""    
+    );
 }
 
-log_backend_t console_backend = {
+log_backend_t dht11_logger = {
     .name = "dht11_console",
     .min_level = LOG_LEVEL_INFO,
     .enabled = true,
-    .support_color = false,
+    .support_color = true,
     .init = NULL,
     .output = console_output,
     .next = NULL,
@@ -526,7 +533,7 @@ TEST_CASE(log_demo_dht11_module_log)
     // 使用默认的日志级别
     log_init();
    
-    log_backend_register(&console_backend);
+    log_backend_register(&dht11_logger);
     dht11_log_info("DHT11 initialized");
     dht11_log_warn("DHT11 read timeout");
     dht11_log_error("DHT11 checksum error");
