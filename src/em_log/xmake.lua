@@ -9,5 +9,13 @@ target("test-log")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("log.c")
+    add_defines("USE_CUSTOM_CPU_ADAPTER=1")
+    if is_os("windows") then
+        add_files("../em_arch/win32/cpu_adapter.c")
+    end 
+    if is_os("linux") then 
+        add_files("../em_arch/linux/cpu_adapter.c")
+    end
+  
     add_deps("ca-em_base")
 

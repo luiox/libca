@@ -1,11 +1,8 @@
 #include "../cpu_adapter.h"
 
-#ifndef _WIN32
-#error This file is only for Win32 platform
-#endif
-
 #if USE_CUSTOM_CPU_ADAPTER
 
+#include <stdbool.h>
 #include <windows.h>
 
 static CRITICAL_SECTION g_log_cs;

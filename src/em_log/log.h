@@ -102,6 +102,10 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...);
 // 如果不使用异步，那么需要定期调用这个函数来输出日志
 void log_output_all_backends_handler(void);
 
+// 帮助性接口，用于辅助后端实现
+const char* log_level_to_string(log_level_t level);
+
+
 #ifdef __cplusplus
 }
 #endif
