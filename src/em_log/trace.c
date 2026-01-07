@@ -3,7 +3,7 @@
 #include "ringbuffer.h"
 #include "async.h"
 #include "soft_timer.h"
-// #include "cpu_port.h"
+#include "../em_arch/cpu_adapter.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -17,8 +17,8 @@ static bool g_trace_cs_init = false;
 } while(0)
 #define TRACE_EXIT_CRITICAL() LeaveCriticalSection(&g_trace_cs)
 #else
-#define TRACE_ENTER_CRITICAL() EM_CPU_ENTER_CRITICAL()
-#define TRACE_EXIT_CRITICAL() EM_CPU_EXIT_CRITICAL()
+#define TRACE_ENTER_CRITICAL() CPU_ENTER_CRITICAL()
+#define TRACE_EXIT_CRITICAL() CPU_EXIT_CRITICAL()
 #endif
 
 #ifndef TRACE_RB_SIZE
@@ -144,7 +144,7 @@ static void trace_process_task(void* arg) {
         record.payload = payload_buf;
         record.payload_len = len;
 
-        log_output_all_backends(&record);
+        // log_output_all_backends_handler(&record);
     }
 
     TRACE_ENTER_CRITICAL();

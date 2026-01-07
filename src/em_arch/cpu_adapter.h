@@ -11,12 +11,9 @@
 #ifndef LIBCA_ARCH_EM_CPU_PORT_H
 #define LIBCA_ARCH_EM_CPU_PORT_H
 
-
+#if USE_CUSTOM_CPU_ADAPTER
 void local_cpu_enter_critical(void);
 void local_cpu_exit_critical(void);
-
-#if USE_CUSTOM_CPU_ADAPTER
-#include "cpu_adapter.h"
 #else
 // 提供一个默认的空实现，避免未定义
 static inline void local_cpu_enter_critical(void) {

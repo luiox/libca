@@ -2,7 +2,7 @@
 target("ca-em_log")
     set_kind("static")
     set_group("em")
-    add_files("*.c")
+    add_files("log.c")
     add_deps("ca-em_base")  
 
 target("test-log")
