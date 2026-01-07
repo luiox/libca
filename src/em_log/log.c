@@ -222,8 +222,16 @@ static void log_process_task(void* arg)
             break;
         }
 
+#if ENABLE_DEBUG_OUTPUT
+        printf("[log_debug] used=%u total_len=%u\n", (unsigned)ringbuffer_used(&g_log_rb), (unsigned)h.total_len);
+#endif
+
         ringbuffer_read(&g_log_rb, (u8*)&h, sizeof(h));
         u16 pl_len = (u16)(h.total_len - sizeof(h));
+
+#if ENABLE_DEBUG_OUTPUT
+        printf("[log_debug] after read header total_len=%u pl_len=%u\n", (unsigned)h.total_len, (unsigned)pl_len);
+#endif
 
         if (pl_len > sizeof(payload)) {
             ringbuffer_skip(&g_log_rb, pl_len);
@@ -232,6 +240,10 @@ static void log_process_task(void* arg)
         }
         ringbuffer_read(&g_log_rb, (u8*)payload, pl_len);
         CPU_EXIT_CRITICAL();
+
+#if ENABLE_DEBUG_OUTPUT
+        printf("[log_debug] payload_len=%u tag=%p\n", (unsigned)(pl_len>0 ? (pl_len-1) : 0), (void*)h.tag);
+#endif
 
         log_record_t rec;
         rec.level       = (log_level_t)h.level;
@@ -282,6 +294,9 @@ static char test_payload[LOG_BUF_SIZE + 1];
 static usize test_payload_len;
 static const char* test_tag;
 static log_level_t test_level;
+static u32 test_time_sec;
+static u16 test_time_ms;
+static u16 test_time_us;
 
 static void test_backend_init(log_backend_t* b)
 {
@@ -289,6 +304,9 @@ static void test_backend_init(log_backend_t* b)
     test_backend_calls = 0;
     test_payload_len = 0;
     test_tag = NULL;
+    test_time_sec = 0;
+    test_time_ms = 0;
+    test_time_us = 0;
 }
 
 static void test_backend_output(log_backend_t* b, const log_record_t* rec)
@@ -297,11 +315,53 @@ static void test_backend_output(log_backend_t* b, const log_record_t* rec)
     test_backend_calls++;
     test_level = rec->level;
     test_tag = rec->tag;
+    test_time_sec = rec->time_sec;
+    test_time_ms = rec->time_ms;
+    test_time_us = rec->time_us;
     test_payload_len = rec->payload_len;
     if (test_payload_len > LOG_BUF_SIZE)
         test_payload_len = LOG_BUF_SIZE;
     memcpy(test_payload, rec->payload, test_payload_len);
     test_payload[test_payload_len] = '\0';
+}
+
+/* Use a background thread to increment manual tick for tests */
+#ifdef _WIN32
+#    include <windows.h>
+#    include <process.h>
+static void __cdecl log_time_update_thread(void* arg) {
+    (void)arg;
+    while (1) {
+        time_update_tick_ms(10);
+        Sleep(10);
+    }
+}
+#else
+#    include <time.h>
+#    include <pthread.h>
+#    include <unistd.h>
+static void* log_time_update_thread(void* arg) {
+    (void)arg;
+    struct timespec ts = {0, 10 * 1000000}; /* 10ms */
+    while (1) {
+        time_update_tick_ms(10);
+        nanosleep(&ts, NULL);
+    }
+    return NULL;
+}
+#endif
+
+#include <stdlib.h>
+
+/* Simulate microsecond jitter by returning ms*1000 + random(0..999)
+ * and advance the ms tick by 1 after each call to avoid timing patterns leaking.
+ */
+static timestamp_t test_us_provider(void) {
+    timestamp_t ms = time_get_ms();
+    timestamp_t val = (timestamp_t)(ms * 1000 + (u32)(rand() % 1000));
+    /* advance ms to make subsequent readings vary */
+    time_update_tick_ms(1);
+    return val;
 }
 
 static log_backend_t s_test_backend = {
@@ -313,6 +373,50 @@ static log_backend_t s_test_backend = {
     .output = test_backend_output,
     .next = NULL,
 };
+
+TEST_CASE(log_time_provider)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_register(&s_test_backend);
+
+    /* Use manual tick updater thread instead of static provider */
+    time_set_ms_provider(NULL);
+    time_update_tick_ms(0);
+
+    /* seed RNG and set microsecond provider to randomized jitter */
+    srand((unsigned)time(NULL));
+    time_set_us_provider((time_get_cb_t)test_us_provider);
+
+#ifdef _WIN32
+    HANDLE th = (HANDLE)_beginthread(log_time_update_thread, 0, NULL);
+    /* give it a moment to run */
+    Sleep(50);
+#else
+    pthread_t th;
+    pthread_create(&th, NULL, log_time_update_thread, NULL);
+    /* give it a moment to run */
+    usleep(50000);
+#endif
+
+    test_backend_calls = 0;
+    log_write(LOG_LEVEL_INFO, "Ttime", "tick");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
+    TEST_ASSERT_TRUE(test_payload_len > 0);
+    TEST_ASSERT_INT_WITHIN(0, 999, (int)test_time_ms);
+    TEST_ASSERT_INT_WITHIN(0, 999, (int)test_time_us);
+    TEST_ASSERT_TRUE(test_time_sec >= 0);
+
+    /* Stop the updater thread */
+#ifdef _WIN32
+    TerminateThread(th, 0);
+#else
+    pthread_cancel(th);
+    pthread_join(th, NULL);
+#endif
+}
 
 TEST_CASE(log_basic_output)
 {
@@ -422,8 +526,7 @@ TEST_CASE(log_demo_dht11_module_log)
     // 使用默认的日志级别
     log_init();
    
-    log_backend_register(&s_test_backend);
-
+    log_backend_register(&console_backend);
     dht11_log_info("DHT11 initialized");
     dht11_log_warn("DHT11 read timeout");
     dht11_log_error("DHT11 checksum error");
