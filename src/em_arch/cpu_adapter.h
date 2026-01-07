@@ -8,29 +8,39 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#ifndef EM_CPU_PORT_H
-#define EM_CPU_PORT_H
+#ifndef LIBCA_ARCH_EM_CPU_PORT_H
+#define LIBCA_ARCH_EM_CPU_PORT_H
 
-#include "datatype.h"
+
+void local_cpu_enter_critical(void);
+void local_cpu_exit_critical(void);
 
 #if USE_CUSTOM_CPU_ADAPTER
 #include "cpu_adapter.h"
+#else
+// 提供一个默认的空实现，避免未定义
+static inline void local_cpu_enter_critical(void) {
+    // 默认空实现
+}
+static inline void local_cpu_exit_critical(void) {
+    // 默认空实现
+}
 #endif
 
 /**
  * @brief 进入临界区 (禁止中断/锁定)
  * @note 用户需根据具体平台实现此宏或函数
  */
-#ifndef EM_CPU_ENTER_CRITICAL
-#define EM_CPU_ENTER_CRITICAL()
+#ifndef CPU_ENTER_CRITICAL
+#define CPU_ENTER_CRITICAL() local_cpu_enter_critical()
 #endif
 
 /**
  * @brief 退出临界区 (恢复中断/解锁)
  * @note 用户需根据具体平台实现此宏或函数
  */
-#ifndef EM_CPU_EXIT_CRITICAL
-#define EM_CPU_EXIT_CRITICAL()
+#ifndef CPU_EXIT_CRITICAL
+#define CPU_EXIT_CRITICAL() local_cpu_exit_critical()
 #endif
 
-#endif // EM_CPU_PORT_H
+#endif // LIBCA_ARCH_EM_CPU_PORT_H
