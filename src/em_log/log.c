@@ -42,7 +42,7 @@ static void log_dispatch_to_backends(const log_record_t* rec)
 {
     log_backend_t* b = g_backend_list;
     while (b) {
-        if (b->enabled && rec->level <= b->min_level) {
+        if (b->enabled && rec->level >= b->min_level) {
             if (b->output)
                 b->output(b, rec);
         }
@@ -113,7 +113,7 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...)
             }
         }
     }
-    if (level > filter)
+    if (level < filter)
         return;
 
     log_packet_header_t h;
@@ -449,6 +449,44 @@ TEST_CASE(log_truncation)
     TEST_ASSERT_INT_WITHIN((int)(LOG_FORMAT_BUF_SIZE - 10), (int)(LOG_FORMAT_BUF_SIZE - 1), (int)test_payload_len);
     TEST_ASSERT_EQUAL_MEMORY(longstr, test_payload, (size_t)test_payload_len);
     TEST_ASSERT_EQUAL_INT((int)test_payload_len, (int)strlen(test_payload));
+}
+
+TEST_CASE(log_backend_min_level)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_t b = s_test_backend;
+    b.min_level = LOG_LEVEL_WARN;
+    b.enabled = true;
+    b.init = NULL;
+    b.output = test_backend_output;
+    b.next = NULL;
+
+    test_backend_calls = 0;
+    log_write(LOG_LEVEL_INFO, "TB", "info");
+    log_write(LOG_LEVEL_WARN, "TB", "warn");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
+    TEST_ASSERT_EQUAL_STRING("warn", test_payload);
+}
+
+TEST_CASE(log_backend_enabled)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_t b = s_test_backend;
+    b.min_level = LOG_LEVEL_INFO;
+    b.enabled = false;
+    b.init = NULL;
+    b.output = test_backend_output;
+    b.next = NULL;
+
+    test_backend_calls = 0;
+    log_write(LOG_LEVEL_INFO, "TB", "info");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(0, test_backend_calls);
 }
 
 // demo

@@ -23,11 +23,12 @@ extern "C" {
 /**
  * @brief Log levels
  */
+// 枚举值越大表示越严重（例如 INFO=1 < WARN=2 < ERROR=3）
 typedef enum {
     LOG_LEVEL_NONE = 0,
-    LOG_LEVEL_ERROR,
-    LOG_LEVEL_WARN,
     LOG_LEVEL_INFO,
+    LOG_LEVEL_WARN,
+    LOG_LEVEL_ERROR,
 } log_level_t;
 
 /**
@@ -53,7 +54,7 @@ typedef struct log_backend log_backend_t;
  */
 struct log_backend {
     const char* name;
-    // 该backend的最低日志级别
+    // 该backend的最低日志级别（消息级别 >= min_level 将被输出；枚举值越大表示越严重）
     log_level_t min_level;
     // 是否启用该backend
     bool enabled;
