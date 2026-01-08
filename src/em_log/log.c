@@ -151,47 +151,6 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...)
     CPU_EXIT_CRITICAL();
 }
 
-void log_write_isr(log_level_t level, const char* tag, const char* fmt, int num_args, ...)
-{
-    if (level > g_log_level)
-        return;
-    if (num_args > 8)
-        num_args = 8;
-
-    uintptr_t args_cache[8];
-    va_list   va;
-    va_start(va, num_args);
-    for (int i = 0; i < num_args; i++)
-        args_cache[i] = va_arg(va, uintptr_t);
-    va_end(va);
-
-    log_packet_header_t h;
-    u32                 now_ms = (u32)time_get_ms();
-    h.time_sec                 = now_ms / 1000;
-    h.time_ms                  = (u16)(now_ms % 1000);
-    h.time_us                  = (u16)(time_get_us() % 1000);
-    h.level                    = (u8)level;
-    h.tag                      = tag;
-    h.total_len = (u16)(sizeof(h) + sizeof(const char*) + (u16)(num_args * sizeof(uintptr_t)));
-
-    CPU_ENTER_CRITICAL();
-    if (ringbuffer_free(&g_log_rb) >= h.total_len) {
-        ringbuffer_write(&g_log_rb, (u8*)&h, sizeof(h));
-        ringbuffer_write(&g_log_rb, (u8*)&fmt, sizeof(const char*));
-        for (int i = 0; i < num_args; i++)
-            ringbuffer_write(&g_log_rb, (u8*)&args_cache[i], sizeof(uintptr_t));
-    }
-    else {
-        g_log_drop_count++;
-    }
-    CPU_EXIT_CRITICAL();
-
-    if (g_async && !g_log_task_active) {
-        if (async_submit(g_async, log_process_task, NULL))
-            g_log_task_active = true;
-    }
-}
-
 static void log_process_task(void* arg)
 {
     (void)arg;
