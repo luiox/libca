@@ -255,6 +255,7 @@ const char* log_level_to_ansi_color(log_level_t level)
 #if TEST_ENABLE
 #include "../em_test/test.h"
 #include <string.h>
+#include <time.h>
 
 #define LOG_BUF_SIZE 256
 
@@ -539,7 +540,7 @@ void console_output(log_backend_t* backend, const log_record_t* record)
 {
     // 按照时间的方式打印
     // [seconds.ms.us] [TAG] [LEVEL]: payload
-    printf("%s[%lu.%03u.%03u] [%s] [%s]: %.*s%s\n",
+    printf("%s[%03u.%03u.%03u] [%s] [%s]: %.*s%s\n",
         backend->support_color ? log_level_to_ansi_color(record->level) : "",
         record->time_sec,
         record->time_ms,
