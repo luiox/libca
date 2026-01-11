@@ -135,6 +135,38 @@ u16 crc16_modbus(const void* data, usize size)
     return crc;
 }
 
+// ex版本，用于滚动计算
+u16 crc16_modbus_ex(const void* data, usize size, u16 previous_crc)
+{
+    u16 crc = previous_crc;
+    const u8* p = (const u8*)data;
+    for (usize i = 0; i < size; i++) {
+        crc ^= (u16)p[i];
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x0001) {
+                crc = (crc >> 1) ^ 0xA001;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    return crc;
+}
+
+u16 crc16_modbus_ex_fast(const void* data, usize size, u16 previous_crc)
+{
+    u8  crchi = (previous_crc >> 8) & 0xFF;
+    u8  crclo = previous_crc & 0xFF;
+    u16 index;
+    u8* p = (u8*)(data);
+    while (size--) {
+        index = crclo ^ *p++;
+        crclo = crchi ^ g_crc16_modbus_table_high[index];
+        crchi = g_crc16_modbus_table_low[index];
+    }
+    return (crchi << 8 | crclo);
+}
+
 // CRC-16/CCITT 查找表 (多项式: 0x1021, x^16 + x^12 + x^5 + 1)
 static const u16 g_crc16_ccitt_table[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,

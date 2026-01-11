@@ -16,8 +16,12 @@ u32 crc32_ieee_fast(const void* data, usize size);
 
 // CRC-16/MODBUS
 // 多项式: 0x8005 (x^16 + x^15 + x^2 + 1)
+#define CRC16_MODEBUS_START_VALUE 0xFFFF
 u16 crc16_modbus(const void* data, usize size);
 u16 crc16_modbus_fast(const void* data, usize size);
+// ex版本，用于滚动计算
+u16 crc16_modbus_ex(const void* data, usize size, u16 previous_crc);
+u16 crc16_modbus_ex_fast(const void* data, usize size, u16 previous_crc);
 
 // CRC-16/XMODEM
 // 多项式: 0x1021 (x^16 + x^12 + x^5 + 1)
