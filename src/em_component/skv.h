@@ -60,6 +60,14 @@ typedef struct skv_kv_item {
 
 #define SKV_ERR_NOT_FOUND -1
 
+#define SKV_OK 0
+#define SKV_ERR_READ_FAILED -2
+#define SKV_ERR_WRITE_FAILED -3
+#define SKV_ERR_INVALID_PARAM -4
+
+#define SKV_RET_DEFAULT_WRITTEN_NOT_FOUND 1
+#define SKV_RET_DEFAULT_WRITTEN_READ_FAILED 2
+
 typedef struct skv {
     u32 num;
     u32 next_addr;
@@ -74,10 +82,58 @@ void skv_init(skv_t* skv, u32 start_addr);
 bool skv_read_header(skv_t* skv);
 // 写入header
 bool skv_write_header(skv_t* skv);
+// 重置存储区
+void skv_reset_storage(skv_t* skv);
 // 写入键值对
 i32 skv_put_item(skv_t* skv, skv_kv_item_t* item);
 // 读取键值对
 i32 skv_get_item(skv_t* skv, skv_kv_item_t* item);
+// convenience typed helpers (puts then gets)
+// put helpers
+i32 skv_put_u8(skv_t* skv, const char* key, u8 value);
+i32 skv_put_u16(skv_t* skv, const char* key, u16 value);
+i32 skv_put_u32(skv_t* skv, const char* key, u32 value);
+#ifdef HAS_INT64
+i32 skv_put_u64(skv_t* skv, const char* key, u64 value);
+#endif
+i32 skv_put_i8(skv_t* skv, const char* key, i8 value);
+i32 skv_put_i16(skv_t* skv, const char* key, i16 value);
+i32 skv_put_i32(skv_t* skv, const char* key, i32 value);
+i32 skv_put_f32(skv_t* skv, const char* key, f32 value);
+i32 skv_put_f64(skv_t* skv, const char* key, f64 value);
+i32 skv_put_string(skv_t* skv, const char* key, const char* str);
+i32 skv_put_blob(skv_t* skv, const char* key, const u8* data, u8 len);
+
+// get helpers
+i32 skv_get_u8(skv_t* skv, const char* key, u8* value);
+i32 skv_get_u16(skv_t* skv, const char* key, u16* value);
+i32 skv_get_u32(skv_t* skv, const char* key, u32* value);
+#ifdef HAS_INT64
+i32 skv_get_u64(skv_t* skv, const char* key, u64* value);
+#endif
+i32 skv_get_i8(skv_t* skv, const char* key, i8* value);
+i32 skv_get_i16(skv_t* skv, const char* key, i16* value);
+i32 skv_get_i32(skv_t* skv, const char* key, i32* value);
+i32 skv_get_f32(skv_t* skv, const char* key, f32* value);
+i32 skv_get_f64(skv_t* skv, const char* key, f64* value);
+i32 skv_get_string(skv_t* skv, const char* key, char* buf, u8 buf_len);
+i32 skv_get_blob(skv_t* skv, const char* key, u8* buf, u8 buf_len, u8* out_len);
+
+// 带defulat的get helper
+// 如果如果读不出来，那么就写入默认值，并且返回默认值
+i32 skv_get_u8_or_default(skv_t* skv, const char* key, u8* value, u8 default_value);
+i32 skv_get_u16_or_default(skv_t* skv, const char* key, u16* value, u16 default_value);
+i32 skv_get_u32_or_default(skv_t* skv, const char* key, u32* value, u32 default_value);
+#ifdef HAS_INT64
+i32 skv_get_u64_or_default(skv_t* skv, const char* key, u64* value, u64 default_value);
+#endif
+i32 skv_get_i8_or_default(skv_t* skv, const char* key, i8* value, i8 default_value);
+i32 skv_get_i16_or_default(skv_t* skv, const char* key, i16* value, i16 default_value);
+i32 skv_get_i32_or_default(skv_t* skv, const char* key, i32* value, i32 default_value);
+i32 skv_get_f32_or_default(skv_t* skv, const char* key, f32* value, f32 default_value);
+i32 skv_get_f64_or_default(skv_t* skv, const char* key, f64* value, f64 default_value);
+i32 skv_get_string_or_default(skv_t* skv, const char* key, char* buf, u8 buf_len, const char* default_value);
+i32 skv_get_blob_or_default(skv_t* skv, const char* key, u8* buf, u8 buf_len, const u8* default_data, u8 default_len);
 
 
 
