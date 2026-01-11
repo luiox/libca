@@ -1,21 +1,16 @@
-#include "key_util.h"
+#include "key.h"
 
-///////////////////////////////////////////////////////////////////////////////
+static key_port_t* g_key_port = NULL;
 
-// 需要移植的部分
-
-void key_read_pin(key_t* key)
+void key_bind_port(key_port_t* port)
 {
-    // 读取按键的GPIO引脚状态，设置对应的引脚状态
-    // 例如hal库的实现可以如下。
-    // key->key_state = HAL_GPIO_ReadPin(key->gpioPort, key->gpioPin);
-    key->key_state = KEY_STATE_PRESS;
+    g_key_port = port;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
-// 按键信息
-key_t keys[REAL_KEYS_SIZE] = {0};
+bool key_port_is_registered(void)
+{
+    return g_key_port != NULL;
+}
 
 // 按键判断状态
 // 按键没有按下的状态
@@ -27,12 +22,12 @@ key_t keys[REAL_KEYS_SIZE] = {0};
 // 按键确定按下状态
 #define KEY_JUDGE_STATE_PRESS 3
 
-void key_scan_all(void)
+void key_scan_all(key_t* keys, usize keys_size)
 {
-    for (u32 i = 0; i < array_size(keys); i++) {
-        key_read_pin(&keys[i]);
+    for (u32 i = 0; i < keys_size; i++) {
+        g_key_port->read_pin(&keys[i]);
     }
-    for (u32 i = 0; i < array_size(keys); i++) {
+    for (u32 i = 0; i < keys_size; i++) {
         // 按键状态判断
         switch (keys[i].judge_state) {
         case KEY_JUDGE_STATE_NORMAL:
@@ -77,9 +72,4 @@ void key_scan_all(void)
             break;
         }
     }
-}
-
-key_t* key_get(i8 id)
-{
-    return &keys[id];
 }

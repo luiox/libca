@@ -1,23 +1,34 @@
 /**
- * @file key_util.h
+ * @file key.h
  * @author canrad (1517807724@qq.com)
  * @brief 硬件按键的常用代码，包括按键去抖动，按键长按、短按、双击检测等
  * @version 0.1
  * @date 2025-04-12
+ * update 2026-01-11 重新以OOP方式实现 
  *
  * @copyright Copyright (c) 2025
  *
  */
-#ifndef KEY_UTIL_H
-#define KEY_UTIL_H
+#ifndef LIBCA_EM_DRIVER_KEY_H
+#define LIBCA_EM_DRIVER_KEY_H
 
 #include "../em_base/datatype.h" 
+
+typedef struct key_port{
+    u8 (*read_pin)(void* gpio, u16 pin);
+}key_port_t;
+
+void key_bind_port(key_port_t* port);
+bool key_port_is_registered(void);
 
 #define KEY_STATE_PRESS 1
 #define KEY_STATE_RELEASE 0
 
-typedef struct
+typedef struct key
 {
+    void* gpio;
+    u16 pin;
+
     // 按键状态，KEY_STATE_PRESS或者是KEY_STATE_RELEASE
     u8 key_state;
     // 状态机，不需要外部手工操作
@@ -31,13 +42,10 @@ typedef struct
     // 时间，tick为单位
     // 如果是确定按下的时候，是按下的时间，要不然是第一次按下以后，滤波的时间
     u16 time;
-} key_t;
+}key_t;
 
 // 扫描按键，更新按键状态，一般来说放在10ms或者20ms这种中断里面
-void key_scan_all(void);
-
-// 获取某个id的按键结构体，以查询数据
-key_t* key_get(i8 id);
+void key_scan_all(key_t* keys, usize keys_size);
 
 ///////////////////////////////////////////////////////////////////////////////
 // 配置信息
@@ -53,4 +61,4 @@ key_t* key_get(i8 id);
 // 此时1tick是10ms，也就是说2000ms以上的按下才算是长按
 #define KEY_MIN_LONG_TICK 200
 
-#endif   // !KEY_UTIL_H
+#endif // !LIBCA_EM_DRIVER_KEY_H
