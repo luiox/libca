@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 static void (*g_hw_puts_output)(const char* str) = NULL;
+// 内部打印缓冲区
 static char g_print_buffer[PRINT_BUFFER_SIZE];
 
 void debug_init(void (*hw_puts_output)(const char* str))
