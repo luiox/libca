@@ -33,3 +33,9 @@ target("test-async")
     set_kind("binary")
     add_files("async.c", "ringbuffer.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
+
+-- debug的单元测试
+target("test-debug")
+    set_kind("binary")
+    add_files("debug.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
