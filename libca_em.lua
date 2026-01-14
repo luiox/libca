@@ -1,0 +1,18 @@
+-- libca_em组件的配置
+rule("libca.em_base")
+    on_load(function (target)
+        local inc_dir = path.join(os.scriptdir(), "src")
+        local src_dir = path.join(inc_dir, "libca", "em_base")
+        target:add("includedirs", inc_dir)
+        target:add("files", path.join(src_dir, "*.c"))
+    end)
+rule_end()
+
+rule("libca.em_util")
+    on_load(function (target)
+        local inc_dir = path.join(os.scriptdir(), "src")
+        local src_dir = path.join(inc_dir, "libca", "em_util")
+        target:add("includedirs", inc_dir)
+        target:add("files", path.join(src_dir, "*.c"))
+    end)
+rule_end()
