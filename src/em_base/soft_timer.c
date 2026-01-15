@@ -1,11 +1,11 @@
 #include "soft_timer.h"
 #include <stddef.h>
 
-static time_get_cb_t g_ms_provider = NULL;
-static time_get_cb_t g_us_provider = NULL;
+static time_get_fn_t g_ms_provider = NULL;
+static time_get_fn_t g_us_provider = NULL;
 static volatile timestamp_t g_manual_ms_tick = 0;
 
-void time_set_ms_provider(time_get_cb_t provider) {
+void time_set_ms_provider(time_get_fn_t provider) {
     g_ms_provider = provider;
 }
 
@@ -13,7 +13,7 @@ void time_update_tick_ms(timestamp_t ms_delta) {
     g_manual_ms_tick += ms_delta;
 }
 
-void time_set_us_provider(time_get_cb_t provider) {
+void time_set_us_provider(time_get_fn_t provider) {
     g_us_provider = provider;
 }
 

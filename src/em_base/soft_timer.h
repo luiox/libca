@@ -22,16 +22,16 @@ typedef u32 timestamp_t;
 #endif
 
 // 时间提供者函数指针类型 (例如指向 HAL_GetTick)
-typedef timestamp_t (*time_get_cb_t)(void);
+typedef timestamp_t (*time_get_fn_t)(void);
 
 // 要么选择设置ms的时间提供器
-void time_set_ms_provider(time_get_cb_t provider);
+void time_set_ms_provider(time_get_fn_t provider);
 // 要么选择调用下面这个更新函数来手动更新时间
 // @param ms_delta 距离上次调用过去的毫秒数
 void time_update_tick_ms(timestamp_t ms_delta);
 
 // 设置us的时间提供器
-void time_set_us_provider(time_get_cb_t provider);
+void time_set_us_provider(time_get_fn_t provider);
 
 // 获得当前ms时间戳
 timestamp_t time_get_ms(void);
