@@ -1,7 +1,7 @@
 #include "log.h"
-#include "ringbuffer.h"
-#include "async.h"
-#include "soft_timer.h"
+#include "../em_base/ringbuffer.h"
+#include "../em_base/async.h"
+#include "../em_base/soft_timer.h"
 #include "../em_arch/cpu_adapter.h"
 
 #include <stdio.h>
@@ -356,6 +356,7 @@ static void* log_time_update_thread(void* arg) {
 #endif
 
 #include <stdlib.h>
+#include <time.h>
 
 // 模拟一个get_us函数，返回带随机抖动的微秒时间
 // 为了防止在同一个ms内多次调用，可能前一次比后一次大，每次调用后推进1ms
@@ -389,7 +390,7 @@ TEST_CASE(log_time_provider)
 
     /* seed RNG and set microsecond provider to randomized jitter */
     srand((unsigned)time(NULL));
-    time_set_us_provider((time_get_cb_t)test_us_provider);
+    time_set_us_provider((time_get_fn_t)test_us_provider);
 
 #ifdef _WIN32
     HANDLE th = (HANDLE)_beginthread(log_time_update_thread, 0, NULL);
