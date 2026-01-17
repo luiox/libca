@@ -28,8 +28,8 @@ timestamp_t time_get_us(void) {
     if (g_us_provider) {
         return g_us_provider();
     }
-    // 如果没有 us 提供者，退而求其次返回 ms * 1000
-    return time_get_ms() * 1000;
+    // 如果没有 us 提供者，返回0
+    return 0;
 }
 
 #if TEST_ENABLE
