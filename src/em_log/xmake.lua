@@ -11,10 +11,10 @@ target("test-log")
     add_files("log.c")
     add_defines("USE_CUSTOM_CPU_ADAPTER=1")
     if is_os("windows") then
-        add_files("../em_arch/win32/cpu_adapter.c")
+        add_files("../em_platform/adapters/win32/cpu_adapter.c")
     end 
     if is_os("linux") then 
-        add_files("../em_arch/linux/cpu_adapter.c")
+        add_files("../em_platform/adapters/linux/cpu_adapter.c")
     end
   
     add_deps("ca-em_base")
