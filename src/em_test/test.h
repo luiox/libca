@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include "../em_base/macro_util.h"
 
 // 关闭clangformat对宏的格式化
 // clang-format off
@@ -171,18 +172,12 @@ extern int current_test_failed;
 #    define TEST_CASE_ALLOC __attribute__((used, section("test_array")))
 #endif
 
-#define TEST_UNIQUE_ID __LINE__
-#define TEST_MAKE_STRING(a) #a
-#define TEST_CONCAT_IMPL(a, b) a##b
-#define TEST_CONCAT(a, b) TEST_CONCAT_IMPL(a, b)
-#define TEST_UNIQUE_NAME(prefix, id) TEST_CONCAT(prefix, id)
-
 // 定义一个宏来声明测试用例
 #define TEST_CASE(name)                                                                        \
-    static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void);                         \
-    static const test_t  TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID) = {TEST_MAKE_STRING(name), TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)}; \
-    static TEST_CASE_ALLOC const test_t* TEST_UNIQUE_NAME(test_ptr_, TEST_UNIQUE_ID) = &TEST_UNIQUE_NAME(test_data_, TEST_UNIQUE_ID); \
-    static void          TEST_UNIQUE_NAME(test_func_, TEST_UNIQUE_ID)(void)
+    static void          SAFE_NAME(test_func_)(void);                         \
+    static const test_t  SAFE_NAME(test_data_) = {MAKE_STRING(name), SAFE_NAME(test_func_)}; \
+    static TEST_CASE_ALLOC const test_t* SAFE_NAME(test_ptr_) = &SAFE_NAME(test_data_); \
+    static void          SAFE_NAME(test_func_)(void)
 
 // clang-format on
 

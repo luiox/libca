@@ -163,4 +163,120 @@ static void ieee754_check(void)
 
 #endif
 
+
+
+/**
+ * @brief 原子操作代码块
+ */
+#define SAFE_ATOM_CODE                                 \
+  using(uint32_t SAFE_NAME(temp) = ({                  \
+          uint32_t SAFE_NAME(temp2) = __get_PRIMASK(); \
+          __disable_irq();                             \
+          SAFE_NAME(temp2);                            \
+        }),                                            \
+        __set_PRIMASK(SAFE_NAME(temp)))
+
+
+#define __IRQ_SAFE SAFE_ATOM_CODE
+
+#define __dim_of_1(__array) (sizeof(__array) / sizeof(__array[0]))
+#define __dim_of_2(__array, __type) (sizeof(__array) / sizeof(__type))
+/**
+ * @brief 获取数组长度
+ * @param __array 数组
+ * @param __type 元素类型 (可选)
+ */
+#define dimof(...) EVAL(__dim_of_, __VA_ARGS__)(__VA_ARGS__)
+
+#define __foreach_2(__array, __type)                              \
+  USING(__type * _ = __array) for (uint_fast32_t SAFE_NAME(cnt) = \
+                                       dimof(__array, __type);    \
+                                   SAFE_NAME(cnt) > 0; _++, SAFE_NAME(cnt)--)
+
+#define __foreach_1(__array) __foreach_2(__array, typeof(*(__array)))
+#define __foreach_3(__array, __type, __pt)                          \
+  USING(__type * __pt =                                             \
+            __array) for (uint_fast32_t CONNECT2(count, __LINE__) = \
+                              dimof(__array, __type);               \
+                          SAFE_NAME(cnt) > 0; __pt++, SAFE_NAME(cnt)--)
+#define __foreach_reverse_2(__array, __type)                \
+  USING(__type * _ = __array + dimof(__array, __type) -     \
+                     1) for (uint_fast32_t SAFE_NAME(cnt) = \
+                                 dimof(__array, __type);    \
+                             SAFE_NAME(cnt) > 0; _--, SAFE_NAME(cnt)--)
+#define __foreach_reverse_1(__array) \
+  __foreach_reverse_2(__array, typeof(*(__array)))
+#define __foreach_reverse_3(__array, __type, __pt)             \
+  USING(__type * __pt = __array + dimof(__array, __type) -     \
+                        1) for (uint_fast32_t SAFE_NAME(cnt) = \
+                                    dimof(__array, __type);    \
+                                SAFE_NAME(cnt) > 0; __pt--, SAFE_NAME(cnt)--)
+/**
+ * @brief 遍历数组
+ * @param __array 数组
+ * @param __type 元素类型 (可选)
+ * @param __pt 元素指针名 (可选)
+ */
+#define foreach(...) EVAL(__foreach_, __VA_ARGS__)(__VA_ARGS__)
+
+/**
+ * @brief 反向遍历数组
+ * @param __array 数组
+ * @param __type 元素类型 (可选)
+ * @param __pt 元素指针名 (可选)
+ */
+#define foreach_reverse(...) EVAL(__foreach_reverse_, __VA_ARGS__)(__VA_ARGS__)
+
+/**
+ * @brief Get the absolute value of the specified value
+ */
+#define CABS(x) ((x) >= 0 ? (x) : -(x))
+
+#define __MIN_2(__a, __b) ((__a) < (__b) ? (__a) : (__b))
+#define __MIN_3(__a, __b, __c) __MIN_2(__MIN_2(__a, __b), __c)
+#define __MIN_4(__a, __b, __c, __d) \
+  __MIN_2(__MIN_2(__a, __b), __MIN_2(__c, __d))
+
+/**
+ * @brief Get the minimum value of the specified values
+ */
+#define CMIN(...) EVAL(__MIN_, __VA_ARGS__)(__VA_ARGS__)
+
+#define __MAX_2(__a, __b) ((__a) > (__b) ? (__a) : (__b))
+#define __MAX_3(__a, __b, __c) __MAX_2(__MAX_2(__a, __b), __c)
+#define __MAX_4(__a, __b, __c, __d) \
+  __MAX_2(__MAX_2(__a, __b), __MAX_2(__c, __d))
+
+/**
+ * @brief Get the maximum value of the specified values
+ */
+#define CMAX(...) EVAL(__MAX_, __VA_ARGS__)(__VA_ARGS__)
+
+/**
+ * @brief Round a float to the nearest integer
+ */
+#define ROUND(__f) ((int)((__f) + 0.5f))
+
+/**
+ * @brief Clamp a value to the specified range
+ */
+#define CLAMP(__x, __min, __max) CMIN(CMAX(__x, __min), __max)
+
+/**
+ * @brief Linear mapping input to the specified range
+ */
+#define MAP(__x, __in_min, __in_max, __out_min, __out_max)              \
+  ((__x - __in_min) * (__out_max - __out_min) / (__in_max - __in_min) + \
+   __out_min)
+
+/**
+ * @brief make compiler know the expression is likely to be true
+ */
+#define likeyly(x) __builtin_expect(!!(x), 1)
+
+/**
+ * @brief make compiler know the expression is likely to be false
+ */
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 #endif   // !MATH_UTIL_H

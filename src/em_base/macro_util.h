@@ -1,5 +1,8 @@
-#ifndef MACRO_UTIL_H
-#define MACRO_UTIL_H 
+#ifndef LIBCA_EM_BASE_MACRO_UTIL_H
+#define LIBCA_EM_BASE_MACRO_UTIL_H 
+
+#define MAKE_STRING(a) #a
+#define UNIQUE_ID __LINE__
 
 // 各种数量的连接宏
 #define __CONNECT2(__A, __B) __A##__B
@@ -40,9 +43,9 @@
 #define VA_NUM_ARGS(...) __PLOOC_VA_NUM_ARGS(__VA_ARGS__)
 
 /**
- * @brief 安全的局部变量名
+ * @brief 安全的局部标识符
  */
-#define SAFE_NAME(__NAME) CONNECT3(__, __NAME, __LINE__)
+#define SAFE_NAME(__NAME) CONNECT3(__, __NAME, UNIQUE_ID)
 
 /**
  * @brief 连接宏
@@ -54,19 +57,19 @@
  */
 #define EVAL(__FUNC, ...) CONNECT2(__FUNC, VA_NUM_ARGS(__VA_ARGS__))
 
-#define __using_1(__declare) \
+#define __USING_1(__declare) \
   for (__declare, *SAFE_NAME(using_ptr) = NULL; SAFE_NAME(using_ptr)++ == NULL;)
 
-#define __using_2(__declare, __on_leave_expr)   \
+#define __USING_2(__declare, __on_leave_expr)   \
   for (__declare, *SAFE_NAME(using_ptr) = NULL; \
        SAFE_NAME(using_ptr)++ == NULL; __on_leave_expr)
 
-#define __using_3(__declare, __on_enter_expr, __on_leave_expr)      \
+#define __USING_3(__declare, __on_enter_expr, __on_leave_expr)      \
   for (__declare, *SAFE_NAME(using_ptr) = NULL;                     \
        SAFE_NAME(using_ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
        __on_leave_expr)
 
-#define __using_4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr) \
+#define __USING_4(__dcl1, __dcl2, __on_enter_expr, __on_leave_expr) \
   for (__dcl1, __dcl2, *SAFE_NAME(using_ptr) = NULL;                \
        SAFE_NAME(using_ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
        (__on_leave_expr))
@@ -77,121 +80,7 @@
  * @param __on_enter_expr 进入操作 [可选]
  * @param __on_leave_expr 离开操作 [可选]
  */
-#define using(...) EVAL(__using_, __VA_ARGS__)(__VA_ARGS__)
-
-/**
- * @brief 原子操作代码块
- */
-#define SAFE_ATOM_CODE                                 \
-  using(uint32_t SAFE_NAME(temp) = ({                  \
-          uint32_t SAFE_NAME(temp2) = __get_PRIMASK(); \
-          __disable_irq();                             \
-          SAFE_NAME(temp2);                            \
-        }),                                            \
-        __set_PRIMASK(SAFE_NAME(temp)))
-
-#define UNUSED_PARAM(__VAR) (void)(__VAR)
-#define __IRQ_SAFE SAFE_ATOM_CODE
-
-#define __dim_of_1(__array) (sizeof(__array) / sizeof(__array[0]))
-#define __dim_of_2(__array, __type) (sizeof(__array) / sizeof(__type))
-/**
- * @brief 获取数组长度
- * @param __array 数组
- * @param __type 元素类型 (可选)
- */
-#define dimof(...) EVAL(__dim_of_, __VA_ARGS__)(__VA_ARGS__)
-
-#define __foreach_2(__array, __type)                              \
-  using(__type * _ = __array) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                       dimof(__array, __type);    \
-                                   SAFE_NAME(cnt) > 0; _++, SAFE_NAME(cnt)--)
-
-#define __foreach_1(__array) __foreach_2(__array, typeof(*(__array)))
-#define __foreach_3(__array, __type, __pt)                          \
-  using(__type * __pt =                                             \
-            __array) for (uint_fast32_t CONNECT2(count, __LINE__) = \
-                              dimof(__array, __type);               \
-                          SAFE_NAME(cnt) > 0; __pt++, SAFE_NAME(cnt)--)
-#define __foreach_reverse_2(__array, __type)                \
-  using(__type * _ = __array + dimof(__array, __type) -     \
-                     1) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                 dimof(__array, __type);    \
-                             SAFE_NAME(cnt) > 0; _--, SAFE_NAME(cnt)--)
-#define __foreach_reverse_1(__array) \
-  __foreach_reverse_2(__array, typeof(*(__array)))
-#define __foreach_reverse_3(__array, __type, __pt)             \
-  using(__type * __pt = __array + dimof(__array, __type) -     \
-                        1) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                    dimof(__array, __type);    \
-                                SAFE_NAME(cnt) > 0; __pt--, SAFE_NAME(cnt)--)
-/**
- * @brief 遍历数组
- * @param __array 数组
- * @param __type 元素类型 (可选)
- * @param __pt 元素指针名 (可选)
- */
-#define foreach(...) EVAL(__foreach_, __VA_ARGS__)(__VA_ARGS__)
-
-/**
- * @brief 反向遍历数组
- * @param __array 数组
- * @param __type 元素类型 (可选)
- * @param __pt 元素指针名 (可选)
- */
-#define foreach_reverse(...) EVAL(__foreach_reverse_, __VA_ARGS__)(__VA_ARGS__)
-
-/**
- * @brief Get the absolute value of the specified value
- */
-#define CABS(x) ((x) >= 0 ? (x) : -(x))
-
-#define __MIN_2(__a, __b) ((__a) < (__b) ? (__a) : (__b))
-#define __MIN_3(__a, __b, __c) __MIN_2(__MIN_2(__a, __b), __c)
-#define __MIN_4(__a, __b, __c, __d) \
-  __MIN_2(__MIN_2(__a, __b), __MIN_2(__c, __d))
-
-/**
- * @brief Get the minimum value of the specified values
- */
-#define CMIN(...) EVAL(__MIN_, __VA_ARGS__)(__VA_ARGS__)
-
-#define __MAX_2(__a, __b) ((__a) > (__b) ? (__a) : (__b))
-#define __MAX_3(__a, __b, __c) __MAX_2(__MAX_2(__a, __b), __c)
-#define __MAX_4(__a, __b, __c, __d) \
-  __MAX_2(__MAX_2(__a, __b), __MAX_2(__c, __d))
-
-/**
- * @brief Get the maximum value of the specified values
- */
-#define CMAX(...) EVAL(__MAX_, __VA_ARGS__)(__VA_ARGS__)
-
-/**
- * @brief Round a float to the nearest integer
- */
-#define ROUND(__f) ((int)((__f) + 0.5f))
-
-/**
- * @brief Clamp a value to the specified range
- */
-#define CLAMP(__x, __min, __max) CMIN(CMAX(__x, __min), __max)
-
-/**
- * @brief Linear mapping input to the specified range
- */
-#define MAP(__x, __in_min, __in_max, __out_min, __out_max)              \
-  ((__x - __in_min) * (__out_max - __out_min) / (__in_max - __in_min) + \
-   __out_min)
-
-/**
- * @brief make compiler know the expression is likely to be true
- */
-#define likeyly(x) __builtin_expect(!!(x), 1)
-
-/**
- * @brief make compiler know the expression is likely to be false
- */
-#define unlikely(x) __builtin_expect(!!(x), 0)
+#define USING(...) EVAL(__USING_, __VA_ARGS__)(__VA_ARGS__)
 
 // 编译时断言验证特定表达式。
 // 如果表达式求值为零，编译将失败
@@ -208,4 +97,4 @@
 
 // }
 
-#endif // !MACRO_UTIL_H
+#endif // !LIBCA_EM_BASE_MACRO_UTIL_H
