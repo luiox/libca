@@ -1,0 +1,79 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code (full history)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install system deps (lcov, gcovr)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lcov gcovr python3-pip
+        python3 -m pip install --user codecov
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: latest
+        actions: cached
+
+    - name: Configure (coverage mode)
+      run: xmake f -m coverage -vD
+
+    - name: Build
+      run: xmake build -v
+
+    # 运行测试
+    - name: Run Tests
+      run: xmake test -g em/test -v
+
+    - name: Collect coverage (lcov)
+      run: |
+        set -e
+        # capture (include branch coverage if supported)
+        lcov --capture --directory . --rc lcov_branch_coverage=1 --output-file coverage.info || true
+
+        # remove system/vendor/test artifacts and build internals
+        lcov --remove coverage.info '/usr/*' '*/third_party/*' '*/third-party/*' '*/tests/*' '*/test/*' '*/test-*.c' '*/test-*.cpp' '*/build/*' --output-file coverage.info || true
+
+        # show summary
+        lcov --list coverage.info || true
+
+    - name: Generate HTML report
+      run: |
+        # genhtml is provided by lcov
+        genhtml -o coverage-report --show-details --legend --function-coverage --branch-coverage coverage.info || true
+      continue-on-error: true
+
+    - name: Upload coverage HTML (artifact)
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage-report
+
+    - name: Check coverage threshold (lines >= 60%)
+      run: |
+        pct=$(lcov --summary coverage.info | grep "lines" | awk '{print $2}' | sed 's/%//')
+        echo "line coverage=$pct%"
+        awk -v p="$pct" 'BEGIN{ if (p+0 < 60) exit 1 }' || (echo "Coverage below threshold (60%)" && exit 1)
+      continue-on-error: false
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.info
+        flags: unittests
+        fail_ci_if_error: false
+        verbose: true
+
