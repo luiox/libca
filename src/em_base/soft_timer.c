@@ -60,7 +60,7 @@ TEST_CASE(soft_timer_win32_sim)
     printf("Running Win32 soft_timer simulation...\n");
     
     // 1. 测试外部 Provider 模式 (直接对接 Win32 API)
-    time_set_ms_provider((time_get_cb_t)win32_get_ms);
+    time_set_ms_provider((time_get_fn_t)win32_get_ms);
     
     soft_timer_t st;
     soft_timer_set(&st, 100); // 设置 100ms 超时
