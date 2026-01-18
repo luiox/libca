@@ -11,15 +11,18 @@
 
 -------------------------------------------------------------------------------
 
--- includes("test")
--- includes("base")
+-- base
 includes("em_base")
+-- test依赖base
 includes("em_test")
-
-includes("em_platform")
-includes("em_protocol")
+-- util依赖base
 includes("em_util")
+-- platform依赖base
+includes("em_platform")
+-- log依赖platform
 includes("em_log")
+
+includes("em_protocol")
 includes("em_component")
 
 -------------------------------------------------------------------------------

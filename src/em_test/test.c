@@ -75,10 +75,13 @@ int run_tests()
 
 #if TEST_ENABLE
 
+#if TEST_SELF_MAIN
 TEST_CASE(test_module)
 {
     int result = 2 + 2;
     TEST_ASSERT_EQUAL_INT(4, result);
 }
 
-#endif   // TEST_ENABLE
+#endif // TEST_SELF_MAIN
+
+#endif // TEST_ENABLE
