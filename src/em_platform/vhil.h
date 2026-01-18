@@ -23,8 +23,8 @@ typedef enum
 } vhil_state_type_t;
 
 // gpio
-
-typedef void (*gpio_output_func_t)(void* gpio_extra_data, u8 value);
+typedef vhil_state_type_t (*gpio_write_pin_fn_t)(void* gpio, u16 pin, u8 value);
+typedef u8 (*gpio_read_pin_fn_t)(void* gpio, u16 pin);
 
 // i2c
 
