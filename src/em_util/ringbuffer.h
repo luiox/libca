@@ -9,13 +9,13 @@
 #ifndef RINGBUFFER_H
 #define RINGBUFFER_H
 
-#include "datatype.h"
+#include "../em_base/datatype.h"
 
 // 如果定义了USE_LESS_MEMORY，则使用uint16_t作为位置大小类型，否则使用uint32_t
 #ifdef USE_LESS_MEMORY
-typedef uint16_t position_size_t;
+typedef u16 position_size_t;
 #else
-typedef uint32_t position_size_t;
+typedef u32 position_size_t;
 #endif   // USE_LESS_MEMORY
 
 // 缓冲区可以选择的大小

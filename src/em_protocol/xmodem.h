@@ -12,7 +12,7 @@
 #define LIBCA_EM_PROTOCOL_XMODEM_H
 
 #include "file_transfer.h"
-#include "../em_base/ringbuffer.h"
+#include "../em_util/ringbuffer.h"
 
 #define XMODEM_ERR_NONE           0
 #define XMODEM_ERR_RB_TOO_SMALL   1

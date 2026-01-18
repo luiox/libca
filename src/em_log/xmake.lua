@@ -18,4 +18,5 @@ target("test-log")
     end
   
     add_deps("ca-em_base")
-
+    add_deps("ca-em_util")
+    add_deps("ca-em_platform")

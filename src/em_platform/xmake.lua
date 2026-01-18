@@ -1,3 +1,7 @@
+target("ca-em_platform")
+    set_kind("static")
+    add_files("*.c")
+
 -- async的单元测试
 target("test-async")
     set_kind("binary")

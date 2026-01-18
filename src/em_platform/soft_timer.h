@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_SOFT_TIMER_H
 #define LIBCA_EM_SOFT_TIMER_H
 
-#include "datatype.h"
+#include "../em_base/datatype.h"
 
 // 时间戳类型，单位微秒，开机后，一般来说基于SysTick或其他时基
 #if HAS_INT64

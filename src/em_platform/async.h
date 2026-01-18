@@ -12,7 +12,7 @@
 #ifndef LIBCA_EM_BASE_ASYNC_H
 #define LIBCA_EM_BASE_ASYNC_H
 
-#include "datatype.h"
+#include "../em_base/datatype.h"
 
 /**
  * @brief 任务函数指针类型

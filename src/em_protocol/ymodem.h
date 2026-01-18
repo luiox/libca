@@ -12,7 +12,7 @@
 #define LIBCA_EM_PROTOCOL_YMODEM_H
 
 #include "file_transfer.h"
-#include "../em_base/ringbuffer.h"
+#include "../em_util/ringbuffer.h"
 
 typedef struct ymodem_cbs {
     // 如果设置了该回调，则在每接收到一块数据时调用

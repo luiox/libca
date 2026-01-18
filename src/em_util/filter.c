@@ -1,6 +1,6 @@
 #include "filter.h"
 #include "../em_base/datatype.h"
-#include "../em_base/math_util.h"
+#include "../em_util/math_util.h"
 
 /***************************************************
 函数名: float LPButterworth(float curr_input,lpf_buf *buf,lpf_param *params)
