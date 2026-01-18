@@ -22,11 +22,12 @@ jobs:
         sudo apt-get install -y lcov gcovr python3-pip
         python3 -m pip install --user codecov
 
+    # 参考https://github.com/xmake-io/github-action-setup-xmake的README配置缓存
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
-        xmake-version: latest
-        actions: cached
+        xmake-version: 3.0.5
+        actions-cache-folder: '.xmake-cache'
 
     - name: Configure (coverage mode)
       run: xmake f -m coverage -vD
