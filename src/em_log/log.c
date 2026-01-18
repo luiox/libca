@@ -42,7 +42,8 @@ static void log_dispatch_to_backends(const log_record_t* rec)
 {
     log_backend_t* b = g_backend_list;
     while (b) {
-        if (b->enabled && rec->level <= b->min_level) {
+
+        if (b->enabled && rec->level >= b->min_level) {
             if (b->output)
                 b->output(b, rec);
         }
@@ -82,6 +83,11 @@ void log_set_level(log_level_t level)
     g_log_level = level;
 }
 
+// 注意：tag 必须为静态字符串（例如字面量或全局常量）。
+// 实现将直接保存 `const char*` 指针到内部表和日志包中，
+// 如果传入动态或栈上字符串，释放后会导致未定义行为（悬空指针）。
+// 为了简化设计，后端建议在系统初始化阶段注册并保持不变；
+// 本实现假设后端只在初始化时注册，不支持运行时并发注册/注销。
 void log_set_tag_level(const char* tag, log_level_t level)
 {
     if (!tag)
@@ -113,7 +119,7 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...)
             }
         }
     }
-    if (level > filter)
+    if (level < filter)
         return;
 
     log_packet_header_t h;
@@ -149,47 +155,6 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...)
         g_log_drop_count++;
     }
     CPU_EXIT_CRITICAL();
-}
-
-void log_write_isr(log_level_t level, const char* tag, const char* fmt, int num_args, ...)
-{
-    if (level > g_log_level)
-        return;
-    if (num_args > 8)
-        num_args = 8;
-
-    uintptr_t args_cache[8];
-    va_list   va;
-    va_start(va, num_args);
-    for (int i = 0; i < num_args; i++)
-        args_cache[i] = va_arg(va, uintptr_t);
-    va_end(va);
-
-    log_packet_header_t h;
-    u32                 now_ms = (u32)time_get_ms();
-    h.time_sec                 = now_ms / 1000;
-    h.time_ms                  = (u16)(now_ms % 1000);
-    h.time_us                  = (u16)(time_get_us() % 1000);
-    h.level                    = (u8)level;
-    h.tag                      = tag;
-    h.total_len = (u16)(sizeof(h) + sizeof(const char*) + (u16)(num_args * sizeof(uintptr_t)));
-
-    CPU_ENTER_CRITICAL();
-    if (ringbuffer_free(&g_log_rb) >= h.total_len) {
-        ringbuffer_write(&g_log_rb, (u8*)&h, sizeof(h));
-        ringbuffer_write(&g_log_rb, (u8*)&fmt, sizeof(const char*));
-        for (int i = 0; i < num_args; i++)
-            ringbuffer_write(&g_log_rb, (u8*)&args_cache[i], sizeof(uintptr_t));
-    }
-    else {
-        g_log_drop_count++;
-    }
-    CPU_EXIT_CRITICAL();
-
-    if (g_async && !g_log_task_active) {
-        if (async_submit(g_async, log_process_task, NULL))
-            g_log_task_active = true;
-    }
 }
 
 static void log_process_task(void* arg)
@@ -290,6 +255,7 @@ const char* log_level_to_ansi_color(log_level_t level)
 #if TEST_ENABLE
 #include "../em_test/test.h"
 #include <string.h>
+#include <time.h>
 
 #define LOG_BUF_SIZE 256
 
@@ -384,22 +350,22 @@ TEST_CASE(log_time_provider)
     log_set_level(LOG_LEVEL_INFO);
     log_backend_register(&s_test_backend);
 
-    /* Use manual tick updater thread instead of static provider */
+    /* 使用手动更新时间线程替代静态时间提供者 */
     time_set_ms_provider(NULL);
     time_update_tick_ms(0);
 
-    /* seed RNG and set microsecond provider to randomized jitter */
+    /* 初始化随机数种子并设置带随机抖动的微秒时间提供者 */
     srand((unsigned)time(NULL));
     time_set_us_provider((time_get_fn_t)test_us_provider);
 
 #ifdef _WIN32
     HANDLE th = (HANDLE)_beginthread(log_time_update_thread, 0, NULL);
-    /* give it a moment to run */
+    /* 等待线程运行一会 */
     Sleep(50);
 #else
     pthread_t th;
     pthread_create(&th, NULL, log_time_update_thread, NULL);
-    /* give it a moment to run */
+    /* 等待线程运行一会 */
     usleep(50000);
 #endif
 
@@ -413,7 +379,7 @@ TEST_CASE(log_time_provider)
     TEST_ASSERT_INT_WITHIN(0, 999, (int)test_time_us);
     TEST_ASSERT_TRUE(test_time_sec >= 0);
 
-    /* Stop the updater thread */
+    /* 停止更新时间线程 */
 #ifdef _WIN32
     TerminateThread(th, 0);
 #else
@@ -435,7 +401,7 @@ TEST_CASE(log_basic_output)
     TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
     TEST_ASSERT_EQUAL_INT(LOG_LEVEL_INFO, (int)test_level);
     TEST_ASSERT_EQUAL_STRING("T1", test_tag);
-    TEST_ASSERT_EQUAL_INT(9, (int)test_payload_len); /* "hello 123" */
+    TEST_ASSERT_EQUAL_INT(9, (int)test_payload_len); /* "hello 123" 字符串长度为9 */
     TEST_ASSERT_EQUAL_STRING("hello 123", test_payload);
 }
 
@@ -472,12 +438,36 @@ TEST_CASE(log_tag_filter)
     TEST_ASSERT_EQUAL_STRING("warn_T2", test_payload);
 }
 
+// 测试：当 filter 使用与消息 tag 指针不同但字符串相等的 tag（例如 strdup），应通过 strcmp 正确匹配过滤
+TEST_CASE(log_tag_filter_strcmp_path)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_register(&s_test_backend);
+
+    /* 使用 strdup 创建一个与字面量相同内容但不同指针的 tag */
+    char* dyn = strdup("T2");
+    log_set_tag_level(dyn, LOG_LEVEL_WARN);
+
+    test_backend_calls = 0;
+
+    /* 这里使用字面量 "T2" 写日志，指针与上面的 dyn 不相同，但字符串内容一致 */
+    log_write(LOG_LEVEL_INFO, "T2", "info_T2");
+    log_write(LOG_LEVEL_WARN, "T2", "warn_T2");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
+    TEST_ASSERT_EQUAL_STRING("warn_T2", test_payload);
+
+    free(dyn);
+}
+
 TEST_CASE(log_truncation)
 {
     log_init();
     log_backend_register(&s_test_backend);
 
-    /* create a long string to force truncation */
+    /* 构造一个超长字符串以触发截断 */
     char longstr[LOG_FORMAT_BUF_SIZE + 64];
     for (int i = 0; i < (int)sizeof(longstr) - 1; i++)
         longstr[i] = 'X';
@@ -493,7 +483,53 @@ TEST_CASE(log_truncation)
     TEST_ASSERT_EQUAL_INT((int)test_payload_len, (int)strlen(test_payload));
 }
 
-// demo
+// 测试：注册一个 min_level = LOG_LEVEL_WARN 的后端，写入 INFO 与 WARN，断言只有 WARN 被输出
+TEST_CASE(log_backend_min_level)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_t b = s_test_backend;
+    b.min_level = LOG_LEVEL_WARN;
+    b.enabled = true;
+    b.init = NULL;
+    b.output = test_backend_output;
+    b.next = NULL;
+
+    /* 注册本地后端实例 */
+    log_backend_register(&b);
+
+    test_backend_calls = 0;
+    log_write(LOG_LEVEL_INFO, "TB", "info");
+    log_write(LOG_LEVEL_WARN, "TB", "warn");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
+    TEST_ASSERT_EQUAL_STRING("warn", test_payload);
+}
+
+// 测试：设置后端 enabled = false，写入 INFO，断言后端不被调用
+TEST_CASE(log_backend_enabled)
+{
+    log_init();
+    log_set_level(LOG_LEVEL_INFO);
+    log_backend_t b = s_test_backend;
+    b.min_level = LOG_LEVEL_INFO;
+    b.enabled = false;
+    b.init = NULL;
+    b.output = test_backend_output;
+    b.next = NULL;
+
+    /* 注册本地后端实例 */
+    log_backend_register(&b);
+
+    test_backend_calls = 0;
+    log_write(LOG_LEVEL_INFO, "TB", "info");
+    log_output_all_backends_handler();
+
+    TEST_ASSERT_EQUAL_INT(0, test_backend_calls);
+}
+
+// 示例
 
 #define DHT11_TAG "DHT11"
 #define dht11_log_info(fmt, ...) log_info(DHT11_TAG, fmt, ##__VA_ARGS__)
@@ -505,7 +541,7 @@ void console_output(log_backend_t* backend, const log_record_t* record)
 {
     // 按照时间的方式打印
     // [seconds.ms.us] [TAG] [LEVEL]: payload
-    printf("%s[%lu.%03u.%03u] [%s] [%s]: %.*s%s\n",
+    printf("%s[%03u.%03u.%03u] [%s] [%s]: %.*s%s\n",
         backend->support_color ? log_level_to_ansi_color(record->level) : "",
         record->time_sec,
         record->time_ms,
