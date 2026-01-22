@@ -11,3 +11,8 @@ https://github.com/tyietyu/stm32_F103_peripheralDriver
 
 暂时决定不移植的
 DW1000
+LCD-FMC
+LCD-SPI
+LCD-FSMC
+LCD-RGB-LTDC
+SDRAM
