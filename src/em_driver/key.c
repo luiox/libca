@@ -1,4 +1,5 @@
 #include "key.h"
+#include "../em_base/debug.h"
 
 static key_port_t* g_key_port = NULL;
 
@@ -29,6 +30,11 @@ void key_init(key_t* self)
 
 void key_scan_all(key_t* keys, usize keys_size)
 {
+    if (!g_key_port) {
+        debug_print("[key] port not registered\n");
+        return;
+    }
+
     for (u32 i = 0; i < keys_size; i++) {
         keys[i].key_state = g_key_port->read_pin(keys[i].gpio, keys[i].pin);
     }

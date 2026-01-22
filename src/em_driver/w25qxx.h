@@ -22,6 +22,11 @@ typedef struct w25qxx_port {
 void w25qxx_bind_port(const w25qxx_port_t* port);
 bool w25qxx_port_is_registered(void);
 
+// 错误码
+#define W25QXX_OK 0
+#define W25QXX_ERR_PORT_NOT_REGISTERED (-1)
+#define W25QXX_ERR_SPI_FAIL (-2)
+
 typedef struct w25qxx {
     void* hspi;
     void* cs_gpio;

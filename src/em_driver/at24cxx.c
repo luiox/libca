@@ -114,49 +114,54 @@ static u8 at24cxx_get_page_bytes(at24cxx_type_t type)
     }
 }
 
-void at24cxx_init(at24cxx_t* dev, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, void* hi2c)
+void at24cxx_init(at24cxx_t* self, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, void* hi2c)
 {
-    dev->type = type;
-    dev->hi2c = hi2c;
+    self->type = type;
+    self->hi2c = hi2c;
 
-    dev->mem_addr_bytes = calc_need_byte(at24cxx_get_mem_addr_size(dev->type));
-    dev->mem_size       = at24cxx_get_mem_size(dev->type);
+    self->mem_addr_bytes = calc_need_byte(at24cxx_get_mem_addr_size(self->type));
+    self->mem_size       = at24cxx_get_mem_size(self->type);
     // 计算地址
     // 先给默认的基础地址
-    dev->dev_addr_base = AT24CXX_BASIC_ADDR;
-    switch (dev->type) {
+    self->dev_addr_base = AT24CXX_BASIC_ADDR;
+    switch (self->type) {
     case AT24C02:
     case AT24C32:
     case AT24C64:
     case AT24C256:
         // 1010 a2 a2 a0 rw
-        dev->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 3) | (a1 << 2) | (a0 << 1));
+        self->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 3) | (a1 << 2) | (a0 << 1));
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
         // p0后面读写的时候再加
-        dev->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 3) | (a1 << 2));
+        self->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 3) | (a1 << 2));
         break;
     case AT24C08:
         // 1010 a2 p1 p0 rw
-        dev->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 2));
+        self->dev_addr_base = (AT24CXX_BASIC_ADDR | (a2 << 2));
         break;
     case AT24C16:
         // 1010 p2 p1 p0 rw
-        dev->dev_addr_base = (AT24CXX_BASIC_ADDR);
+        self->dev_addr_base = (AT24CXX_BASIC_ADDR);
         break;
     default: debug_print("[at24cxx] error: unsupport type, type:%d\n", type); break;
     }
 }
 
-void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
+void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data)
 {
-    switch (dev->type) {
+    if (!g_at24cxx_port) {
+        debug_print("[at24cxx] port not registered\n");
+        return;
+    }
+
+    switch (self->type) {
     case AT24C02:
     case AT24C32:
     case AT24C64:
-        g_at24cxx_port->i2c_write(dev->hi2c,
-                                  dev->dev_addr_base | I2C_WRITE,
+        g_at24cxx_port->i2c_write(self->hi2c,
+                                  self->dev_addr_base | I2C_WRITE,
                                   addr,
                                   I2C_MEM_ADDR_SIZE_8BIT,
                                   &data,
@@ -164,8 +169,8 @@ void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
                                   1000);
         break;
     case AT24C256:
-        g_at24cxx_port->i2c_write(dev->hi2c,
-                                  dev->dev_addr_base | I2C_WRITE,
+        g_at24cxx_port->i2c_write(self->hi2c,
+                                  self->dev_addr_base | I2C_WRITE,
                                   addr,
                                   I2C_MEM_ADDR_SIZE_16BIT,
                                   &data,
@@ -174,8 +179,8 @@ void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
-        g_at24cxx_port->i2c_write(dev->hi2c,
-                                  dev->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_WRITE,
+        g_at24cxx_port->i2c_write(self->hi2c,
+                                  self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_WRITE,
                                   addr,
                                   I2C_MEM_ADDR_SIZE_8BIT,
                                   &data,
@@ -186,8 +191,8 @@ void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
     case AT24C08:
         // 1010 a2 p1 p0 rw
         g_at24cxx_port->i2c_write(
-            dev->hi2c,
-            dev->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
+            self->hi2c,
+            self->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
             addr,
             I2C_MEM_ADDR_SIZE_8BIT,
             &data,
@@ -196,8 +201,8 @@ void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
         break;
     case AT24C16:
         // 1010 p2 p1 p0 rw
-        g_at24cxx_port->i2c_write(dev->hi2c,
-                                  dev->dev_addr_base | ((addr & 0x0400) >> 7) |
+        g_at24cxx_port->i2c_write(self->hi2c,
+                                  self->dev_addr_base | ((addr & 0x0400) >> 7) |
                                       ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
                                   addr,
                                   I2C_MEM_ADDR_SIZE_8BIT,
@@ -205,27 +210,32 @@ void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data)
                                   1,
                                   1000);
         break;
-    default: debug_print("[at24cxx] error: unsupport type, type:%d\n", dev->type); break;
+    default: debug_print("[at24cxx] error: unsupport type, type:%d\n", self->type); break;
     }
 }
 
-void at24cxx_read_byte(at24cxx_t* dev, u16 addr, u8* data)
+void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data)
 {
-    switch (dev->type) {
+    if (!g_at24cxx_port) {
+        debug_print("[at24cxx] port not registered\n");
+        return;
+    }
+
+    switch (self->type) {
     case AT24C02:
     case AT24C32:
     case AT24C64:
         g_at24cxx_port->i2c_read(
-            dev->hi2c, dev->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_8BIT, data, 1, 1000);
+            self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_8BIT, data, 1, 1000);
         break;
     case AT24C256:
         g_at24cxx_port->i2c_read(
-            dev->hi2c, dev->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_16BIT, data, 1, 1000);
+            self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_16BIT, data, 1, 1000);
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
-        g_at24cxx_port->i2c_read(dev->hi2c,
-                                 dev->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_READ,
+        g_at24cxx_port->i2c_read(self->hi2c,
+                                 self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_READ,
                                  addr,
                                  I2C_MEM_ADDR_SIZE_8BIT,
                                  data,
@@ -236,8 +246,8 @@ void at24cxx_read_byte(at24cxx_t* dev, u16 addr, u8* data)
     case AT24C08:
         // 1010 a2 p1 p0 rw
         g_at24cxx_port->i2c_read(
-            dev->hi2c,
-            dev->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
+            self->hi2c,
+            self->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
             addr,
             I2C_MEM_ADDR_SIZE_8BIT,
             data,
@@ -246,8 +256,8 @@ void at24cxx_read_byte(at24cxx_t* dev, u16 addr, u8* data)
         break;
     case AT24C16:
         // 1010 p2 p1 p0 rw
-        g_at24cxx_port->i2c_read(dev->hi2c,
-                                 dev->dev_addr_base | ((addr & 0x0400) >> 7) |
+        g_at24cxx_port->i2c_read(self->hi2c,
+                                 self->dev_addr_base | ((addr & 0x0400) >> 7) |
                                      ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
                                  addr,
                                  I2C_MEM_ADDR_SIZE_8BIT,
@@ -255,6 +265,6 @@ void at24cxx_read_byte(at24cxx_t* dev, u16 addr, u8* data)
                                  1,
                                  1000);
         break;
-    default: debug_print("[at24cxx] error: unsupport type, type:%d\n", dev->type); break;
+    default: debug_print("[at24cxx] error: unsupport type, type:%d\n", self->type); break;
     }
 }

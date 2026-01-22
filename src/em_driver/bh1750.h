@@ -54,6 +54,12 @@ typedef struct bh1750
 } bh1750_t;
 
 void bh1750_init(bh1750_t* self);
+
+// 错误码
+#define BH1750_OK 0
+#define BH1750_ERR_PORT_NOT_REGISTERED (-1)
+#define BH1750_ERR_I2C_FAIL (-2)
+
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode);
 i32 bh1750_read_lux(bh1750_t* self, u16 *lux);
 

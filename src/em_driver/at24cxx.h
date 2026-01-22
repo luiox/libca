@@ -67,24 +67,24 @@ typedef struct
  * @param a2 a2
  * @param hi2c i2c句柄
  */
-void at24cxx_init(at24cxx_t* dev, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, void* hi2c);
+void at24cxx_init(at24cxx_t* self, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, void* hi2c);
 
 /**
  * @brief 写一个字节
  *
- * @param dev 设备结构体
+ * @param self 设备结构体
  * @param addr 地址
  * @param data 数据
  */
-void at24cxx_write_byte(at24cxx_t* dev, u16 addr, u8 data);
+void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data);
 
 /**
  * @brief 读一个字节
  *
- * @param dev 设备结构体
+ * @param self 设备结构体
  * @param addr 地址
  * @param u8 数据
  */
-void at24cxx_read_byte(at24cxx_t* dev, u16 addr, u8* data);
+void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data);
 
 #endif   // !LIBCA_EM_DRIVER_AT24CXX_H

@@ -1,4 +1,5 @@
 #include "bh1750.h"
+#include "../em_base/debug.h"
 
 static const bh1750_port_t* g_bh1750_port = NULL;
 
@@ -30,18 +31,35 @@ void bh1750_init(bh1750_t* self)
 
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode)
 {
-    return bh1750_send_cmd(self, mode);
+    if (!g_bh1750_port) {
+        debug_print("[bh1750] port not registered\n");
+        return BH1750_ERR_PORT_NOT_REGISTERED;
+    }
+
+    i32 ret = bh1750_send_cmd(self, mode);
+    if (ret != 0) {
+        debug_print("[bh1750] i2c write fail, ret:%d\n", ret);
+        return BH1750_ERR_I2C_FAIL;
+    }
+
+    return BH1750_OK;
 } 
 
 i32 bh1750_read_lux(bh1750_t* self, u16 *lux)
 {
     u8 dat[2] = {0};
 
+    if (!g_bh1750_port) {
+        debug_print("[bh1750] port not registered\n");
+        return BH1750_ERR_PORT_NOT_REGISTERED;
+    }
+
     if (bh1750_read_dat(self, dat) != 0) {
-        return -1;
+        debug_print("[bh1750] i2c read fail\n");
+        return BH1750_ERR_I2C_FAIL;
     }
 
     *lux = bh1750_dat2lux(dat);
 
-    return 0;
+    return BH1750_OK;
 } 

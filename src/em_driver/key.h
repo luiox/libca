@@ -44,7 +44,7 @@ typedef struct key
     u16 time;
 }key_t;
 
-void key_init(key_t* key);
+void key_init(key_t* self);
 // 扫描按键，更新按键状态，一般来说放在10ms或者20ms这种中断里面
 void key_scan_all(key_t* keys, usize keys_size);
 

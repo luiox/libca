@@ -1,4 +1,5 @@
 #include "w25qxx.h"
+#include "../em_base/debug.h"
 
 // 指令表
 #define W25QXX_WriteEnable 0x06
@@ -57,6 +58,10 @@ void w25qxx_init(w25qxx_t* self)
 int8_t w25qxx_send_byte(w25qxx_t* self, u8 byte)
 {
     u8 ret = 0;
+    if (!g_w25qxx_port) {
+        debug_print("[w25qxx] port not registered\n");
+        return -1;
+    }
     g_w25qxx_port->spi_transmit(self->hspi, &byte, 1, 1000);
     g_w25qxx_port->spi_receive(self->hspi, &ret, 1, 1000);
     return ret;

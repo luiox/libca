@@ -41,13 +41,13 @@ typedef struct led
 // api
 
 // 初始化led
-void led_init(led_t* led, void* gpio, u16 pin, u8 valid);
+void led_init(led_t* self, void* gpio, u16 pin, u8 valid);
 // 开灯
-void led_on(led_t* led);
+void led_on(led_t* self);
 // 关灯
-void led_off(led_t* led);
+void led_off(led_t* self);
 // 切换灯的状态
-void led_toggle(led_t* led);
+void led_toggle(led_t* self);
 
 
 #endif // !LIBCA_EM_DRIVER_LED_H
