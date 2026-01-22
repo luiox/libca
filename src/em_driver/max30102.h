@@ -2,7 +2,7 @@
  * @file max30102.h
  * @author GitHub Copilot
  * @brief MAX30102脉搏血氧仪和心率监测传感器的驱动
- * @version 0.1
+ * @version 0.2
  * @date 2026-01-22
  * 
  * @copyright Copyright (c) 2026
@@ -12,6 +12,9 @@
 #define LIBCA_EM_DRIVER_MAX30102_H
 
 #include "../em_base/datatype.h"
+
+#define MAX30102_ADDR 0xAE
+#define MAX30102_BUFFER_SIZE 500
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,8 +44,21 @@ void max30102_bind_port(const max30102_port_t* port);
  */
 bool max30102_port_is_registered(void);
 
+typedef struct max30102_data {
+    i32 heart_rate;        /**< 心率值 */
+    bool heart_rate_valid; /**< 心率值是否有效 */
+    i32 spo2;             /**< 血氧饱和度 */
+    bool spo2_valid;      /**< 血氧饱和度是否有效 */
+} max30102_data_t;
+
 typedef struct max30102 {
     void* hi2c;
+    i32* an_dx_buf;
+    usize an_dx_buf_size;
+    i32* an_x_buf;
+    usize an_x_buf_size;
+    i32* an_y_buf;
+    usize an_y_buf_size;
 } max30102_t;
 
 /**
@@ -50,39 +66,37 @@ typedef struct max30102 {
  * 
  * @param self 驱动对象
  * @param hi2c I2C句柄
+ * @param dx_buf 临时缓冲区dx
+ * @param dx_size dx缓冲区大小
+ * @param x_buf 临时缓冲区x
+ * @param x_size x缓冲区大小
+ * @param y_buf 临时缓冲区y
+ * @param y_size y缓冲区大小
  * @return bool 是否成功
  */
-bool max30102_init(max30102_t* self, void* hi2c);
+bool max30102_init(max30102_t* self, void* hi2c, i32* dx_buf, usize dx_size, i32* x_buf, usize x_size,
+                   i32* y_buf, usize y_size);
 
 /**
- * @brief 读取FIFO数据
+ * @brief 读取单次FIFO数据 (红光和红外)
  * 
  * @param self 驱动对象
- * @param red_led 红光LED值
- * @param ir_led 红外LED值
+ * @param red_led 红光LED值存储指针
+ * @param ir_led 红外LED值存储指针
  * @return bool 是否成功
  */
 bool max30102_read_fifo(max30102_t* self, u32* red_led, u32* ir_led);
 
 /**
- * @brief 写寄存器
+ * @brief 计算心率和血氧饱和度
+ * 基于样本进行计算
  * 
  * @param self 驱动对象
- * @param addr 寄存器地址
- * @param data 数据
- * @return bool 是否成功
+ * @param ir_buffer 红外数据样本
+ * @param red_buffer 红光数据样本
+ * @param result 计算结果
  */
-bool max30102_write_reg(max30102_t* self, u8 addr, u8 data);
-
-/**
- * @brief 读寄存器
- * 
- * @param self 驱动对象
- * @param addr 寄存器地址
- * @param data 数据指针
- * @return bool 是否成功
- */
-bool max30102_read_reg(max30102_t* self, u8 addr, u8* data);
+void max30102_calculate(max30102_t* self, u32* ir_buffer, u32* red_buffer, max30102_data_t* result);
 
 /**
  * @brief 复位MAX30102
