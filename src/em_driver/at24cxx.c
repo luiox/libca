@@ -1,11 +1,11 @@
 #include "at24cxx.h"
 #include "../em_base/debug.h"
 
-static at24cxx_port_t* g_at24cxx_port = NULL;
+static const at24cxx_port_t* g_at24cxx_port = NULL;
 
 void at24cxx_bind_port(const at24cxx_port_t* port)
 {
-    g_at24cxx_port = (at24cxx_port_t*)port;
+    g_at24cxx_port = port;
 }
 
 bool at24cxx_port_is_registered(void)
