@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_W25QXX_H
 #define LIBCA_EM_DRIVER_W25QXX_H
 
-#include "../em_util/datatype.h"
+#include "../em_base/datatype.h"
 
 typedef struct w25qxx_port {
     void (*write_pin)(void* gpio_port, u16 pin, u8 value);

@@ -14,7 +14,7 @@
 #ifndef LIBCA_EM_DRIVER_AT24CXX_H
 #define LIBCA_EM_DRIVER_AT24CXX_H
 
-#include "../em_util/datatype.h"
+#include "../em_base/datatype.h"
 
 typedef struct at24cxx_port
 {
