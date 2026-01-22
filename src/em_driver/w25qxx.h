@@ -1,0 +1,49 @@
+/**
+ * @file w25qxx.h
+ * @author canrad (1517807724@qq.com)
+ * @brief w25qxx系列spi flash驱动
+ * @version 0.1
+ * @date 2026-01-11
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
+#ifndef LIBCA_EM_DRIVER_W25QXX_H
+#define LIBCA_EM_DRIVER_W25QXX_H
+
+#include "../em_util/datatype.h"
+
+typedef struct w25qxx_port {
+    void (*write_pin)(void* gpio_port, u16 pin, u8 value);
+    void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
+    void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);
+}w25qxx_port_t;
+
+void w25qxx_bind_port(const w25qxx_port_t* port);
+bool w25qxx_port_is_registered(void);
+
+typedef struct w25qxx {
+    void* hspi;
+    void* cs_gpio;
+    u16   cs_pin;
+}w25qxx_t;
+
+// 使用之前需要初始化好SPI和CS引脚，这个函数负责让模块绑定SPI和CS引脚
+void w25qxx_init(w25qxx_t* self);
+// 读取设备ID
+u16 w25qxx_read_device_id(w25qxx_t* self);
+// 使能写入
+void w25qxx_write_enable(w25qxx_t* self);
+// 禁用写入
+void w25qxx4_write_disable(w25qxx_t* self);
+// 读取状态寄存器
+u8 w25qxx_read_status_register(w25qxx_t* self);
+// 擦除扇区
+void w25qxx_sector_erase(w25qxx_t* self,u32 address);
+// 读取数据
+void w25qxx_read_data(w25qxx_t* self,u32 address,uint8_t *buf, usize len);
+// 扇区写入数据，一次最多写入256字节
+void w25qxx_page_program(w25qxx_t* self,u32 address,uint8_t *buf, usize len);
+
+
+#endif   // !LIBCA_EM_DRIVER_W25QXX_H
