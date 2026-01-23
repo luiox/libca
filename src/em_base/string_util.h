@@ -17,6 +17,14 @@
 extern "C" {
 #endif
 
+#define STR_OK              (0) 
+// 空指针错误   
+#define STR_ERR_NULL        (-1)   
+// 缓冲区大小不足
+#define STR_ERR_SIZE        (-2)  
+// 非法大小
+#define STR_ERR_INVALID     (-3)   
+
 /**
  * @brief 字符转小写
  * 

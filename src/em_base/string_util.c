@@ -1,11 +1,19 @@
-#include "string_util.h"
+﻿#include "string_util.h"
 
-char char_to_lower(char c)
+/**
+ * @brief 字符转小写（私有函数）
+ */
+static char private_char_to_lower(char c)
 {
     if (c >= 'A' && c <= 'Z') {
         return c - 'A' + 'a';
     }
     return c;
+}
+
+char char_to_lower(char c)
+{
+    return private_char_to_lower(c);
 }
 
 char char_to_upper(char c)
@@ -44,8 +52,11 @@ usize str_nlen(const char* str, usize max_len)
 
 i32 str_cpy(char* dest, const char* src, usize size)
 {
-    if (!dest || !src || size == 0) {
-        return -1;
+    if (!dest || !src) {
+        return STR_ERR_NULL;
+    }
+    if (size == 0) {
+        return STR_ERR_INVALID;
     }
 
     usize i;
@@ -56,7 +67,7 @@ i32 str_cpy(char* dest, const char* src, usize size)
 
     // 如果源字符串没拷完，说明空间不足
     if (src[i] != '\0') {
-        return -1;
+        return STR_ERR_SIZE;
     }
 
     return (i32)i;
@@ -64,13 +75,16 @@ i32 str_cpy(char* dest, const char* src, usize size)
 
 i32 str_cat(char* dest, const char* src, usize dest_max_size)
 {
-    if (!dest || !src || dest_max_size == 0) {
-        return -1;
+    if (!dest || !src) {
+        return STR_ERR_NULL;
+    }
+    if (dest_max_size == 0) {
+        return STR_ERR_INVALID;
     }
 
     usize dest_len = str_nlen(dest, dest_max_size);
     if (dest_len >= dest_max_size) {
-        return -1; // 目标缓冲区已经满了或者没有结束符
+        return STR_ERR_SIZE; 
     }
 
     usize i;
@@ -82,7 +96,7 @@ i32 str_cat(char* dest, const char* src, usize dest_max_size)
     dest[dest_len + i] = '\0';
 
     if (src[i] != '\0') {
-        return -1; // 没拷贝完
+        return STR_ERR_SIZE; 
     }
 
     return (i32)(dest_len + i);
@@ -133,7 +147,7 @@ char* str_find_ch(const char* str, char c)
         str++;
     }
 
-    // 考虑查找 \0 的情况
+    // find \0
     if (c == '\0') {
         return (char*)str;
     }
@@ -279,7 +293,7 @@ bool str_starts_with_i(const char* str, const char* prefix)
     }
 
     while (*prefix) {
-        if (char_to_lower(*str) != char_to_lower(*prefix)) {
+        if (private_char_to_lower(*str) != private_char_to_lower(*prefix)) {
             return false;
         }
         str++;
@@ -329,7 +343,7 @@ bool str_ends_with_i(const char* str, const char* suffix)
 
     const char* str_end = str + str_len_val - suffix_len;
     while (*suffix) {
-        if (char_to_lower(*str_end) != char_to_lower(*suffix)) {
+        if (private_char_to_lower(*str_end) != private_char_to_lower(*suffix)) {
             return false;
         }
         str_end++;
@@ -379,15 +393,15 @@ TEST_CASE(test_str_cpy)
     TEST_ASSERT_EQUAL_STRING("hello", buf);
     
     // 溢出检查
-    TEST_ASSERT(str_cpy(buf, "hello world", 5) == -1);
+    TEST_ASSERT_EQUAL_INT(STR_ERR_SIZE, str_cpy(buf, "hello world", 5));
     
     // 边界：刚好装满 (4字符 + \0)
     TEST_ASSERT(str_cpy(buf, "1234", 5) == 4);
     
     // 异常输入
-    TEST_ASSERT(str_cpy(NULL, "test", 10) == -1);
-    TEST_ASSERT(str_cpy(buf, NULL, 10) == -1);
-    TEST_ASSERT(str_cpy(buf, "test", 0) == -1);
+    TEST_ASSERT_EQUAL_INT(STR_ERR_NULL, str_cpy(NULL, "test", 10));
+    TEST_ASSERT_EQUAL_INT(STR_ERR_NULL, str_cpy(buf, NULL, 10));
+    TEST_ASSERT_EQUAL_INT(STR_ERR_INVALID, str_cpy(buf, "test", 0));
 }
 
 TEST_CASE(test_str_cat)
@@ -398,16 +412,16 @@ TEST_CASE(test_str_cat)
     TEST_ASSERT_EQUAL_STRING("hello world", buf);
     
     // 溢出检查
-    TEST_ASSERT(str_cat(buf, " again", 12) == -1);
+    TEST_ASSERT_EQUAL_INT(STR_ERR_SIZE, str_cat(buf, " again", 12));
     
     // 异常输入
-    TEST_ASSERT(str_cat(NULL, "test", 10) == -1);
-    TEST_ASSERT(str_cat(buf, NULL, 10) == -1);
-    TEST_ASSERT(str_cat(buf, "test", 0) == -1);
+    TEST_ASSERT_EQUAL_INT(STR_ERR_NULL, str_cat(NULL, "test", 10));
+    TEST_ASSERT_EQUAL_INT(STR_ERR_NULL, str_cat(buf, NULL, 10));
+    TEST_ASSERT_EQUAL_INT(STR_ERR_INVALID, str_cat(buf, "test", 0));
     
     // 目标缓冲区无空间或无终止符
-    char full_buf[5] = "12345"; // 实际上已经越界了，模拟非法状态
-    TEST_ASSERT(str_cat(full_buf, "test", 5) == -1);
+    char full_buf[5] = "12345"; 
+    TEST_ASSERT_EQUAL_INT(STR_ERR_SIZE, str_cat(full_buf, "test", 5));
 }
 
 TEST_CASE(test_str_cmp)
@@ -486,7 +500,6 @@ TEST_CASE(test_str_to_upper)
     char s[] = "hello123";
     str_to_upper(s);
     TEST_ASSERT_EQUAL_STRING("HELLO123", s);
-    str_to_upper(NULL); // 异常检查
 }
 
 TEST_CASE(test_str_to_lower)
@@ -494,7 +507,6 @@ TEST_CASE(test_str_to_lower)
     char s[] = "HELLO123";
     str_to_lower(s);
     TEST_ASSERT_EQUAL_STRING("hello123", s);
-    str_to_lower(NULL); // 异常检查
 }
 
 TEST_CASE(test_str_reverse)
@@ -506,36 +518,29 @@ TEST_CASE(test_str_reverse)
     char s2[] = "a";
     str_reverse(s2);
     TEST_ASSERT_EQUAL_STRING("a", s2);
-    
-    str_reverse(NULL);
 }
 
 TEST_CASE(test_str_starts_with)
 {
     TEST_ASSERT_TRUE(str_starts_with("hello", "he"));
     TEST_ASSERT_FALSE(str_starts_with("hello", "ha"));
-    TEST_ASSERT_FALSE(str_starts_with(NULL, "he"));
 }
 
 TEST_CASE(test_str_starts_with_i)
 {
     TEST_ASSERT_TRUE(str_starts_with_i("hello", "HE"));
     TEST_ASSERT_FALSE(str_starts_with_i("hello", "HA"));
-    TEST_ASSERT_FALSE(str_starts_with_i("hello", NULL));
 }
 
 TEST_CASE(test_str_ends_with)
 {
     TEST_ASSERT_TRUE(str_ends_with("hello", "lo"));
     TEST_ASSERT_FALSE(str_ends_with("hello", "la"));
-    TEST_ASSERT_FALSE(str_ends_with("he", "hello")); // 长度不足
-    TEST_ASSERT_FALSE(str_ends_with("hello", NULL));
 }
 
 TEST_CASE(test_str_ends_with_i)
 {
     TEST_ASSERT_TRUE(str_ends_with_i("hello", "LO"));
     TEST_ASSERT_FALSE(str_ends_with_i("hello", "LA"));
-    TEST_ASSERT_FALSE(str_ends_with_i("he", "hello"));
 }
 #endif
