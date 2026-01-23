@@ -73,7 +73,7 @@ typedef struct illume {
  * @param adc_ch ADC 通道
  * @param do_gpio DO 引脚的 GPIO 句柄
  * @param do_pin DO 引脚编号
- * @param adc_resolution ADC 分辨率位数（如 12）
+ * @param adc_resolution ADC 分辨率位数 (有效范围 1-16, 如 12)
  */
 void illume_init(illume_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, u8 adc_resolution);
 

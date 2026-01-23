@@ -1,4 +1,5 @@
 #include "illume.h"
+#include "../em_base/debug.h"
 
 static const illume_port_t* g_port = NULL;
 
@@ -17,7 +18,13 @@ void illume_init(illume_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do
     self->do_pin  = do_pin;
     
     // 计算 ADC 最大值
-    self->adc_max = (1 << adc_resolution) - 1;
+    if (adc_resolution > 0 && adc_resolution <= 16) {
+        self->adc_max = (1UL << adc_resolution) - 1;
+    } else {
+        // 对于无效分辨率，默认使用12位以防止后续计算出错。
+        self->adc_max = 4095;
+        debug_print("[illume] Invalid ADC resolution, defaulting to 12-bit.\n");
+    }
 }
 
 u8 illume_get_percentage(illume_t* self, u8 count) {
