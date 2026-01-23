@@ -520,6 +520,9 @@ TEST_CASE(test_str_to_upper)
     char s[] = "hello123";
     str_to_upper(s);
     TEST_ASSERT_EQUAL_STRING("HELLO123", s);
+    
+    // 异常输入覆盖
+    str_to_upper(NULL);
 }
 
 TEST_CASE(test_str_to_lower)
@@ -527,6 +530,9 @@ TEST_CASE(test_str_to_lower)
     char s[] = "HELLO123";
     str_to_lower(s);
     TEST_ASSERT_EQUAL_STRING("hello123", s);
+
+    // 异常输入覆盖
+    str_to_lower(NULL);
 }
 
 TEST_CASE(test_str_reverse)
@@ -538,6 +544,13 @@ TEST_CASE(test_str_reverse)
     char s2[] = "a";
     str_reverse(s2);
     TEST_ASSERT_EQUAL_STRING("a", s2);
+
+    char s3[] = "";
+    str_reverse(s3);
+    TEST_ASSERT_EQUAL_STRING("", s3);
+
+    // 异常输入覆盖
+    str_reverse(NULL);
 }
 
 TEST_CASE(test_str_starts_with)
@@ -549,24 +562,45 @@ TEST_CASE(test_str_starts_with)
     TEST_ASSERT_FALSE(str_starts_with("hi", "hello")); // 前缀比主串长
     TEST_ASSERT_TRUE(str_starts_with("hello", ""));    // 空前缀
     TEST_ASSERT_TRUE(str_starts_with("", ""));         // 双方都为空
+    
+    // 异常输入
+    TEST_ASSERT_FALSE(str_starts_with(NULL, "he"));
+    TEST_ASSERT_FALSE(str_starts_with("hello", NULL));
 }
 
 TEST_CASE(test_str_starts_with_i)
 {
     TEST_ASSERT_TRUE(str_starts_with_i("hello", "HE"));
     TEST_ASSERT_FALSE(str_starts_with_i("hello", "HA"));
+
+    // 异常输入
+    TEST_ASSERT_FALSE(str_starts_with_i(NULL, "HE"));
+    TEST_ASSERT_FALSE(str_starts_with_i("hello", NULL));
 }
 
 TEST_CASE(test_str_ends_with)
 {
     TEST_ASSERT_TRUE(str_ends_with("hello", "lo"));
     TEST_ASSERT_FALSE(str_ends_with("hello", "la"));
+
+    // 边缘情况
+    TEST_ASSERT_FALSE(str_ends_with("hi", "hello")); // 后缀比主串长
+    TEST_ASSERT_TRUE(str_ends_with("hello", ""));    // 空后缀
+    TEST_ASSERT_TRUE(str_ends_with("", ""));         // 双方都为空
+
+    // 异常输入
+    TEST_ASSERT_FALSE(str_ends_with(NULL, "lo"));
+    TEST_ASSERT_FALSE(str_ends_with("hello", NULL));
 }
 
 TEST_CASE(test_str_ends_with_i)
 {
     TEST_ASSERT_TRUE(str_ends_with_i("hello", "LO"));
     TEST_ASSERT_FALSE(str_ends_with_i("hello", "LA"));
+
+    // 异常输入
+    TEST_ASSERT_FALSE(str_ends_with_i(NULL, "LO"));
+    TEST_ASSERT_FALSE(str_ends_with_i("hello", NULL));
 }
 #endif
 
