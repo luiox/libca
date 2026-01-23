@@ -23,6 +23,10 @@ bool mqx_port_is_registered(void) {
 }
 
 void mqx_init(mqx_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, u8 adc_resolution, u8 samples) {
+    if(adc_resolution > 0 && adc_resolution <= 16){
+        debug_print("[mqx] adc_resolution out of range, default to 12\n");
+        adc_resolution = 12;
+    }
     self->adc_hdl = adc_hdl;
     self->adc_ch  = adc_ch;
     self->do_gpio = do_gpio;

@@ -1,7 +1,7 @@
 /**
  * @file mq_x.h
- * @author GitHub Copilot
- * @brief MQ 系列气体传感器驱动（如 MQ-3, MQ-135 等），采用 OOP 风格
+ * @author canrad (1517807724@qq.com)
+ * @brief MQ 系列气体传感器驱动（如 MQ-3, MQ-135 等）
  * 参考文档如下
  *   mq_2 烟雾传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-2-sensor.html
  *   mq_3 酒精检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-3-sensor.html
@@ -18,7 +18,6 @@
  * @copyright Copyright (c) 2026
  * 
  */
-
 #ifndef LIBCA_EM_DRIVER_MQ_X_H
 #define LIBCA_EM_DRIVER_MQ_X_H
 
@@ -152,93 +151,38 @@ u8 mqx_get_do_state(mqx_t* self);
 #if MQ_X_ENABLE_MQ2
 // 定义别名
 typedef mqx_t mq2;
-// 定义宏包装
-#define mq2_bind_port mqx_bind_port
-#define mq2_port_is_registered mqx_port_is_registered
-#define mq2_init mqx_init
-#define mq2_get_adc mqx_get_adc
-#define mq2_get_percentage mqx_get_percentage
-#define mq2_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ3
 typedef mqx_t mq3;
-#define mq3_bind_port mqx_bind_port
-#define mq3_port_is_registered mqx_port_is_registered
-#define mq3_init mqx_init
-#define mq3_get_adc mqx_get_adc
-#define mq3_get_percentage mqx_get_percentage
-#define mq3_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ4
 typedef mqx_t mq4;
-#define mq4_bind_port mqx_bind_port
-#define mq4_port_is_registered mqx_port_is_registered
-#define mq4_init mqx_init
-#define mq4_get_adc mqx_get_adc
-#define mq4_get_percentage mqx_get_percentage
-#define mq4_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ5
 typedef mqx_t mq5;
-#define mq5_bind_port mqx_bind_port
-#define mq5_port_is_registered mqx_port_is_registered
-#define mq5_init mqx_init
-#define mq5_get_adc mqx_get_adc
-#define mq5_get_percentage mqx_get_percentage
-#define mq5_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ6
 typedef mqx_t mq6;
-#define mq6_bind_port mqx_bind_port
-#define mq6_port_is_registered mqx_port_is_registered
-#define mq6_init mqx_init
-#define mq6_get_adc mqx_get_adc
-#define mq6_get_percentage mqx_get_percentage
-#define mq6_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ7
 typedef mqx_t mq7;
-#define mq7_bind_port mqx_bind_port
-#define mq7_port_is_registered mqx_port_is_registered
-#define mq7_init mqx_init
-#define mq7_get_adc mqx_get_adc
-#define mq7_get_percentage mqx_get_percentage
-#define mq7_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ8
 typedef mqx_t mq8;
-#define mq8_bind_port mqx_bind_port
-#define mq8_port_is_registered mqx_port_is_registered
-#define mq8_init mqx_init
-#define mq8_get_adc mqx_get_adc
-#define mq8_get_percentage mqx_get_percentage
-#define mq8_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ9
 typedef mqx_t mq9;
-#define mq9_bind_port mqx_bind_port
-#define mq9_port_is_registered mqx_port_is_registered
-#define mq9_init mqx_init
-#define mq9_get_adc mqx_get_adc
-#define mq9_get_percentage mqx_get_percentage
-#define mq9_get_do_state mqx_get_do_state
 #endif
 
 #if MQ_X_ENABLE_MQ135
 typedef mqx_t mq135;
-#define mq135_bind_port mqx_bind_port
-#define mq135_port_is_registered mqx_port_is_registered
-#define mq135_init mqx_init
-#define mq135_get_adc mqx_get_adc
-#define mq135_get_percentage mqx_get_percentage
-#define mq135_get_do_state mqx_get_do_state
 #endif
 
 #ifdef __cplusplus
