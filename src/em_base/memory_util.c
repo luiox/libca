@@ -154,6 +154,10 @@ TEST_CASE(test_mem_cpy)
     for (int i = 0; i < 5; i++) {
         TEST_ASSERT_EQUAL_INT(src[i], dest[i]);
     }
+
+    // 异常输入覆盖
+    TEST_ASSERT(mem_cpy(NULL, src, 5) == NULL);
+    TEST_ASSERT(mem_cpy(dest, NULL, 5) == dest);
 }
 
 TEST_CASE(test_mem_move)
@@ -173,6 +177,11 @@ TEST_CASE(test_mem_move)
     // 标准 memmove 只保证目标区域正确。
     TEST_ASSERT_EQUAL_INT(1, buf2[0]);
     TEST_ASSERT_EQUAL_INT(5, buf2[4]);
+
+    // 异常输入覆盖
+    TEST_ASSERT(mem_move(NULL, buf, 5) == NULL);
+    TEST_ASSERT(mem_move(buf, NULL, 5) == buf);
+    TEST_ASSERT(mem_move(buf, buf, 0) == buf);
 }
 
 TEST_CASE(test_mem_cmp)
@@ -195,6 +204,9 @@ TEST_CASE(test_mem_find_byte)
     u8 buf[] = {0x10, 0x20, 0x30, 0x40};
     TEST_ASSERT(mem_find_byte(buf, 0x30, 4) == &buf[2]);
     TEST_ASSERT(mem_find_byte(buf, 0x50, 4) == NULL);
+    
+    // 异常输入覆盖
+    TEST_ASSERT(mem_find_byte(NULL, 0x10, 4) == NULL);
 }
 
 TEST_CASE(test_mem_is_all_val)
@@ -214,5 +226,11 @@ TEST_CASE(test_mem_swap)
     mem_swap(&v1, &v2, sizeof(u32));
     TEST_ASSERT_EQUAL_UINT(0x87654321, v1);
     TEST_ASSERT_EQUAL_UINT(0x12345678, v2);
+
+    // 异常输入覆盖（确保不崩溃）
+    mem_swap(NULL, &v2, 4);
+    mem_swap(&v1, NULL, 4);
+    mem_swap(&v1, &v1, 4);
+    mem_swap(&v1, &v2, 0);
 }
 #endif
