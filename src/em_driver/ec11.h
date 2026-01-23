@@ -125,6 +125,14 @@ void ec11_reset_count(ec11_t* self);
  */
 bool ec11_is_sw_down(ec11_t* self);
 
+/**
+ * @brief 获取上一次探测到的旋转方向
+ * 
+ * @param self 对象指针
+ * @return ec11_rotation 上一次探测到的旋转方向
+ */
+ec11_rotation ec11_get_last_rotation(ec11_t* self);
+
 #ifdef __cplusplus
 }
 #endif

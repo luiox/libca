@@ -33,6 +33,8 @@ void ec11_init(ec11_t* self, void* clk_gpio, u16 clk_pin, void* dt_gpio, u16 dt_
         self->last_sw_state  = g_port->read_pin(self->sw_gpio, self->sw_pin);
     }
     else {
+        // 添加信息输出
+        debug_print("[ec11] warning: port not registered. Assuming idle high. Call ec11_bind_port before ec11_init for correct initial state.\n");
         self->last_clk_state = 1;
         self->last_dt_state  = 1;
         self->last_sw_state  = 1;
@@ -53,6 +55,20 @@ ec11_rotation ec11_scan(ec11_t* self)
     ec11_rotation result = EC11_ROTATION_NONE;
 
     // 检测 CLK 跳变
+    // 通过分析，当 clk_state != dt_state 时为正转，当 clk_state == dt_state 时为反转
+    // 原始代码跟在后面的#if 0 ... #endif内
+    if (clk_state != self->last_clk_state) {
+        // 当CLK和DT电平不同时，为正转
+        if (clk_state != dt_state) {
+            result = EC11_ROTATION_RIGHT;
+            self->rotation_count++;
+        } else { // 当CLK和DT电平相同时，为反转
+            result = EC11_ROTATION_LEFT;
+            self->rotation_count--;
+        }
+        self->last_item = result;
+    }
+#if 0
     if (clk_state != self->last_clk_state) {
         if (clk_state == 1) {   // CLK 上升沿
             if (dt_state == 0) {
@@ -76,6 +92,7 @@ ec11_rotation ec11_scan(ec11_t* self)
         }
         self->last_item = result;
     }
+#endif
 
     self->last_clk_state = clk_state;
     self->last_dt_state  = dt_state;
@@ -97,4 +114,9 @@ bool ec11_is_sw_down(ec11_t* self)
 {
     // 判断当前引脚电平是否匹配预设的“按下”电平
     return self->last_sw_state == self->sw_when_down_state;
+}
+
+ec11_rotation ec11_get_last_rotation(ec11_t* self)
+{
+    return self->last_item;
 }
