@@ -8,82 +8,180 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#ifndef STRING_UTIL_H
-#define STRING_UTIL_H
+#ifndef LIBCA_EM_BASE_STRING_UTIL_H
+#define LIBCA_EM_BASE_STRING_UTIL_H
 
 #include "datatype.h"
 
-// 字符串长度（类似 strlen，但更安全）
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define STR_OK              (0) 
+// 空指针错误   
+#define STR_ERR_NULL        (-1)   
+// 缓冲区大小不足
+#define STR_ERR_SIZE        (-2)  
+// 非法大小
+#define STR_ERR_INVALID     (-3)   
+
+/**
+ * @brief 字符转小写
+ * 
+ * @param c 字符
+ * @return char 转小写的字符
+ */
+char char_to_lower(char c);
+
+/**
+ * @brief 字符转大写
+ * 
+ * @param c 字符
+ * @return char 转大写的字符
+ */
+char char_to_upper(char c);
+
+/**
+ * @brief 获取字符串长度
+ * 
+ * @param str 字符串指针
+ * @return usize 字符串长度
+ */
 usize str_len(const char* str);
 
-// 字符串复制（类似 strncpy，但确保终止符）
-char* str_cpy(char* dest, const char* src, usize size);
+/**
+ * @brief 获取字符串长度（带最大长度限制，更安全）
+ * 
+ * @param str 字符串指针
+ * @param max_len 最大检查长度
+ * @return usize 字符串长度
+ */
+usize str_nlen(const char* str, usize max_len);
 
-// 字符串比较（类似 strncmp）
-int str_cmp(const char* s1, const char* s2, usize size);
+/**
+ * @brief 字符串复制（确保以 \0 结尾）
+ * 
+ * @param dest 目标缓冲区
+ * @param src 源字符串
+ * @param size 目标缓冲区总大小
+ * @return i32 成功返回实际复制的长度，失败返回错误码
+ */
+i32 str_cpy(char* dest, const char* src, usize size);
 
-// 查找字符（类似 strchr）
-char* str_chr(const char* str, char c);
+/**
+ * @brief 字符串拼接（确保以 \0 结尾）
+ * 
+ * @param dest 目标缓冲区
+ * @param src 源字符串
+ * @param dest_max_size 目标缓冲区总大小
+ * @return i32 成功返回实际拼接后的长度，失败返回错误码
+ */
+i32 str_cat(char* dest, const char* src, usize dest_max_size);
 
-// 查找子串（类似 strstr）
-char* str_str(const char* haystack, const char* needle);
+/**
+ * @brief 比较两个字符串
+ * 
+ * @param s1 字符串1
+ * @param s2 字符串2
+ * @param size 最大比较长度
+ * @return i32 相等返回 0，不等返回差值
+ */
+i32 str_cmp(const char* s1, const char* s2, usize size);
 
-// 字符串分割（类似 strtok）
-char* str_tok(char* str, const char* delim);
+/**
+ * @brief 判断两个字符串是否完全相等
+ * 
+ * @param s1 字符串1
+ * @param s2 字符串2
+ * @return bool 相等返回 true，否则返回 false
+ */
+bool str_is_equal(const char* s1, const char* s2);
 
-// 字符串转大写
+/**
+ * @brief 在字符串中查找字符
+ * 
+ * @param str 字符串
+ * @param c 要查找的字符
+ * @return char* 指向查找到的字符的指针，未找到返回 NULL
+ */
+char* str_find_ch(const char* str, char c);
+
+/**
+ * @brief 在字符串中查找子串
+ * 
+ * @param haystack 主字符串
+ * @param needle 要查找的子串
+ * @return char* 指向查找到的子串的指针，未找到返回 NULL
+ */
+char* str_find_str(const char* haystack, const char* needle);
+
+/**
+ * @brief 去除字符串首尾的空白字符（原地实现）
+ * 
+ * @param str 字符串
+ * @return i32 去除后的字符串长度
+ */
+i32 str_trim(char* str);
+
+/**
+ * @brief 字符串转大写
+ * 
+ * @param str 字符串
+ */
 void str_to_upper(char* str);
 
-// 字符串转小写
+/**
+ * @brief 字符串转小写
+ * 
+ * @param str 字符串
+ */
 void str_to_lower(char* str);
 
-// 反转字符串
+/**
+ * @brief 翻转字符串
+ * 
+ * @param str 字符串
+ */
 void str_reverse(char* str);
 
-// 十六进制字符串转整数
-bool hex_str_to_uint(const char* str, u32* out_value);
+/**
+ * @brief 判断字符串是否以特定前缀开始
+ * 
+ * @param str 字符串
+ * @param prefix 前缀
+ * @return bool 是返回 true
+ */
+bool str_starts_with(const char* str, const char* prefix);
 
-// 整数转十六进制字符串
-void uint_to_hex_str(u32 value, char* out_str, usize out_size);
+/**
+ * @brief 判断字符串是否以特定前缀开始（忽略大小写）
+ * 
+ * @param str 字符串
+ * @param prefix 前缀
+ * @return bool 是返回 true
+ */
+bool str_starts_with_i(const char* str, const char* prefix);
 
-///////////////////////////////////////////////////////////////////
-// 字符串拷贝
-char* str_copy(char* dest, const char* src);
-// 字符串拼接
-char* str_concat(char* dest, const char* src);
-// 字符串长度
-u32 str_length(const char* str);
-// 字符串比较
-i32 str_compare(const char* str1, const char* str2);
-// 字符串搜索字串
-char* str_find(const char* str, const char* substr);
-// 字符串替换
-char* str_replace(char* str, const char* old, const char* new);
-// 去除字符串首尾的空格、\t、\n等空白字符
-char* str_trim(char* str);
-///////////////////////////////////////////////////////////////////////////////
-// 内存设置
-void* mem_set(void* ptr, uint8_t value, uint32_t num);
-// 内存复制
-void* mem_copy(void* dest, const void* src, uint32_t num);
-// 内存移动
-void* mem_move(void* dest, const void* src, uint32_t num);
-// 内存比较
-int32_t mem_compare(const void* ptr1, const void* ptr2, uint32_t num);
-// 十六进制转换
-char* to_hex(const void* data, uint32_t data_len, char* buf, uint32_t buf_len);
-// 整数到字符串转换，最多16进制
-char* int_to_str(int32_t value, char* str, int8_t base);
-// 字符串到整数转换
-int32_t str_to_int(const char* str, char** endptr, int8_t base);
-// 反转字符串
-void reverse_str(char* str);
-// 复制字符串到新分配的内存
-char* str_duplicate(const char* str);
-// 获取子字符串
-char* str_substr(const char* str, uint32_t start, uint32_t len);
-// 字符串分词
-int str_tokenize(char* str, const char* delimiters, char** tokens, int max_tokens);
+/**
+ * @brief 判断字符串是否以特定后缀结尾
+ * 
+ * @param str 字符串
+ * @param suffix 后缀
+ * @return bool 是返回 true
+ */
+bool str_ends_with(const char* str, const char* suffix);
 
+/**
+ * @brief 判断字符串是否以特定后缀结尾（忽略大小写）
+ * 
+ * @param str 字符串
+ * @param suffix 后缀
+ * @return bool 是返回 true
+ */
+bool str_ends_with_i(const char* str, const char* suffix);
 
-#endif   // !STRING_UTIL_H
+#ifdef __cplusplus
+}
+#endif
+
+#endif   // !LIBCA_EM_BASE_STRING_UTIL_H

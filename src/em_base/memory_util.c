@@ -1,131 +1,218 @@
-#include "memory_util.h"
+﻿#include "memory_util.h"
 
-#define ALIGNMENT 8   // 假设我们要求8字节对齐
-
-typedef struct block
+void* mem_set(void* dest, u8 val, usize size)
 {
-    size_t        size;
-    struct block* next;
-    int           free;
-} block_t;
+    if (!dest) {
+        return NULL;
+    }
 
-block_t* free_list = NULL;
-
-
-static void*    heap_buf;
-static uint32_t heap_size;
-
-void heap_init(void* buf, uint32_t size)
-{
-    heap_buf  = buf;
-    heap_size = size;
-
-    // 初始化空闲列表
-    free_list       = (block_t*)buf;
-    free_list->size = size - sizeof(block_t);
-    free_list->next = NULL;
-    free_list->free = 1;
+    u8* p = (u8*)dest;
+    while (size--) {
+        *p++ = val;
+    }
+    return dest;
 }
 
-void* heap_alloc(uint32_t size)
+void* mem_cpy(void* restrict dest, const void* restrict src, usize size)
 {
-    block_t* current    = free_list;
-    block_t* prev       = NULL;
-    size_t   total_size = size + sizeof(block_t);
-
-    // 确保请求的大小是8字节对齐的
-    if (total_size % ALIGNMENT != 0) {
-        total_size += ALIGNMENT - (total_size % ALIGNMENT);
+    if (!dest || !src) {
+        return dest;
     }
 
-    while (current) {
-        if (current->free && current->size >= total_size) {
-            // 找到一个足够大的空闲块
-            if (current->size > total_size + sizeof(block_t)) {
-                // 如果块足够大，我们可以分割它
-                block_t* new_block = (block_t*)((char*)current + total_size);
-                new_block->size    = current->size - total_size;
-                new_block->next    = current->next;
-                new_block->free    = 1;
-                current->size      = total_size;
-                current->next      = new_block;
-            }
-            current->free = 0;
-            return (void*)(current + 1);   // 返回用户数据部分
+    u8* d = (u8*)dest;
+    const u8* s = (const u8*)src;
+
+    while (size--) {
+        *d++ = *s++;
+    }
+    return dest;
+}
+
+void* mem_move(void* dest, const void* src, usize size)
+{
+    if (!dest || !src || size == 0) {
+        return dest;
+    }
+
+    u8* d = (u8*)dest;
+    const u8* s = (const u8*)src;
+
+    if (d < s) {
+        // 从头向尾拷贝
+        while (size--) {
+            *d++ = *s++;
         }
-        prev    = current;
-        current = current->next;
+    } else if (d > s) {
+        // 从尾向头拷贝，处理重叠
+        d += size - 1;
+        s += size - 1;
+        while (size--) {
+            *d-- = *s--;
+        }
     }
 
-    // 没有找到足够大的空闲块
+    return dest;
+}
+
+i32 mem_cmp(const void* s1, const void* s2, usize size)
+{
+    if (s1 == s2 || size == 0) {
+        return 0;
+    }
+    if (!s1) return -1;
+    if (!s2) return 1;
+
+    const u8* p1 = (const u8*)s1;
+    const u8* p2 = (const u8*)s2;
+
+    while (size--) {
+        if (*p1 != *p2) {
+            return (i32)(*p1 - *p2);
+        }
+        p1++;
+        p2++;
+    }
+
+    return 0;
+}
+
+void* mem_find_byte(const void* buf, u8 val, usize size)
+{
+    if (!buf) {
+        return NULL;
+    }
+
+    const u8* p = (const u8*)buf;
+    while (size--) {
+        if (*p == val) {
+            return (void*)p;
+        }
+        p++;
+    }
+
     return NULL;
 }
 
-void heap_free(void* ptr)
+bool mem_is_all_val(const void* buf, u8 val, usize size)
 {
-    if (!ptr) {
+    if (!buf || size == 0) {
+        return false;
+    }
+
+    const u8* p = (const u8*)buf;
+    while (size--) {
+        if (*p++ != val) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void mem_swap(void* s1, void* s2, usize size)
+{
+    if (!s1 || !s2 || s1 == s2 || size == 0) {
         return;
     }
 
-    block_t* current = (block_t*)ptr - 1;   // 转换回块头部
-    current->free    = 1;
+    u8* p1 = (u8*)s1;
+    u8* p2 = (u8*)s2;
 
-    // 尝试合并前一个空闲块
-    block_t* prev = free_list;
-    block_t* temp = NULL;
-    while (prev && (void*)prev < (void*)current) {
-        temp = prev;
-        prev = prev->next;
-    }
-    if (temp && temp->free) {
-        temp->size += current->size + sizeof(block_t);
-        temp->next = current->next;
-        current    = temp;
-    }
-
-    // 尝试合并后一个空闲块
-    while (current->next && current->next->free) {
-        current->size += current->next->size + sizeof(block_t);
-        current->next = current->next->next;
+    while (size--) {
+        u8 temp = *p1;
+        *p1++ = *p2;
+        *p2++ = temp;
     }
 }
 
-// 测试代码
+#if TEST_ENABLE
+#include "../em_test/test.h"
 
-#if 0
-// 假设我们有4k字节的内存区域
-char memory[4*1024];
-
-int main()
+TEST_CASE(test_mem_set)
 {
-    // 初始化堆
-    heap_init(memory, sizeof(memory));
-
-    // 分配内存
-    void *ptr1 = heap_alloc(100);
-    if (ptr1) {
-        printf("Allocated 100 bytes\n");
+    u8 buf[10];
+    mem_set(buf, 0xAA, 10);
+    for (int i = 0; i < 10; i++) {
+        TEST_ASSERT_EQUAL_INT(0xAA, buf[i]);
     }
-
-    // 再次分配内存
-    void *ptr2 = heap_alloc(200);
-    if (ptr2) {
-        printf("Allocated 200 bytes\n");
+    
+    // mem_zero
+    mem_zero(buf, 10);
+    for (int i = 0; i < 10; i++) {
+        TEST_ASSERT_EQUAL_INT(0, buf[i]);
     }
-
-    // 释放内存
-    heap_free(ptr1);
-    printf("Freed 100 bytes\n");
-
-    // 再次分配内存
-    void *ptr3 = heap_alloc(150);
-    if (ptr3) {
-        printf("Allocated 150 bytes\n");
-    }
-
-    // 释放所有内存
-    heap_free(ptr2);
-    heap_free(ptr3);
+    
+    TEST_ASSERT(mem_set(NULL, 0, 10) == NULL);
 }
 
+TEST_CASE(test_mem_cpy)
+{
+    u8 src[5] = {1, 2, 3, 4, 5};
+    u8 dest[5] = {0};
+    
+    mem_cpy(dest, src, 5);
+    for (int i = 0; i < 5; i++) {
+        TEST_ASSERT_EQUAL_INT(src[i], dest[i]);
+    }
+}
+
+TEST_CASE(test_mem_move)
+{
+    // 重叠测试：向后移动
+    u8 buf[10] = {1, 2, 3, 4, 5, 0, 0, 0, 0, 0};
+    mem_move(buf + 2, buf, 5); // 期望: {1, 2, 1, 2, 3, 4, 5, 0, 0, 0}
+    u8 expected1[10] = {1, 2, 1, 2, 3, 4, 5, 0, 0, 0};
+    for (int i = 0; i < 10; i++) {
+        TEST_ASSERT_EQUAL_INT(expected1[i], buf[i]);
+    }
+
+    // 重叠测试：向前移动
+    u8 buf2[10] = {0, 0, 1, 2, 3, 4, 5, 0, 0, 0};
+    mem_move(buf2, buf2 + 2, 5); // 期望: {1, 2, 3, 4, 5, 4, 5, 0, 0, 0} 
+    // 注意：原来的 buf2[5]=4, buf2[6]=5 是被移动后的值掩盖还是保留取决于实现，
+    // 标准 memmove 只保证目标区域正确。
+    TEST_ASSERT_EQUAL_INT(1, buf2[0]);
+    TEST_ASSERT_EQUAL_INT(5, buf2[4]);
+}
+
+TEST_CASE(test_mem_cmp)
+{
+    u8 b1[] = {1, 2, 3};
+    u8 b2[] = {1, 2, 3};
+    u8 b3[] = {1, 2, 4};
+    
+    TEST_ASSERT_EQUAL_INT(0, mem_cmp(b1, b2, 3));
+    TEST_ASSERT(mem_cmp(b1, b3, 3) < 0);
+    TEST_ASSERT(mem_cmp(b3, b1, 3) > 0);
+    
+    TEST_ASSERT_EQUAL_INT(0, mem_cmp(NULL, NULL, 5));
+    TEST_ASSERT(mem_cmp(NULL, b1, 3) < 0);
+    TEST_ASSERT(mem_cmp(b1, NULL, 3) > 0);
+}
+
+TEST_CASE(test_mem_find_byte)
+{
+    u8 buf[] = {0x10, 0x20, 0x30, 0x40};
+    TEST_ASSERT(mem_find_byte(buf, 0x30, 4) == &buf[2]);
+    TEST_ASSERT(mem_find_byte(buf, 0x50, 4) == NULL);
+}
+
+TEST_CASE(test_mem_is_all_val)
+{
+    u8 buf[] = {0, 0, 0, 0};
+    TEST_ASSERT_TRUE(mem_is_all_val(buf, 0, 4));
+    buf[2] = 1;
+    TEST_ASSERT_FALSE(mem_is_all_val(buf, 0, 4));
+    
+    TEST_ASSERT_FALSE(mem_is_all_val(NULL, 0, 5));
+}
+
+TEST_CASE(test_mem_swap)
+{
+    u32 v1 = 0x12345678;
+    u32 v2 = 0x87654321;
+    mem_swap(&v1, &v2, sizeof(u32));
+    TEST_ASSERT_EQUAL_UINT(0x87654321, v1);
+    TEST_ASSERT_EQUAL_UINT(0x12345678, v2);
+}
 #endif
