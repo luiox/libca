@@ -20,6 +20,17 @@ char* str_cpy(char* dest, const char* src, usize size)
     return ret;
 }
 
+// 字符串拼接
+char* str_cat(char* dest, const char* src, usize dest_max_size)
+{
+    // 先找得到dest的\0
+    while(*dest !='\0'){
+        dest++;
+    }
+    // 拼接
+    return str_cpy(dest, src, dest_max_size - (dest - dest));
+}
+
 bool hex_str_to_uint(const char* str, u32* out_value)
 {
     if (!str || !out_value)
@@ -103,7 +114,7 @@ int str_cmp(const char* s1, const char* s2, usize size)
     return 0;
 }
 
-char* str_chr(const char* str, char c)
+char* str_find_ch(const char* str, char c)
 {
     if (!str) return NULL;
     
@@ -116,7 +127,7 @@ char* str_chr(const char* str, char c)
     return NULL;
 }
 
-char* str_str(const char* haystack, const char* needle)
+char* str_find_str(const char* haystack, const char* needle)
 {
     if (!haystack || !needle) return NULL;
     
@@ -171,6 +182,32 @@ void str_reverse(char* str)
     }
 }
 
+
+// 去除字符串首尾的空格、\t、\n等空白字符
+char* str_trim(char* str)
+{
+    if (str == NULL)
+        return NULL;
+    // 找到字符串开始的非空白字符
+    char* p_start = str;
+    while (*p_start != '\0' && (*p_start == ' ' || *p_start == '\t' || *p_start == '\n')) {
+        p_start++;
+    }
+
+    // 找到字符串末尾的非空白字符
+    char* p_end = str + strlen(str) - 1;
+    while (p_end > p_start && (*p_end == ' ' || *p_end == '\t' || *p_end == '\n')) {
+        p_end--;
+    }
+
+    // 将非空白字符移动到字符串的开始，并在末尾添加字符串终止符
+    memmove(str, p_start, p_end - p_start + 1);
+    str[p_end - p_start + 1] = '\0';
+
+    return str;
+}
+
+// 字符串分割（类似 strtok）
 char* str_tok(char* str, const char* delim)
 {
     // 如果str不为NULL，则开始新的字符串解析
@@ -229,77 +266,9 @@ char* str_copy(char* dest, const char* src)
     return dest;
 }
 
-// 字符串拼接
-char* str_concat(char* dest, const char* src)
-{
-    // 先找得到dest的\0
-    while(*dest !='\0'){
-        dest++;
-    }
-    // 拼接
-    return str_copy(dest, src);
-}
 
-// 字符串长度
-u32 str_length(const char* str)
-{
-    u32 len = 0;
-    while (*str != '\0') {
-        len++;
-        str++;
-    }
-    return len;
-}
 
-// 字符串比较
-i32 str_compare(const char* str1, const char* str2)
-{
-    while (*str1 != '\0' && *str2 != '\0') {
-        if (*str1 != *str2)
-            return *str1 - *str2;
-        str1++;
-        str2++;
-    }
-    return *str1 - *str2;
-}
 
-// 字符串搜索字串
-char* str_find(const char* str, const char* substr)
-{
-    // TODO
-    return NULL;
-}
-
-// 字符串替换
-char* str_replace(char* str, const char* old, const char* new)
-{
-    // TODO
-    return NULL;
-}
-
-// 去除字符串首尾的空格、\t、\n等空白字符
-char* str_trim(char* str)
-{
-    if (str == NULL)
-        return NULL;
-    // 找到字符串开始的非空白字符
-    char* p_start = str;
-    while (*p_start != '\0' && (*p_start == ' ' || *p_start == '\t' || *p_start == '\n')) {
-        p_start++;
-    }
-
-    // 找到字符串末尾的非空白字符
-    char* p_end = str + strlen(str) - 1;
-    while (p_end > p_start && (*p_end == ' ' || *p_end == '\t' || *p_end == '\n')) {
-        p_end--;
-    }
-
-    // 将非空白字符移动到字符串的开始，并在末尾添加字符串终止符
-    memmove(str, p_start, p_end - p_start + 1);
-    str[p_end - p_start + 1] = '\0';
-
-    return str;
-}
 
 #if TEST_ENABLE
 

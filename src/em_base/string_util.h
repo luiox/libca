@@ -8,28 +8,37 @@
  * @copyright Copyright (c) 2025
  * 
  */
-#ifndef STRING_UTIL_H
-#define STRING_UTIL_H
+#ifndef LIBCA_EM_BASE_STRING_UTIL_H
+#define LIBCA_EM_BASE_STRING_UTIL_H
 
 #include "datatype.h"
+#include <stdbool.h>
 
 // 字符串长度（类似 strlen，但更安全）
 usize str_len(const char* str);
 
-// 字符串复制（类似 strncpy，但确保终止符）
-char* str_cpy(char* dest, const char* src, usize size);
+usize str_nlen(const char* str, usize max_len);
+
+// 字符串复制（类似 strncpy，但确保终止符），大于0时，返回实际复制的字符串长度，小于0时，返回的是错误码
+i32 str_cpy(char* dest, const char* src, usize size);
+
+// 字符串拼接，大于0时，返回实际复制的字符串长度，小于0时，返回的是错误码
+i32 str_cat(char* dest, const char* src, usize dest_max_size);
 
 // 字符串比较（类似 strncmp）
-int str_cmp(const char* s1, const char* s2, usize size);
+i32 str_cmp(const char* s1, const char* s2, usize size);
+
+// 对str_cmp的一个封装，方便if (str_is_equal(s1, "START")) 这种判断
+bool str_is_equal(const char* s1, const char* s2);
 
 // 查找字符（类似 strchr）
-char* str_chr(const char* str, char c);
+char* str_find_ch(const char* str, char c);
 
 // 查找子串（类似 strstr）
-char* str_str(const char* haystack, const char* needle);
+char* str_find_str(const char* haystack, const char* needle);
 
-// 字符串分割（类似 strtok）
-char* str_tok(char* str, const char* delim);
+// 去除字符串首尾的空格、\t、\n等空白字符，原地实现，返回去除以后字符串的长度
+i32 str_trim(char* str);
 
 // 字符串转大写
 void str_to_upper(char* str);
@@ -40,27 +49,18 @@ void str_to_lower(char* str);
 // 反转字符串
 void str_reverse(char* str);
 
-// 十六进制字符串转整数
-bool hex_str_to_uint(const char* str, u32* out_value);
+// 判断是否以某个字符串开始
+bool str_starts_with(const char* str, const char* prefix);
 
-// 整数转十六进制字符串
-void uint_to_hex_str(u32 value, char* out_str, usize out_size);
+// 判断是否以某个字符串开始（忽略大小写）
+bool str_starts_with_i(const char* str, const char* prefix);
 
-///////////////////////////////////////////////////////////////////
-// 字符串拷贝
-char* str_copy(char* dest, const char* src);
-// 字符串拼接
-char* str_concat(char* dest, const char* src);
-// 字符串长度
-u32 str_length(const char* str);
-// 字符串比较
-i32 str_compare(const char* str1, const char* str2);
-// 字符串搜索字串
-char* str_find(const char* str, const char* substr);
-// 字符串替换
-char* str_replace(char* str, const char* old, const char* new);
-// 去除字符串首尾的空格、\t、\n等空白字符
-char* str_trim(char* str);
+// 判断是否以某个字符串结尾
+bool str_ends_with(const char* str, const char* suffix);
+
+// 判断是否以某个字符串结尾（忽略大小写）
+bool str_end_with_i(const char* str, const char* suffix);
+
 ///////////////////////////////////////////////////////////////////////////////
 // 内存设置
 void* mem_set(void* ptr, uint8_t value, uint32_t num);
@@ -70,20 +70,15 @@ void* mem_copy(void* dest, const void* src, uint32_t num);
 void* mem_move(void* dest, const void* src, uint32_t num);
 // 内存比较
 int32_t mem_compare(const void* ptr1, const void* ptr2, uint32_t num);
+
+///////////////////////////////////////////////////////////////////////////////
 // 十六进制转换
 char* to_hex(const void* data, uint32_t data_len, char* buf, uint32_t buf_len);
-// 整数到字符串转换，最多16进制
-char* int_to_str(int32_t value, char* str, int8_t base);
-// 字符串到整数转换
-int32_t str_to_int(const char* str, char** endptr, int8_t base);
-// 反转字符串
-void reverse_str(char* str);
-// 复制字符串到新分配的内存
-char* str_duplicate(const char* str);
-// 获取子字符串
-char* str_substr(const char* str, uint32_t start, uint32_t len);
-// 字符串分词
-int str_tokenize(char* str, const char* delimiters, char** tokens, int max_tokens);
 
+// 十六进制字符串转整数
+bool hex_str_to_uint(const char* str, u32* out_value);
 
-#endif   // !STRING_UTIL_H
+// 整数转十六进制字符串
+void uint_to_hex_str(u32 value, char* out_str, usize out_size);
+
+#endif   // !LIBCA_EM_BASE_STRING_UTIL_H
