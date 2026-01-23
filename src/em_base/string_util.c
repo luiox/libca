@@ -598,6 +598,11 @@ TEST_CASE(test_str_ends_with_i)
     TEST_ASSERT_TRUE(str_ends_with_i("hello", "LO"));
     TEST_ASSERT_FALSE(str_ends_with_i("hello", "LA"));
 
+    // 边缘情况
+    TEST_ASSERT_FALSE(str_ends_with_i("hi", "hello")); // 后缀比主串长
+    TEST_ASSERT_TRUE(str_ends_with_i("hello", ""));    // 空后缀
+    TEST_ASSERT_TRUE(str_ends_with_i("", ""));         // 双方都为空
+
     // 异常输入
     TEST_ASSERT_FALSE(str_ends_with_i(NULL, "LO"));
     TEST_ASSERT_FALSE(str_ends_with_i("hello", NULL));
