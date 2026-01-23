@@ -21,3 +21,9 @@ target("test-debug")
     set_kind("binary")
     add_files("debug.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
+
+-- memory_util的单元测试
+target("test-memory_util")
+    set_kind("binary")
+    add_files("memory_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })

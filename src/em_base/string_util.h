@@ -180,39 +180,6 @@ bool str_ends_with(const char* str, const char* suffix);
  */
 bool str_ends_with_i(const char* str, const char* suffix);
 
-
-#if 0
-///////////////////////////////////////////////////////////////////////////////
-// 内存操作
-void* mem_set(void* ptr, u8 value, u32 num);
-void* mem_copy(void* dest, const void* src, u32 num);
-void* mem_move(void* dest, const void* src, u32 num);
-i32 mem_compare(const void* ptr1, const void* ptr2, u32 num);
-
-///////////////////////////////////////////////////////////////////////////////
-// 十六进制转换
-char* to_hex(const void* data, u32 data_len, char* buf, u32 buf_len);
-
-/**
- * @brief 十六进制字符串转整数
- * 
- * @param str 字符串
- * @param out_value 输出值
- * @return bool 成功返回 true
- */
-bool hex_str_to_uint(const char* str, u32* out_value);
-
-/**
- * @brief 整数转十六进制字符串
- * 
- * @param value 整数
- * @param out_str 输出缓冲区
- * @param out_size 缓冲区大小
- */
-void uint_to_hex_str(u32 value, char* out_str, usize out_size);
-
-#endif
-
 #ifdef __cplusplus
 }
 #endif
