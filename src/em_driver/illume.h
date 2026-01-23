@@ -1,6 +1,7 @@
 /**
  * @file illume.h
  * @author canrad (1517807724@qq.com)
+ * 参考文档：https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/photoresistance-sensor.html
  * @brief 光敏电阻传感器驱动
  * @version 0.1
  * @date 2026-01-23
