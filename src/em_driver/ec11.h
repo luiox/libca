@@ -1,0 +1,132 @@
+/**
+ * @file ec11.h
+ * @author canrad (1517807724@qq.com)
+ * @brief EC11 旋转编码器驱动
+ * 参考文档：https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/ec11.html
+ * @version 0.1
+ * @date 2026-01-23
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+#ifndef LIBCA_EM_DRIVER_EC11_H
+#define LIBCA_EM_DRIVER_EC11_H
+
+#include "../em_base/datatype.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// port
+typedef struct ec11_port
+{
+    /**
+     * @brief 读取引脚电平
+     *
+     * @param gpio GPIO 句柄
+     * @param pin 引脚编号
+     * @return u8 0 为低电平，1 为高电平
+     */
+    u8 (*read_pin)(void* gpio, u16 pin);
+} ec11_port_t;
+
+/**
+ * @brief 绑定硬件接口
+ *
+ * @param port 接口结构体
+ */
+void ec11_bind_port(const ec11_port_t* port);
+
+/**
+ * @brief 检查接口是否已注册
+ *
+ * @return bool true 为已注册
+ */
+bool ec11_port_is_registered(void);
+
+/**
+ * @brief 旋转方向枚举
+ */
+typedef enum ec11_rotation_enum
+{
+    EC11_ROTATION_NONE  = 0,
+    EC11_ROTATION_LEFT  = 1,
+    EC11_ROTATION_RIGHT = 2
+} ec11_rotation;
+
+/**
+ * @brief EC11 对象结构体
+ */
+typedef struct ec11
+{
+    void* clk_gpio;
+    u16   clk_pin;
+    void* dt_gpio;
+    u16   dt_pin;
+    void* sw_gpio;
+    u16   sw_pin;
+
+    u8 last_clk_state;
+    u8 last_dt_state;
+    u8 last_sw_state;
+
+    // sw是高电平还是低电平时候是按下
+    u8 sw_when_down_state;
+
+    i32           rotation_count;   // 累计旋转计数值
+    ec11_rotation last_item;        // 上一次扫描探测到的旋转方向
+} ec11_t;
+
+/**
+ * @brief 初始化 EC11 对象
+ *
+ * @param self 对象指针
+ * @param clk_gpio CLK 引脚的 GPIO 句柄
+ * @param clk_pin CLK 引脚编号
+ * @param dt_gpio DT 引脚的 GPIO 句柄
+ * @param dt_pin DT 引脚编号
+ * @param sw_gpio SW 引脚的 GPIO 句柄
+ * @param sw_pin SW 引脚编号
+ * @param sw_when_down_state SW 按下时的电平（0 或 1）
+ */
+void ec11_init(ec11_t* self, void* clk_gpio, u16 clk_pin, void* dt_gpio, u16 dt_pin, void* sw_gpio,
+               u16 sw_pin, u8 sw_when_down_state);
+
+/**
+ * @brief 扫描 EC11 状态
+ *
+ * @param self 对象指针
+ * @return ec11_rotation 探测到的旋转方向
+ */
+ec11_rotation ec11_scan(ec11_t* self);
+
+/**
+ * @brief 获取旋转计数值
+ *
+ * @param self 对象指针
+ * @return i32 计数值
+ */
+i32 ec11_get_count(ec11_t* self);
+
+/**
+ * @brief 重置旋转计数值
+ *
+ * @param self 对象指针
+ */
+void ec11_reset_count(ec11_t* self);
+
+/**
+ * @brief 获取按键是否按下
+ *
+ * @param self 对象指针
+ * @return bool true 为按下
+ * @note 内部不包含延时消抖，调用者根据业务需求可以自行添加 delay (如 100ms) 以确保状态稳定
+ */
+bool ec11_is_sw_down(ec11_t* self);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif   // !LIBCA_EM_DRIVER_EC11_H
