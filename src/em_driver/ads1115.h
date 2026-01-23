@@ -123,9 +123,13 @@ typedef enum ads1115_rate_enum {
  * @brief ADS1115 对象结构体
  */
 typedef struct ads1115 {
-    void* hi2c;
-    u8    dev_addr;   // 7 位地址
-    f32   gain_lsb;   // 当前增益对应的 LSB 电压值
+    void*        hi2c;
+    u8           dev_addr;   // 7 位地址
+    f32          gain_lsb;   // 当前增益对应的 LSB 电压值
+    ads1115_mux  mux;        // 当前通道配置
+    ads1115_pga  pga;        // 当前增益器配置
+    ads1115_mode mode;       // 存储当前工作模式
+    ads1115_rate rate;       // 存储当前采样率
 } ads1115_t;
 
 /**

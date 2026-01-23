@@ -22,7 +22,11 @@ void ads1115_init(ads1115_t* self, void* hi2c, u8 dev_addr)
 {
     self->hi2c     = hi2c;
     self->dev_addr = dev_addr;
-    self->gain_lsb = 0.000125f;   // 默认 4.096V 量程 (PGA bits = 001)
+    self->gain_lsb = 2.048f / 32768.0f; // 默认 ±2.048V
+    self->mux      = ADS1115_MUX_DIFF_0_1;
+    self->pga      = ADS1115_PGA_2048;
+    self->mode     = ADS1115_MODE_SINGLE;
+    self->rate     = ADS1115_RATE_128;
 }
 
 static i32 ads1115_write_reg(ads1115_t* self, u8 reg, u16 value)
@@ -57,7 +61,12 @@ static i32 ads1115_read_reg(ads1115_t* self, u8 reg, u16* value)
 i32 ads1115_config(ads1115_t* self, ads1115_mux mux, ads1115_pga pga, ads1115_mode mode,
                    ads1115_rate rate)
 {
-    u16 config = 0x8003;   // 默认 OS=1 (开始转换), COMP_QUE=3 (关闭比较器)
+    self->mux  = mux;
+    self->pga  = pga;
+    self->mode = mode;
+    self->rate = rate;
+
+    u16 config = 0x0003;   // 默认 COMP_QUE=3 (关闭比较器)
     config |= (u16)(mux << 12);
     config |= (u16)(pga << 9);
     config |= (u16)(mode << 8);
@@ -83,8 +92,44 @@ i32 ads1115_config(ads1115_t* self, ads1115_mux mux, ads1115_pga pga, ads1115_mo
 
 i32 ads1115_read_raw(ads1115_t* self, i16* raw_val)
 {
+    i32 ret;
+
+    if (self->mode == ADS1115_MODE_SINGLE) {
+        u16 config;
+        ret = ads1115_read_reg(self, ADS1115_REG_CONFIG, &config);
+        if (ret != ADS1115_OK)
+            return ret;
+
+        // 设置 OS 位以开始单次转换
+        config |= (1 << 15);
+        ret = ads1115_write_reg(self, ADS1115_REG_CONFIG, config);
+        if (ret != ADS1115_OK)
+            return ret;
+
+        // 等待转换完成
+        if (!g_port || !g_port->delay_ms)
+            return ADS1115_ERR_PORT_NOT_REGISTERED;
+
+        // 通过轮询 OS 位来等待转换完成 (当 OS 位为 1 时表示完成)
+        // 根据采样率计算一个合理的超时时间
+        const u16 conversion_time_ms[] = { 126, 63, 32, 16, 8, 4, 3, 2 };   // 对应各速率的转换时间(ms)
+        u16       timeout_ms           = conversion_time_ms[self->rate];
+        u16       poll_count           = 0;
+        do {
+            g_port->delay_ms(1);
+            ret = ads1115_read_reg(self, ADS1115_REG_CONFIG, &config);
+            if (ret != ADS1115_OK)
+                return ret;
+            poll_count++;
+        } while (!((config >> 15) & 1) && poll_count < timeout_ms);
+
+        if (poll_count >= timeout_ms) {
+            return ADS1115_ERR_TIMEOUT;
+        }
+    }
+
     u16 val;
-    i32 ret = ads1115_read_reg(self, ADS1115_REG_CONVERSE, &val);
+    ret = ads1115_read_reg(self, ADS1115_REG_CONVERSE, &val);
     if (ret == ADS1115_OK) {
         *raw_val = (i16)val;
     }
