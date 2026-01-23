@@ -104,8 +104,14 @@ i32 str_cat(char* dest, const char* src, usize dest_max_size)
 
 i32 str_cmp(const char* s1, const char* s2, usize size)
 {
-    if (!s1 || !s2 || size == 0) {
+    if (s1 == s2 || size == 0) {
         return 0;
+    }
+    if (!s1) {
+        return -1;
+    }
+    if (!s2) {
+        return 1;
     }
 
     for (usize i = 0; i < size; i++) {
@@ -383,6 +389,9 @@ TEST_CASE(test_str_nlen)
     TEST_ASSERT_EQUAL_UINT(5, str_nlen("hello", 10));
     TEST_ASSERT_EQUAL_UINT(3, str_nlen("hello", 3));
     TEST_ASSERT_EQUAL_UINT(0, str_nlen("hello", 0));
+    
+    // 边界情况：max_len 正好在字符串中间截断
+    TEST_ASSERT_EQUAL_UINT(3, str_nlen("hello", 3));
 }
 
 TEST_CASE(test_str_cpy)
@@ -391,6 +400,10 @@ TEST_CASE(test_str_cpy)
     // 正常拷贝
     TEST_ASSERT(str_cpy(buf, "hello", 10) == 5);
     TEST_ASSERT_EQUAL_STRING("hello", buf);
+    
+    // 拷贝空字符串
+    TEST_ASSERT_EQUAL_INT(0, str_cpy(buf, "", 10));
+    TEST_ASSERT_EQUAL_STRING("", buf);
     
     // 溢出检查
     TEST_ASSERT_EQUAL_INT(STR_ERR_SIZE, str_cpy(buf, "hello world", 5));
@@ -431,9 +444,11 @@ TEST_CASE(test_str_cmp)
     TEST_ASSERT(str_cmp("abd", "abc", 3) > 0);
     TEST_ASSERT_EQUAL_INT(0, str_cmp("abc", "abcd", 3));
     
-    // 边缘情况
-    TEST_ASSERT_EQUAL_INT(0, str_cmp(NULL, "abc", 3));
-    TEST_ASSERT_EQUAL_INT(0, str_cmp("abc", NULL, 3));
+    // NULL 比较逻辑
+    TEST_ASSERT_EQUAL_INT(0, str_cmp(NULL, NULL, 3));
+    TEST_ASSERT(str_cmp(NULL, "abc", 3) < 0);
+    TEST_ASSERT(str_cmp("abc", NULL, 3) > 0);
+    
     TEST_ASSERT_EQUAL_INT(0, str_cmp("abc", "abc", 0));
 }
 
@@ -484,6 +499,11 @@ TEST_CASE(test_str_trim)
     TEST_ASSERT(str_trim(s2) == 5);
     TEST_ASSERT_EQUAL_STRING("world", s2);
     
+    // 无需 trim 的字符串
+    char s_no_trim[] = "hello";
+    TEST_ASSERT_EQUAL_INT(5, str_trim(s_no_trim));
+    TEST_ASSERT_EQUAL_STRING("hello", s_no_trim);
+    
     // 全空格/空字符串
     char s3[] = "   ";
     TEST_ASSERT(str_trim(s3) == 0);
@@ -524,6 +544,11 @@ TEST_CASE(test_str_starts_with)
 {
     TEST_ASSERT_TRUE(str_starts_with("hello", "he"));
     TEST_ASSERT_FALSE(str_starts_with("hello", "ha"));
+    
+    // 边缘情况
+    TEST_ASSERT_FALSE(str_starts_with("hi", "hello")); // 前缀比主串长
+    TEST_ASSERT_TRUE(str_starts_with("hello", ""));    // 空前缀
+    TEST_ASSERT_TRUE(str_starts_with("", ""));         // 双方都为空
 }
 
 TEST_CASE(test_str_starts_with_i)
