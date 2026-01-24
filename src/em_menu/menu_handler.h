@@ -8,4 +8,7 @@ void menu_handler_main(menu_context_t* ctx, menu_t* menu);
 void menu_handler_setting(menu_context_t* ctx, menu_t* menu);
 void menu_handler_about(menu_context_t* ctx, menu_t* menu);
 
+// 用户手动实现的页面
+void menu_handler_custom_ui(menu_context_t* ctx, menu_t* menu);
+
 #endif

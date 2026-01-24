@@ -3,41 +3,39 @@
 #include "menu_router.h"
 #include "menu_data.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
-#include <stdbool.h>
+#include <string.h>
 
-// SDL2 全局变量
+
+// SDL2 适配层
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
+static TTF_Font* g_font = NULL;
 static bool g_quit = false;
 
-// --- 适配层实现 ---
-
 void sdl_draw_string(u16 x, u16 y, const char* str, u16 color_fg, u16 color_bg) {
-    // 模拟：在 SDL 窗口里画一个矩形代表文字区域 (真实开发请使用 SDL_ttf)
-    SDL_Rect rect = { x, y, (int)strlen(str) * 8, 16 };
-    u8 r = (color_fg >> 11) << 3;
-    u8 g = ((color_fg >> 5) & 0x3F) << 2;
-    u8 b = (color_fg & 0x1F) << 3;
+    if (!g_font) return;
 
-    // 先画背景颜色
-    u8 br = (color_bg >> 11) << 3;
-    u8 bg_g = ((color_bg >> 5) & 0x3F) << 2;
-    u8 bg_b = (color_bg & 0x1F) << 3;
-    SDL_SetRenderDrawColor(g_renderer, br, bg_g, bg_b, 255);
-    SDL_RenderFillRect(g_renderer, &rect);
+    SDL_Color fg = { (u8)((color_fg >> 11) << 3), (u8)(((color_fg >> 5) & 0x3F) << 2), (u8)((color_fg & 0x1F) << 3), 255 };
+    SDL_Color bg = { (u8)((color_bg >> 11) << 3), (u8)(((color_bg >> 5) & 0x3F) << 2), (u8)((color_bg & 0x1F) << 3), 255 };
 
-    // 再画一个框代表文字
-    SDL_SetRenderDrawColor(g_renderer, r, g, b, 255);
-    SDL_RenderDrawRect(g_renderer, &rect);
+    // 使用 TTF_RenderText_Shaded 可以同时绘制背景色和前景色
+    SDL_Surface* surface = TTF_RenderUTF8_Shaded(g_font, str, fg, bg);
+    if (!surface) return;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(g_renderer, surface);
+    SDL_Rect dst_rect = { x, y, surface->w, surface->h };
+    
+    SDL_RenderCopy(g_renderer, texture, NULL, &dst_rect);
+
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
 }
 
 void sdl_fill_rect(u16 x, u16 y, u16 w, u16 h, u16 color) {
     SDL_Rect rect = { x, y, w, h };
-    u8 r = (color >> 11) << 3;
-    u8 g = ((color >> 5) & 0x3F) << 2;
-    u8 b = (color & 0x1F) << 3;
-    SDL_SetRenderDrawColor(g_renderer, r, g, b, 255);
+    SDL_SetRenderDrawColor(g_renderer, (color >> 11) << 3, ((color >> 5) & 0x3F) << 2, (color & 0x1F) << 3, 255);
     SDL_RenderFillRect(g_renderer, &rect);
 }
 
@@ -51,44 +49,24 @@ void sdl_frame_control(void) {
     SDL_Delay(16);
 }
 
-// --- 纯用户绘制页面示例 (手写代码) ---
-
-void my_custom_ui_handler(menu_context_t* ctx, menu_t* menu) {
-    // 处理退出自定义界面的逻辑
-    if (menu->event == MENU_EVENT_BACK) {
-        menu_set_page(menu, PAGE_ID_MAIN);
-        return;
-    }
-
-    // 这里是纯手写的绘图逻辑，完全不依赖于菜单的 cursor_pos 逻辑
-    static int angle = 0;
-    angle = (angle + 2) % 360;
-
-    // 画一个动起来的色块
-    u16 x = 120 + (u16)(50 * cos(angle * 0.0174f));
-    u16 y = 100 + (u16)(50 * sin(angle * 0.0174f));
-    
-    ctx->fill_rect(0, 0, menu->width, menu->height, 0x1111); // 深灰色背景
-    ctx->fill_rect(x, y, 40, 40, 0xF800);                   // 红色动块
-    
-    ctx->draw_string(10, 10, "USER CUSTOM PAGE", 0xFFFF, 0x0000);
-    ctx->draw_string(10, 220, "Press ESC to go back", 0x7E0, 0x0000);
-}
-
-// --- 为了演示，我们在运行时手动把自定义页面挂载到路由 ---
-// 在真实项目中，这可以在 menu_router.c 的 g_routes 数组里静态初始化
-extern menu_page_handler_t g_user_custom_handler; 
-
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) return -1;
+    if (TTF_Init() < 0) return -1;
 
-    g_window = SDL_CreateWindow("Simulator - Pure UI + Menu", 
-                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 
-                               320, 240, SDL_WINDOW_SHOWN);
+    g_window = SDL_CreateWindow("MCU Menu Simulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 320, 240, SDL_WINDOW_SHOWN);
     g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_ACCELERATED);
+
+    // 加载中文字体以支持中文显示，请确保路径正确
+    // Windows 下常用的字体路径: "C:/Windows/Fonts/msyh.ttc" (微软雅黑) 或 "C:/Windows/Fonts/simhei.ttf" (黑体)
+    g_font = TTF_OpenFont("C:/Windows/Fonts/msyh.ttc", 16);
+    if (!g_font) {
+        // 如果找不到微软雅黑，尝试 Arial (仅支持英文)
+        g_font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 16);
+    }
 
     menu_t my_menu;
     menu_init(&my_menu, 320, 240);
+    my_menu.should_repaint = 1; // 默认开启重绘测试
 
     menu_context_t ctx = {
         .draw_string = sdl_draw_string,
@@ -97,9 +75,8 @@ int main(int argc, char* argv[]) {
         .frame_control = sdl_frame_control
     };
 
-    // 核心循环：模拟主流程管理
     while (!my_menu.should_exit && !g_quit) {
-        // 1. 获取输入
+        // 1. 获取输入 (外部采集)
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) g_quit = true;
@@ -113,21 +90,15 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // 2. 驱动菜单/流程核心逻辑
-        // 如果是自定义页面，可以使用特别的逻辑分发
-        if (my_menu.current_page == PAGE_ID_CUSTOM) {
-            my_custom_ui_handler(&ctx, &my_menu);
-        } else {
-            menu_tick(&ctx, &my_menu);
-        }
-        
-        // 3. 提交绘图
-        sdl_render();
-        sdl_frame_control();
+        // 2. 一切尽在 menu_tick (Master Pulse)
+        // 现在 render() 和 frame_control() 已经被“注入”进去由 menu_tick 调用了
+        menu_tick(&ctx, &my_menu);
     }
 
+    if (g_font) TTF_CloseFont(g_font);
     SDL_DestroyRenderer(g_renderer);
     SDL_DestroyWindow(g_window);
+    TTF_Quit();
     SDL_Quit();
     return 0;
 }

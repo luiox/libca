@@ -12,8 +12,13 @@ static void draw_item(menu_context_t* ctx, menu_t* menu, u16 y, const char* labe
     if (selected && ctx->fill_rect) {
         ctx->fill_rect(0, y, menu->width, menu->font_size, bg);
     }
+    
     if (ctx->draw_string) {
-        ctx->draw_string(4, y, label, fg, bg);
+        if (selected) {
+            ctx->draw_string(4, y, "->", fg, bg);
+        }
+        // 给起始位置留出 2 个字符的宽度 (假设每个字约 8-12 像素，这里给 24 像素偏移)
+        ctx->draw_string(24, y, label, fg, bg);
     }
 }
 
@@ -51,4 +56,25 @@ void menu_handler_setting(menu_context_t* ctx, menu_t* menu) {
     if (ctx->draw_string) ctx->draw_string(2, 0, "--- SETTINGS ---", menu->color_fg, menu->color_bg);
     draw_item(ctx, menu, 20, "Brightness", menu->cursor_pos == 0);
     draw_item(ctx, menu, 40, "Volume",     menu->cursor_pos == 1);
+}
+
+#include <math.h>
+void menu_handler_custom_ui(menu_context_t* ctx, menu_t* menu) {
+    if (menu->event == MENU_EVENT_BACK) {
+        menu_set_page(menu, PAGE_ID_MAIN);
+        return;
+    }
+
+    // 纯手写的绘图逻辑
+    static int angle = 0;
+    angle = (angle + 2) % 360;
+
+    u16 x = 120 + (u16)(50 * cos(angle * 0.0174f));
+    u16 y = 100 + (u16)(50 * sin(angle * 0.0174f));
+    
+    ctx->fill_rect(0, 0, menu->width, menu->height, 0x1111);
+    ctx->fill_rect(x, y, 40, 40, 0xF800);
+    
+    ctx->draw_string(10, 10, "USER CUSTOM PAGE", 0xFFFF, 0x0000);
+    ctx->draw_string(10, 220, "Press ESC to go back", 0x7E0, 0x0000);
 }
