@@ -1,27 +1,27 @@
 #include "eimui.h"
 #include <string.h>
 
-void menu_init(menu_t* menu, u16 w, u16 h) {
-    memset(menu, 0, sizeof(menu_t));
-    menu->width = w;
-    menu->height = h;
-    menu->color_fg = 0xFFFF; // Default White
-    menu->color_bg = 0x0000; // Default Black
-    menu->font_size = 16;
-    menu->current_page = 0;
+void eimui_init(eimui_t* eimui, u16 w, u16 h) {
+    memset(eimui, 0, sizeof(eimui_t));
+    eimui->width = w;
+    eimui->height = h;
+    eimui->color_fg = 0xFFFF; // Default White
+    eimui->color_bg = 0x0000; // Default Black
+    eimui->font_size = 16;
+    eimui->current_page = 0;
 }
 
-void menu_tick(menu_context_t* ctx, menu_t* menu) {
-    if (menu->should_exit) return;
+void eimui_tick(eimui_context_t* ctx, eimui_t* self) {
+    if (self->should_exit) return;
 
     // 1. 根据当前页面ID路由到对应的处理函数，处理输入事件和绘制页面
-    menu_route_handler(ctx, menu);
+    eimui_route_handler(ctx->dops, self);
 
     // 2. handler处理完后清空事件
-    menu->event = MENU_EVENT_NONE;
+    self->event = EIMUI_EVENT_NONE;
 
     // 3. 渲染到屏幕
-    if(menu->should_repaint){
+    if(self->should_repaint){
         ctx->render();
     }
 
@@ -29,19 +29,19 @@ void menu_tick(menu_context_t* ctx, menu_t* menu) {
     ctx->frame_control();
 }
 
-void menu_set_page(menu_t* menu, page_t page_id) {
-    if (menu->current_page != page_id) {
-        menu->last_page = menu->current_page;
-        menu->current_page = page_id;
-        menu->cursor_pos = 0;
-        menu->scroll_offset = 0;
+void eimui_set_page(eimui_t* eimui, page_t page_id) {
+    if (eimui->current_page != page_id) {
+        eimui->last_page = eimui->current_page;
+        eimui->current_page = page_id;
+        eimui->cursor_pos = 0;
+        eimui->scroll_offset = 0;
     }
 }
 
-void menu_exit(menu_t* menu) {
-    menu->should_exit = 1;
+void eimui_exit(eimui_t* eimui) {
+    eimui->should_exit = 1;
 }
 
-void menu_input_event(menu_t* menu, menu_event_t event) {
-    menu->event = event;
+void eimui_input_event(eimui_t* eimui, eimui_event_t event) {
+    eimui->event = event;
 }

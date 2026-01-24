@@ -2,17 +2,17 @@
 #include "data.h"
 #include "handler.h"
 
-void menu_page_none_handler(menu_context_t* ctx, struct menu* menu)
+void eimui_page_none_handler(void* dops, eimui_t* self)
 {
 
 }
 
-void menu_route_handler(menu_context_t* ctx, struct menu* menu)
+void eimui_route_handler(void* dops, eimui_t* self)
 {
-    switch (menu->current_page) {
-    case PAGE_ID_MAIN: menu_handler_main(ctx, menu); break;
-    case PAGE_ID_SETTING:  menu_handler_setting(ctx, menu); break;
-    case PAGE_ID_CUSTOM: menu_handler_custom_ui(ctx, menu); break;
-    default: menu_page_none_handler(ctx, menu);
+    switch (self->current_page) {
+    case PAGE_ID_MAIN: eimui_handler_main(dops, self); break;
+    case PAGE_ID_SETTING:  eimui_handler_setting(dops, self); break;
+    case PAGE_ID_CUSTOM: eimui_handler_custom_ui(dops, self); break;
+    default: eimui_page_none_handler(dops, self);
     }
 }
