@@ -178,10 +178,11 @@ typedef struct file_transfer_ops
      */
     void (*start_send)(void *self, const char* filename, u32 file_size);
 
-    /**
+/**
      * @brief 获取当前传输的字节数
      *
      * @param self 协议对象实例指针 (如 xmodem_t*)
+     * @return i32 成功则返回已传输的字节数 (>=0)，失败则返回负数错误码。
      */
     i32 (*get_transferred_size)(void *self);
 } file_transfer_ops_t;
