@@ -48,7 +48,17 @@ enum {
 
 #define XMODEM_CTRLZ 0x1A
 
-
+i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data)
+{
+return 0;
+}
+// i32 xmodem_tick(void* self, u32 ms_delta);
+// i32 xmodem_process(void* self, const u8* in_buf, usize in_len);
+void xmodem_start_recv(void *self){}
+void xmodem_start_send(void *self, const char* filename, u32 file_size){}
+i32 xmodem_get_transferred_size(void *self){
+	return 0;
+}
 static void xmodem_tx_send_packet(xmodem_t* xm) {
     u8*   buf      = xm->packet_buf;
     usize data_len = 128; // Default to 128 for basic XMODEM
