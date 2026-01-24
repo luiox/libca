@@ -1,12 +1,9 @@
 #define SDL_MAIN_HANDLED
-#include "menu.h"
-#include "menu_router.h"
-#include "menu_data.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <string.h>
-
+#include "eimui.h"
 
 // SDL2 适配层
 static SDL_Window* g_window = NULL;

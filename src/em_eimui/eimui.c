@@ -1,5 +1,4 @@
-#include "menu.h"
-#include "menu_router.h"
+#include "eimui.h"
 #include <string.h>
 
 void menu_init(menu_t* menu, u16 w, u16 h) {

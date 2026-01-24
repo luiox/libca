@@ -104,4 +104,9 @@ void menu_exit(menu_t* menu);
  */
 void menu_input_event(menu_t* menu, menu_event_t event);
 
+
+// 外部实现
+void menu_route_handler(menu_context_t* ctx, struct menu* menu);
+
+
 #endif

@@ -1,7 +1,5 @@
-#ifndef LIBCA_EM_MENU_MENU_DATA_H
-#define LIBCA_EM_MENU_MENU_DATA_H
-
-#include "menu.h"
+#ifndef LIBCA_EM_EIMUI_DATA_H
+#define LIBCA_EM_EIMUI_DATA_H
 
 // 页面 ID 定义 (由 Python 生成)
 #define PAGE_ID_MAIN      0
@@ -19,4 +17,4 @@
 #define ITEM_ID_VOLUME    202
 #define ITEM_ID_BACK      203
 
-#endif
+#endif // !LIBCA_EM_EIMUI_DATA_H

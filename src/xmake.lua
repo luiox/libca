@@ -23,8 +23,8 @@ includes("em_driver")
 includes("em_platform")
 -- log依赖platform
 includes("em_log")
--- menu依赖base
-includes("em_menu")
+-- eimui依赖base
+includes("em_eimui")
 
 includes("em_protocol")
 includes("em_component")

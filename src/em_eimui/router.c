@@ -1,6 +1,6 @@
-#include "menu_router.h"
-#include "menu_data.h"
-#include "menu_handler.h"
+#include "eimui.h"
+#include "data.h"
+#include "handler.h"
 
 void menu_page_none_handler(menu_context_t* ctx, struct menu* menu)
 {

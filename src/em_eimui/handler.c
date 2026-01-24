@@ -1,5 +1,5 @@
-#include "menu_handler.h"
-#include "menu_data.h"
+#include "handler.h"
+#include "data.h"
 #include <string.h>
 
 // 这个文件里的代码本质上都是由 Python 生成的

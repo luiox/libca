@@ -1,7 +1,7 @@
-#ifndef LIBCA_EM_MENU_MENU_HANDLER_H
-#define LIBCA_EM_MENU_MENU_HANDLER_H
+#ifndef LIBCA_EM_EIMUI_HANDLER_H
+#define LIBCA_EM_EIMUI_HANDLER_H
 
-#include "menu.h"
+#include "eimui.h"
 
 // 这些函数将由 Python 脚本自动生成并在 menu_handler.c 中实现
 void menu_handler_main(menu_context_t* ctx, menu_t* menu);
