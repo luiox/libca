@@ -1,3 +1,8 @@
-// 路由器，
-// 确定每个Page的handler
-// 确定每个Item的handler
+#ifndef LIBCA_EM_MENU_MENU_ROUTER_H
+#define LIBCA_EM_MENU_MENU_ROUTER_H
+
+#include "menu.h"
+
+void menu_route_handler(menu_context_t* ctx, struct menu* menu);
+
+#endif
