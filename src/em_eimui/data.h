@@ -3,8 +3,8 @@
 
 // 页面 ID 定义 (由 Python 生成)
 #define PAGE_ID_MAIN      0
-#define PAGE_ID_SETTING   1
-#define PAGE_ID_GAME      2
+#define PAGE_ID_BASIC     1
+#define PAGE_ID_ADVANCE   2
 #define PAGE_ID_CUSTOM    3
 
 // 菜单项 ID 定义 (由 Python 生成)

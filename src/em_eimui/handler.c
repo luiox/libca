@@ -26,16 +26,18 @@ static void draw_item(st7735_ops_t* ctx, eimui_t* self, u16 y, const char* label
 void eimui_handler_main(void* dops, eimui_t* self) {
     if (self->event == EIMUI_EVENT_ENTER) {
         if (self->cursor_pos == 0) {
-            eimui_set_page(self, PAGE_ID_SETTING); // Basic
-        } else {
-            eimui_set_page(self, PAGE_ID_GAME); // Advance
+            eimui_set_page(self, PAGE_ID_BASIC); // Basic
+        } else if (self->cursor_pos == 1) {
+            eimui_set_page(self, PAGE_ID_ADVANCE); // Advance
+        } else if (self->cursor_pos == 2) {
+            eimui_exit(self); // Exit the menu
         }
         self->should_repaint = true;
     } else if (self->event == EIMUI_EVENT_UP) {
         if (self->cursor_pos > 0) self->cursor_pos--;
         self->should_repaint = true;
     } else if (self->event == EIMUI_EVENT_DOWN) {
-        if (self->cursor_pos < 1) self->cursor_pos++;
+        if (self->cursor_pos < 2) self->cursor_pos++;
         self->should_repaint = true;
     }
 
@@ -45,10 +47,12 @@ void eimui_handler_main(void* dops, eimui_t* self) {
     y += self->font_size;
     draw_item(ctx, self, y, "Basic", self->cursor_pos == 0); y += self->font_size;
     draw_item(ctx, self, y, "Advance", self->cursor_pos == 1); y += self->font_size;
+    // 退出
+    draw_item(ctx, self, y, "Exit", self->cursor_pos == 2); y += self->font_size;
 }
 
 // BASIC page: Task1 / Task2
-void eimui_handler_setting(void* dops, eimui_t* self) {
+void eimui_handler_basic(void* dops, eimui_t* self) {
     if (self->event == EIMUI_EVENT_BACK) {
         eimui_set_page(self, PAGE_ID_MAIN);
         self->should_repaint = true;
@@ -79,7 +83,7 @@ void eimui_handler_setting(void* dops, eimui_t* self) {
 }
 
 // ADVANCE page: Task3 / Task4
-void eimui_handler_about(void* dops, eimui_t* self) {
+void eimui_handler_advance(void* dops, eimui_t* self) {
     if (self->event == EIMUI_EVENT_BACK) {
         eimui_set_page(self, PAGE_ID_MAIN);
         self->should_repaint = true;
