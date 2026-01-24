@@ -13,7 +13,6 @@
 #define LIBCA_EM_EIMUI_H
 
 #include "../em_base/datatype.h"
-#include <stdbool.h>
 
 // page不能大于255个
 typedef u8 page_t;
@@ -40,7 +39,6 @@ typedef struct eimui_context{
     // 帧率控制，这个函数将会在刷新屏幕以后调用，结束以后才是下个循环
     void (*frame_control)(void);
 }eimui_context_t;
-
 
 // 菜单结构体
 typedef struct eimui{
@@ -74,12 +72,12 @@ typedef struct eimui{
 }eimui_t;
 
 /**
- * @brief 初始化菜单
+ * @brief 初始化UI
  */
 void eimui_init(eimui_t* ui, u16 w, u16 h);
 
 /**
- * @brief 执行一次菜单逻辑 (Tick)
+ * @brief 执行一次UI逻辑 (Tick)
  */
 void eimui_tick(eimui_context_t* ctx, eimui_t* self);
 
@@ -89,17 +87,26 @@ void eimui_tick(eimui_context_t* ctx, eimui_t* self);
 void eimui_set_page(eimui_t* self, page_t page_id);
 
 /**
- * @brief 退出菜单
+ * @brief 退出UI
  */
 void eimui_exit(eimui_t* self);
 
 /**
- * @brief 输入事
+ * @brief 重绘
+ */
+void eimui_repaint(eimui_t* self);
+
+/**
+ * @brief 输入事件
  */
 void eimui_input_event(eimui_t* self, eimui_event_t event);
 
-
-// 外部实现
+/**
+ * @brief handler分发器，由router.c实现
+ * 
+ * @param dops 
+ * @param self 
+ */
 void eimui_route_handler(void* dops, eimui_t* self);
 
 
