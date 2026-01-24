@@ -56,6 +56,9 @@ typedef struct xmodem {
 
 }xmodem_t;
 
+// 文件传输协议接口
+const file_transfer_ops_t* get_xmodem_file_transfer_ops(void);
+
 /**
  * @brief 初始化 XModem 协议私有数据 (只初始化内部缓冲)
  */

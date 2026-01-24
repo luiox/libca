@@ -1,5 +1,28 @@
 #include "xmodem.h"
 #include "../em_util/crc.h"
+#include "../em_base/debug.h"
+#include <string.h>
+
+i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data);
+i32 xmodem_tick(void* self, u32 ms_delta);
+i32 xmodem_process(void* self, const u8* in_buf, usize in_len);
+void xmodem_start_recv(void *self);
+void xmodem_start_send(void *self, const char* filename, u32 file_size);
+i32 xmodem_get_transferred_size(void *self);
+
+static const file_transfer_ops_t g_xmodem_ops = {
+	.init = xmodem_init,
+	.tick = xmodem_tick,
+	.process = xmodem_process,
+	.start_recv = xmodem_start_recv,
+	.start_send = xmodem_start_send,
+	.get_transferred_size = xmodem_get_transferred_size,
+};
+
+const file_transfer_ops_t* get_xmodem_file_transfer_ops(void)
+{
+	return &g_xmodem_ops;
+}
 
 #define XMODEM_SOH 0x01
 #define XMODEM_STX 0x02
@@ -25,13 +48,6 @@ enum {
 
 #define XMODEM_CTRLZ 0x1A
 
-static u8 calculate_checksum(const u8* data, usize len) {
-	u8 checksum = 0;
-	for (usize i = 0; i < len; i++) {
-		checksum += data[i];
-	}
-	return checksum;
-}
 
 static void xmodem_tx_send_packet(xmodem_t* xm) {
     u8*   buf      = xm->packet_buf;
@@ -59,7 +75,7 @@ static void xmodem_tx_send_packet(xmodem_t* xm) {
         buf[3 + data_len + 1] = (u8)(crc & 0xFF);
         
     } else {
-        u8 chk = calculate_checksum(&buf[3], data_len);
+        u8 chk = checksum_calc_u8(&buf[3], data_len);
         buf[3 + data_len] = chk;
     }
 }
@@ -69,8 +85,8 @@ static void xmodem_tx_send_packet(xmodem_t* xm) {
 // in_len: 数据长度
 // 返回值: >0 表示处理后生成了需要回复的数据长度，0 表示无回复
 static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
-	assert(owner != NULL);
-	assert(in_buf != NULL);
+	param_check(owner != NULL);
+	param_check(in_buf != NULL);
 
 	xmodem_t* xm = (xmodem_t*)owner;
 	i32 reply_len = 0;
@@ -87,7 +103,7 @@ static i32 xmodem_process(void* owner, const u8* in_buf, usize in_len) {
 // ms_delta: 距离上次调用过去的时间（毫秒）
 // 返回值: >0 表示因为超时产生了需要回复的数据长度
 static i32 xmodem_tick(void* owner, u32 ms_delta) {
-	assert(owner != NULL);
+	param_check(owner != NULL);
 	xmodem_t* xm = (xmodem_t*)owner;
 
 	if (xm->is_transmitter) {
@@ -148,8 +164,8 @@ static i32 xmodem_tick(void* owner, u32 ms_delta) {
 // out_len: 缓冲区大小
 // 返回值: 实际填入的数据长度 (如果为0，表示暂时不需要发数据)
 static i32 xmodem_poll(void* owner, u8* out_buf, usize out_len) {
-	assert(owner != NULL);
-	assert(out_buf != NULL);
+	param_check(owner != NULL);
+	param_check(out_buf != NULL);
 
 	xmodem_t* xm = (xmodem_t*)owner;
 
@@ -191,15 +207,6 @@ static i32 xmodem_get_transferred_size_op(void *self) {
     if (!xm) return 0;
     return (i32)xm->offset;
 }
-
-const file_transfer_ops_t g_xmodem_ops = {
-    .init = xmodem_init_op,
-    .tick = xmodem_tick,
-    .process = xmodem_process,
-    .start_recv = xmodem_start_recv_op,
-    .start_send = xmodem_start_send_op,
-    .get_transferred_size = xmodem_get_transferred_size_op
-};
 
 void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb)
 {

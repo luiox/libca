@@ -33,4 +33,7 @@ u16 crc16_xmodem_fast(const void* data, usize size);
 u16 crc16_ymodem(const void* data, usize size);
 u16 crc16_ymodem_fast(const void* data, usize size);
 
+// u8的checksum计算
+u8 checksum_calc_u8(const u8* data, usize len);
+
 #endif // CRC_H
