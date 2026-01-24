@@ -5,6 +5,7 @@
 #include <string.h>
 #include "eimui.h"
 #include "st7735_mocker.h"
+#include "key_mocker.h"
 
 static bool g_quit = false;
 extern SDL_Window* g_window;
@@ -57,22 +58,19 @@ int main(int argc, char* argv[]) {
     my_menu.should_repaint = 1; // 默认开启重绘测试
 
     eimui_context_t* ctx = get_st7735_context();
-    
+
+    // initialize key mock to route keyboard events into eimui
+    key_mocker_init(&my_menu);
+
     while (!my_menu.should_exit && !g_quit) {
         // 1. 获取输入 (外部采集)
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) g_quit = true;
-            if (e.type == SDL_KEYDOWN) {
-                switch (e.key.keysym.sym) {
-                    case SDLK_UP:     eimui_input_event(&my_menu, EIMUI_EVENT_UP); break;
-                    case SDLK_DOWN:   eimui_input_event(&my_menu, EIMUI_EVENT_DOWN); break;
-                    case SDLK_RETURN: eimui_input_event(&my_menu, EIMUI_EVENT_ENTER); break;
-                    case SDLK_ESCAPE: eimui_input_event(&my_menu, EIMUI_EVENT_BACK); break;
-                }
-            }
+            // route keyboard events to key mock
+            key_mocker_handle_event(&e);
         }
-
+    
         // 2. 一切尽在 menu_tick (Master Pulse)
         // 现在 render() 和 frame_control() 已经被“注入”进去由 menu_tick 调用了
         eimui_tick(ctx, &my_menu);
