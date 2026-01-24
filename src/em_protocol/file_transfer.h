@@ -55,10 +55,10 @@
         成功 -> CALLBACK_WRITE。
         失败 -> SEND_NAK。
     CALLBACK_WRITE (执行写入)
-        动作：调用 cbs->on_write(offset, tmp_buf, len)。
+        动作：调用 cbs->on_recv(offset, tmp_buf, len)。
         逻辑：这是最关键的一步。 协议层将临时缓冲区里的数据“推”给应用层。
         风险控制：
-        如果 on_write 返回失败（例如 Flash 擦除未完成或写入错误），协议层不能发 ACK，
+        如果 on_recv 返回失败（例如 Flash 擦除未完成或写入错误），协议层不能发 ACK，
         必须视为校验失败，进入 SEND_NAK 流程，请求发送端重传当前包。
         状态转移：
         写入成功 -> SEND_ACK。
@@ -98,6 +98,13 @@ typedef struct
     /**
      * @brief 数据发送回调（供发送模式使用）：协议层向应用层读数据 App -> Protocol
      * 数据流：Serial <- Protocol <- [on_send] <- App
+     * 
+     * @param offset 当前文件偏移量
+     * @param buf 缓冲区
+     * @note 关于填充(Padding):
+     * 应用层只需拷贝实际存在的有效数据到 buf 中，并返回实际拷贝的字节数。
+     * 如果返回的字节数 < len，协议层(Ops)负责根据协议规范（如XMODEM）填充剩余字节(如0x1A)。
+     * 应用层不需关心协议的包大小对齐问题。
      */
     i32 (*on_send)(void *user_data, u32 offset, u8* buf, usize len);
  
