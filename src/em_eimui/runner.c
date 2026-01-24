@@ -12,18 +12,44 @@ extern SDL_Renderer* g_renderer;
 extern TTF_Font* g_font;
 
 int main(int argc, char* argv[]) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) return -1;
-    if (TTF_Init() < 0) return -1;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        SDL_Log("SDL_Init failed: %s", SDL_GetError());
+        return -1;
+    }
+    if (TTF_Init() < 0) {
+        SDL_Log("TTF_Init failed: %s", TTF_GetError());
+        SDL_Quit();
+        return -1;
+    }
 
     g_window = SDL_CreateWindow("MCU Menu Simulator", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 320, 240, SDL_WINDOW_SHOWN);
+    if (!g_window) {
+        SDL_Log("CreateWindow failed: %s", SDL_GetError());
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
     g_renderer = SDL_CreateRenderer(g_window, -1, SDL_RENDERER_ACCELERATED);
+    if (!g_renderer) {
+        SDL_Log("CreateRenderer failed: %s", SDL_GetError());
+        SDL_DestroyWindow(g_window);
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
 
     // 加载中文字体以支持中文显示，请确保路径正确
     // Windows 下常用的字体路径: "C:/Windows/Fonts/msyh.ttc" (微软雅黑) 或 "C:/Windows/Fonts/simhei.ttf" (黑体)
     g_font = TTF_OpenFont("C:/Windows/Fonts/msyh.ttc", 16);
     if (!g_font) {
+        SDL_Log("TTF_OpenFont msyh failed: %s", TTF_GetError());
         // 如果找不到微软雅黑，尝试 Arial (仅支持英文)
         g_font = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", 16);
+        if (!g_font) {
+            SDL_Log("TTF_OpenFont arial failed: %s", TTF_GetError());
+            // 继续运行但不会绘制文本，用户可在运行时调整字体路径
+        }
     }
 
     eimui_t my_menu;
@@ -52,9 +78,12 @@ int main(int argc, char* argv[]) {
         eimui_tick(ctx, &my_menu);
     }
 
+    // 清理资源（纹理缓存在这里也会被释放）
+    sdl_mocker_cleanup();
+
     if (g_font) TTF_CloseFont(g_font);
-    SDL_DestroyRenderer(g_renderer);
-    SDL_DestroyWindow(g_window);
+    if (g_renderer) SDL_DestroyRenderer(g_renderer);
+    if (g_window) SDL_DestroyWindow(g_window);
     TTF_Quit();
     SDL_Quit();
     return 0;

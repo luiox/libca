@@ -12,4 +12,7 @@ typedef struct st7735_ops{
 
 eimui_context_t* get_st7735_context(void);
 
+// 释放内部资源 (纹理缓存等)
+void sdl_mocker_cleanup(void);
+
 #endif 

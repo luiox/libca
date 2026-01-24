@@ -1,7 +1,7 @@
 /**
- * @file menu.h
+ * @file eimui.h
  * @author canrad (1517807724@qq.com)
- * @brief 数据驱动的MCU下的菜单系统
+ * @brief 数据驱动的MCU下的菜单系统 (eimui)
  * 保证对RAM的使用尽可能小，无动画，支持子菜单、翻页，选项行为
  * @version 0.1
  * @date 2026-01-24
@@ -9,10 +9,11 @@
  * @copyright Copyright (c) 2026
  * 
  */
-#ifndef LIBCA_EM_MENU_MENU_H
-#define LIBCA_EM_MENU_MENU_H
+#ifndef LIBCA_EM_EIMUI_H
+#define LIBCA_EM_EIMUI_H
 
 #include "../em_base/datatype.h"
+#include <stdbool.h>
 
 // page不能大于255个
 typedef u8 page_t;
@@ -61,9 +62,9 @@ typedef struct eimui{
     item_t scroll_offset;
 
     // 是否应该退出menu的菜单循环
-    u8 should_exit;
+    bool should_exit;
     // 是否应该重新绘制
-    u8 should_repaint;
+    bool should_repaint;
     
     // 最近一次发生的事件
     eimui_event_t event;
@@ -102,4 +103,4 @@ void eimui_input_event(eimui_t* self, eimui_event_t event);
 void eimui_route_handler(void* dops, eimui_t* self);
 
 
-#endif
+#endif // LIBCA_EM_EIMUI_H
