@@ -1,7 +1,7 @@
 #ifndef MYLIB_UTILITY_HEAP_H
 #define MYLIB_UTILITY_HEAP_H
 
-#include "datatype.h"
+#include "../em_base/datatype.h"
 
 void heap_init(void *buf, uint32_t size);
 

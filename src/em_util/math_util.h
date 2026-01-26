@@ -11,11 +11,11 @@
 #ifndef MATH_UTIL_H
 #define MATH_UTIL_H
 
-#include "compiler_helper.h"
-#include "datatype.h"
+#include "../em_base/compiler_helper.h"
+#include "../em_base/datatype.h"
 #include <stdbool.h>
 #include <math.h>
-#include "debug.h"  
+#include "../em_base/debug.h"  
 
 typedef struct
 {
