@@ -2,7 +2,11 @@ xmake命令
 xmake project -k vsxmake -m "debug,release"
 xmake project -k cmakelists
 
+生成`compile_command.json`
 
+```shell
+xmake project -k compile_commands
+```
 
 libca库里面，base是所有的都可以的
 
