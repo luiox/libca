@@ -227,6 +227,15 @@ u16 crc16_ymodem(const void* data, usize size)
     return crc16_xmodem(data, size);
 }
 
+u8 checksum_calc_u8(const u8* data, usize len)
+{
+    u8 checksum = 0;
+	for (usize i = 0; i < len; i++) {
+		checksum += data[i];
+	}
+	return checksum;
+}
+
 #if TEST_ENABLE
 #    include "../em_test/test.h"
 #    include <string.h>
