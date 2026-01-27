@@ -1,7 +1,7 @@
 #include "log.h"
 #include "../em_util/ringbuffer.h"
 #include "../em_platform/async.h"
-#include "../em_platform/soft_timer.h"
+#include "../em_platform/time_util.h"
 #include "../em_platform/cpu_adapter.h"
 
 #include <stdio.h>
