@@ -55,7 +55,7 @@ static inline void acumulate_timer_reset(acumulate_timer_t* self, timestamp_t st
 
 // 更新累计定时器
 static inline void acumulate_timer_update(acumulate_timer_t* self, timestamp_t current){
-    self->elapsed_ms = (u32)(current - self->start_time);
+    self->elapsed_ms += current;
 }
 
 // 获取累计的时间，单位毫秒
