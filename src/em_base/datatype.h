@@ -59,7 +59,13 @@ typedef void(*runnable_fn_t)(void);
 // 例: unused_param(a);
 #define unused_param(param) (void)(param)
 
-
+// 时间戳类型，单位微秒，开机后，一般来说基于SysTick或其他时基
+#if HAS_INT64
+typedef u64 timestamp_t;
+#else
+// 如果没有64位，使用32位时间戳
+typedef u32 timestamp_t;
+#endif
 
 // 获取一个结构体的成员指针
 // 例如
