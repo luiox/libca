@@ -222,12 +222,19 @@ i32 soft_i2c_mem_write(soft_i2c_t* self, u16 dev_addr, u16 mem_addr, u16 mem_add
     }
 
     if (mem_addr_size == 2) {
-        soft_i2c_send_byte(self, (u8)(mem_addr >> 8));
+        if (soft_i2c_send_byte(self, (u8)(mem_addr >> 8)) != 0) {
+            // 发送失败，断开连接
+            soft_i2c_stop(self);
+            return -1;
+        }
     }
-    soft_i2c_send_byte(self, (u8)mem_addr);
+    if (soft_i2c_send_byte(self, (u8)mem_addr) != 0) {
+        soft_i2c_stop(self);
+        return -1;
+    }
 
     for (u16 i = 0; i < data_size; i++) {
-        if (soft_i2c_send_byte(self, data[i])) {
+        if (soft_i2c_send_byte(self, data[i]) != 0) {
             soft_i2c_stop(self);
             return -1;
         }
@@ -243,18 +250,24 @@ i32 soft_i2c_mem_read(soft_i2c_t* self, u16 dev_addr, u16 mem_addr, u16 mem_addr
     unused_param(timeout);
 
     soft_i2c_start(self);
-    if (soft_i2c_send_byte(self, (u8)dev_addr | I2C_WRITE)) {
+    if (soft_i2c_send_byte(self, (u8)dev_addr | I2C_WRITE) != 0) {
         soft_i2c_stop(self);
         return -1;
     }
 
     if (mem_addr_size == 2) {
-        soft_i2c_send_byte(self, (u8)(mem_addr >> 8));
+        if (soft_i2c_send_byte(self, (u8)(mem_addr >> 8)) != 0) {
+            soft_i2c_stop(self);
+            return -1;
+        }
     }
-    soft_i2c_send_byte(self, (u8)mem_addr);
+    if (soft_i2c_send_byte(self, (u8)mem_addr) != 0) {
+        soft_i2c_stop(self);
+        return -1;
+    }
 
     soft_i2c_start(self); // 重启信号
-    if (soft_i2c_send_byte(self, (u8)dev_addr | I2C_READ)) {
+    if (soft_i2c_send_byte(self, (u8)dev_addr | I2C_READ) != 0) {
         soft_i2c_stop(self);
         return -1;
     }
