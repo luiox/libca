@@ -19,7 +19,10 @@
  * 4. 包含 soft_i2c_template_source.h 生成函数实现
  * 
  * @version 1.3
- * @date 2026-01-29
+ * @date 2024-05-12 原始移植
+ * update
+ * v1.2: 2025-08-1 修复delay错误
+ * v1.3: 2026-01-29 设计为模板生成的方式实现
  * 
  * @copyright Copyright (c) 2026
  * 

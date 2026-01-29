@@ -1,5 +1,18 @@
 #include "soft_i2c.h"
-#include "vhil.h"
+#include "debug.h"
+
+static const soft_i2c_port_t* g_soft_i2c_port;
+
+void soft_i2c_bind_port(const soft_i2c_port_t* port)
+{
+    param_check(port != NULL);
+    g_soft_i2c_port = port;
+}
+
+bool soft_i2c_port_is_registered(void)
+{
+    return g_soft_i2c_port != NULL;
+}
 
 #define i2c_sda_out(soft_i2c) soft_i2c->gpio_set_output_mode(soft_i2c->sda)
 #define i2c_sda_in(soft_i2c) soft_i2c->gpio_set_input_mode(soft_i2c->sda)
@@ -413,29 +426,29 @@ vhil_state_type_t soft_i2c_mem_read(soft_i2c_t* soft_i2c, u16 dev_addr, u16 mem_
 vhil_state_type_t soft_i2c_is_device_ready(soft_i2c_t* soft_i2c, u16 dev_addr, u32 trials,
                                            u32 timeout)
 {
-    uint8_t ack;
+    uint8_t  ack;
     uint32_t trial_cnt = 0;
-    
+
     if (trials == 0) {
         return VHAL_ERROR;
     }
-    
+
     do {
-        soft_i2c_init(soft_i2c); /* 初始化I2C总线 */
+        soft_i2c_init(soft_i2c);  /* 初始化I2C总线 */
         soft_i2c_start(soft_i2c); /* 发送启动信号 */
-        
+
         /* 发送设备地址+写控制bit */
         soft_i2c_send_byte(soft_i2c, dev_addr & 0xFE); /* 确保最低位为0（写操作） */
-        ack = soft_i2c_wait_ack(soft_i2c); /* 检测设备的ACK应答 */
-        
+        ack = soft_i2c_wait_ack(soft_i2c);             /* 检测设备的ACK应答 */
+
         soft_i2c_stop(soft_i2c); /* 发送停止信号 */
-        
+
         if (ack == 0) {
             return VHAL_OK; /* 设备响应，返回成功 */
         }
-        
+
         trial_cnt++;
     } while (trial_cnt < trials);
-    
+
     return VHAL_ERROR; /* 设备未响应，返回错误 */
 }
