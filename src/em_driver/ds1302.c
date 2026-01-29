@@ -97,6 +97,7 @@ void ds1302_write_byte(ds1302_t* self, u8 data) {
  * @return u8 读取到的字节
  */
 static u8 ds1302_read_byte(ds1302_t* self) {
+    param_check(self != NULL);
     u8 data = 0;
     g_port->set_input_mode(self->data_port, self->data_pin);
     for (u8 i = 0; i < 8; i++) {
