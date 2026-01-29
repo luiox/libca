@@ -44,16 +44,16 @@ bool ds1302_port_is_registered(void);
 
 /**
  * @brief 时间数据结构体
- * 
+ * 顺序与 DS1302 芯片寄存器顺序一致 (秒, 分, 时, 日, 月, 周, 年)
  */
 typedef struct ds1302_time {
-    u16 year;
-    u8 month;
-    u8 day;
-    u8 hour;
-    u8 minute;
     u8 second;
+    u8 minute;
+    u8 hour;
+    u8 day;
+    u8 month;
     u8 week;
+    u16 year;
 } ds1302_time_t;
 
 /**
@@ -117,6 +117,22 @@ void ds1302_get_time(ds1302_t* self, ds1302_time_t* time);
  * @param time 要设置的时间数据
  */
 void ds1302_set_time(ds1302_t* self, const ds1302_time_t* time);
+
+/**
+ * @brief 使用突发模式从DS1302读取实时时间
+ * 
+ * @param self 驱动对象
+ * @param time 存储的时间数据
+ */
+void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time);
+
+/**
+ * @brief 使用突发模式设置DS1302的实时时间
+ * 
+ * @param self 驱动对象
+ * @param time 要设置的时间数据
+ */
+void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time);
 
 #ifdef __cplusplus
 }

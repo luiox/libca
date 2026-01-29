@@ -11,6 +11,19 @@
 #define DS1302_REG_YEAR         0x8C
 #define DS1302_REG_WRITE_PROTECT 0x8E
 
+// 突发模式命令
+#define DS1302_CMD_BURST_READ   0xBF
+#define DS1302_CMD_BURST_WRITE  0xBE
+
+// 寄存器掩码
+#define DS1302_MASK_SECOND      0x7F
+#define DS1302_MASK_MINUTE      0x7F
+#define DS1302_MASK_HOUR        0x3F
+#define DS1302_MASK_DAY         0x3F
+#define DS1302_MASK_MONTH       0x1F
+#define DS1302_MASK_WEEK        0x07
+#define DS1302_MASK_YEAR        0xFF
+
 static const ds1302_port_t* g_port = NULL;
 
 void ds1302_bind_port(const ds1302_port_t* port) {
@@ -77,6 +90,27 @@ void ds1302_write_byte(ds1302_t* self, u8 data) {
     }
 }
 
+/**
+ * @brief 从DS1302读取一字节数据 (私有辅助函数)
+ * 
+ * @param self 驱动对象
+ * @return u8 读取到的字节
+ */
+static u8 ds1302_read_byte(ds1302_t* self) {
+    u8 data = 0;
+    g_port->set_input_mode(self->data_port, self->data_pin);
+    for (u8 i = 0; i < 8; i++) {
+        g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+        g_port->delay_us(1);
+        g_port->write_pin(self->sclk_port, self->sclk_pin, 1);
+        g_port->delay_us(1);
+        if (g_port->read_pin(self->data_port, self->data_pin)) {
+            data |= (1 << i);
+        }
+    }
+    return data;
+}
+
 void ds1302_write_reg(ds1302_t* self, u8 address, u8 data) {
     param_check(self != NULL);
 
@@ -104,17 +138,7 @@ u8 ds1302_read_reg(ds1302_t* self, u8 address) {
     g_port->delay_us(1);
 
     ds1302_write_byte(self, address | 0x01); // 确保第0位为1表示读
-    
-    g_port->set_input_mode(self->data_port, self->data_pin);
-    for (u8 i = 0; i < 8; i++) {
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-        g_port->delay_us(1);
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 1);
-        g_port->delay_us(1);
-        if (g_port->read_pin(self->data_port, self->data_pin)) {
-            data |= (1 << i);
-        }
-    }
+    data = ds1302_read_byte(self);
 
     g_port->write_pin(self->ce_port, self->ce_pin, 0);
     g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
@@ -126,12 +150,12 @@ void ds1302_get_time(ds1302_t* self, ds1302_time_t* time) {
     param_check(self != NULL);
     param_check(time != NULL);
 
-    time->second = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_SECOND) & 0x7F);
-    time->minute = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_MINUTE) & 0x7F);
-    time->hour = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_HOUR) & 0x3F);
-    time->day = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_DAY) & 0x3F);
-    time->month = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_MONTH) & 0x1F);
-    time->week = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_WEEK) & 0x07);
+    time->second = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_SECOND) & DS1302_MASK_SECOND);
+    time->minute = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_MINUTE) & DS1302_MASK_MINUTE);
+    time->hour = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_HOUR) & DS1302_MASK_HOUR);
+    time->day = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_DAY) & DS1302_MASK_DAY);
+    time->month = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_MONTH) & DS1302_MASK_MONTH);
+    time->week = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_WEEK) & DS1302_MASK_WEEK);
     time->year = bcd_to_dec(ds1302_read_reg(self, DS1302_REG_YEAR)) + 2000;
 }
 
@@ -146,6 +170,62 @@ void ds1302_set_time(ds1302_t* self, const ds1302_time_t* time) {
     ds1302_write_reg(self, DS1302_REG_DAY, dec_to_bcd(time->day));
     ds1302_write_reg(self, DS1302_REG_MONTH, dec_to_bcd(time->month));
     ds1302_write_reg(self, DS1302_REG_WEEK, dec_to_bcd(time->week));
-    ds1302_write_reg(self, DS1302_REG_YEAR, dec_to_bcd(time->year % 100));
+    ds1302_write_reg(self, DS1302_REG_YEAR, dec_to_bcd((u8)(time->year % 100)));
+    ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x80); // 开启写保护
+}
+
+void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time) {
+    param_check(self != NULL);
+    param_check(time != NULL);
+
+    g_port->write_pin(self->ce_port, self->ce_pin, 0);
+    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    g_port->delay_us(1);
+    g_port->write_pin(self->ce_port, self->ce_pin, 1);
+    g_port->delay_us(1);
+
+    ds1302_write_byte(self, DS1302_CMD_BURST_READ);
+
+    time->second = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_SECOND);
+    time->minute = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_MINUTE);
+    time->hour = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_HOUR);
+    time->day = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_DAY);
+    time->month = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_MONTH);
+    time->week = bcd_to_dec(ds1302_read_byte(self) & DS1302_MASK_WEEK);
+    time->year = bcd_to_dec(ds1302_read_byte(self)) + 2000;
+    
+    // 突发模式读8个字节，最后一个是控制寄存器，忽略
+    (void)ds1302_read_byte(self);
+
+    g_port->write_pin(self->ce_port, self->ce_pin, 0);
+    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+}
+
+void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time) {
+    param_check(self != NULL);
+    param_check(time != NULL);
+
+    ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x00); // 关闭写保护
+
+    g_port->write_pin(self->ce_port, self->ce_pin, 0);
+    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    g_port->delay_us(1);
+    g_port->write_pin(self->ce_port, self->ce_pin, 1);
+    g_port->delay_us(1);
+
+    ds1302_write_byte(self, DS1302_CMD_BURST_WRITE);
+
+    ds1302_write_byte(self, dec_to_bcd(time->second));
+    ds1302_write_byte(self, dec_to_bcd(time->minute));
+    ds1302_write_byte(self, dec_to_bcd(time->hour));
+    ds1302_write_byte(self, dec_to_bcd(time->day));
+    ds1302_write_byte(self, dec_to_bcd(time->month));
+    ds1302_write_byte(self, dec_to_bcd(time->week));
+    ds1302_write_byte(self, dec_to_bcd((u8)(time->year % 100)));
+    ds1302_write_byte(self, 0x00); // 控制寄存器
+
+    g_port->write_pin(self->ce_port, self->ce_pin, 0);
+    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+
     ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x80); // 开启写保护
 }
