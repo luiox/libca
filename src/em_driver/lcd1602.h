@@ -1,6 +1,7 @@
 /**
  * @file lcd1602.h
  * @author canrad (1517807724@qq.com)
+ * 参考文章：https://blog.csdn.net/qq_41701950/article/details/107630078
  * @brief LCD1602 液晶显示屏驱动 (支持4线和8线模式)
  * @version 0.1
  * @date 2026-01-29
