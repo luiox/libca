@@ -115,6 +115,9 @@ void lcd1602_clear(lcd1602_t* self) {
 
 void lcd1602_set_cursor(lcd1602_t* self, u8 x, u8 y) {
     param_check(self != NULL);
+	// 为了性能，而且这个坐标是常量的，所以这个坐标也在debug阶段通过param_check可以保证其合法性
+	param_check(x < 16 && y < 2);
+
     u8 addr = (y == 0) ? (0x80 + x) : (0xC0 + x);
     lcd1602_write_cmd(self, addr);
 }
@@ -126,8 +129,11 @@ void lcd1602_print_char(lcd1602_t* self, char ch) {
 
 void lcd1602_print(lcd1602_t* self, const char* str) {
     param_check(self != NULL);
-    param_check(str != NULL);
-    while (str && *str) {
+    if (str == NULL) {
+		debug_print("[lcd1602] in lcd1602_print, your str pointer is NULL\n");
+        return;
+    }
+    while (*str) {
         lcd1602_write_data(self, (u8)*str++);
     }
 }

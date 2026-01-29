@@ -57,7 +57,9 @@ typedef struct lcd1602 {
     void* e_port;           // E 引脚所在端口
     u16 e_pin;              // E 引脚
     
-    // 数据引脚。如果是4线，使用 data_pins[0-3]；如果是8线，使用 data_pins[0-7]
+    // 数据引脚。
+    // 8线模式: data_pins[0-7] 对应 LCD 的 D0-D7。
+    // 4线模式: data_pins[0-3] 对应 LCD 的 D4-D7。
     void* data_ports[8];    
     u16 data_pins[8];
 } lcd1602_t;
