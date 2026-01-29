@@ -1,3 +1,15 @@
+/**
+ * @file fixed_size_buffer.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 固定大小的缓冲区
+ * 用途：1. 包装原始u8*的缓冲区，方便解析
+ *      2. 组织数据写入缓冲区
+ * @version 0.1
+ * @date 2026-01-29
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
 #define LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
 
