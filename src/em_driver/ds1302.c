@@ -22,11 +22,25 @@ bool ds1302_port_is_registered(void) {
     return g_port != NULL;
 }
 
-static u8 bcd_to_dec(u8 bcd) {
+/**
+ * @brief BCD码转十进制数
+ * @param bcd BCD格式数据 (0x00-0x99)
+ * @return 十进制数值 (0-99)
+ */
+static inline u8 bcd_to_dec(u8 bcd) {
     return (bcd >> 4) * 10 + (bcd & 0x0F);
 }
 
-static u8 dec_to_bcd(u8 dec) {
+/**
+ * @brief 十进制数转BCD码
+ * 请确保dec不超过99，以免出错
+ * @param dec 十进制数值 (0-99)
+ * @return BCD格式数据 (0x00-0x99)
+ */
+static inline u8 dec_to_bcd(u8 dec) {
+    // 利用恒等式：x = (x/10)*10 + (x%10)
+    // 这里 (dec / 10) 直接作为高 nibble
+    // (dec % 10) 直接作为低 nibble
     return ((dec / 10) << 4) | (dec % 10);
 }
 
