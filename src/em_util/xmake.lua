@@ -56,3 +56,9 @@ target("test-stack")
     add_files("stack.c")
     add_deps("ca-em_base")
 
+target("test-fixed_size_buffer")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("fixed_size_buffer.c")
+    add_deps("ca-em_base")
+
