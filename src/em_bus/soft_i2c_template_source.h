@@ -229,11 +229,11 @@ u8 I2C_CLASS_FUNC_NAME(check_device)(u8 address)
 #undef I2C_DELAY
 #endif
 
-#ifndef SOFT_I2C_WR
+#ifdef SOFT_I2C_WR
 #undef SOFT_I2C_WR
 #endif
 
-#ifndef SOFT_I2C_RD
+#ifdef SOFT_I2C_RD
 #undef SOFT_I2C_RD
 #endif
 
