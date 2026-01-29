@@ -14,6 +14,7 @@
 #define LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
 
 #include "../em_base/datatype.h"
+#include "debug.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,7 @@ void fsb_init(fixed_size_buffer_t* self, u8* data, usize capacity);
  */
 static inline u8* fsb_data(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     return self->raw;
 }
 
@@ -67,6 +69,7 @@ static inline u8* fsb_data(fixed_size_buffer_t* self)
  */
 static inline usize fsb_capacity(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     return self->capacity;
 }
 
@@ -77,6 +80,7 @@ static inline usize fsb_capacity(fixed_size_buffer_t* self)
  */
 static inline usize fsb_used(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     return self->used;
 }
 
@@ -87,6 +91,7 @@ static inline usize fsb_used(fixed_size_buffer_t* self)
  */
 static inline usize fsb_available(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     return self->capacity - self->used;
 }
 
@@ -97,6 +102,7 @@ static inline usize fsb_available(fixed_size_buffer_t* self)
  */
 static inline usize fsb_remaining_to_read(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     if (self->cursor >= self->used) {
         return 0;
     }
@@ -125,6 +131,7 @@ void fsb_rewind(fixed_size_buffer_t* self, usize size);
  */
 static inline void fsb_reset_cursor(fixed_size_buffer_t* self)
 {
+    param_check(self != NULL);
     self->cursor = 0;
 }
 
@@ -165,11 +172,12 @@ i32 fsb_read_u8(fixed_size_buffer_t* self, u8* value);
 i32 fsb_read(fixed_size_buffer_t* self, u8* buffer, usize size);
 
 /**
- * @brief 查看游标当前字节，不前进
+ * @brief 尝试查看当前游标处的字节，不移动游标
  * @param self FSB 指针
- * @return u8 字节值，如果越界返回 0
+ * @param value 接收字节值的指针
+ * @return i32 FSB_OK 成功，FSB_ERR_EMPTY 无数据可读，FSB_ERR_INVALID 无效参数
  */
-u8 fsb_peek(fixed_size_buffer_t* self);
+i32 fsb_peek(fixed_size_buffer_t* self, u8* value);
 
 /**
  * @brief 读取 cursor + offset 处的字节，不移动游标

@@ -1,11 +1,12 @@
 #include "fixed_size_buffer.h"
+#include "debug.h"
 #include <string.h>
 
 void fsb_init(fixed_size_buffer_t* self, u8* data, usize capacity)
 {
-    if (self == NULL || data == NULL) {
-        return;
-    }
+    param_check(self != NULL);
+    param_check(data != NULL);
+
     self->raw      = data;
     self->capacity = capacity;
     self->used     = 0;
@@ -14,9 +15,8 @@ void fsb_init(fixed_size_buffer_t* self, u8* data, usize capacity)
 
 void fsb_skip(fixed_size_buffer_t* self, usize size)
 {
-    if (self == NULL) {
-        return;
-    }
+    param_check(self != NULL);
+
     self->cursor += size;
     if (self->cursor > self->used) {
         self->cursor = self->used;
@@ -25,9 +25,8 @@ void fsb_skip(fixed_size_buffer_t* self, usize size)
 
 void fsb_rewind(fixed_size_buffer_t* self, usize size)
 {
-    if (self == NULL) {
-        return;
-    }
+    param_check(self != NULL);
+
     if (size > self->cursor) {
         self->cursor = 0;
     } else {
@@ -37,7 +36,9 @@ void fsb_rewind(fixed_size_buffer_t* self, usize size)
 
 void fsb_flush(fixed_size_buffer_t* self)
 {
-    if (self == NULL || self->cursor == 0) {
+    param_check(self != NULL);
+
+    if (self->cursor == 0) {
         return;
     }
     if (self->cursor < self->used) {
@@ -52,9 +53,9 @@ void fsb_flush(fixed_size_buffer_t* self)
 
 void fsb_new_from_cursor(fixed_size_buffer_t* self, fixed_size_buffer_t* new_b)
 {
-    if (self == NULL || new_b == NULL) {
-        return;
-    }
+    param_check(self != NULL);
+    param_check(new_b != NULL);
+
     usize remaining = fsb_remaining_to_read(self);
     new_b->raw      = self->raw + self->cursor;
     new_b->capacity = remaining;
@@ -64,9 +65,9 @@ void fsb_new_from_cursor(fixed_size_buffer_t* self, fixed_size_buffer_t* new_b)
 
 i32 fsb_read_u8(fixed_size_buffer_t* self, u8* value)
 {
-    if (self == NULL || value == NULL) {
-        return FSB_ERR_INVALID;
-    }
+    param_check(self != NULL);
+    param_check(value != NULL);
+
     if (self->cursor >= self->used) {
         return FSB_ERR_EMPTY;
     }
@@ -76,9 +77,9 @@ i32 fsb_read_u8(fixed_size_buffer_t* self, u8* value)
 
 i32 fsb_read(fixed_size_buffer_t* self, u8* buffer, usize size)
 {
-    if (self == NULL || buffer == NULL) {
-        return FSB_ERR_INVALID;
-    }
+    param_check(self != NULL);
+    param_check(buffer != NULL);
+
     usize available = fsb_remaining_to_read(self);
     usize to_read   = (size > available) ? available : size;
     if (to_read > 0) {
@@ -88,17 +89,25 @@ i32 fsb_read(fixed_size_buffer_t* self, u8* buffer, usize size)
     return (i32)to_read;
 }
 
-u8 fsb_peek(fixed_size_buffer_t* self)
+i32 fsb_peek(fixed_size_buffer_t* self, u8* value)
 {
-    if (self == NULL || self->cursor >= self->used) {
-        return 0;
+    param_check(self != NULL);
+    param_check(value != NULL);
+
+    if (self->cursor >= self->used) {
+        return FSB_ERR_EMPTY;
     }
-    return self->raw[self->cursor];
+    *value = self->raw[self->cursor];
+    return FSB_OK;
 }
 
 u8 fsb_peek_at(fixed_size_buffer_t* self, usize offset)
 {
-    if (self == NULL || (self->cursor + offset) >= self->used) {
+    param_check(self != NULL);
+
+    // 防止offset过大导致self->cursor + offset可能回绕，
+    // 所以不能用 (self->cursor + offset) >= self->used方式处理
+    if (offset >= fsb_remaining_to_read(self)) {
         return 0;
     }
     return self->raw[self->cursor + offset];
@@ -106,9 +115,9 @@ u8 fsb_peek_at(fixed_size_buffer_t* self, usize offset)
 
 i32 fsb_append(fixed_size_buffer_t* self, const u8* data, usize size)
 {
-    if (self == NULL || data == NULL) {
-        return FSB_ERR_INVALID;
-    }
+    param_check(self != NULL);
+    param_check(data != NULL);
+
     usize available = fsb_available(self);
     usize to_write  = (size > available) ? available : size;
     if (to_write > 0) {
@@ -120,15 +129,17 @@ i32 fsb_append(fixed_size_buffer_t* self, const u8* data, usize size)
 
 i32 fsb_merge(fixed_size_buffer_t* self, const fixed_size_buffer_t* other)
 {
-    if (self == NULL || other == NULL) {
-        return FSB_ERR_INVALID;
-    }
+    param_check(self != NULL);
+    param_check(other != NULL);
+
     return fsb_append(self, other->raw, other->used);
 }
 
 void fsb_write_u8(fixed_size_buffer_t* self, usize index, u8 value)
 {
-    if (self == NULL || index >= self->capacity) {
+    param_check(self != NULL);
+
+    if (index >= self->capacity) {
         return;
     }
     self->raw[index] = value;
@@ -136,9 +147,9 @@ void fsb_write_u8(fixed_size_buffer_t* self, usize index, u8 value)
 
 i32 fsb_write(fixed_size_buffer_t* self, const u8* data, usize size)
 {
-    if (self == NULL || data == NULL) {
-        return FSB_ERR_INVALID;
-    }
+    param_check(self != NULL);
+    param_check(data != NULL);
+
     usize available = self->capacity - self->cursor;
     usize to_write  = (size > available) ? available : size;
     if (to_write > 0) {
@@ -159,10 +170,6 @@ TEST_CASE(fsb_test_init)
     u8                  buf[10];
     fixed_size_buffer_t fsb;
 
-    // NULL check
-    fsb_init(NULL, buf, 10);
-    fsb_init(&fsb, NULL, 10);
-
     // Success
     fsb_init(&fsb, buf, 10);
     TEST_ASSERT_EQUAL_UINT(10, fsb_capacity(&fsb));
@@ -175,10 +182,6 @@ TEST_CASE(fsb_test_cursor_ops)
     u8                  buf[10];
     fixed_size_buffer_t fsb;
     fsb_init(&fsb, buf, 10);
-
-    // Skip & Rewind on NULL
-    fsb_skip(NULL, 1);
-    fsb_rewind(NULL, 1);
 
     // Normal skip
     fsb_append(&fsb, (u8*)"abc", 3);
@@ -235,11 +238,6 @@ TEST_CASE(fsb_test_read_ops)
     fsb_append(&fsb, (u8*)"ABC", 3);
 
     u8 val;
-    // NULL checks
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_read_u8(NULL, &val));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_read_u8(&fsb, NULL));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_read(NULL, buf, 1));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_read(&fsb, NULL, 1));
 
     // Success reading
     TEST_ASSERT_EQUAL_INT(FSB_OK, fsb_read_u8(&fsb, &val));
@@ -257,16 +255,15 @@ TEST_CASE(fsb_test_read_ops)
 
     // Peek
     fsb_reset_cursor(&fsb);
-    TEST_ASSERT_EQUAL_UINT('A', fsb_peek(&fsb));
+    TEST_ASSERT_EQUAL_INT(FSB_OK, fsb_peek(&fsb, &val));
+    TEST_ASSERT_EQUAL_UINT('A', val);
     TEST_ASSERT_EQUAL_UINT('B', fsb_peek_at(&fsb, 1));
     TEST_ASSERT_EQUAL_UINT('C', fsb_peek_at(&fsb, 2));
     TEST_ASSERT_EQUAL_UINT(0, fsb_peek_at(&fsb, 3)); // OOB
 
-    // Peek NULL/empty
-    TEST_ASSERT_EQUAL_UINT(0, fsb_peek(NULL));
-    TEST_ASSERT_EQUAL_UINT(0, fsb_peek_at(NULL, 0));
+    // Peek empty
     fsb_skip(&fsb, 10);
-    TEST_ASSERT_EQUAL_UINT(0, fsb_peek(&fsb));
+    TEST_ASSERT_EQUAL_INT(FSB_ERR_EMPTY, fsb_peek(&fsb, &val));
 }
 
 TEST_CASE(fsb_test_write_ops)
@@ -274,15 +271,6 @@ TEST_CASE(fsb_test_write_ops)
     u8                  buf[5];
     fixed_size_buffer_t fsb;
     fsb_init(&fsb, buf, 5);
-
-    // NULL Checks
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_append(NULL, (u8*)"1", 1));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_append(&fsb, NULL, 1));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_write(NULL, (u8*)"1", 1));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_write(&fsb, NULL, 1));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_merge(NULL, &fsb));
-    TEST_ASSERT_EQUAL_INT(FSB_ERR_INVALID, fsb_merge(&fsb, NULL));
-    fsb_write_u8(NULL, 0, 0); // No crash side effect
 
     // Success append & partial write
     TEST_ASSERT_EQUAL_INT(3, fsb_append(&fsb, (u8*)"123", 3));
@@ -344,8 +332,7 @@ TEST_CASE(fsb_test_management)
     fsb_init(&fsb, buf, 10);
     fsb_append(&fsb, (u8*)"0123456789", 10);
 
-    // Flush NULL/No-op
-    fsb_flush(NULL);
+    // Flush No-op
     fsb_reset_cursor(&fsb);
     fsb_flush(&fsb); // cursor is 0
     TEST_ASSERT_EQUAL_UINT(10, fsb_used(&fsb));
@@ -366,9 +353,6 @@ TEST_CASE(fsb_test_management)
     fsb_append(&fsb, (u8*)"12345", 5);
     fsb_skip(&fsb, 2);
     fixed_size_buffer_t sub;
-    // NULL check
-    fsb_new_from_cursor(NULL, &sub);
-    fsb_new_from_cursor(&fsb, NULL);
     
     fsb_new_from_cursor(&fsb, &sub);
     TEST_ASSERT_EQUAL_UINT(3, fsb_used(&sub));
