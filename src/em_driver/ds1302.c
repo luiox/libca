@@ -86,7 +86,7 @@ void ds1302_write_reg(ds1302_t* self, u8 address, u8 data) {
     g_port->write_pin(self->ce_port, self->ce_pin, 1);
     g_port->delay_us(1);
 
-    ds1302_write_byte(self, address & ~0x01); // 确保第0位为0表示写
+    ds1302_write_byte(self, address); // 确保第0位为0表示写
     ds1302_write_byte(self, data);
 
     g_port->write_pin(self->ce_port, self->ce_pin, 0);
