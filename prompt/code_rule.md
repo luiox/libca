@@ -24,11 +24,11 @@ extern "C" {
 
 【命名规范】
 - 文件命名：{snake_case}
-- 类型命名：{struct xxx / enum xxx_enum}，结构体需要提供一个xxx_t的别名，枚举需要提供xxx的别名，使用别名而不是struct xxx这种
+- 类型命名：{struct xxx / enum xxx_enum}，结构体需要提供一个xxx_t的别名，枚举需要提供一个xxx_t的别名，使用别名而不是struct xxx这种
 - 函数命名：{模块前缀 + 动词}
 - 宏命名：{全大写 + 前缀}，类似于函数的宏应该参考函数命名，例如array_size，其他均为全大写加下划线
 - 变量命名：全局变量需要前缀`g_`
-- 枚举命名：枚举类型以`_enum`结尾，而且要snake_case给出`xxx_enum`，然后typedef出xxx。枚举的值可以是大写然后下划线分割。
+- 枚举命名：枚举类型以`_enum`结尾，而且要snake_case给出`xxx_enum`，然后typedef出xxx_t。枚举的值可以是大写然后下划线分割。
 - 使用oop设计的代码：函数命名以`类名_行为`的方式命名，其他则以`动词_名词`的方式组织
 - 对于源文件内私有函数，必须加static修饰
 - 头文件保护：使用`#ifndef FILENAME_H`，禁止使用`#pragma once`。头文件保护的宏以`项目名_路径_文件名_H`的方式定义
@@ -44,6 +44,9 @@ extern "C" {
 - 公共 API：{需要 doxygen}
 - 私有函数：{必须有注释}
 - 使用中文编写注释
+
+【代码细节规范】
+- 函数参数要做空指针检查，针对self指针，尤其是底层的driver这种模块，不要用if判断做检查，而是契约式编程，用`em_base/debug.h`的param_check宏检查。其他非热路径以及可能由用户传NULL的用if判断做检查。
 
 【单元测试规范】
 - 对于每个模块的单元测试，应该写在对应的源文件的最下面
