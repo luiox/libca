@@ -1,5 +1,5 @@
 -- 嵌入式驱动库
-target("ca-em_driver")
+target("libca.em_driver")
     set_kind("static")
     add_files("**.c")
     add_deps("libca.em_base")
