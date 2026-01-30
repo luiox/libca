@@ -33,6 +33,9 @@ void as5600_init(as5600_t* self, void* hi2c)
 
 u16 as5600_read_raw_angle(as5600_t* self)
 {
+    param_check(self != NULL);
+    param_check(as5600_port_is_registered());
+
     u8 buf[2] = {0};
     // AS5600支持连续读取，高位寄存器地址为0x0C，低位为0x0D
     g_as5600_port->i2c_read(self->hi2c, AS5600_ADDR, AS5600_REG_RAW_HI, buf, 2);
@@ -43,6 +46,8 @@ u16 as5600_read_raw_angle(as5600_t* self)
 
 f32 as5600_read_angle(as5600_t* self)
 {
+    param_check(self != NULL);
+    
     u16 raw = as5600_read_raw_angle(self);
     return as5600_raw_to_degree(raw);
 }

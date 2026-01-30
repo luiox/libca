@@ -1,7 +1,8 @@
 #include "filter.h"
 #include "../em_base/datatype.h"
 #include "../em_util/math_util.h"
-#include <string.h>
+#include "debug.h"
+#include "memory_util.h"
 
 // ============================================
 // 二阶巴特沃斯低通滤波器实现
@@ -146,11 +147,12 @@ u16 median_filter_u16_update(median_filter_u16_t* self, u16 input)
     u16 valid_len = self->count;
     
     // 如果窗口太大，截断或者只处理前64个 (保护机制)
-    if (valid_len > 64) valid_len = 64;
+    if (valid_len > 64) {
+		valid_len = 64;
+		debug_print("[median_filter] Window size too large, truncating to 64");
+	}
 
-    for (u16 i = 0; i < valid_len; i++) {
-        temp[i] = self->buffer[i];
-    }
+    mem_cpy(temp, self->buffer, valid_len * sizeof(u16));
 
     // 冒泡排序
     for (u16 i = 0; i < valid_len - 1; i++) {
