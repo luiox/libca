@@ -95,7 +95,7 @@ TEST_CASE(pid_position_basic)
     // d_error = 10 - 0 = 10
     // output = 1.0*10 + 0.1*10 + 0.05*10 = 10 + 1 + 0.5 = 11.5
     float u = pid_position_calculate(&pid, values[0]);
-    TEST_ASSERT_EQUAL_FLOAT(11.5f, u, 0.001f);
+    TEST_ASSERT_EQUAL_FLOAT(11.5f, u);
 }
 
 TEST_CASE(pid_incremental_basic)
@@ -109,7 +109,7 @@ TEST_CASE(pid_incremental_basic)
     // last_error = 0, prev_error = 0
     // du = 1.0*(10-0) + 0.1*10 + 0.05*(10 - 2*0 + 0) = 10 + 1 + 0.5 = 11.5
     float du = pid_incremental_calculate(&pid, values[0]);
-    TEST_ASSERT_EQUAL_FLOAT(11.5f, du, 0.001f);
+    TEST_ASSERT_EQUAL_FLOAT(11.5f, du);
 }
 
 #endif
