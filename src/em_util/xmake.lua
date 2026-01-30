@@ -35,6 +35,12 @@ target("test-ping_pong_buffer")
     add_files("ping_pong_buffer.c")
     add_deps("libca.em_base")
 
+target("test-filter")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("filter.c")
+    add_deps("ca-em_base")
+
 -- 嵌入式容器库
 target("libca.em_collection")
     set_kind("static")
@@ -61,3 +67,10 @@ target("test-stack")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("stack.c")
     add_deps("libca.em_base")
+
+target("test-fixed_size_buffer")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("fixed_size_buffer.c")
+    add_deps("libca.em_base")
+

@@ -27,9 +27,9 @@ static i32 ymodem_process(void* owner, const u8* in_buf, usize in_len) {
     
     // 示例：如果收到数据并解析成功，产生 ACK
     // u8 ack = ACK;
-    // ringbuffer_write(ym->sb, &ack, 1);
+    // if (ym->io && ym->io->write) ym->io->write(&ack, 1, ym->io->ctx);
 
-    return ringbuffer_used(ym->sb);
+    return 0; // success
 }
 
 // 2. 核心处理：驱动定时器
@@ -42,7 +42,7 @@ static i32 ymodem_tick(void* owner, u32 ms_delta) {
     // 示例：启动时每隔一段时间发送 'C' 请求 CRC 模式
     if (ym->state == 0 && ym->timer >= 3000) {
         u8 c = CRC_C;
-        ringbuffer_write(ym->sb, &c, 1);
+        if (ym->io && ym->io->write) ym->io->write(&c, 1, ym->io->ctx);
         ym->timer = 0;
         return 1;
     }
@@ -50,32 +50,70 @@ static i32 ymodem_tick(void* owner, u32 ms_delta) {
     return 0;
 }
 
-// 3. 核心处理：输出字节流
+// (deprecated) poll - kept for compatibility but unused in push model
 static i32 ymodem_poll(void* owner, u8* out_buf, usize out_len) {
     assert(owner != NULL);
     assert(out_buf != NULL);
     ymodem_t* ym = (ymodem_t*)owner;
 
-    return ringbuffer_read(ym->sb, out_buf, out_len);
+    return 0;
 }
 
-// YModem 实现的文件传输协议操作接口
+// YModem 实现的文件传输协议操作接口 (new ops)
+static i32 ymodem_init_op(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data) {
+    ymodem_t* ym = (ymodem_t*)self;
+    if (!ym) return -1;
+    ym->io = io;
+    if (cbs) ym->cbs = *cbs;
+    ym->user_data = user_data;
+    return 0;
+}
+
+static void ymodem_start_recv_op(void *self) {
+    ymodem_t* ym = (ymodem_t*)self;
+    if (!ym) return;
+    ym->state = 0;
+    ym->timer = 0;
+    u8 c = CRC_C;
+    if (ym->io && ym->io->write) ym->io->write(&c, 1, ym->io->ctx);
+}
+
+static void ymodem_start_send_op(void *self, const char* filename, u32 file_size) {
+    ymodem_t* ym = (ymodem_t*)self;
+    if (!ym) return;
+    ym->state = 1; // sender state
+    ym->file_size = file_size;
+    strncpy(ym->filename, filename ? filename : "", sizeof(ym->filename)-1);
+}
+
+static i32 ymodem_get_transferred_size_op(void *self) {
+    ymodem_t* ym = (ymodem_t*)self;
+    if (!ym) return 0;
+    return (i32)ym->offset;
+}
+
 const file_transfer_ops_t g_ymodem_ops = {
-    .process = ymodem_process,
+    .init = ymodem_init_op,
     .tick = ymodem_tick,
-    .poll = ymodem_poll
+    .process = ymodem_process,
+    .start_recv = ymodem_start_recv_op,
+    .start_send = ymodem_start_send_op,
+    .get_transferred_size = ymodem_get_transferred_size_op
 };
 
-void ymodem_proto_init(ymodem_t* ym, ringbuffer_t* rb, ringbuffer_t* sb) {
+void ymodem_proto_init(ymodem_t* ym, ringbuffer_t* rb) {
     memset(ym, 0, sizeof(ymodem_t));
     ym->rb = rb;
-    ym->sb = sb;
+    ym->io = NULL;
+    ym->user_data = NULL;
+    ym->legacy_on_data = NULL;
+    ym->legacy_on_file_info = NULL;
 }
 
 void ymodem_set_on_data_cb(ymodem_t* ym, void (*on_data)(const u8 *data, usize len, usize offset)) {
-    ym->cbs.on_data = on_data;
+    ym->legacy_on_data = on_data;
 }
 
 void ymodem_set_on_file_info_cb(ymodem_t* ym, void (*on_file_info)(const char *filename, usize file_size)) {
-    ym->cbs.on_file_info = on_file_info;
+    ym->legacy_on_file_info = on_file_info;
 }

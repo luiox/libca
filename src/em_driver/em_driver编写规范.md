@@ -32,6 +32,7 @@ bool xxx_port_is_registered(void);
 
 typedef struct xxx
 {
+    mode_t mode;
     void* gpio;
     u16 pin;
     void* hi2c;
@@ -40,7 +41,7 @@ typedef struct xxx
 } xxx_t;
 
 // 初始化
-void xxx_init(xxx_t* self, void* gpio, u16 pin, void* hi2c);
+void xxx_init(xxx_t* self, mode_t mode);
 // 功能
 void xxx_func(xxx_t* self);
 
@@ -77,3 +78,5 @@ static void xxx_func(i32 type)
 em_driver的驱动不要写单元测试，因为这些都是硬件模块的代码，不能通过单元测试进行测试。
 
 如果不需要对象参与的部分，不应该OOP风格，比如通用的计算工具函数这种，不依赖于OOP的驱动对象。
+
+对于`xxx_init`的接口设计，如果是硬件的配置，不要用传参的形式进行初始化，而是要求用户自己用大括号法直接初始化好传入，而具体什么模式之类的配置再通过参数传入初始化。
