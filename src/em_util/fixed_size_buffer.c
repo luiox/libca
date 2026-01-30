@@ -1,5 +1,5 @@
 #include "fixed_size_buffer.h"
-#include "debug.h"
+#include "../em_base/debug.h"
 #include <string.h>
 
 void fsb_init(fixed_size_buffer_t* self, u8* data, usize capacity)

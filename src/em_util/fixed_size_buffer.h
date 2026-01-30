@@ -14,7 +14,7 @@
 #define LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
 
 #include "../em_base/datatype.h"
-#include "debug.h"
+#include "../em_base/debug.h"
 
 #ifdef __cplusplus
 extern "C" {

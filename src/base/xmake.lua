@@ -1,5 +1,5 @@
 -- 最基础的库
--- target("ca-base")
+-- target("libca.base")
 --     set_kind("static")
 --     add_files("**.cpp")
 --     add_includedirs(".", { public = true })
@@ -7,7 +7,7 @@
     -- add_linkdirs("$(projectdir)/third_party/libiconv/lib")
 
 
-target("ca-base_test")
+target("libca.base_test")
     set_kind("binary")
     add_files("ByteBuffer.cpp")
 

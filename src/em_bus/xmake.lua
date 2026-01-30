@@ -1,4 +1,4 @@
-target("ca-em_bus")
+target("libca.em_bus")
     set_kind("static")
     add_files("**.c")
-    add_deps("ca-em_base")
+    add_deps("libca.em_base")
