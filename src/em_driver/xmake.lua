@@ -1,4 +1,6 @@
 -- 嵌入式驱动库
+local log = new_logger("em_driver")
+
 local function define_em_driver(name, default_config)
     target(name)
         set_kind("object")
@@ -20,7 +22,7 @@ local function define_em_driver(name, default_config)
             -- 2. 决定要扫描哪些文件
             if not is_filter_enabled then
                 -- 【调试模式】：扫描目录下所有 .c 文件
-                print("DEBUG MODE: Filter disabled. Scanning all files.")
+                log:debug("Filter disabled. Scanning all files.")
                 
                 local all_files = os.files(path.join(os.scriptdir(), "**.c"))
                 for _, f in ipairs(all_files) do
@@ -41,7 +43,7 @@ local function define_em_driver(name, default_config)
                         table.insert(files_to_compile, filepath)
                     else
                         -- 可选：如果用户指定了一个不存在的驱动，给个提示
-                        print("warning: module '" .. mod_name .. "' not found, skipping.")
+                        log:warn("module '" .. mod_name .. "' not found, skipping.")
                     end
                 end
             end
@@ -57,12 +59,12 @@ local function define_em_driver(name, default_config)
                 end
                 table.sort(enabled_list)
                 
-                print("enabled modules (" .. #enabled_list .. "):")
+                log:info("enabled modules (" .. #enabled_list .. "):")
                 if #enabled_list > 0 then
                     print("- " .. table.concat(enabled_list, ", "))
                 end
             else
-                print("WARNING: No modules enabled!")
+                log:warn("No modules enabled!")
             end
         end)
 end
