@@ -39,7 +39,7 @@ target("test-filter")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("filter.c")
-    add_deps("ca-em_base")
+    add_deps("libca.em_base")
 
 -- 嵌入式容器库
 target("libca.em_collection")
