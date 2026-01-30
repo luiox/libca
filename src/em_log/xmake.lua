@@ -1,9 +1,9 @@
 -- 嵌入式日志库
-target("ca-em_log")
+target("libca.em_log")
     set_kind("static")
     set_group("em")
     add_files("log.c")
-    add_deps("ca-em_base")  
+    add_deps("libca.em_base")  
 
 target("test-log")
     set_kind("binary")
@@ -17,6 +17,6 @@ target("test-log")
         add_files("../em_platform/adapters/linux/cpu_adapter.c")
     end
   
-    add_deps("ca-em_base")
-    add_deps("ca-em_util")
-    add_deps("ca-em_platform")
+    add_deps("libca.em_base")
+    add_deps("libca.em_util")
+    add_deps("libca.em_platform")

@@ -2,7 +2,7 @@
 target("ca-em_driver")
     set_kind("static")
     add_files("**.c")
-    add_deps("ca-em_base")
+    add_deps("libca.em_base")
 
 local function get_supported_modules()
     -- Only scan the project's src/em_driver directory (top-level .c files)
