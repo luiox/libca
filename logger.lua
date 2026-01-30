@@ -52,11 +52,12 @@ function new_logger(module_name)
         end
 
         -- 拼接所有参数为字符串
-        local str = tostring(fmt)
-        local args = {...}
+        local parts = { tostring(fmt) }
+        local args = { ... }
         for i = 1, #args do
-            str = str .. " " .. tostring(args[i])
+            parts[#parts+1] = tostring(args[i])
         end
+        local str = table.concat(parts, " ")
 
         -- 组装最终字符串：[模块名] [等级名] 内容
         local msg = ANSI_COLORS.dim .. "[" .. module_name .. "]" .. ANSI_COLORS.reset .. 

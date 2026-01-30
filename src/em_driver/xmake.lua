@@ -23,8 +23,8 @@ local function define_em_driver(name, default_config)
             if not is_filter_enabled then
                 -- 【调试模式】：扫描目录下所有 .c 文件
                 log.debug("Filter disabled. Scanning all files.")
-                
-                local all_files = os.files(path.join(os.scriptdir(), "**.c"))
+                -- 只扫一层，禁止嵌套
+                local all_files = os.files(path.join(os.scriptdir(), "*.c"))
                 for _, f in ipairs(all_files) do
                     table.insert(files_to_compile, f)
                 end
@@ -55,7 +55,7 @@ local function define_em_driver(name, default_config)
                 -- 打印结果
                 local enabled_list = {}
                 for _, f in ipairs(files_to_compile) do
-                    table.insert(enabled_list, path.basename(path.filename(f)))
+                    table.insert(enabled_list, path.basename(f))
                 end
                 table.sort(enabled_list)
                 
@@ -85,7 +85,7 @@ local function get_supported_modules()
         return modules
     end
     for _, f in ipairs(files) do
-        local mod = f:match("([^/\\]+)%.c$")
+        local mod = path.basename(f)
         if mod then
             table.insert(modules, mod)
         end
