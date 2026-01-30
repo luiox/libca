@@ -625,8 +625,8 @@ TEST_CASE(skv_types_put_get) {
     i8 i8v; TEST_ASSERT_EQUAL_INT(0, skv_get_i8(&skv, "i8", &i8v)); TEST_ASSERT_EQUAL_INT(-5, (int)i8v);
     i16 i16v; TEST_ASSERT_EQUAL_INT(0, skv_get_i16(&skv, "i16", &i16v)); TEST_ASSERT_EQUAL_INT(-12345, (int)i16v);
     i32 i32v; TEST_ASSERT_EQUAL_INT(0, skv_get_i32(&skv, "i32", &i32v)); TEST_ASSERT_EQUAL_INT(-123456789, (int)i32v);
-    f32 f32v; TEST_ASSERT_EQUAL_INT(0, skv_get_f32(&skv, "f32", &f32v)); TEST_ASSERT_EQUAL_FLOAT(3.14159f, f32v, DEFAULT_EPSILON);
-    f64 f64v; TEST_ASSERT_EQUAL_INT(0, skv_get_f64(&skv, "f64", &f64v)); TEST_ASSERT_EQUAL_FLOAT(2.718281828459045, f64v, DEFAULT_EPSILON);
+    f32 f32v; TEST_ASSERT_EQUAL_INT(0, skv_get_f32(&skv, "f32", &f32v)); TEST_ASSERT_EQUAL_FLOAT(3.14159f, f32v);
+    f64 f64v; TEST_ASSERT_EQUAL_INT(0, skv_get_f64(&skv, "f64", &f64v)); TEST_ASSERT_EQUAL_FLOAT(2.718281828459045, f64v);
     char strbuf[64]; TEST_ASSERT_EQUAL_INT(0, skv_get_string(&skv, "str", strbuf, sizeof(strbuf))); TEST_ASSERT_EQUAL_STRING("hello world", strbuf);
     u8 out_blob[16]; u8 out_len = 0; TEST_ASSERT_EQUAL_INT(0, skv_get_blob(&skv, "blob", out_blob, sizeof(out_blob), &out_len)); TEST_ASSERT_EQUAL_UINT(sizeof(blob_data), out_len); TEST_ASSERT_EQUAL_MEMORY(blob_data, out_blob, out_len);
 

@@ -29,6 +29,12 @@ target("test-ping_pong_buffer")
     add_files("ping_pong_buffer.c")
     add_deps("ca-em_base")
 
+target("test-filter")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("filter.c")
+    add_deps("ca-em_base")
+
 -- 嵌入式容器库
 target("ca-em_collection")
     set_kind("static")

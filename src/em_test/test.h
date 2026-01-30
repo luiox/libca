@@ -38,13 +38,15 @@
 
 #define DEFAULT_EPSILON 0.000001
 
-#define TEST_ASSERT_EQUAL_FLOAT(expected, actual, epsilon)                                     \
+#define TEST_ASSERT_EQUAL_FLOAT_(expected, actual, epsilon)                                     \
     do {                                                                                       \
         if (fabs((expected) - (actual)) > (epsilon)) {                                         \
             printf("Test failed: %s:%d, expected %f, got %f\n", __FILE__, __LINE__, (double)(expected), (double)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
+
+#define TEST_ASSERT_EQUAL_FLOAT(expected, actual) TEST_ASSERT_EQUAL_FLOAT_(expected, actual, DEFAULT_EPSILON)
 
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                                             \
     do {                                                                                       \
