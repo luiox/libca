@@ -14,6 +14,12 @@ target("test-xmodem")
     add_files("xmodem.c", "test-xmodem-sim.c")
     add_deps("libca.em_base", "libca.em_util")
 
+target("test-ymodem")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("ymodem.c", "test-ymodem-sim.c")
+    add_deps("libca.em_base", "libca.em_util")
+
 target("test-dummy")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
