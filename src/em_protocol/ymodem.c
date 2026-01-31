@@ -325,8 +325,15 @@ static void ymodem_handle_packet(ymodem_t* ym)
     if (actual_len > 0) {
         if (ym->cbs != NULL && ym->cbs->on_recv != NULL) {
             if (ym->cbs->on_recv(ym->config->user_data, (u32)ym->offset, data, actual_len) != 0) {
-                ymodem_send_char(ym, YMODEM_NAK);
-                ym->state = S_RX_WAIT_PACKET;
+                ym->retry_count++;
+                if (ymodem_retry_exceeded(ym)) {
+                    ymodem_send_char(ym, YMODEM_CAN);
+                    ymodem_handle_error(ym, YMODEM_ERR_RETRY_EXCEED);
+                }
+                else {
+                    ymodem_send_char(ym, YMODEM_NAK);
+                    ym->state = S_RX_WAIT_PACKET;
+                }
                 return;
             }
         }

@@ -248,7 +248,7 @@ static usize sim_u32_to_str(u32 value, char* out, usize max_len)
 
     usize out_len = (idx < max_len) ? idx : max_len;
     for (usize i = 0; i < out_len; i++) {
-        out[i] = tmp[out_len - 1 - i];
+        out[i] = tmp[idx - 1 - i];
     }
 
     return out_len;
