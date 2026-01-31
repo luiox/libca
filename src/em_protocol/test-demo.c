@@ -3,6 +3,7 @@
 #include "xmodem.h"
 #include "ymodem.h"
 #include <stdio.h>
+#include <stdint.h>
 
 // --- 模拟硬件底层接口 ---
 // ... (保持不变)
@@ -26,77 +27,101 @@ void write_flash(uint32_t address, const uint8_t* data, size_t length) {
 file_transfer_t g_ft; // 统一的协议句柄
 xmodem_t g_xm;        // XModem 私有数据
 ymodem_t g_ym;        // YModem 私有数据
-ringbuffer_t g_rb;
-ringbuffer_t g_sb;
 
-// 为环形缓冲区分配实际内存
-uint8_t rb_mem[1024];
-uint8_t sb_mem[128];
+static u8 g_xm_buffer[2048];
+static u8 g_ym_buffer[2048];
+static xmodem_config_t g_xm_cfg;
+static ymodem_config_t g_ym_cfg;
+static file_transfer_cbs_t g_ft_cbs;
+
+static i32 mock_write(transport_t* self, const u8 *buf, usize len)
+{
+    (void)self;
+    uart_send((const uint8_t*)buf, (size_t)len);
+    return (i32)len;
+}
+
+static i32 mock_read(transport_t* self, u8 *buf, usize len, u32 timeout_ms)
+{
+    (void)self;
+    (void)buf;
+    (void)len;
+    (void)timeout_ms;
+    return 0;
+}
+
+static transport_t g_mock_io = {
+    .write = mock_write,
+    .read = mock_read,
+    .flush = NULL
+};
 
 // --- 回调函数实现 ---
 
-void on_data_received(const u8* data, usize len, usize offset) {
+static i32 on_data_received(void *user_data, u32 offset, const u8* data, usize len) {
+    (void)user_data;
     // 协议解析出一块完整数据后，会调用这里
     write_flash(0x08020000 + offset, data, len);
+    return 0;
 }
 
-void on_ymodem_file_info(const char* filename, usize file_size) {
-    printf("[YMODEM] Receiving file: %s, size: %zu bytes\n", filename, file_size);
-}
-
-// --- 辅助函数：处理协议生成的回复 ---
-void handle_protocol_reply(void) {
-    uint8_t tx_buf[128];
-    // 通过统一接口 ft->ops->poll 从协议实例中“拉”出待发送的数据
-    i32 len = g_ft.ops->poll(g_ft.proto_ins, tx_buf, sizeof(tx_buf));
-    if (len > 0) {
-        uart_send(tx_buf, (size_t)len);
-    }
-}
-
-// --- 模拟中断或数据接收 ---
-void on_uart_rx_event(const uint8_t* data, size_t len) {
-    // 仅仅将数据存入接收缓冲区，不进行任何协议处理，保证中断极速退出
-    ringbuffer_write(&g_rb, data, len);
+static void on_ymodem_file_info(void *user_data, u32 total_size, const char* filename) {
+    (void)user_data;
+    printf("[YMODEM] Receiving file: %s, size: %u bytes\n", filename, (unsigned int)total_size);
 }
 
 int main() {
-    // 1. 初始化环形缓冲区内存
-    ringbuffer_init(&g_rb, rb_mem, sizeof(rb_mem));
-    ringbuffer_init(&g_sb, sb_mem, sizeof(sb_mem));
-
     // 2. 选择协议并初始化
     // 切换协议只需要改变这里的 TP_XMODEM 为 TP_YMODEM
     transfer_protocol_enum target_proto = TP_YMODEM;
 
+    g_ft_cbs.on_recv = on_data_received;
+    g_ft_cbs.on_send = NULL;
+    g_ft_cbs.on_start = on_ymodem_file_info;
+    g_ft_cbs.on_finish = NULL;
+
     if (target_proto == TP_XMODEM) {
-        xmodem_proto_init(&g_xm, &g_rb, &g_sb);
-        xmodem_set_on_data_cb(&g_xm, on_data_received);
+        g_xm_cfg.user_data = NULL;
+        g_xm_cfg.is_transmitter = false;
+        g_xm_cfg.mode = XMODEM_MODE_CRC;
+        g_xm_cfg.recv_buffer = g_xm_buffer;
+        g_xm_cfg.recv_buffer_size = sizeof(g_xm_buffer);
+        g_xm_cfg.max_retries = 10;
+
+        xmodem_init(&g_xm, &g_mock_io, &g_ft_cbs, &g_xm_cfg);
         file_transfer_init(&g_ft, TP_XMODEM, &g_xm);
+        g_ft.ops->start_recv(g_ft.proto_ins);
     } else if (target_proto == TP_YMODEM) {
-        ymodem_proto_init(&g_ym, &g_rb, &g_sb);
-        ymodem_set_on_data_cb(&g_ym, on_data_received);
-        ymodem_set_on_file_info_cb(&g_ym, on_ymodem_file_info);
+        g_ym_cfg.user_data = NULL;
+        g_ym_cfg.is_transmitter = false;
+        g_ym_cfg.recv_buffer = g_ym_buffer;
+        g_ym_cfg.recv_buffer_size = sizeof(g_ym_buffer);
+        g_ym_cfg.max_retries = 10;
+
+        ymodem_init(&g_ym, &g_mock_io, &g_ft_cbs, &g_ym_cfg);
         file_transfer_init(&g_ft, TP_YMODEM, &g_ym);
+        g_ft.ops->start_recv(g_ft.proto_ins);
     }
 
     printf("File Transfer Demo Started (Protocol: %d)...\n", g_ft.proto);
 
     // 4. 主循环
-    uint32_t last_tick = 0; 
+    uint32_t last_tick = 0;
+    uint32_t current_time = 0; // 模拟时间戳
+    u8 rx_buf[256];
     while (1) {
-        // A. 核心处理：通过统一接口驱动协议解析
-        // 传入 NULL, 0 表示让协议去处理已经在 g_rb 缓冲区里的数据
-        if (g_ft.ops->process(g_ft.proto_ins, NULL, 0) > 0) {
-            handle_protocol_reply();
+        // 模拟时间流逝
+        current_time += 10;
+
+        // A. 数据处理：从底层读取并喂给协议栈
+        i32 rx_len = g_mock_io.read(&g_mock_io, rx_buf, sizeof(rx_buf), 0);
+        if (rx_len > 0) {
+            g_ft.ops->process(g_ft.proto_ins, rx_buf, (usize)rx_len);
         }
 
         // B. 时间驱动：处理超时逻辑
-        uint32_t current_time = 0; // 模拟时间戳
         if (current_time - last_tick >= 100) {
-            if (g_ft.ops->tick(g_ft.proto_ins, 100) > 0) {
-                handle_protocol_reply();
-            }
+            g_ft.ops->tick(g_ft.proto_ins, 100);
             last_tick = current_time;
         }
     }
