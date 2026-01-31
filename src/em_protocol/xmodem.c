@@ -146,12 +146,14 @@ i32 xmodem_tick(void* self, u32 ms_delta)
     acumulate_timer_update(&xm->retry_timer, ms_delta);
     acumulate_timer_update(&xm->idle_timer, ms_delta);
 
-    // 如果在握手阶段，每隔3秒发送一次'C'
+    // 如果在握手阶段，每隔3秒发送一次'C'或'NAK'
     if (xm->state == S_RX_WAIT_START) {
         if (acumulate_timer_get_elapsed(&xm->retry_timer) >= 3000) {
             if (xm->retry_count < xm->config->max_retries || xm->config->max_retries == -1) {
-                // 发送第一个'C'来启动CRC模式
-				xmodem_send_char(xm, XMODEM_CRC);
+                // 根据模式发送启动字符
+                // 标准模式发送NAK，CRC模式发送'C'
+                u8 start_char = (xm->config->mode == XMODEM_MODE_STANDARD) ? XMODEM_NAK : XMODEM_CRC;
+				xmodem_send_char(xm, start_char);
 				// 累计重试次数
                 xm->retry_count++;
                 acumulate_timer_reset(&xm->retry_timer, 0);
@@ -178,7 +180,10 @@ i32 xmodem_tick(void* self, u32 ms_delta)
 }
 
 // 发送模式的process处理
-i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len) {}
+i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
+{
+    return 0;
+}
 
 // 接收模式的process处理
 i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
@@ -212,8 +217,10 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
         {
             u8 header = xm->config->recv_buffer[0];
             usize data_len = (header == XMODEM_SOH) ? 128 : 1024;
-            // XMODEM-CRC: [HEADER][SEQ][~SEQ][DATA][CRC_H][CRC_L]
-            usize packet_total = data_len + 5;
+            bool use_crc = is_use_crc(xm->config->mode);
+            // XMODEM-CRC: [HEADER][SEQ][~SEQ][DATA][CRC_H][CRC_L] (Overhead=5)
+            // XMODEM-SUM: [HEADER][SEQ][~SEQ][DATA][SUM]         (Overhead=4)
+            usize packet_total = data_len + (use_crc ? 5 : 4);
 
             usize remain_in_packet = packet_total - xm->received_len;
             usize remain_in_buf = in_len - i;
@@ -228,11 +235,20 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
                 u8 seq = xm->config->recv_buffer[1];
                 u8 nseq = xm->config->recv_buffer[2];
                 u8* data = &xm->config->recv_buffer[3];
-                u16 crc_recv = (xm->config->recv_buffer[packet_total - 2] << 8) |
-                               xm->config->recv_buffer[packet_total - 1];
-                u16 crc_calc = crc16_xmodem(data, data_len);
+                
+                bool check_ok = false;
+                if (use_crc) {
+                    u16 crc_recv = (xm->config->recv_buffer[packet_total - 2] << 8) |
+                                   xm->config->recv_buffer[packet_total - 1];
+                    u16 crc_calc = crc16_xmodem(data, data_len);
+                    check_ok = (crc_calc == crc_recv);
+                } else {
+                    u8 sum_recv = xm->config->recv_buffer[packet_total - 1];
+                    u8 sum_calc = checksum_calc_u8(data, data_len);
+                    check_ok = (sum_calc == sum_recv);
+                }
 
-                if (seq == (u8)(~nseq) && crc_calc == crc_recv &&
+                if (seq == (u8)(~nseq) && check_ok &&
                     (seq == xm->packet_num || seq == (u8)(xm->packet_num - 1))) {
                     if (seq == xm->packet_num) {
                         // 新包

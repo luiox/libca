@@ -327,7 +327,6 @@ static void setup_test_data() {
 }
 
 // Case 1: Standard XMODEM (Checksum)
-#if 0
 TEST_CASE(xmodem_rx_std_checksum) {
     reset_test_env();
     setup_test_data();
@@ -353,10 +352,10 @@ TEST_CASE(xmodem_rx_std_checksum) {
 
     TEST_ASSERT_TRUE(g_transfer_done);
     TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
-    TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, g_file_len);
+    // 3 packets * 128 = 384
+    TEST_ASSERT_EQUAL_INT(384, g_file_len);
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
 }
-#endif
 
 // Case 2: XMODEM CRC
 TEST_CASE(xmodem_rx_crc) {
