@@ -27,7 +27,7 @@ includes("em_driver")
 includes("em_bus")
 -- log依赖platform
 -- includes("em_log")
--- includes("em_protocol")
+includes("em_protocol")
 -- includes("em_component")
 
 -- shell依赖base
