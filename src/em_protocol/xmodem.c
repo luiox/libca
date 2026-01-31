@@ -2,7 +2,6 @@
 #include "../em_base/memory_util.h"
 #include "../em_util/crc.h"
 #include "../em_base/debug.h"
-#include "../em_util/ringbuffer.h"
 #include "../em_util/soft_timer.h"
 #include <string.h>
 
