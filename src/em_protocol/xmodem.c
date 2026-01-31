@@ -109,6 +109,8 @@ static void xmodem_reset(xmodem_t* xm)
         xm->total_size = 0;
         // 尝试次数归零
         xm->retry_count = 0;
+        // 初始化当前模式
+        xm->current_mode = xm->config->mode;
     }
     // 重试定时器归零
     acumulate_timer_reset(&xm->retry_timer, 0);
@@ -150,9 +152,17 @@ i32 xmodem_tick(void* self, u32 ms_delta)
     if (xm->state == S_RX_WAIT_START) {
         if (acumulate_timer_get_elapsed(&xm->retry_timer) >= 3000) {
             if (xm->retry_count < xm->config->max_retries || xm->config->max_retries == -1) {
+                // Check for fallback to Checksum if we are in CRC/1K mode and retried enough
+                if ((xm->config->mode == XMODEM_MODE_CRC || xm->config->mode == XMODEM_MODE_1K) && 
+                    xm->retry_count >= 3 && xm->current_mode != XMODEM_MODE_STANDARD) {
+                    xm->current_mode = XMODEM_MODE_STANDARD;
+                    // Reset retry timer to send NAK immediately? No, wait next tick cycle effectively.
+                    // But maybe we should send immediately? The timer just triggered so we are about to send.
+                }
+
                 // 根据模式发送启动字符
                 // 标准模式发送NAK，CRC模式发送'C'
-                u8 start_char = (xm->config->mode == XMODEM_MODE_STANDARD) ? XMODEM_NAK : XMODEM_CRC;
+                u8 start_char = (xm->current_mode == XMODEM_MODE_STANDARD) ? XMODEM_NAK : XMODEM_CRC;
 				xmodem_send_char(xm, start_char);
 				// 累计重试次数
                 xm->retry_count++;
@@ -188,6 +198,7 @@ i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
 // 接收模式的process处理
 i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
 {
+    acumulate_timer_reset(&xm->idle_timer, 0);
     usize i = 0;
     while (i < in_len) {
         u8 ch = in_buf[i];
@@ -217,7 +228,7 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
         {
             u8 header = xm->config->recv_buffer[0];
             usize data_len = (header == XMODEM_SOH) ? 128 : 1024;
-            bool use_crc = is_use_crc(xm->config->mode);
+            bool use_crc = is_use_crc(xm->current_mode);
             // XMODEM-CRC: [HEADER][SEQ][~SEQ][DATA][CRC_H][CRC_L] (Overhead=5)
             // XMODEM-SUM: [HEADER][SEQ][~SEQ][DATA][SUM]         (Overhead=4)
             usize packet_total = data_len + (use_crc ? 5 : 4);

@@ -63,6 +63,10 @@ typedef struct xmodem {
     usize received_len;
     // 总长度 (Transmitter使用)
     usize total_size;
+
+    // 当前协商使用的模式（可能会因为降级而与config->mode不一致）
+    xmodem_mode_t current_mode;
+
     // 重试定时器，咱们不需要存开始的绝对时间戳，只需要相对时间
     acumulate_timer_t retry_timer;
     // 空闲定时器，记录空闲时间

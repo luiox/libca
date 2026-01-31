@@ -12,7 +12,7 @@
 #define LIBCA_EM_PROTOCOL_YMODEM_H
 
 #include "file_transfer.h"
-#include "em_util/ringbuffer.h"
+#include "../em_util/ringbuffer.h"
 
 typedef struct ymodem {
     ringbuffer_t* rb;

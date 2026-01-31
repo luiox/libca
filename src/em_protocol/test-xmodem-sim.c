@@ -386,7 +386,6 @@ TEST_CASE(xmodem_rx_crc) {
 }
 
 // Case 3: XMODEM 1K
-#if 0
 TEST_CASE(xmodem_rx_1k) {
     reset_test_env();
     // Increase data to ensure we use 1K packets (need > 128 bytes, ideally > 1024 to see transitions but Sim uses 1K if Proto is 1K)
@@ -410,10 +409,43 @@ TEST_CASE(xmodem_rx_1k) {
     run_protocol_loop(&xm, &sim);
 
     TEST_ASSERT_TRUE(g_transfer_done);
-    TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, g_file_len);
+    // 1K Xmodem pads to 1024 bytes
+    TEST_ASSERT_EQUAL_INT(1024, g_file_len);
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
 }
-#endif
+
+// Case 4: XMODEM Fallback (CRC -> Checksum)
+TEST_CASE(xmodem_rx_fallback) {
+    reset_test_env();
+    setup_test_data();
+
+    xmodem_t xm;
+    xmodem_config_t cfg = {
+        .is_transmitter = false,
+        .mode = XMODEM_MODE_CRC, // Default starts with CRC
+        .recv_buffer = g_xm_internal_buf,
+        .recv_buffer_size = sizeof(g_xm_internal_buf),
+        .user_data = NULL,
+        .max_retries = 10
+    };
+    xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
+    xmodem_start_recv(&xm);
+
+    // Sim is Checksum ONLY. It will ignore 'C' sent by DUT initially.
+    sim_peer_t sim;
+    sim_init(&sim, SIM_ROLE_SENDER, SIM_PROTO_CHECKSUM, g_test_data, TEST_DATA_SIZE);
+
+    run_protocol_loop(&xm, &sim);
+
+    TEST_ASSERT_TRUE(g_transfer_done);
+    TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
+    // 384 bytes = 3 packets of 128
+    TEST_ASSERT_EQUAL_INT(384, g_file_len);
+    TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
+    
+    // Verify that we fell back
+    TEST_ASSERT_EQUAL_INT(XMODEM_MODE_STANDARD, xm.current_mode);
+}
 
 // --- Test Group 2: DUT as Sender ---
 
