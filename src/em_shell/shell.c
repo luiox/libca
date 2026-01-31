@@ -6,10 +6,6 @@
 #include "../em_base/string_util.h"
 #include "../em_base/debug.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ========== 前置声明 ========== */
 static i32 shell_help(i32 argc, char *argv[]);
 static i32 shell_clear(i32 argc, char *argv[]);

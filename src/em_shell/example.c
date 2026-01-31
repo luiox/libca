@@ -271,8 +271,6 @@ static const shell_cmd_t g_commands[] = {
 
 /* ========== 使用示例 ========== */
 
-#ifdef EXAMPLE_MAIN
-
 int main(void)
 {
     /* 初始化 UART 端口 */
@@ -311,4 +309,3 @@ int main(void)
     return 0;
 }
 
-#endif
