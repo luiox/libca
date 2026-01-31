@@ -7,7 +7,7 @@
  * @update
  * 2026-01-31 第一次明确编译器统一宏的标准
  *
- * @copyright Copyright (c) 2025
+ * @copyright Copyright (c) 2026
  *
  */
 #ifndef LIBCA_EM_BASE_COMPILER_COMPAT_H
@@ -82,7 +82,7 @@
 #    endif
 #endif
 
-/* ---------------- 6. 结构体紧凑打包 ---------------- */
+/* ---------------- 5. 结构体紧凑打包 ---------------- */
 // 取消结构体填充字节，严格按 1 字节对齐 (用于通信协议解析)
 // 注意：不适用MSVC
 #ifndef CA_PACKED
