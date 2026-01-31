@@ -485,5 +485,37 @@ TEST_CASE(xmodem_tx_crc) {
     // TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, sim.rx_len); // Sim accumulates actual data + padding
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
 }
+// Case 6: DUT as Sender (Checksum)
+TEST_CASE(xmodem_tx_checksum) {
+    reset_test_env();
+    setup_test_data();
 
+    xmodem_t xm;
+    xmodem_config_t cfg = {
+        .is_transmitter = true,
+        .mode = XMODEM_MODE_STANDARD,
+        .recv_buffer = g_xm_internal_buf,
+        .recv_buffer_size = sizeof(g_xm_internal_buf),
+        .user_data = NULL,
+        .max_retries = 10
+    };
+    
+    xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
+    xmodem_start_send(&xm, "test_sum.bin", TEST_DATA_SIZE);
+    
+    // Sim acts as Receiver using Checksum
+    sim_peer_t sim;
+    sim_init(&sim, SIM_ROLE_RECEIVER, SIM_PROTO_CHECKSUM, NULL, 0);
+
+    run_protocol_loop(&xm, &sim);
+    
+    TEST_ASSERT_TRUE(g_transfer_done);
+    TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
+    // Sim should have received data
+    // TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, sim.rx_len); // Sim accumulates actual data + padding (384)
+    TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
+    
+    // Verify mode
+    TEST_ASSERT_EQUAL_INT(XMODEM_MODE_STANDARD, xm.current_mode);
+}
 #endif
