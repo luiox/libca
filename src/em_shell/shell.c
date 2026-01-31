@@ -318,7 +318,8 @@ i32 shell_parse_hex(const char *s, u32 *out)
     char *end = NULL;
     u32 v = (u32)strtoul(s, &end, 0);
 
-    if (end == s) return 0;
+    /* 检查是否成功解析了数字部分（end 必须指向字符串末尾或空字符） */
+    if (end == s || *end != '\0') return 0;
     *out = v;
     return 1;
 }
