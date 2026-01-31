@@ -1,8 +1,8 @@
 #include "compiler_compat.h"
-#include "debug.h"
 
 #if TEST_ENABLE
 #include "../em_test/test.h"
+#include "datatype.h"
 
 // 测试 CA_ALIGNED
 CA_ALIGNED(16) static char s_compat_test_aligned_buf[32];
@@ -29,7 +29,7 @@ CA_WEAK int compat_test_weak_func(void) {
 
 TEST_CASE(test_compiler_compat_macros) {
     // 1. 检查 CA_ALIGNED
-    TEST_ASSERT_EQUAL_INT(0, (uintptr_t)s_compat_test_aligned_buf % 16);
+    TEST_ASSERT_EQUAL_INT(0, (i32)s_compat_test_aligned_buf % 16);
     // 注意：sizeof(aligned_struct_t) 应该是 8 的倍数
     TEST_ASSERT_EQUAL_INT(0, sizeof(compat_test_aligned_t) % 8);
 
