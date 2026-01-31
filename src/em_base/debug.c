@@ -60,4 +60,24 @@ TEST_CASE(debug_puts_and_printf)
     TEST_ASSERT_EQUAL_STRING("hello 123", test_last_msg);
 }
 
+TEST_CASE(test_param_check_macro)
+{
+#if CA_USE_PARAM_CHECK
+    memset(test_last_msg, 0, sizeof(test_last_msg));
+    debug_init(test_hw_puts_cb);
+
+    // 这应该触发失败消息
+    param_check(0);
+    // 检查输出是否包含 "param check failure"
+    // 由于 strstr 是标准库函数，我们可以直接使用。test.h 可能包含了 string.h 或者我们自己包含了。
+    // 是的，debug.c 在 #if TEST_ENABLE 内部包含了 #include <string.h>
+    TEST_ASSERT_NOT_NULL(strstr(test_last_msg, "param check failure"));
+    
+    // 检查正向情况（不应该打印任何内容）
+    memset(test_last_msg, 0, sizeof(test_last_msg));
+    param_check(1);
+    TEST_ASSERT_EQUAL_STRING("", test_last_msg);
+#endif
+}
+
 #endif   // TEST_ENABLE

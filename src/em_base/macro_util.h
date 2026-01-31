@@ -58,13 +58,15 @@
   __CA_CONNECT9(__A, __B, __C, __D, __E, __F, __G, __H, __I)
 
 
+#define CA_EXPAND(x) x
+
 #define __CA_PLOOC_VA_NUM_ARGS_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
                                  _11, _12, _13, _14, _15, _16, __N, ...)      \
   __N
 
 #define __CA_PLOOC_VA_NUM_ARGS(...)                                               \
-  __CA_PLOOC_VA_NUM_ARGS_IMPL(0, ##__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, \
-                           7, 6, 5, 4, 3, 2, 1, 0)
+  CA_EXPAND(__CA_PLOOC_VA_NUM_ARGS_IMPL(0, ##__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, \
+                           7, 6, 5, 4, 3, 2, 1, 0))
 
 /**
  * @brief 获取可变参数个数
@@ -79,11 +81,11 @@
 /**
  * @brief 连接宏
  */
-#define CA_CONNECT(...) CA_CONNECT2(CA_CONNECT, CA_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define CA_CONNECT(...) CA_EXPAND(CA_CONNECT2(CA_CONNECT, CA_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__))
 
 /**
  * @brief 选择宏, 根据参数个数N调用对应的__FUNC_N
  */
-#define CA_EVAL(__FUNC, ...) CA_CONNECT2(__FUNC, CA_VA_NUM_ARGS(__VA_ARGS__))
+#define CA_EVAL(__FUNC, ...) CA_EXPAND(CA_CONNECT2(__FUNC, CA_VA_NUM_ARGS(__VA_ARGS__))(__VA_ARGS__))
 
 #endif // !LIBCA_EM_BASE_MACRO_UTIL_H

@@ -55,7 +55,7 @@ typedef size_t          usize;
 #define is_unsigned_v(a) (a >= 0 && ~a >= 0)
 
 // 判断一个类型是否为无符号类型
-#define is_unsigned_t(type) (((type)0 - 1) > 0)
+#define is_unsigned_t(type) ((type)-1 > (type)0)
 
 // 标记未使用的参数
 // 例: unused_param(a);
