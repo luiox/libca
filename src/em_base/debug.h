@@ -9,8 +9,15 @@
  * 1. 初始化串口或其他输出设备（例如使用 HAL 库或裸机驱动）。
  * 2. 调用 debug_init 注册输出回调函数。
  * 3. 使用 debug_print 输出调试信息。
+ *
+ * 控制宏如下，定义为0时候可以关闭，定义为1时候打开，默认全部打开。
+ * USE_DEBUG_MODE、USE_DEBUG_ASSERT、USE_PARAM_CHECK
+ * 自定义，配置文件宏：USE_CUSTOM_DEBUG_CONFIG，这个宏默认关闭
+ *
  * @version 0.1
  * @date 2026-01-12
+ * 2026-01-31 第一次明确debug的接口
+ *
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -18,7 +25,9 @@
 #ifndef LIBCA_EM_BASE_DEBUG_H
 #define LIBCA_EM_BASE_DEBUG_H
 
-#include "../em_base/base_config.h"
+#ifdef USE_CUSTOM_DEBUG_CONFIG
+#include USE_CUSTOM_DEBUG_CONFIG
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,20 +113,9 @@ void debug_printf(const char* fmt, ...);
  */
 #    define debug_assert(expr)                                         \
         if (!(expr)) {                                                 \
-            debug_print("断言失败: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
+            debug_print("assert failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
         }
-#    define ASSERT_STATIC_(condition) typedef char c_assert_##__LINE__[(condition) ? 1 : -1]
-
-#    define ASSERT_STATIC(condition)            \
-        struct c_assert_##__LINE__              \
-        {                                       \
-            unsigned int : (condition) ? 1 : 0; \
-        }
-
 #else
-#    define debug_assert(expr)
-#    define ASSERT_STATIC_(condition)
-#    define ASSERT_STATIC(condition)
 #endif
 
 #if USE_PARAM_CHECK
@@ -128,7 +126,7 @@ void debug_printf(const char* fmt, ...);
  */
 #    define param_check(expr)                                                   \
         if (!(expr)) {                                                          \
-            debug_print("参数检查失败: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
+            debug_print("param check failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
         }
 #else
 #    define param_check(expr)
