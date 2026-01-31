@@ -12,76 +12,73 @@
 #define LIBCA_EM_PROTOCOL_XMODEM_H
 
 #include "file_transfer.h"
-#include "../em_util/ringbuffer.h"
+#include "em_util/ringbuffer.h"
+#include "em_util/soft_timer.h"
 
-#define XMODEM_ERR_NONE           0
+#define XMODEM_OK                 0
 #define XMODEM_ERR_RB_TOO_SMALL   1
 #define XMODEM_ERR_TIMEOUT        2
 #define XMODEM_ERR_RETRY_EXCEED   3
 #define XMODEM_ERR_CANCELLED      4
 
+typedef enum xmodem_mode_enum{
+    XMODEM_MODE_STANDARD,
+    XMODEM_MODE_CRC,
+    XMODEM_MODE_1K,
+}xmodem_mode_t;
+
+typedef struct xmodem_config{
+    // 用户自定义数据
+    void* user_data;
+    // 模式选择
+    xmodem_mode_t mode;
+    // 接收缓冲区
+    u8* recv_buffer;
+    usize recv_buffer_size;
+
+    // 是否是发送者模式
+    bool is_transmitter;
+    // 最大重试次数，如果为负数则无限重试，特征值-1表示无限重试
+    i8 max_retries;
+}xmodem_config_t;
+
 // NOTE: xmodem now adapted to generic file transfer callbacks
 typedef struct xmodem {
-    // 接收缓冲区
-    ringbuffer_t* rb;
-
     // 协议层持有的 transport
     transport_t* io;
 
     // 应用回调 (file_transfer_cbs_t)
-    file_transfer_cbs_t cbs;
-    void* user_data;
+    file_transfer_cbs_t* cbs;
+
+    // 由用户通过init的config参数传递给我们的配置
+    xmodem_config_t* config;
 
     // 状态机
     u8 state;
     // 期望的包序号
     u8 packet_num;
-    // 是否使用CRC校验
-    u8 use_crc;
     // 偏移量
     usize offset;
+    // 当前包接收到的长度
+    usize received_len;
     // 总长度 (Transmitter使用)
     usize total_size;
-    // 定时器
-    u32 timer;
+    // 重试定时器，咱们不需要存开始的绝对时间戳，只需要相对时间
+    acumulate_timer_t retry_timer;
+    // 空闲定时器，记录空闲时间
+    acumulate_timer_t idle_timer;
     // 重试次数
     u8 retry_count;
-    // 最大重试次数
-    u8 max_retries;
-    // 是否是发送者模式
-    u8 is_transmitter;
-
-    // 临时包缓冲区，避免动态分配
-    u8 packet_buf[1029];
-
 }xmodem_t;
 
-// 文件传输协议接口
+// 获取xmodem的全局唯一文件传输协议接口
 const file_transfer_ops_t* get_xmodem_file_transfer_ops(void);
 
-/**
- * @brief 初始化 XModem 协议私有数据 (只初始化内部缓冲)
- */
-void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb);
-
-/**
- * @brief file_transfer 兼容 init 接口
- */
-i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data);
-
-/**
- * @brief 启动接收
- */
+i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* config);
+i32 xmodem_tick(void* self, u32 ms_delta);
+i32 xmodem_process(void* self, const u8* in_buf, usize in_len);
 void xmodem_start_recv(void *self);
-
-/**
- * @brief 启动发送
- */
 void xmodem_start_send(void *self, const char* filename, u32 file_size);
-
-/**
- * @brief 获取已传输字节数
- */
 i32 xmodem_get_transferred_size(void *self);
 
 

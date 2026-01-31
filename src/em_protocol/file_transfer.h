@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 #define LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 #include "transport.h"
 
 /*
@@ -130,9 +130,9 @@ typedef struct file_transfer_ops
      * @param self 协议实例 (如 xmodem_t)
      * @param io 底层传输通道
      * @param cbs 上层业务回调
-     * @param user_data 用户自定义数据，由self持有
+     * @param config 协议配置数据，其中第一个一定是void* user_data，config由协议实例拥有，在回调时候会将user_data传递给上层
      */
-    i32 (*init)(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data);
+    i32 (*init)(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* config);
 
     /**
      * @brief 核心处理：驱动定时器
