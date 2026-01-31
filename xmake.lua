@@ -8,6 +8,7 @@ set_languages("cxx17")
 add_rules("mode.debug", "mode.release", "mode.coverage")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 
+
 -- 设置 C 编译选项
 -- add_cflags("-finput-charset=UTF-8", "-fexec-charset=UTF-8")
 
@@ -29,7 +30,7 @@ on_load(function (target)
     -- 检查当前是否是 coverage 模式
     if is_mode("coverage") then
         -- 仅为 gcc/clang 添加 gcov 标志；跳过 MSVC（Windows 的覆盖率工具不同）
-        if is_plat("windows") and is_config("compiler", "msvc") then
+        if is_plat("windows") then
             return
         end
 

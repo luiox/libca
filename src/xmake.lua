@@ -21,10 +21,12 @@ includes("em_util")
 includes("em_driver")
 -- platform依赖base
 -- includes("em_platform")
--- log依赖platform
--- includes("em_log")
+-- eimui依赖base
+-- includes("em_eimui")
 -- bus依赖base
 includes("em_bus")
+-- log依赖platform
+-- includes("em_log")
 -- includes("em_protocol")
 -- includes("em_component")
 
