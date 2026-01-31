@@ -45,6 +45,14 @@ const file_transfer_ops_t* get_xmodem_file_transfer_ops(void)
 // XModem 状态机定义
 enum xmodem_state_enum
 {
+    /* --- 通用状态 (Common Terminal States) --- */
+    
+    // 传输成功完成：协议流程正常闭环
+    S_FINISHED,
+    
+    // 传输异常错误：由于重试超限、超时、或收到强制取消信号(CAN)
+    S_ERROR,
+
     /* --- 接收者状态 (Receiver States) --- */
     
     // 等待启动：接收方在此状态下周期性发送 'C'，直到收到发送方的第一个有效包头(SOH/STX)
@@ -55,12 +63,6 @@ enum xmodem_state_enum
     
     // 正在接收包内容：已识别出 SOH 或 STX，正在收集后续的序号、数据及校验和
     S_RX_IN_PACKET,
-    
-    // 传输成功完成：收到了 EOT 信号并回复了 ACK，流程正常闭环
-    S_RX_FINISHED,
-    
-    // 传输异常错误：由于重试超限、超时、或收到强制取消信号(CAN)
-    S_RX_ERROR,
 
     /* --- 发送者状态 (Transmitter States) --- */
     
@@ -164,7 +166,7 @@ i32 xmodem_tick(void* self, u32 ms_delta)
                 acumulate_timer_reset(&xm->retry_timer, 0);
             }
             else {
-                xm->state = S_RX_ERROR;
+                xm->state = S_ERROR;
                 xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_RETRY_EXCEED);
                 return XMODEM_ERR_RETRY_EXCEED;
             }
@@ -175,7 +177,7 @@ i32 xmodem_tick(void* self, u32 ms_delta)
     // 如果空闲时间大于10秒，则认为传输失败
     if (acumulate_timer_get_elapsed(&xm->idle_timer) > 10000) {
         debug_print("XModem transfer timeout (idle > 10s)");
-        xm->state = S_RX_ERROR;
+        xm->state = S_ERROR;
         xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_TIMEOUT);
         return XMODEM_ERR_TIMEOUT;
     }
@@ -288,13 +290,11 @@ i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
                     }
                 }
                 else if (ch == XMODEM_NAK) {
-                    // Resend same packet
-                    usize data_size = (xm->current_mode == XMODEM_MODE_1K) ? 1024 : 128;
-                    usize overhead = is_use_crc(xm->current_mode) ? 5 : 4;
-                    xm->io->write(xm->io, xm->config->recv_buffer, data_size + overhead);
+                    // 重新构建数据包，然后发送，不依赖于副作用
+                    xmodem_send_data_packet(xm);
                 }
                 else if (ch == XMODEM_CAN) {
-                    xm->state = S_RX_ERROR;
+                    xm->state = S_ERROR;
                     xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_CANCELLED);
                     return 0;
                 }
@@ -303,7 +303,7 @@ i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
             case S_TX_WAIT_EOT_ACK:
                 if (ch == XMODEM_ACK) {
                     // All done
-                    xm->state = S_RX_FINISHED; 
+                    xm->state = S_FINISHED; 
                     xm->cbs->on_finish(xm->config->user_data, XMODEM_OK);
                     return 0;
                 }
@@ -336,12 +336,12 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
             }
             else if (ch == XMODEM_EOT) {
                 xmodem_send_char(xm, XMODEM_ACK);
-                xm->state = S_RX_FINISHED;
+                xm->state = S_FINISHED;
                 xm->cbs->on_finish(xm->config->user_data, XMODEM_OK);
                 return 0;
             }
             else if (ch == XMODEM_CAN) {
-                xm->state = S_RX_ERROR;
+                xm->state = S_ERROR;
                 xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_CANCELLED);
                 return 0;
             }
@@ -410,7 +410,7 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
                     xm->retry_count++;
                     if (xm->config->max_retries != -1 && xm->retry_count > xm->config->max_retries) {
                         xmodem_send_char(xm, XMODEM_CAN);
-                        xm->state = S_RX_ERROR;
+                        xm->state = S_ERROR;
                         xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_RETRY_EXCEED);
                     }
                     else {
@@ -420,7 +420,7 @@ i32 xmodem_rx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
                 }
             }
         } break;
-        case S_RX_FINISHED:
+        case S_FINISHED:
         {
             i++;
         } break;
