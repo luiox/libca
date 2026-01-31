@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_PROTOCOL_TRANSPORT_H
 #define LIBCA_EM_PROTOCOL_TRANSPORT_H
 
-#include "em_base/datatype.h"
+#include "../em_base/datatype.h"
 
 // 状态码
 #define TRANSPORT_OK 0
