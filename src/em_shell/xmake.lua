@@ -1,0 +1,11 @@
+target("libca.em_shell")
+    set_kind("object")
+    set_group("em")
+    add_files("**.c")
+    add_deps("libca.em_base")
+
+target("libca.em_shell_static")
+    set_kind("static")
+    set_group("em")
+    add_files("**.c")
+    add_deps("libca.em_base")

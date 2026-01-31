@@ -30,6 +30,9 @@ includes("em_bus")
 -- includes("em_protocol")
 -- includes("em_component")
 
+-- shell依赖base
+includes("em_shell")
+
 -------------------------------------------------------------------------------
 
 
