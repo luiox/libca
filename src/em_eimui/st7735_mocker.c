@@ -63,8 +63,11 @@ static int alloc_cache_slot(void) {
     for (int i = 0; i < TEXT_CACHE_SIZE; i++) {
         if (g_text_cache[i].tex == NULL) return i;
     }
-    // 简单替换策略：释放第0个
-    int i = 0;
+    // Simple round-robin replacement strategy
+    static int s_evict_idx = 0;
+    int i = s_evict_idx;
+    s_evict_idx = (s_evict_idx + 1) % TEXT_CACHE_SIZE;
+
     if (g_text_cache[i].tex) {
         SDL_DestroyTexture(g_text_cache[i].tex);
         free(g_text_cache[i].str);

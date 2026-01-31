@@ -1,4 +1,5 @@
 #include "eimui.h"
+#include <stdbool.h>
 
 void eimui_init(eimui_t* self, u16 w, u16 h) {
     self->width = w;
@@ -32,6 +33,7 @@ void eimui_tick(eimui_context_t* ctx, eimui_t* self) {
     // 3. 渲染到屏幕
     if(self->should_repaint){
         ctx->render();
+        self->should_repaint = false;
     }
 
     // 4. 控制帧率

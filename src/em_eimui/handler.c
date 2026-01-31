@@ -5,6 +5,13 @@
 #include <stdio.h>
 #include <stdint.h>
 
+typedef enum main_menu_item_enum{
+    MAIN_MENU_ITEM_BASIC = 0,
+    MAIN_MENU_ITEM_ADVANCE,
+    MAIN_MENU_ITEM_EXIT,
+    MAIN_MENU_ITEM_COUNT
+} main_menu_item_t;
+
 // 简单的文本项绘制辅助
 static void draw_item(st7735_ops_t* ctx, eimui_t* self, u16 y, const char* label, bool selected) {
     u16 fg = selected ? self->color_bg : self->color_fg;
@@ -25,11 +32,11 @@ static void draw_item(st7735_ops_t* ctx, eimui_t* self, u16 y, const char* label
 // MAIN page: Basic / Advance
 void eimui_handler_main(void* dops, eimui_t* self) {
     if (self->event == EIMUI_EVENT_ENTER) {
-        if (self->cursor_pos == 0) {
+        if (self->cursor_pos == MAIN_MENU_ITEM_BASIC) {
             eimui_set_page(self, PAGE_ID_BASIC); // Basic
-        } else if (self->cursor_pos == 1) {
+        } else if (self->cursor_pos == MAIN_MENU_ITEM_ADVANCE) {
             eimui_set_page(self, PAGE_ID_ADVANCE); // Advance
-        } else if (self->cursor_pos == 2) {
+        } else if (self->cursor_pos == MAIN_MENU_ITEM_EXIT) {
             eimui_exit(self); // Exit the menu
         }
         self->should_repaint = true;
@@ -37,7 +44,7 @@ void eimui_handler_main(void* dops, eimui_t* self) {
         if (self->cursor_pos > 0) self->cursor_pos--;
         self->should_repaint = true;
     } else if (self->event == EIMUI_EVENT_DOWN) {
-        if (self->cursor_pos < 2) self->cursor_pos++;
+        if (self->cursor_pos < MAIN_MENU_ITEM_COUNT - 1) self->cursor_pos++;
         self->should_repaint = true;
     }
 
@@ -45,10 +52,10 @@ void eimui_handler_main(void* dops, eimui_t* self) {
     u16 y = 0;
     if (ctx->draw_string) ctx->draw_string(10, y, "MAIN MENU", self->color_fg, self->color_bg);
     y += self->font_size;
-    draw_item(ctx, self, y, "Basic", self->cursor_pos == 0); y += self->font_size;
-    draw_item(ctx, self, y, "Advance", self->cursor_pos == 1); y += self->font_size;
+    draw_item(ctx, self, y, "Basic", self->cursor_pos == MAIN_MENU_ITEM_BASIC); y += self->font_size;
+    draw_item(ctx, self, y, "Advance", self->cursor_pos == MAIN_MENU_ITEM_ADVANCE); y += self->font_size;
     // 退出
-    draw_item(ctx, self, y, "Exit", self->cursor_pos == 2); y += self->font_size;
+    draw_item(ctx, self, y, "Exit", self->cursor_pos == MAIN_MENU_ITEM_EXIT); y += self->font_size;
 }
 
 // BASIC page: Task1 / Task2
