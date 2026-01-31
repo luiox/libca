@@ -84,12 +84,12 @@
 
 /* ---------------- 5. 结构体紧凑打包 ---------------- */
 // 取消结构体填充字节，严格按 1 字节对齐 (用于通信协议解析)
-// 注意：不适用MSVC
+// 注意：不适用MSVC，需要特殊处理
 #ifndef CA_PACKED
 #    if defined(__GNUC__) || defined(__clang__)
 #        define CA_PACKED __attribute__((packed))
 #    elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
-#        define CA_PACKED __attribute__((packed))   // 或 __packed
+#        define CA_PACKED __packed   // 为了兼容AC5编译器，我们尽可能使用__packed而不是__attribute__((packed))
 #    elif defined(_MSC_VER)
 #        define CA_PACKED
 // MSVC 比较麻烦需要按照下面这样子写
@@ -108,7 +108,54 @@ typedef struct {
 #endif
 */
 #    else
-#        define BASE_PACKED
+#        define CA_PACKED
+#    endif
+#endif
+
+/* ---------------- 6. 防止被链接器优化 ---------------- */
+// 标记为“已使用”，防止链接器因未显式调用而删除（常用于自动初始化/命令注册）
+// 配合 CA_SECTION 使用
+// 注意：不适用MSVC，需要特殊处理
+#ifndef CA_USED
+#    if defined(__GNUC__) || defined(__clang__)
+#        define CA_USED __attribute__((used))
+#    elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#        define CA_USED __attribute__((used))
+#    elif defined(_MSC_VER)
+#        define CA_USED /* MSVC 需要通过 #pragma section/comment 或 linker 参数处理 */
+#    else
+#        define CA_USED
+#    endif
+#endif
+
+/* ---------------- 7. 无返回值 ---------------- */
+// 告知编译器函数不会返回（用于死循环/复位/断言失败）
+// 有助于消除 "control reaches end of non-void function" 警告
+#ifndef CA_NO_RETURN
+#    if defined(__cplusplus) && (__cplusplus >= 201103L)
+#        define CA_NO_RETURN [[noreturn]]
+#    elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#        define CA_NO_RETURN _Noreturn
+#    elif defined(__GNUC__) || defined(__clang__)
+#        define CA_NO_RETURN __attribute__((noreturn))
+#    elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#        define CA_NO_RETURN __attribute__((noreturn))
+#    elif defined(_MSC_VER)
+#        define CA_NO_RETURN __declspec(noreturn)
+#    else
+#        define CA_NO_RETURN
+#    endif
+#endif
+
+/* ---------------- 8. 分支预测优化 ---------------- */
+// 提示编译器该条件极大概率为真(LIKELY)或假(UNLIKELY)
+#ifndef CA_LIKELY
+#    if defined(__GNUC__) || defined(__clang__)
+#        define CA_LIKELY(x) __builtin_expect(!!(x), 1)
+#        define CA_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#    else
+#        define CA_LIKELY(x) (x)
+#        define CA_UNLIKELY(x) (x)
 #    endif
 #endif
 
