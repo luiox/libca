@@ -20,25 +20,17 @@
 #define XMODEM_ERR_RETRY_EXCEED   3
 #define XMODEM_ERR_CANCELLED      4
 
-typedef struct xmodem_cbs {
-    // 如果设置了该回调，则在每接收到一块数据时调用 (Receiver)
-    void (*on_data)(const u8 *data, usize len, usize offset);
-    // 如果设置了该回调，则在文件传输完成时调用 (Receiver/Transmitter)
-    void (*on_complete)(const u8 *data, usize len);
-    // 错误处理回调，返回0表示错误已处理
-    i32 (*on_error)(i32 err_code, void* err_data);
-    // 获取待发送数据回调 (Transmitter)
-    // 返回实际读取到的数据长度，0表示没有更多数据
-    usize (*on_tx_fetch)(u8 *buf, usize len, usize offset);
-}xmodem_cbs_t;
-
+// NOTE: xmodem now adapted to generic file transfer callbacks
 typedef struct xmodem {
     // 接收缓冲区
     ringbuffer_t* rb;
-    // 发送缓冲区
-    ringbuffer_t* sb;
-    // 回调集
-    xmodem_cbs_t cbs;
+
+    // 协议层持有的 transport
+    transport_t* io;
+
+    // 应用回调 (file_transfer_cbs_t)
+    file_transfer_cbs_t cbs;
+    void* user_data;
 
     // 状态机
     u8 state;
@@ -64,21 +56,33 @@ typedef struct xmodem {
 
 }xmodem_t;
 
-/**
- * @brief 初始化 XModem 协议私有数据
- */
-void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb, ringbuffer_t* sb);
-// 设置为发送者模式
-void xmodem_set_as_transmitter(xmodem_t* xm, usize total_size);
-// 如果设置该回调，那就是相当于流式接收数据
-void xmodem_set_on_data_cb(xmodem_t* xm, void (*on_data)(const u8 *data, usize len, usize offset));
-// 如果仅仅设置该回调，那就是等文件接收完成后一次性提供数据
-void xmodem_set_on_complete_cb(xmodem_t* xm, void (*on_complete)(const u8 *data, usize len));
-// 设置错误处理回调
-void xmodem_set_on_error_cb(xmodem_t* xm, i32 (*on_error)(i32 err_code, void* err_data));
-// 设置发送数据获取回调
-void xmodem_set_on_tx_fetch_cb(xmodem_t* xm, usize (*on_tx_fetch)(u8 *buf, usize len, usize offset));
+// 文件传输协议接口
+const file_transfer_ops_t* get_xmodem_file_transfer_ops(void);
 
+/**
+ * @brief 初始化 XModem 协议私有数据 (只初始化内部缓冲)
+ */
+void xmodem_proto_init(xmodem_t* xm, ringbuffer_t* rb);
+
+/**
+ * @brief file_transfer 兼容 init 接口
+ */
+i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data);
+
+/**
+ * @brief 启动接收
+ */
+void xmodem_start_recv(void *self);
+
+/**
+ * @brief 启动发送
+ */
+void xmodem_start_send(void *self, const char* filename, u32 file_size);
+
+/**
+ * @brief 获取已传输字节数
+ */
+i32 xmodem_get_transferred_size(void *self);
 
 
 #endif // !LIBCA_EM_PROTOCOL_XMODEM_H

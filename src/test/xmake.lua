@@ -1,6 +1,6 @@
 -- 特殊的组件库
 -- C++的测试库
-target("ca-test")
+target("libca.test")
     set_kind("static")
     add_files("*.cpp")
 
@@ -10,7 +10,7 @@ target("ca-test")
     
 
 -- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
-target("ca-self_test")
+target("libca.self_test")
     set_kind("binary")
 
     add_includedirs(".")

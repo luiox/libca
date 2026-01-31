@@ -14,19 +14,15 @@
 #include "file_transfer.h"
 #include "../em_util/ringbuffer.h"
 
-typedef struct ymodem_cbs {
-    // 如果设置了该回调，则在每接收到一块数据时调用
-    void (*on_data)(const u8 *data, usize len, usize offset);
-    // 如果设置了该回调，则在文件传输完成时调用
-    void (*on_complete)(const u8 *data, usize len);
-    // YModem 特有：接收到文件名和大小的回调
-    void (*on_file_info)(const char *filename, usize file_size);
-} ymodem_cbs_t;
-
 typedef struct ymodem {
     ringbuffer_t* rb;
-    ringbuffer_t* sb;
-    ymodem_cbs_t cbs;
+
+    // 协议层持有的 transport
+    transport_t* io;
+
+    // 应用回调 (file_transfer_cbs_t)
+    file_transfer_cbs_t cbs;
+    void* user_data;
 
     u8 state;
     usize offset;
@@ -38,20 +34,39 @@ typedef struct ymodem {
     // 内部状态标志
     bool is_batch;
     u8 error_count;
+
+    /* 兼容旧回调 */
+    void (*legacy_on_data)(const u8 *data, usize len, usize offset);
+    void (*legacy_on_file_info)(const char *filename, usize file_size);
 } ymodem_t;
 
 /**
  * @brief 初始化 YModem 协议私有数据
  */
-void ymodem_proto_init(ymodem_t* ym, ringbuffer_t* rb, ringbuffer_t* sb);
+void ymodem_proto_init(ymodem_t* ym, ringbuffer_t* rb);
 
 /**
- * @brief 设置数据接收回调
+ * @brief file_transfer 兼容 init 接口
+ */
+i32 ymodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* user_data);
+
+/**
+ * @brief 启动接收
+ */
+void ymodem_start_recv(void *self);
+
+/**
+ * @brief 启动发送
+ */
+void ymodem_start_send(void *self, const char* filename, u32 file_size);
+
+/**
+ * @brief 设置数据接收回调 (兼容旧接口)
  */
 void ymodem_set_on_data_cb(ymodem_t* ym, void (*on_data)(const u8 *data, usize len, usize offset));
 
 /**
- * @brief 设置文件信息回调
+ * @brief 设置文件信息回调 (兼容旧接口)
  */
 void ymodem_set_on_file_info_cb(ymodem_t* ym, void (*on_file_info)(const char *filename, usize file_size));
 

@@ -46,6 +46,8 @@ on_load(function (target)
     end
 end)
 
+includes("logger.lua")
+
 includes("src")
 
 

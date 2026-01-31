@@ -13,21 +13,22 @@
 
 -- base
 includes("em_base")
--- test依赖base
+-- test 依赖base
 includes("em_test")
 -- util依赖base
 includes("em_util")
 -- driver依赖base
 includes("em_driver")
 -- platform依赖base
-includes("em_platform")
+-- includes("em_platform")
 -- log依赖platform
 includes("em_log")
 -- eimui依赖base
 includes("em_eimui")
-
-includes("em_protocol")
-includes("em_component")
+-- bus依赖base
+includes("em_bus")
+-- includes("em_protocol")
+-- includes("em_component")
 
 -------------------------------------------------------------------------------
 

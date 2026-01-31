@@ -88,7 +88,7 @@ void debug_printf(const char* fmt, ...);
  */
 #if USE_DEBUG_MODE
 #    define debug_print(fmt, ...) \
-        debug_printf("[info][%s][%d]:" fmt PRINT_NEWLINE, __FILE__, __LINE__, ##__VA_ARGS__)
+        debug_printf("[%s:%d]:" fmt PRINT_NEWLINE, __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #    define debug_print(fmt, ...)
 #endif   // USE_DEBUG_MODE
