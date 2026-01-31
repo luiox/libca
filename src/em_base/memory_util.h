@@ -1,3 +1,14 @@
+/**
+ * @file memory_util.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 内存操作工具的封装
+ * @version 0.2
+ * @date 2026-01-17
+ * @update 2026-01-31 明确已有的内存操作函数的行为和语义
+ *
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_BASE_MEMORY_UTIL_H
 #define LIBCA_EM_BASE_MEMORY_UTIL_H
 

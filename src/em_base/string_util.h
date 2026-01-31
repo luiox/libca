@@ -4,6 +4,7 @@
  * @brief 字符串工具函数的实现
  * @version 0.2
  * @date 2025-07-28
+ * @update 2026-01-31 明确已有的字符串操作函数的行为和语义
  * 
  * @copyright Copyright (c) 2025
  * 
