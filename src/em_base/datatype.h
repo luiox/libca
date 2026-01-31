@@ -5,7 +5,7 @@
  * 位，字节，字节序相关的操作
  * @version 0.2
  * @date 2025-07-21
- * update
+ * @update
  * 2026-01-31 第一次明确datatype的类型标准
  *
  * @copyright Copyright (c) 2025
@@ -17,6 +17,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+/**
+ * @brief 自动探测 64 位支持
+ * 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
+ * 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
+ */
+#ifndef HAS_INT64
+    #if defined(UINTPTR_MAX) && (UINTPTR_MAX > 0xFFFFFFFFU)
+        #define HAS_INT64 1
+    #elif defined(UINT64_MAX)
+        #define HAS_INT64 1
+    #endif
+#endif
 
 // 整数
 typedef uint8_t      u8;
