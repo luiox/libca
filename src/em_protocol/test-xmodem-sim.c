@@ -155,6 +155,7 @@ typedef struct sim_peer {
     
     bool sim_started;      /* 模拟是否已启动 */
     bool handshake_done;   /* 握手是否完成 */
+    bool eot_sent;         /* 发送方：EOT是否已发送（等待其ACK确认） */
 } sim_peer_t;
 
 /**
@@ -257,24 +258,39 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
                 out_len = sim_gen_packet(sim, out_buf);
             }
         } else {
-            // Already sending
+            /* 已经在发送新数据 */
+            
+            /* 处理数据ACK／重转EOT的ACK */
             if (has_ACK) {
-                // Determine packet size
-                usize packet_size = (sim->proto == SIM_PROTO_1K_CRC) ? 1024 : 128;
-                sim->offset += packet_size;
-                sim->seq++;
-
-                if (sim->offset >= sim->tx_total_len) {
-                    // Done
-                    out_buf[out_len++] = X_EOT;
-                    if (has_ACK) sim->finished = true;
+                if (sim->eot_sent) {
+                    /* 这个ACK是EOT的确认，传输完成 */
+                    sim->finished = true;
+                    return 0;
                 } else {
-                     out_len = sim_gen_packet(sim, out_buf);
+                    /* 这个ACK是数据包的确认，继续发送 */
+                    usize packet_size = (sim->proto == SIM_PROTO_1K_CRC) ? 1024 : 128;
+                    sim->offset += packet_size;
+                    sim->seq++;
+
+                    if (sim->offset >= sim->tx_total_len) {
+                        /* 数据已发完，发送EOT */
+                        out_buf[out_len++] = X_EOT;
+                        sim->eot_sent = true;
+                    } else {
+                        /* 发送下一个数据包 */
+                        out_len = sim_gen_packet(sim, out_buf);
+                    }
                 }
             }
+            /* 处理数据NAK——重新发送当前数据包 */
             if (has_NAK) {
-                // Resend
-                out_len = sim_gen_packet(sim, out_buf);
+                if (!sim->eot_sent) {
+                    /* 重发数据包 */
+                    out_len = sim_gen_packet(sim, out_buf);
+                } else {
+                    /* 重发EOT */
+                    out_buf[out_len++] = X_EOT;
+                }
             }
         }
     } 
