@@ -22,7 +22,7 @@ includes("em_driver")
 -- platform依赖base
 -- includes("em_platform")
 -- eimui依赖base
-includes("em_eimui")
+-- includes("em_eimui")
 -- bus依赖base
 includes("em_bus")
 -- log依赖platform
