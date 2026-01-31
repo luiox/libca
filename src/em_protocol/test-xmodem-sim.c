@@ -5,6 +5,28 @@
 #include <string.h>
 #include <stdio.h>
 
+// 日志开关：0=关闭 1=摘要 2=全量
+#ifndef XMODEM_SIM_LOG_MODE
+#define XMODEM_SIM_LOG_MODE 1
+#endif
+
+#define XMODEM_SIM_LOG_SUMMARY 1
+#define XMODEM_SIM_LOG_VERBOSE 2
+
+#if XMODEM_SIM_LOG_MODE >= XMODEM_SIM_LOG_SUMMARY
+#define LOG_SUMMARY(fmt, ...) printf("[xmodem-sim][summary] " fmt "\n", ##__VA_ARGS__)
+#else
+#define LOG_SUMMARY(fmt, ...) ((void)0)
+#endif
+
+#if XMODEM_SIM_LOG_MODE >= XMODEM_SIM_LOG_VERBOSE
+#define LOG_VERBOSE(fmt, ...) printf("[xmodem-sim][verbose] " fmt "\n", ##__VA_ARGS__)
+#else
+#define LOG_VERBOSE(fmt, ...) ((void)0)
+#endif
+
+#define LOG_FAIL(fmt, ...) printf("[xmodem-sim][fail] " fmt "\n", ##__VA_ARGS__)
+
 /* =========================================================================
  * 1. 模拟传输层和通用工具
  * ========================================================================= */
@@ -29,6 +51,43 @@ static i32 mock_write(transport_t* self, const u8 *buf, usize len) {
     if (g_dut_tx_len + len <= sizeof(g_dut_tx_buf)) {
         memcpy(g_dut_tx_buf + g_dut_tx_len, buf, len);
         g_dut_tx_len += len;
+    }
+
+    if (len > 0) {
+        usize count_c = 0;
+        usize count_ack = 0;
+        usize count_nak = 0;
+        usize count_can = 0;
+        usize count_eot = 0;
+        usize count_soh = 0;
+        usize count_stx = 0;
+        for (usize i = 0; i < len; i++) {
+            if (buf[i] == X_CRC) {
+                count_c++;
+            }
+            else if (buf[i] == X_ACK) {
+                count_ack++;
+            }
+            else if (buf[i] == X_NAK) {
+                count_nak++;
+            }
+            else if (buf[i] == X_CAN) {
+                count_can++;
+            }
+            else if (buf[i] == X_EOT) {
+                count_eot++;
+            }
+            else if (buf[i] == X_SOH) {
+                count_soh++;
+            }
+            else if (buf[i] == X_STX) {
+                count_stx++;
+            }
+        }
+        LOG_VERBOSE("dut->sim len=%u C=%u ACK=%u NAK=%u CAN=%u EOT=%u SOH=%u STX=%u",
+                    (unsigned int)len, (unsigned int)count_c, (unsigned int)count_ack,
+                    (unsigned int)count_nak, (unsigned int)count_can, (unsigned int)count_eot,
+                    (unsigned int)count_soh, (unsigned int)count_stx);
     }
     return len;
 }
@@ -60,8 +119,12 @@ static i32 on_recv(void *user_data, u32 offset, const u8* data, usize len) {
     if (g_file_len + len <= sizeof(g_file_buf)) {
         memcpy(g_file_buf + g_file_len, data, len);
         g_file_len += len;
+        LOG_VERBOSE("recv offset=%u len=%u total=%u", (unsigned int)offset, (unsigned int)len,
+                    (unsigned int)g_file_len);
         return 0;
     }
+    LOG_FAIL("recv overflow offset=%u len=%u total=%u", (unsigned int)offset, (unsigned int)len,
+             (unsigned int)g_file_len);
     return -1;
 }
 
@@ -88,15 +151,18 @@ static i32 on_send(void *user_data, u32 offset, u8* buf, usize len) {
 
 /* 传输开始回调（测试中未使用） */
 static void on_start(void *user_data, u32 total_size, const char* filename) {
-    /* 未使用 */
+    LOG_SUMMARY("start filename=%s size=%u", (filename != NULL) ? filename : "(null)",
+                (unsigned int)total_size);
 }
 
 /* 传输完成回调 */
 static void on_finish(void *user_data, i32 status) {
     if (status == 0) { // XMODEM_OK
         g_transfer_done = true;
+        LOG_SUMMARY("finish ok size=%u", (unsigned int)g_file_len);
     } else {
         g_transfer_error = status;
+        LOG_FAIL("finish error=%d", (int)status);
     }
 }
 
@@ -173,6 +239,8 @@ static void sim_init(sim_peer_t* sim, sim_role_t role, sim_proto_t proto, const 
     sim->tx_data = data;
     sim->tx_total_len = len;
     sim->seq = 1;
+    LOG_SUMMARY("sim init role=%u proto=%u len=%u", (unsigned int)role, (unsigned int)proto,
+                (unsigned int)len);
 }
 
 /**
@@ -206,10 +274,14 @@ static usize sim_gen_packet(sim_peer_t* sim, u8* out) {
         u8 sum = 0;
         for (usize i = 0; i < packet_size; i++) sum += out[3 + i];
         out[idx++] = sum;
+        LOG_VERBOSE("tx packet seq=%u offset=%u size=%u sum=0x%02X", (unsigned int)sim->seq,
+                    (unsigned int)sim->offset, (unsigned int)packet_size, (unsigned int)sum);
     } else {
         u16 crc = crc16_xmodem(&out[3], packet_size);
         out[idx++] = (crc >> 8) & 0xFF;
         out[idx++] = crc & 0xFF;
+        LOG_VERBOSE("tx packet seq=%u offset=%u size=%u crc=0x%04X", (unsigned int)sim->seq,
+                    (unsigned int)sim->offset, (unsigned int)packet_size, (unsigned int)crc);
     }
     
     return idx;
@@ -236,6 +308,9 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
         if(in_buf[i] == X_SOH) has_SOH = true;
     }
 
+    LOG_VERBOSE("sim step role=%u in_len=%u offset=%u seq=%u", (unsigned int)sim->role,
+                (unsigned int)in_len, (unsigned int)sim->offset, (unsigned int)sim->seq);
+
     if (sim->finished) return 0;
 
     // ==============================================================
@@ -255,6 +330,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
             if (start_condition) {
                 sim->handshake_done = true;
                 // Send first packet immediately
+                LOG_SUMMARY("sender handshake done -> send first packet");
                 out_len = sim_gen_packet(sim, out_buf);
             }
         } else {
@@ -264,6 +340,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
             if (has_ACK) {
                 if (sim->eot_sent) {
                     /* 这个ACK是EOT的确认，传输完成 */
+                    LOG_SUMMARY("sender got EOT ACK -> done");
                     sim->finished = true;
                     return 0;
                 } else {
@@ -274,10 +351,12 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
                     if (sim->offset >= sim->tx_total_len) {
                         /* 数据已发完，发送EOT */
+                        LOG_SUMMARY("sender send EOT");
                         out_buf[out_len++] = X_EOT;
                         sim->eot_sent = true;
                     } else {
                         /* 发送下一个数据包 */
+                        LOG_SUMMARY("sender send next packet seq=%u", (unsigned int)sim->seq);
                         out_len = sim_gen_packet(sim, out_buf);
                     }
                 }
@@ -286,9 +365,11 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
             if (has_NAK) {
                 if (!sim->eot_sent) {
                     /* 重发数据包 */
+                    LOG_SUMMARY("sender resend packet seq=%u", (unsigned int)sim->seq);
                     out_len = sim_gen_packet(sim, out_buf);
                 } else {
                     /* 重发EOT */
+                    LOG_SUMMARY("sender resend EOT");
                     out_buf[out_len++] = X_EOT;
                 }
             }
@@ -302,8 +383,10 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
         if (!sim->sim_started) {
             sim->sim_started = true;
             if (sim->proto == SIM_PROTO_CHECKSUM) {
+                LOG_SUMMARY("receiver start -> send NAK");
                 out_buf[out_len++] = X_NAK;
             } else {
+                LOG_SUMMARY("receiver start -> send C");
                 out_buf[out_len++] = X_CRC;
             }
             return out_len;
@@ -322,15 +405,18 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
                      // printf("Sim RX Packet Seq: %d, Len: %zu\n", seq, in_len);
                      u8 seq_inv = in_buf[2];
                      if ((u8)(seq + seq_inv) != 0xFF) {
+                         LOG_SUMMARY("receiver seq invalid seq=%u", (unsigned int)seq);
                          out_buf[out_len++] = X_NAK;
                      } else {
                          // Good packet (Simulating perfect transport)
                          if (sim->rx_len + data_len <= sizeof(sim->rx_buffer)) {
                              memcpy(sim->rx_buffer + sim->rx_len, &in_buf[3], data_len);
                              sim->rx_len += data_len;
+                             LOG_SUMMARY("receiver packet ok seq=%u len=%u", (unsigned int)seq,
+                                         (unsigned int)data_len);
                              out_buf[out_len++] = X_ACK;
                          } else {
-                             printf("Sim RX buffer overflow!\n");
+                             LOG_FAIL("receiver overflow len=%u", (unsigned int)data_len);
                              out_buf[out_len++] = X_CAN;
                              sim->finished = true;
                          }
@@ -339,6 +425,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
              }
              else if (header == X_EOT) {
                  // Check if actually EOT (sometimes it's just 'E' if not careful, but X_EOT is 0x04)
+                 LOG_SUMMARY("receiver got EOT -> ACK");
                  out_buf[out_len++] = X_ACK;
                  sim->finished = true;
              }
@@ -361,7 +448,7 @@ static void run_protocol_loop(xmodem_t* dut, sim_peer_t* sim) {
     i32 max_ticks = 2000; /* 等效于200秒的最大tick数 */
     u8 sim_out_buf[2048];
     
-    printf("Starting loop...\n");
+    LOG_SUMMARY("loop start");
     while (max_ticks-- > 0 && !sim->finished && !g_transfer_done) {
         // 1. Tick DUT
         xmodem_tick(dut, 100);
@@ -375,16 +462,18 @@ static void run_protocol_loop(xmodem_t* dut, sim_peer_t* sim) {
 
         // 3. Feed Sim output to DUT
         if (sim_out_len > 0) {
+            LOG_VERBOSE("sim->dut len=%u first=0x%02X", (unsigned int)sim_out_len,
+                        (unsigned int)sim_out_buf[0]);
             xmodem_process(dut, sim_out_buf, sim_out_len);
         }
         
         // Check Errors
         if (g_transfer_error != 0) {
-             printf("Transfer error: %d\n", g_transfer_error);
+             LOG_FAIL("transfer error: %d", (int)g_transfer_error);
              break;
         }
     }
-    printf("Loop finished. Done=%d, Error=%d\n", g_transfer_done, g_transfer_error);
+    LOG_SUMMARY("loop finished done=%d error=%d", g_transfer_done, g_transfer_error);
 }
 
 /* =========================================================================
