@@ -18,15 +18,15 @@
  * @date 2026-01-12
  * 2026-01-31 第一次明确debug的接口
  *
- * 
+ *
  * @copyright Copyright (c) 2026
- * 
+ *
  */
 #ifndef LIBCA_EM_BASE_DEBUG_H
 #define LIBCA_EM_BASE_DEBUG_H
 
 #ifdef USE_CUSTOM_DEBUG_CONFIG
-#include USE_CUSTOM_DEBUG_CONFIG
+#    include USE_CUSTOM_DEBUG_CONFIG
 #endif
 
 #ifdef __cplusplus
@@ -36,17 +36,17 @@ extern "C" {
 // 如果没有定义，那么提供默认值
 #ifndef USE_DEBUG_MODE
 // 使用串口打印信息，debug模块需要定义这个宏为1
-#define USE_DEBUG_MODE 1
+#    define USE_DEBUG_MODE 1
 #endif
 
 #ifndef USE_DEBUG_ASSERT
 // 使用调试断言，需要定义这个宏为1
-#define USE_DEBUG_ASSERT 1
+#    define USE_DEBUG_ASSERT 1
 #endif
 
 #ifndef USE_PARAM_CHECK
 // 使用参数检查，需要定义这个宏为1
-#define USE_PARAM_CHECK 1
+#    define USE_PARAM_CHECK 1
 #endif
 
 // 设置默认打印缓冲区大小
@@ -111,11 +111,16 @@ void debug_printf(const char* fmt, ...);
  *
  * 若条件不满足，会通过 debug_print 打印断言失败信息（文件及行号）。
  */
-#    define debug_assert(expr)                                         \
-        if (!(expr)) {                                                 \
-            debug_print("assert failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
-        }
+#    define debug_assert(expr)                                                          \
+        do {                                                                            \
+            if (!(expr)) {                                                              \
+                debug_print("assert failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
+                while (1)                                                               \
+                    ;                                                                   \
+            }                                                                           \
+        } while (0)
 #else
+#    define debug_assert(expr) ((void)0)
 #endif
 
 #if USE_PARAM_CHECK
@@ -124,12 +129,16 @@ void debug_printf(const char* fmt, ...);
  *
  * 若条件不满足，会通过 debug_print 打印参数检查失败信息（文件及行号）。
  */
-#    define param_check(expr)                                                   \
-        if (!(expr)) {                                                          \
-            debug_print("param check failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
-        }
+#    define param_check(expr)                                                                \
+        do {                                                                                 \
+            if (!(expr)) {                                                                   \
+                debug_print("param check failure: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
+                while (1)                                                                    \
+                    ;                                                                        \
+            }                                                                                \
+        } while (0)
 #else
-#    define param_check(expr)
+#    define param_check(expr) ((void)0)
 #endif
 
 #ifdef __cplusplus
