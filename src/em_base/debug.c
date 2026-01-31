@@ -4,10 +4,11 @@
 
 static void (*g_hw_puts_output)(const char* str) = NULL;
 // 内部打印缓冲区
-static char g_print_buffer[PRINT_BUFFER_SIZE];
+static char g_print_buffer[CA_PRINT_BUFFER_SIZE];
 
 void debug_init(void (*hw_puts_output)(const char* str))
 {
+    param_check(hw_puts_output != NULL);
     g_hw_puts_output = hw_puts_output;
 }
 
@@ -23,7 +24,7 @@ void debug_printf(const char* fmt, ...)
 
     va_start(args, fmt);
 
-    vsprintf(g_print_buffer, fmt, args);
+    vsnprintf(g_print_buffer, sizeof(g_print_buffer), fmt, args);
 
     va_end(args);
 
@@ -31,11 +32,11 @@ void debug_printf(const char* fmt, ...)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
-#include <string.h>
+#    include "../em_test/test.h"
+#    include <string.h>
 
 // 测试用的捕获缓冲区
-static char test_last_msg[PRINT_BUFFER_SIZE];
+static char test_last_msg[CA_PRINT_BUFFER_SIZE];
 
 static void test_hw_puts_cb(const char* s)
 {
@@ -59,4 +60,4 @@ TEST_CASE(debug_puts_and_printf)
     TEST_ASSERT_EQUAL_STRING("hello 123", test_last_msg);
 }
 
-#endif // TEST_ENABLE
+#endif   // TEST_ENABLE

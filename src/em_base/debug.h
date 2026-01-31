@@ -9,45 +9,54 @@
  * 1. 初始化串口或其他输出设备（例如使用 HAL 库或裸机驱动）。
  * 2. 调用 debug_init 注册输出回调函数。
  * 3. 使用 debug_print 输出调试信息。
+ *
+ * 控制宏如下，定义为0时候可以关闭，定义为1时候打开，默认全部打开。
+ * CA_USE_DEBUG_MODE、CA_USE_DEBUG_ASSERT、CA_USE_PARAM_CHECK
+ * 自定义，配置文件宏：CA_USE_CUSTOM_DEBUG_CONFIG，这个宏默认关闭
+ *
  * @version 0.1
  * @date 2026-01-12
- * 
+ * 2026-01-31 第一次明确debug的接口
+ *
+ *
  * @copyright Copyright (c) 2026
- * 
+ *
  */
 #ifndef LIBCA_EM_BASE_DEBUG_H
 #define LIBCA_EM_BASE_DEBUG_H
 
-#include "../em_base/base_config.h"
+#ifdef CA_USE_CUSTOM_DEBUG_CONFIG
+#    include CA_USE_CUSTOM_DEBUG_CONFIG
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // 如果没有定义，那么提供默认值
-#ifndef USE_DEBUG_MODE
+#ifndef CA_USE_DEBUG_MODE
 // 使用串口打印信息，debug模块需要定义这个宏为1
-#define USE_DEBUG_MODE 1
+#    define CA_USE_DEBUG_MODE 1
 #endif
 
-#ifndef USE_DEBUG_ASSERT
+#ifndef CA_USE_DEBUG_ASSERT
 // 使用调试断言，需要定义这个宏为1
-#define USE_DEBUG_ASSERT 1
+#    define CA_USE_DEBUG_ASSERT 1
 #endif
 
-#ifndef USE_PARAM_CHECK
+#ifndef CA_USE_PARAM_CHECK
 // 使用参数检查，需要定义这个宏为1
-#define USE_PARAM_CHECK 1
+#    define CA_USE_PARAM_CHECK 1
 #endif
 
 // 设置默认打印缓冲区大小
-#ifndef PRINT_BUFFER_SIZE
-#    define PRINT_BUFFER_SIZE 256
+#ifndef CA_PRINT_BUFFER_SIZE
+#    define CA_PRINT_BUFFER_SIZE 256
 #endif
 
 // 定义换行符
-#ifndef PRINT_NEWLINE
-#    define PRINT_NEWLINE "\n"
+#ifndef CA_PRINT_NEWLINE
+#    define CA_PRINT_NEWLINE "\n"
 #endif
 
 /**
@@ -86,52 +95,48 @@ void debug_printf(const char* fmt, ...);
  *
  * 该宏在编译选项启用时，会在输出中追加文件名和行号以便定位。
  */
-#if USE_DEBUG_MODE
+#if CA_USE_DEBUG_MODE
 #    define debug_print(fmt, ...) \
-        debug_printf("[%s:%d]:" fmt PRINT_NEWLINE, __FILE__, __LINE__, ##__VA_ARGS__)
+        debug_printf("[%s:%d]:" fmt CA_PRINT_NEWLINE, __FILE__, __LINE__, ##__VA_ARGS__)
 #else
 #    define debug_print(fmt, ...)
-#endif   // USE_DEBUG_MODE
+#endif   // CA_USE_DEBUG_MODE
 
 ////////////////////////////////////////////////////////////////////////////////
 // debug 断言
 
-#if USE_DEBUG_ASSERT
+#if CA_USE_DEBUG_ASSERT
 /**
- * @brief 调试断言（在 USE_DEBUG_ASSERT 启用时有效）
+ * @brief 调试断言（在 CA_USE_DEBUG_ASSERT 启用时有效）
  *
  * 若条件不满足，会通过 debug_print 打印断言失败信息（文件及行号）。
  */
-#    define debug_assert(expr)                                         \
-        if (!(expr)) {                                                 \
-            debug_print("断言失败: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
-        }
-#    define ASSERT_STATIC_(condition) typedef char c_assert_##__LINE__[(condition) ? 1 : -1]
-
-#    define ASSERT_STATIC(condition)            \
-        struct c_assert_##__LINE__              \
-        {                                       \
-            unsigned int : (condition) ? 1 : 0; \
-        }
-
+#    define debug_assert(expr)                                                             \
+        do {                                                                               \
+            if (!(expr)) {                                                                 \
+                debug_print("assert failure: %s:%d" CA_PRINT_NEWLINE, __FILE__, __LINE__); \
+                while (1)                                                                  \
+                    ;                                                                      \
+            }                                                                              \
+        } while (0)
 #else
-#    define debug_assert(expr)
-#    define ASSERT_STATIC_(condition)
-#    define ASSERT_STATIC(condition)
+#    define debug_assert(expr) ((void)0)
 #endif
 
-#if USE_PARAM_CHECK
+#if CA_USE_PARAM_CHECK
 /**
- * @brief 参数检查宏（在 USE_PARAM_CHECK 启用时有效）
+ * @brief 参数检查宏（在 CA_USE_PARAM_CHECK 启用时有效）
  *
  * 若条件不满足，会通过 debug_print 打印参数检查失败信息（文件及行号）。
  */
-#    define param_check(expr)                                                   \
-        if (!(expr)) {                                                          \
-            debug_print("参数检查失败: %s:%d" PRINT_NEWLINE, __FILE__, __LINE__); \
-        }
+#    define param_check(expr)                                                                   \
+        do {                                                                                    \
+            if (!(expr)) {                                                                      \
+                debug_print("param check failure: %s:%d" CA_PRINT_NEWLINE, __FILE__, __LINE__); \
+            }                                                                                   \
+        } while (0)
 #else
-#    define param_check(expr)
+#    define param_check(expr) ((void)0)
 #endif
 
 #ifdef __cplusplus

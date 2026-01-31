@@ -176,11 +176,10 @@ extern int current_test_failed;
 
 // 定义一个宏来声明测试用例
 #define TEST_CASE(name)                                                                        \
-    static void          SAFE_NAME(test_func_)(void);                         \
-    static const test_t  SAFE_NAME(test_data_) = {MAKE_STRING(name), SAFE_NAME(test_func_)}; \
-    static TEST_CASE_ALLOC const test_t* SAFE_NAME(test_ptr_) = &SAFE_NAME(test_data_); \
-    static void          SAFE_NAME(test_func_)(void)
-
+    static void          CA_SAFE_NAME(test_func_)(void);                         \
+    static const test_t  CA_SAFE_NAME(test_data_) = {CA_MAKE_STRING(name), CA_SAFE_NAME(test_func_)}; \
+    static TEST_CASE_ALLOC const test_t* CA_SAFE_NAME(test_ptr_) = &CA_SAFE_NAME(test_data_); \
+    static void          CA_SAFE_NAME(test_func_)(void)
 // clang-format on
 
 #if !defined(_MSC_VER)

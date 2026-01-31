@@ -11,7 +11,7 @@
 #ifndef MATH_UTIL_H
 #define MATH_UTIL_H
 
-#include "../em_base/compiler_helper.h"
+#include "../em_base/compiler_compat.h"
 #include "../em_base/datatype.h"
 #include <stdbool.h>
 #include <math.h>
@@ -62,7 +62,7 @@ i32 math_pow_s32(i32 base, i32 exp);
 float clampf(float value, float min, float max);
 
 // 快速sin(x)（5阶泰勒展开法）
-CA_FORCE_INLINE float fast_sinf(float x)
+CA_INLINE float fast_sinf(float x)
 {
     // const float B = 4.0f / 3.14159265f;
     // const float C = -4.0f / (3.14159265f * 3.14159265f);
@@ -77,7 +77,7 @@ CA_FORCE_INLINE float fast_sinf(float x)
     return y;
 }
 
-CA_FORCE_INLINE float math_fabs(float x) {
+CA_INLINE float math_fabs(float x) {
 #if defined(__IEEE_754__)
     union {
         float f;
