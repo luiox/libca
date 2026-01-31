@@ -15,10 +15,20 @@
 
 #define CA_MAKE_STRING(a) #a
 
-#ifdef __COUNTER__
-#define CA_UNIQUE_ID __COUNTER__
-#else
+/**
+ * @brief 单行内唯一的ID
+ * 
+ */
 #define CA_UNIQUE_ID __LINE__
+
+/**
+ * @brief 如果有__COUNTER__的情况下，做到真正的唯一ID，不会有局限于不同行
+ * 
+ */
+#ifdef __COUNTER__
+#define CA_REAL_UNIQUE_ID __COUNTER__
+#else
+#define CA_REAL_UNIQUE_ID CA_UNIQUE_ID
 #endif
 
 // 各种数量的连接宏
