@@ -88,9 +88,20 @@ static void xmodem_send_char(xmodem_t* xm, u8 ch)
 
 static void xmodem_reset(xmodem_t* xm)
 {
-    // 目前先只支持接收者模式
+    // Initialize Timers
+    acumulate_timer_init(&xm->retry_timer, 0);
+    acumulate_timer_reset(&xm->retry_timer, 0);
+    acumulate_timer_init(&xm->idle_timer, 0);
+    acumulate_timer_reset(&xm->idle_timer, 0);
 
-    // 初始化状态机
+    // Common defaults
+    xm->packet_num = 1;
+    xm->offset = 0;
+    xm->received_len = 0;
+    xm->total_size = 0;
+    xm->retry_count = 0;
+    xm->current_mode = xm->config->mode;
+
     if (xm->config->is_transmitter) {
         // 发送者模式
         xm->state = S_TX_WAIT_START;
@@ -98,22 +109,7 @@ static void xmodem_reset(xmodem_t* xm)
     else {
         // 接收者模式
         xm->state = S_RX_WAIT_START;
-
-        // 设置期望的包序号
-        xm->packet_num = 1;
-        // 偏移量归零
-        xm->offset = 0;
-        // 当前包接收到的长度
-        xm->received_len = 0;
-        // 总长度归零
-        xm->total_size = 0;
-        // 尝试次数归零
-        xm->retry_count = 0;
-        // 初始化当前模式
-        xm->current_mode = xm->config->mode;
     }
-    // 重试定时器归零
-    acumulate_timer_reset(&xm->retry_timer, 0);
 }
 
 i32 xmodem_init(void* self, transport_t* io, const file_transfer_cbs_t* cbs, void* config)
@@ -198,8 +194,10 @@ static void xmodem_send_data_packet(xmodem_t* xm)
     
     // 2. Read data from user
     // Signature: i32 (*on_send)(void *user_data, u32 offset, u8* buf, usize len);
+    // printf("Sending packet: offset=%zu, size=%zu\n", xm->offset, data_size);
     i32 read_len = xm->cbs->on_send(xm->config->user_data, xm->offset, 
                                     &packet_buf[3], data_size);
+    // printf("Read len: %d\n", read_len);
     
     // 3. Check for EOF or Error
     if (read_len < 0) {

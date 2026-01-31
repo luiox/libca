@@ -18,6 +18,7 @@
 #define X_CAN 0x18
 #define X_CRC 'C'
 #define X_SUB 0x1A
+#define X_CTRLZ 0x1A
 
 // Log buffer for what the DUT (Device Under Test) sent out via io->write
 static u8 g_dut_tx_buf[4096]; 
@@ -56,8 +57,6 @@ static i32 on_recv(void *user_data, u32 offset, const u8* data, usize len) {
     if (g_file_len + len <= sizeof(g_file_buf)) {
         memcpy(g_file_buf + g_file_len, data, len);
         g_file_len += len;
-        // Verify offset matches?
-        // if (offset != g_file_len - len) ... 
         return 0;
     }
     return -1;
@@ -67,7 +66,7 @@ static i32 on_recv(void *user_data, u32 offset, const u8* data, usize len) {
 static u8 g_test_data[TEST_DATA_SIZE];
 
 static void setup_test_data() {
-    for(int i=0; i<TEST_DATA_SIZE; i++) g_test_data[i] = (u8)i;
+    for(int i=0; i<TEST_DATA_SIZE; i++) g_test_data[i] = (u8)(i & 0xFF);
 }
 
 static i32 on_send(void *user_data, u32 offset, u8* buf, usize len) {
@@ -133,7 +132,7 @@ typedef struct {
     const u8* tx_data;     // Data sim wants to send
     usize tx_total_len;
     
-    u8 rx_buffer[1024*10]; // Data sim received
+    u8 rx_buffer[2048]; // Reduced from 10KB to avoid stack overflow risk
     usize rx_len;
 
     // State
@@ -264,25 +263,38 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
         }
 
         // Check if we received a packet
-        if (in_len >= 132) {
+        if (in_len > 0) {
              u8 header = in_buf[0];
              if (header == X_SOH || header == X_STX) {
-                 u8 seq = in_buf[1];
-                 u8 seq_inv = in_buf[2];
-                 if ((u8)(seq + seq_inv) != 0xFF) {
-                     out_buf[out_len++] = X_NAK;
-                 } else {
-                     // Good packet (Simulating perfect transport)
-                     usize data_len = (header == X_STX) ? 1024 : 128;
-                     memcpy(sim->rx_buffer + sim->rx_len, &in_buf[3], data_len);
-                     sim->rx_len += data_len;
-                     out_buf[out_len++] = X_ACK;
+                 usize data_len = (header == X_STX) ? 1024 : 128;
+                 usize overhead = (sim->proto == SIM_PROTO_CHECKSUM) ? 4 : 5;
+                 usize total_len = data_len + overhead;
+                 
+                 if (in_len >= total_len) {
+                     u8 seq = in_buf[1];
+                     // printf("Sim RX Packet Seq: %d, Len: %zu\n", seq, in_len);
+                     u8 seq_inv = in_buf[2];
+                     if ((u8)(seq + seq_inv) != 0xFF) {
+                         out_buf[out_len++] = X_NAK;
+                     } else {
+                         // Good packet (Simulating perfect transport)
+                         if (sim->rx_len + data_len <= sizeof(sim->rx_buffer)) {
+                             memcpy(sim->rx_buffer + sim->rx_len, &in_buf[3], data_len);
+                             sim->rx_len += data_len;
+                             out_buf[out_len++] = X_ACK;
+                         } else {
+                             printf("Sim RX buffer overflow!\n");
+                             out_buf[out_len++] = X_CAN;
+                             sim->finished = true;
+                         }
+                     }
                  }
              }
-        }
-        else if (has_EOT) {
-            out_buf[out_len++] = X_ACK;
-            sim->finished = true;
+             else if (header == X_EOT) {
+                 // Check if actually EOT (sometimes it's just 'E' if not careful, but X_EOT is 0x04)
+                 out_buf[out_len++] = X_ACK;
+                 sim->finished = true;
+             }
         }
     }
 
@@ -299,21 +311,17 @@ static void run_protocol_loop(xmodem_t* dut, sim_peer_t* sim) {
     printf("Starting loop...\n");
     while (max_ticks-- > 0 && !sim->finished && !g_transfer_done) {
         // 1. Tick DUT
-        // printf("Tick %d\n", max_ticks);
         xmodem_tick(dut, 100);
 
-        // 2. Read what DUT sent
-        // g_dut_tx_buf contains [0...g_dut_tx_len]
-        
-        // 3. Step Sim
+        // 2. Step Sim
+        // (Simulator reads what DUT wrote to g_dut_tx_buf)
         usize sim_out_len = sim_step(sim, g_dut_tx_buf, g_dut_tx_len, sim_out_buf);
         
         // Clear DUT captured buf
         mock_io_clear();
 
-        // 4. Feed Sim output to DUT
+        // 3. Feed Sim output to DUT
         if (sim_out_len > 0) {
-            // printf("Sim sent %zu bytes\n", sim_out_len);
             xmodem_process(dut, sim_out_buf, sim_out_len);
         }
         
@@ -337,8 +345,8 @@ TEST_CASE(xmodem_rx_std_checksum) {
     reset_test_env();
     setup_test_data();
 
-    // DUT Setup
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm)); // Ensure clean start
     xmodem_config_t cfg = {
         .is_transmitter = false,
         .mode = XMODEM_MODE_STANDARD, // Forces Checksum
@@ -350,7 +358,6 @@ TEST_CASE(xmodem_rx_std_checksum) {
     xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
     xmodem_start_recv(&xm);
 
-    // Sim Setup: Sender, Checksum
     sim_peer_t sim;
     sim_init(&sim, SIM_ROLE_SENDER, SIM_PROTO_CHECKSUM, g_test_data, TEST_DATA_SIZE);
 
@@ -358,7 +365,6 @@ TEST_CASE(xmodem_rx_std_checksum) {
 
     TEST_ASSERT_TRUE(g_transfer_done);
     TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
-    // 3 packets * 128 = 384
     TEST_ASSERT_EQUAL_INT(384, g_file_len);
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
 }
@@ -369,6 +375,7 @@ TEST_CASE(xmodem_rx_crc) {
     setup_test_data();
 
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm));
     xmodem_config_t cfg = {
         .is_transmitter = false,
         .mode = XMODEM_MODE_CRC,
@@ -386,7 +393,6 @@ TEST_CASE(xmodem_rx_crc) {
     run_protocol_loop(&xm, &sim);
 
     TEST_ASSERT_TRUE(g_transfer_done);
-    // XMODEM sends in multiples of 128 bytes. 300 bytes -> 3 packets -> 384 bytes.
     TEST_ASSERT_EQUAL_INT(384, g_file_len); 
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
 }
@@ -394,10 +400,10 @@ TEST_CASE(xmodem_rx_crc) {
 // Case 3: XMODEM 1K
 TEST_CASE(xmodem_rx_1k) {
     reset_test_env();
-    // Increase data to ensure we use 1K packets (need > 128 bytes, ideally > 1024 to see transitions but Sim uses 1K if Proto is 1K)
-    setup_test_data(); // 300 bytes
+    setup_test_data();
 
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm));
     xmodem_config_t cfg = {
         .is_transmitter = false,
         .mode = XMODEM_MODE_1K,
@@ -415,7 +421,6 @@ TEST_CASE(xmodem_rx_1k) {
     run_protocol_loop(&xm, &sim);
 
     TEST_ASSERT_TRUE(g_transfer_done);
-    // 1K Xmodem pads to 1024 bytes
     TEST_ASSERT_EQUAL_INT(1024, g_file_len);
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
 }
@@ -426,9 +431,10 @@ TEST_CASE(xmodem_rx_fallback) {
     setup_test_data();
 
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm));
     xmodem_config_t cfg = {
         .is_transmitter = false,
-        .mode = XMODEM_MODE_CRC, // Default starts with CRC
+        .mode = XMODEM_MODE_CRC, 
         .recv_buffer = g_xm_internal_buf,
         .recv_buffer_size = sizeof(g_xm_internal_buf),
         .user_data = NULL,
@@ -437,7 +443,6 @@ TEST_CASE(xmodem_rx_fallback) {
     xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
     xmodem_start_recv(&xm);
 
-    // Sim is Checksum ONLY. It will ignore 'C' sent by DUT initially.
     sim_peer_t sim;
     sim_init(&sim, SIM_ROLE_SENDER, SIM_PROTO_CHECKSUM, g_test_data, TEST_DATA_SIZE);
 
@@ -445,7 +450,6 @@ TEST_CASE(xmodem_rx_fallback) {
 
     TEST_ASSERT_TRUE(g_transfer_done);
     TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
-    // 384 bytes = 3 packets of 128
     TEST_ASSERT_EQUAL_INT(384, g_file_len);
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, g_file_buf, TEST_DATA_SIZE);
     
@@ -461,6 +465,7 @@ TEST_CASE(xmodem_tx_crc) {
     setup_test_data();
 
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm)); // Important!
     xmodem_config_t cfg = {
         .is_transmitter = true,
         .mode = XMODEM_MODE_CRC,
@@ -481,16 +486,18 @@ TEST_CASE(xmodem_tx_crc) {
     
     TEST_ASSERT_TRUE(g_transfer_done);
     TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
-    // Sim should have received data
-    // TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, sim.rx_len); // Sim accumulates actual data + padding
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
+    // Verify mode
+    TEST_ASSERT_EQUAL_INT(XMODEM_MODE_CRC, xm.current_mode);
 }
+
 // Case 6: DUT as Sender (Checksum)
 TEST_CASE(xmodem_tx_checksum) {
     reset_test_env();
     setup_test_data();
 
     xmodem_t xm;
+    memset(&xm, 0, sizeof(xm));
     xmodem_config_t cfg = {
         .is_transmitter = true,
         .mode = XMODEM_MODE_STANDARD,
@@ -503,7 +510,6 @@ TEST_CASE(xmodem_tx_checksum) {
     xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
     xmodem_start_send(&xm, "test_sum.bin", TEST_DATA_SIZE);
     
-    // Sim acts as Receiver using Checksum
     sim_peer_t sim;
     sim_init(&sim, SIM_ROLE_RECEIVER, SIM_PROTO_CHECKSUM, NULL, 0);
 
@@ -511,11 +517,45 @@ TEST_CASE(xmodem_tx_checksum) {
     
     TEST_ASSERT_TRUE(g_transfer_done);
     TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
-    // Sim should have received data
-    // TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, sim.rx_len); // Sim accumulates actual data + padding (384)
     TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
     
-    // Verify mode
     TEST_ASSERT_EQUAL_INT(XMODEM_MODE_STANDARD, xm.current_mode);
+}
+
+// Case 7: DUT as Sender (1K CRC)
+TEST_CASE(xmodem_tx_1k) {
+    reset_test_env();
+    setup_test_data();
+
+    xmodem_t xm;
+    memset(&xm, 0, sizeof(xm));
+    xmodem_config_t cfg = {
+        .is_transmitter = true,
+        .mode = XMODEM_MODE_1K,
+        .recv_buffer = g_xm_internal_buf,
+        .recv_buffer_size = sizeof(g_xm_internal_buf),
+        .user_data = NULL,
+        .max_retries = 10
+    };
+    
+    xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
+    xmodem_start_send(&xm, "test_1k.bin", TEST_DATA_SIZE); // 300 bytes
+
+    sim_peer_t sim;
+    // Simulator expects 1K packets if configured as XMODEM-1K receiver
+    // But XMODEM protocol negotiates.
+    // XMODEM-1K Sender waits for 'C', then sends STX (1024) packets.
+    // Receiver sends 'C'.
+    sim_init(&sim, SIM_ROLE_RECEIVER, SIM_PROTO_1K_CRC, NULL, 0);
+
+    run_protocol_loop(&xm, &sim);
+
+    TEST_ASSERT_TRUE(g_transfer_done);
+    TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
+    TEST_ASSERT_EQUAL_INT(1024, sim.rx_len);
+    TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
+    TEST_ASSERT_EQUAL_INT(X_CTRLZ, sim.rx_buffer[TEST_DATA_SIZE]);
+    
+    TEST_ASSERT_EQUAL_INT(XMODEM_MODE_1K, xm.current_mode);
 }
 #endif
