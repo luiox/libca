@@ -106,10 +106,20 @@ int main() {
     printf("File Transfer Demo Started (Protocol: %d)...\n", g_ft.proto);
 
     // 4. 主循环
-    uint32_t last_tick = 0; 
+    uint32_t last_tick = 0;
+    uint32_t current_time = 0; // 模拟时间戳
+    u8 rx_buf[256];
     while (1) {
-        // 时间驱动：处理超时逻辑
-        uint32_t current_time = 0; // 模拟时间戳
+        // 模拟时间流逝
+        current_time += 10;
+
+        // A. 数据处理：从底层读取并喂给协议栈
+        i32 rx_len = g_mock_io.read(&g_mock_io, rx_buf, sizeof(rx_buf), 0);
+        if (rx_len > 0) {
+            g_ft.ops->process(g_ft.proto_ins, rx_buf, (usize)rx_len);
+        }
+
+        // B. 时间驱动：处理超时逻辑
         if (current_time - last_tick >= 100) {
             g_ft.ops->tick(g_ft.proto_ins, 100);
             last_tick = current_time;
