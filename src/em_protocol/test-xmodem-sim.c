@@ -63,9 +63,21 @@ static i32 on_recv(void *user_data, u32 offset, const u8* data, usize len) {
     return -1;
 }
 
+#define TEST_DATA_SIZE 300
+static u8 g_test_data[TEST_DATA_SIZE];
+
+static void setup_test_data() {
+    for(int i=0; i<TEST_DATA_SIZE; i++) g_test_data[i] = (u8)i;
+}
+
 static i32 on_send(void *user_data, u32 offset, u8* buf, usize len) {
-    // Not used for RX tests
-    return 0;
+    if (offset >= TEST_DATA_SIZE) return 0;
+    
+    usize remain = TEST_DATA_SIZE - offset;
+    usize copy_len = (remain < len) ? remain : len;
+    
+    memcpy(buf, g_test_data + offset, copy_len);
+    return (i32)copy_len;
 }
 
 static void on_start(void *user_data, u32 total_size, const char* filename) {
@@ -319,12 +331,6 @@ static void run_protocol_loop(xmodem_t* dut, sim_peer_t* sim) {
  * ========================================================================= */
 
 // --- Test Group 1: DUT as Receiver ---
-#define TEST_DATA_SIZE 300
-static u8 g_test_data[TEST_DATA_SIZE];
-
-static void setup_test_data() {
-    for(int i=0; i<TEST_DATA_SIZE; i++) g_test_data[i] = (u8)i;
-}
 
 // Case 1: Standard XMODEM (Checksum)
 TEST_CASE(xmodem_rx_std_checksum) {
@@ -449,34 +455,35 @@ TEST_CASE(xmodem_rx_fallback) {
 
 // --- Test Group 2: DUT as Sender ---
 
-// Case 4: DUT Send CRC
-// TEST_CASE(xmodem_tx_crc) {
-//     reset_test_env();
-//     setup_test_data();
-//
-//     xmodem_t xm;
-//     xmodem_config_t cfg = {
-//         .is_transmitter = true,
-//         .mode = XMODEM_MODE_CRC,
-//         .recv_buffer = g_xm_internal_buf,
-//         .recv_buffer_size = sizeof(g_xm_internal_buf),
-//         .user_data = NULL,
-//         .max_retries = 10
-//     };
-//     // Note: Actual TX requires file reading callback or similar which might not be fully hooked up in this mock unless we mock file system read
-//     // For now we test if it attempts to handshake
-//    
-//     xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
-//     xmodem_start_send(&xm, "test.bin", TEST_DATA_SIZE);
-//    
-//     sim_peer_t sim;
-//     sim_init(&sim, SIM_ROLE_RECEIVER, SIM_PROTO_CRC, NULL, 0);
-//
-//     run_protocol_loop(&xm, &sim);
-//    
-//     // We expect it to finish (or timeout if data not provided, but here we just check loop runs)
-//     // Real implementation of TX needs 'cbs->read' or similar to get data?
-//     // Let's assume xmodem_start_send initiates it.
-// }
+// Case 5: DUT as Sender (CRC)
+TEST_CASE(xmodem_tx_crc) {
+    reset_test_env();
+    setup_test_data();
+
+    xmodem_t xm;
+    xmodem_config_t cfg = {
+        .is_transmitter = true,
+        .mode = XMODEM_MODE_CRC,
+        .recv_buffer = g_xm_internal_buf,
+        .recv_buffer_size = sizeof(g_xm_internal_buf),
+        .user_data = NULL,
+        .max_retries = 10
+    };
+    
+    xmodem_init(&xm, &g_mock_io, &g_cbs, &cfg);
+    xmodem_start_send(&xm, "test.bin", TEST_DATA_SIZE);
+    
+    // Sim acts as Receiver
+    sim_peer_t sim;
+    sim_init(&sim, SIM_ROLE_RECEIVER, SIM_PROTO_CRC, NULL, 0);
+
+    run_protocol_loop(&xm, &sim);
+    
+    TEST_ASSERT_TRUE(g_transfer_done);
+    TEST_ASSERT_EQUAL_INT(0, g_transfer_error);
+    // Sim should have received data
+    // TEST_ASSERT_EQUAL_INT(TEST_DATA_SIZE, sim.rx_len); // Sim accumulates actual data + padding
+    TEST_ASSERT_EQUAL_MEMORY(g_test_data, sim.rx_buffer, TEST_DATA_SIZE);
+}
 
 #endif

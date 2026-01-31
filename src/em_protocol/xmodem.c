@@ -189,9 +189,135 @@ i32 xmodem_tick(void* self, u32 ms_delta)
     return 0;
 }
 
+// 发送数据包
+static void xmodem_send_data_packet(xmodem_t* xm)
+{
+    // 1. Determine packet size based on mode
+    usize data_size = (xm->current_mode == XMODEM_MODE_1K) ? 1024 : 128;
+    u8 *packet_buf = xm->config->recv_buffer; // Reuse buffer for TX construction
+    
+    // 2. Read data from user
+    // Signature: i32 (*on_send)(void *user_data, u32 offset, u8* buf, usize len);
+    i32 read_len = xm->cbs->on_send(xm->config->user_data, xm->offset, 
+                                    &packet_buf[3], data_size);
+    
+    // 3. Check for EOF or Error
+    if (read_len < 0) {
+        // Read error
+         xmodem_send_char(xm, XMODEM_CAN);
+         xm->state = S_TX_WAIT_EOT_ACK; // Or error state
+         xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_CANCELLED);
+         return;
+    }
+    
+    if (read_len == 0 && xm->total_size > 0 && xm->offset >= xm->total_size) {
+        // EOF reached
+        xmodem_send_char(xm, XMODEM_EOT);
+        xm->state = S_TX_WAIT_EOT_ACK;
+        return;
+    }
+    // Also handle case where read_len == 0 but offset < total_size (should not happen?)
+    if (read_len == 0) {
+        // Just send EOT?
+        xmodem_send_char(xm, XMODEM_EOT);
+        xm->state = S_TX_WAIT_EOT_ACK;
+        return;
+    }
+    
+    // 4. Fill Header
+    packet_buf[0] = (data_size == 1024) ? XMODEM_STX : XMODEM_SOH;
+    packet_buf[1] = xm->packet_num;
+    packet_buf[2] = ~xm->packet_num;
+    
+    // 5. Padding
+    if ((usize)read_len < data_size) {
+        memset(&packet_buf[3 + read_len], XMODEM_CTRLZ, data_size - read_len);
+    }
+    
+    // 6. Checksum/CRC
+    usize idx = 3 + data_size;
+    if (is_use_crc(xm->current_mode)) {
+        u16 crc = crc16_xmodem(&packet_buf[3], data_size);
+        packet_buf[idx++] = (crc >> 8) & 0xFF;
+        packet_buf[idx++] = crc & 0xFF;
+    } else {
+        u8 sum = checksum_calc_u8(&packet_buf[3], data_size);
+        packet_buf[idx++] = sum;
+    }
+    
+    // 7. Send
+    xm->io->write(xm->io, packet_buf, idx);
+    
+    // 8. Update state
+    xm->state = S_TX_WAIT_ACK;
+    xm->received_len = read_len; // Store temporary actual data length to update offset later
+}
+
 // 发送模式的process处理
 i32 xmodem_tx_process(xmodem_t* xm, const u8* in_buf, usize in_len)
 {
+    usize i = 0;
+    while(i < in_len) {
+        u8 ch = in_buf[i];
+        switch(xm->state) {
+            case S_TX_WAIT_START:
+                if (ch == XMODEM_CRC) {
+                    xm->current_mode = XMODEM_MODE_CRC; 
+                    if (xm->config->mode == XMODEM_MODE_1K) {
+                        xm->current_mode = XMODEM_MODE_1K;
+                    } 
+                    xmodem_send_data_packet(xm);
+                }
+                else if (ch == XMODEM_NAK) {
+                    xm->current_mode = XMODEM_MODE_STANDARD;
+                    xmodem_send_data_packet(xm);
+                }
+                break;
+                
+            case S_TX_WAIT_ACK:
+                if (ch == XMODEM_ACK) {
+                    // Success, commit offest
+                    xm->offset += xm->received_len; 
+                    xm->packet_num++;
+                    
+                    // Check if we are done
+                    if ((xm->total_size > 0 && xm->offset >= xm->total_size)) {
+                         // Send EOT
+                         xmodem_send_char(xm, XMODEM_EOT);
+                         xm->state = S_TX_WAIT_EOT_ACK;
+                    } else {
+                         // Send next
+                         xmodem_send_data_packet(xm);
+                    }
+                }
+                else if (ch == XMODEM_NAK) {
+                    // Resend same packet
+                    usize data_size = (xm->current_mode == XMODEM_MODE_1K) ? 1024 : 128;
+                    usize overhead = is_use_crc(xm->current_mode) ? 5 : 4;
+                    xm->io->write(xm->io, xm->config->recv_buffer, data_size + overhead);
+                }
+                else if (ch == XMODEM_CAN) {
+                    xm->state = S_RX_ERROR;
+                    xm->cbs->on_finish(xm->config->user_data, XMODEM_ERR_CANCELLED);
+                    return 0;
+                }
+                break;
+                
+            case S_TX_WAIT_EOT_ACK:
+                if (ch == XMODEM_ACK) {
+                    // All done
+                    xm->state = S_RX_FINISHED; 
+                    xm->cbs->on_finish(xm->config->user_data, XMODEM_OK);
+                    return 0;
+                }
+                else if (ch == XMODEM_NAK) {
+                    // Resend EOT
+                    xmodem_send_char(xm, XMODEM_EOT);
+                }
+                break;
+        }
+        i++;
+    }
     return 0;
 }
 
@@ -343,6 +469,14 @@ void xmodem_start_recv(void* self)
 void xmodem_start_send(void* self, const char* filename, u32 file_size)
 {
     param_check(self != NULL);
+    xmodem_t* xm = (xmodem_t*)self;
+    xmodem_reset(xm); // Will set state to S_TX_WAIT_START
+
+    xm->total_size = file_size;
+    xm->offset = 0;
+    xm->packet_num = 1;
+    
+    acumulate_timer_reset(&xm->idle_timer, 0);
 }
 
 i32 xmodem_get_transferred_size(void* self)
