@@ -7,6 +7,28 @@
 #include <string.h>
 #include <stdio.h>
 
+// 日志开关：0=关闭 1=摘要 2=全量
+#ifndef YMODEM_SIM_LOG_MODE
+#define YMODEM_SIM_LOG_MODE 1
+#endif
+
+#define YMODEM_SIM_LOG_SUMMARY 1
+#define YMODEM_SIM_LOG_VERBOSE 2
+
+#if YMODEM_SIM_LOG_MODE >= YMODEM_SIM_LOG_SUMMARY
+#define LOG_SUMMARY(fmt, ...) printf("[ymodem-sim][summary] " fmt "\n", ##__VA_ARGS__)
+#else
+#define LOG_SUMMARY(fmt, ...) ((void)0)
+#endif
+
+#if YMODEM_SIM_LOG_MODE >= YMODEM_SIM_LOG_VERBOSE
+#define LOG_VERBOSE(fmt, ...) printf("[ymodem-sim][verbose] " fmt "\n", ##__VA_ARGS__)
+#else
+#define LOG_VERBOSE(fmt, ...) ((void)0)
+#endif
+
+#define LOG_FAIL(fmt, ...) printf("[ymodem-sim][fail] " fmt "\n", ##__VA_ARGS__)
+
 /* =========================================================================
  * 1. 模拟传输层和通用工具
  * ========================================================================= */
@@ -31,6 +53,34 @@ static i32 mock_write(transport_t* self, const u8 *buf, usize len)
     if (g_dut_tx_len + len <= sizeof(g_dut_tx_buf)) {
         memcpy(g_dut_tx_buf + g_dut_tx_len, buf, len);
         g_dut_tx_len += len;
+    }
+
+    if (len > 0) {
+        usize count_c = 0;
+        usize count_ack = 0;
+        usize count_nak = 0;
+        usize count_can = 0;
+        usize count_eot = 0;
+        for (usize i = 0; i < len; i++) {
+            if (buf[i] == Y_CRC) {
+                count_c++;
+            }
+            else if (buf[i] == Y_ACK) {
+                count_ack++;
+            }
+            else if (buf[i] == Y_NAK) {
+                count_nak++;
+            }
+            else if (buf[i] == Y_CAN) {
+                count_can++;
+            }
+            else if (buf[i] == Y_EOT) {
+                count_eot++;
+            }
+        }
+        LOG_VERBOSE("dut->sim len=%u C=%u ACK=%u NAK=%u CAN=%u EOT=%u", (unsigned int)len,
+                    (unsigned int)count_c, (unsigned int)count_ack, (unsigned int)count_nak,
+                    (unsigned int)count_can, (unsigned int)count_eot);
     }
     return (i32)len;
 }
@@ -68,8 +118,12 @@ static i32 on_recv(void *user_data, u32 offset, const u8* data, usize len)
     if (g_file_len + len <= sizeof(g_file_buf)) {
         memcpy(g_file_buf + g_file_len, data, len);
         g_file_len += len;
+        LOG_VERBOSE("recv offset=%u len=%u total=%u", (unsigned int)offset, (unsigned int)len,
+                    (unsigned int)g_file_len);
         return 0;
     }
+    LOG_FAIL("recv overflow offset=%u len=%u total=%u", (unsigned int)offset, (unsigned int)len,
+             (unsigned int)g_file_len);
     return -1;
 }
 
@@ -103,6 +157,8 @@ static void on_start(void *user_data, u32 total_size, const char* filename)
         }
         memcpy(g_recv_filename, filename, name_len);
     }
+    LOG_SUMMARY("start filename=%s size=%u", (filename != NULL) ? filename : "(null)",
+                (unsigned int)total_size);
 }
 
 /* 传输完成回调 */
@@ -110,9 +166,11 @@ static void on_finish(void *user_data, i32 status)
 {
     if (status == 0) {
         g_transfer_done = true;
+        LOG_SUMMARY("finish ok size=%u", (unsigned int)g_file_len);
     }
     else {
         g_transfer_error = status;
+        LOG_FAIL("finish error=%d", (int)status);
     }
 }
 
@@ -225,6 +283,9 @@ static usize sim_gen_block0(const char* filename, u32 file_size, u8* out)
     out[idx++] = (crc >> 8) & 0xFF;
     out[idx++] = crc & 0xFF;
 
+    LOG_VERBOSE("tx block0 filename=%s size=%u crc=0x%04X", (filename != NULL) ? filename : "(null)",
+                (unsigned int)file_size, (unsigned int)crc);
+
     return idx;
 }
 
@@ -248,6 +309,9 @@ static usize sim_gen_data_packet(sim_peer_t* sim, u8* out)
     out[idx++] = (crc >> 8) & 0xFF;
     out[idx++] = crc & 0xFF;
 
+    LOG_VERBOSE("tx data seq=%u offset=%u len=%u crc=0x%04X", (unsigned int)sim->seq,
+                (unsigned int)sim->offset, (unsigned int)copy_len, (unsigned int)crc);
+
     return idx;
 }
 
@@ -258,6 +322,7 @@ static void sim_init(sim_peer_t* sim, const u8* data, usize len)
     sim->tx_total_len = len;
     sim->seq = 1;
     sim->state = SIM_WAIT_C;
+    LOG_SUMMARY("sim init len=%u", (unsigned int)len);
 }
 
 static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_buf)
@@ -266,6 +331,9 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
     bool has_c = false;
     bool has_ack = false;
     bool has_nak = false;
+
+    LOG_VERBOSE("sim step state=%u in_len=%u offset=%u seq=%u", (unsigned int)sim->state,
+                (unsigned int)in_len, (unsigned int)sim->offset, (unsigned int)sim->seq);
 
     for (usize i = 0; i < in_len; i++) {
         if (in_buf[i] == Y_CRC) {
@@ -286,6 +354,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
     switch (sim->state) {
         case SIM_WAIT_C:
             if (has_c) {
+                LOG_SUMMARY("state WAIT_C -> send block0");
                 out_len = sim_gen_block0("test.bin", (u32)sim->tx_total_len, out_buf);
                 sim->state = SIM_WAIT_BLOCK0_ACK;
             }
@@ -293,19 +362,23 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
         case SIM_WAIT_BLOCK0_ACK:
             if (has_nak) {
+                LOG_SUMMARY("state WAIT_BLOCK0_ACK -> resend block0");
                 out_len = sim_gen_block0("test.bin", (u32)sim->tx_total_len, out_buf);
             }
             if (has_ack && has_c) {
+                LOG_SUMMARY("state WAIT_BLOCK0_ACK -> send data (ACK+C)");
                 out_len = sim_gen_data_packet(sim, out_buf);
                 sim->state = SIM_WAIT_DATA_ACK;
             }
             else if (has_ack) {
+                LOG_SUMMARY("state WAIT_BLOCK0_ACK -> WAIT_C_AFTER_ACK");
                 sim->state = SIM_WAIT_C_AFTER_ACK;
             }
             break;
 
         case SIM_WAIT_C_AFTER_ACK:
             if (has_c) {
+                LOG_SUMMARY("state WAIT_C_AFTER_ACK -> send data");
                 out_len = sim_gen_data_packet(sim, out_buf);
                 sim->state = SIM_WAIT_DATA_ACK;
             }
@@ -313,16 +386,19 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
         case SIM_WAIT_DATA_ACK:
             if (has_nak) {
+                LOG_SUMMARY("state WAIT_DATA_ACK -> resend data seq=%u", (unsigned int)sim->seq);
                 out_len = sim_gen_data_packet(sim, out_buf);
             }
             if (has_ack) {
                 sim->offset += 1024;
                 sim->seq++;
                 if (sim->offset >= sim->tx_total_len) {
+                    LOG_SUMMARY("state WAIT_DATA_ACK -> send EOT");
                     out_buf[out_len++] = Y_EOT;
                     sim->state = SIM_WAIT_EOT_NAK;
                 }
                 else {
+                    LOG_SUMMARY("state WAIT_DATA_ACK -> send next data seq=%u", (unsigned int)sim->seq);
                     out_len = sim_gen_data_packet(sim, out_buf);
                 }
             }
@@ -330,6 +406,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
         case SIM_WAIT_EOT_NAK:
             if (has_nak) {
+                LOG_SUMMARY("state WAIT_EOT_NAK -> resend EOT");
                 out_buf[out_len++] = Y_EOT;
                 sim->state = SIM_WAIT_EOT_ACK;
             }
@@ -337,6 +414,7 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
         case SIM_WAIT_EOT_ACK:
             if (has_ack) {
+                LOG_SUMMARY("state WAIT_EOT_ACK -> send end block0");
                 out_len = sim_gen_block0("", 0, out_buf);
                 sim->state = SIM_WAIT_END_ACK;
             }
@@ -344,9 +422,11 @@ static usize sim_step(sim_peer_t* sim, const u8* in_buf, usize in_len, u8* out_b
 
         case SIM_WAIT_END_ACK:
             if (has_nak) {
+                LOG_SUMMARY("state WAIT_END_ACK -> resend end block0");
                 out_len = sim_gen_block0("", 0, out_buf);
             }
             if (has_ack) {
+                LOG_SUMMARY("state WAIT_END_ACK -> done");
                 sim->finished = true;
                 sim->state = SIM_DONE;
             }
@@ -376,10 +456,13 @@ static void run_protocol_loop(ymodem_t* dut, sim_peer_t* sim)
         mock_io_clear();
 
         if (sim_out_len > 0) {
+            LOG_VERBOSE("sim->dut len=%u first=0x%02X", (unsigned int)sim_out_len,
+                        (unsigned int)sim_out_buf[0]);
             ymodem_process(dut, sim_out_buf, sim_out_len);
         }
 
         if (g_transfer_error != 0) {
+            LOG_FAIL("transfer error=%d", (int)g_transfer_error);
             break;
         }
     }
