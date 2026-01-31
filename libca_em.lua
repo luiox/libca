@@ -22,7 +22,7 @@ rule("libca.em_shell")
         local inc_dir = path.join(os.scriptdir(), "src")
         local src_dir = path.join(inc_dir, "em_shell")
         target:add("includedirs", inc_dir)
-        target:add("files", path.join(src_dir, "*.c"))
+        target:add("files", path.join(src_dir, "shell.c"))
     end)
 rule_end()
 
