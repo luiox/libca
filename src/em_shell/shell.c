@@ -140,6 +140,7 @@ void shell_init(shell_t *shell, shell_port_t *port, char *buffer, u16 size,
     shell->buffer_size = size;
     shell->cmd_root = cmd_root;
     shell->cmd_count = cmd_count;
+    shell->input_idx = 0;  /* 初始化输入索引 */
 
     /* 仅第一个 shell 成为全局对象 */
     if (g_shell_current == NULL) {
@@ -234,19 +235,18 @@ static i32 shell_execute_tree(const shell_cmd_t *root, u16 count, i32 argc, char
     return -1;
 }
 
-i32 shell_run_command_by_name(const char *line)
+i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size)
 {
-    if (!line) return -1;
+    if (!line || !buf || buf_size == 0) return -1;
 
-    /* 复制到本地缓冲（split_args 会修改内容） */
-    static char localbuf[SHELL_LINE_BUFFER];
-    strncpy(localbuf, line, sizeof(localbuf) - 1);
-    localbuf[sizeof(localbuf) - 1] = 0;
+    /* 复制到工作缓冲区（split_args 会修改内容） */
+    strncpy(buf, line, buf_size - 1);
+    buf[buf_size - 1] = 0;
 
     char *argv[SHELL_MAX_ARGC];
     i32 argc = 0;
 
-    split_args(localbuf, argv, &argc);
+    split_args(buf, argv, &argc);
     if (argc == 0) return -1;
 
     shell_t *shell = shell_get_current();
@@ -269,15 +269,14 @@ void shell_handler(shell_t *shell, char data)
 {
     if (!shell || !shell->buffer) return;
 
-    static u16 idx = 0;
-
     /* 回车/换行：执行命令 */
     if (data == '\r' || data == '\n') {
-        shell->buffer[idx] = 0;
+        shell->buffer[shell->input_idx] = 0;
         shell_write_data(shell, "\r\n", 2);
-        if (idx > 0) {
-            shell_run_command_by_name(shell->buffer);
-            idx = 0;
+        if (shell->input_idx > 0) {
+            /* 使用 shell 对象自己的缓冲作为工作缓冲 */
+            shell_run_command_by_name(shell->buffer, shell->buffer, shell->buffer_size);
+            shell->input_idx = 0;
         }
         shell_write_data(shell, "> ", 2);
         return;
@@ -285,8 +284,8 @@ void shell_handler(shell_t *shell, char data)
 
     /* 退格处理 */
     if (data == '\b') {
-        if (idx > 0) {
-            idx--;
+        if (shell->input_idx > 0) {
+            shell->input_idx--;
             shell_write_data(shell, "\b \b", 3);
         }
         return;
@@ -298,8 +297,8 @@ void shell_handler(shell_t *shell, char data)
     }
 
     /* 缓冲输入字符 */
-    if (idx < shell->buffer_size - 1) {
-        shell->buffer[idx++] = data;
+    if (shell->input_idx < shell->buffer_size - 1) {
+        shell->buffer[shell->input_idx++] = data;
         shell_write_data(shell, &data, 1);
     }
 }
@@ -744,11 +743,12 @@ TEST_CASE(shell_execute_leaf_command)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("leaf");
+    i32 ret = shell_run_command_by_name("leaf", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(0, ret);
     TEST_ASSERT_TRUE(g_mock_port.output_len > 0);
 }
@@ -766,11 +766,12 @@ TEST_CASE(shell_execute_branch_command_sub1)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("branch sub1");
+    i32 ret = shell_run_command_by_name("branch sub1", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(0, ret);
     const char *output = mock_get_output();
     TEST_ASSERT_NOT_NULL(strstr(output, "sub1_executed"));
@@ -789,11 +790,12 @@ TEST_CASE(shell_execute_branch_command_sub2_with_param)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("branch sub2 -x 0xABCD");
+    i32 ret = shell_run_command_by_name("branch sub2 -x 0xABCD", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(0, ret);
     const char *output = mock_get_output();
     TEST_ASSERT_NOT_NULL(strstr(output, "sub2_value"));
@@ -812,11 +814,12 @@ TEST_CASE(shell_execute_branch_command_missing_param)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("branch sub2");
+    i32 ret = shell_run_command_by_name("branch sub2", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(-1, ret);
 }
 
@@ -833,11 +836,12 @@ TEST_CASE(shell_execute_command_not_found)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("unknown_cmd");
+    i32 ret = shell_run_command_by_name("unknown_cmd", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(-1, ret);
     const char *output = mock_get_output();
     TEST_ASSERT_NOT_NULL(strstr(output, "not found"));
@@ -856,11 +860,12 @@ TEST_CASE(shell_builtin_help)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("help");
+    i32 ret = shell_run_command_by_name("help", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(0, ret);
     const char *output = mock_get_output();
     TEST_ASSERT_NOT_NULL(strstr(output, "Available Commands"));
@@ -879,11 +884,12 @@ TEST_CASE(shell_builtin_clear)
 
     shell_t shell;
     char buffer[256];
+    char work_buf[256];
 
     shell_init(&shell, &port, buffer, sizeof(buffer),
                g_test_commands, sizeof(g_test_commands) / sizeof(g_test_commands[0]));
 
-    i32 ret = shell_run_command_by_name("clear");
+    i32 ret = shell_run_command_by_name("clear", work_buf, sizeof(work_buf));
     TEST_ASSERT_EQUAL_INT(0, ret);
     const char *output = mock_get_output();
     /* clear 命令发送 ANSI 转义序列 */

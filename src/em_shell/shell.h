@@ -91,6 +91,7 @@ typedef struct shell_t {
     u16 buffer_size;            /**< 缓冲区大小 */
     const shell_cmd_t *cmd_root;/**< 命令树根节点 */
     u16 cmd_count;              /**< 命令树中的总命令数 */
+    u16 input_idx;              /**< 当前输入行缓冲索引（内部使用） */
 } shell_t;
 
 /* ========== 初始化 API ========== */
@@ -126,10 +127,13 @@ void shell_handler(shell_t *shell, char data);
 /**
  * @brief 通过命令行文本直接执行命令
  * @param[in] line 命令行字符串（不应包含 \r \n）
+ * @param[in] buf 工作缓冲区（用于分割参数，会被修改）
+ * @param[in] buf_size 缓冲区大小
  * @return 命令执行的返回值
- * @note 此函数会修改 line 内容，调用前建议复制原值
+ * @details 调用者需提供缓冲区以支持多线程使用。line 内容不会被修改，
+ *          buf 中会被写入分割后的参数数据。
  */
-i32 shell_run_command_by_name(const char *line);
+i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size);
 
 /* ========== 输出 API ========== */
 

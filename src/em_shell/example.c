@@ -300,9 +300,10 @@ int main(void)
         "reboot",
     };
 
+    char work_buf[SHELL_LINE_BUFFER];
     for (usize i = 0; i < sizeof(test_commands) / sizeof(test_commands[0]); i++) {
         printf("> %s\n", test_commands[i]);
-        shell_run_command_by_name(test_commands[i]);
+        shell_run_command_by_name(test_commands[i], work_buf, sizeof(work_buf));
         printf("\n");
     }
 
