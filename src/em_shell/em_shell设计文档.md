@@ -80,6 +80,40 @@ argv = ["mem", "read", "-a", "0x1000"]
 shell_parse_short_hex_param(argc, argv, "-a", &addr)  /* addr = 0x1000 */
 ```
 
+#### 4. **多实例与线程安全**
+采用无静态变量设计，确保线程安全和多实例支持：
+
+- **字符输入缓冲**：由用户创建并传入 `shell_t`，存储在 `shell->buffer`
+  - 优势：每个实例有独立的缓冲区，避免共享状态冲突
+  - 实现：调用 `shell_init()` 时传入缓冲区指针和大小
+
+- **输入索引状态**：改为结构体成员 `shell_t.input_idx`
+  - 优势：每个 shell 实例维护独立的输入位置，支持真正的多实例并发
+  - 实现：`shell_handler()` 操作 `shell->input_idx` 而非静态变量
+
+- **命令工作缓冲**：由调用者通过 `shell_run_command_by_name()` 提供
+  - 优势：避免 API 中的隐藏静态状态
+  - 实现：函数签名为 `i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size)`
+  
+**多实例示例**：
+```c
+/* 创建两个独立的 shell 实例 */
+shell_t shell1, shell2;
+char buffer1[256], buffer2[256];
+char work_buf1[256], work_buf2[256];
+
+shell_init(&shell1, &port, buffer1, sizeof(buffer1), g_commands, cmd_count);
+shell_init(&shell2, &port, buffer2, sizeof(buffer2), g_commands, cmd_count);
+
+/* 各实例独立工作，input_idx 互不干扰 */
+shell_handler(&shell1, 'h');  /* shell1.input_idx++ */
+shell_handler(&shell2, 'l');  /* shell2.input_idx++，独立计数 */
+
+/* 执行命令时各自使用独立的工作缓冲 */
+shell_run_command_by_name("mem read", work_buf1, sizeof(work_buf1));
+shell_run_command_by_name("mem write", work_buf2, sizeof(work_buf2));
+```
+
 ---
 
 ### 使用示例
@@ -179,7 +213,7 @@ void shell_handler(shell_t *shell, char data);  /* 在中断或主循环中调�
 
 #### 命令执行
 ```c
-i32 shell_run_command_by_name(const char *line);  /* 直接执行命令行 */
+i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size);  /* 直接执行命令行 */
 ```
 
 #### 输出

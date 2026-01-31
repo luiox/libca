@@ -97,7 +97,7 @@ static const shell_cmd_t g_commands[] = {
 shell_t my_shell;
 char shell_buffer[SHELL_LINE_BUFFER];
 
-shell_init(&my_shell, &my_port, shell_buffer, sizeof(shell_buffer),
+shell_init(&my_shell, &my_port, shell_buffer, sizeof(shell_buffer),  /* shell_buffer 用于字符输入缓冲 */
            g_commands, sizeof(g_commands) / sizeof(g_commands[0]));
 
 shell_print(&my_shell, "Welcome to my shell!\r\n> ");
@@ -156,9 +156,12 @@ void shell_handler(shell_t *shell, char data);
 /**
  * 通过命令行文本直接执行命令
  * @param line 命令行字符串（不应包含 \r \n）
+ * @param buf 工作缓冲区（用于命令分解，会被修改）
+ * @param buf_size 工作缓冲区大小
  * @return 命令执行的返回值
+ * @details 调用者需要提供工作缓冲区，通常应不小于 SHELL_LINE_BUFFER（256 字节）
  */
-i32 shell_run_command_by_name(const char *line);
+i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size);
 ```
 
 ### 输出 API
@@ -367,6 +370,47 @@ static i32 my_command(i32 argc, char *argv[])
 
 ---
 
+## 工作缓冲区管理
+
+### 为什么需要工作缓冲区？
+
+`shell_run_command_by_name()` 需要一个工作缓冲区来分割命令行参数。由于库无法使用静态变量（会导致多实例并发问题），工作缓冲区必须由调用者提供。
+
+### 如何使用
+
+```c
+char work_buf[256];  /* 工作缓冲区，通常与输入缓冲区大小相同 */
+
+/* 从命令行直接执行命令 */
+i32 ret = shell_run_command_by_name("mem read -a 0x1000", work_buf, sizeof(work_buf));
+
+/* 在 shell_handler 中已自动处理 */
+shell_handler(&shell, input_char);  /* 内部使用 shell->buffer 作为工作缓冲 */
+```
+
+### 多实例场景
+
+```c
+/* 两个独立的 shell 实例，各自拥有工作缓冲 */
+shell_t shell1, shell2;
+char buf1[256], buf2[256];
+char work_buf1[256], work_buf2[256];
+
+shell_init(&shell1, &port, buf1, sizeof(buf1), g_commands, cmd_count);
+shell_init(&shell2, &port, buf2, sizeof(buf2), g_commands, cmd_count);
+
+/* 各实例的工作缓冲互不干扰 */
+shell_run_command_by_name("cmd arg1 arg2", work_buf1, sizeof(work_buf1));  /* 仅影响 work_buf1 */
+shell_run_command_by_name("cmd arg3 arg4", work_buf2, sizeof(work_buf2));  /* 仅影响 work_buf2 */
+```
+
+**关键点**：
+- 工作缓冲区在函数执行期间会被修改
+- 建议大小不小于 `SHELL_LINE_BUFFER`（256 字节）
+- 不同实例使用不同的工作缓冲区以保证线程安全
+
+---
+
 ## 常见问题
 
 **Q: 命令无法执行？**
@@ -401,6 +445,18 @@ static const shell_cmd_t g_commands[] = {
 **Q: 是否可以用于生产环境？**
 
 A: 完全可以。轻量级设计、完整测试、无动态分配。
+
+**Q: 为什么 `shell_run_command_by_name()` 需要缓冲区参数？**
+
+A: 为了实现真正的多实例和线程安全。静态变量会导致多个 shell 实例相互干扰。由调用者提供工作缓冲区，确保每个调用都有独立的工作空间。
+
+**Q: 工作缓冲区是否会被修改？**
+
+A: 是的。`shell_run_command_by_name()` 会在缓冲区中进行参数分割（覆盖原内容）。如果需要保留原始命令行，请事先复制一份。
+
+**Q: 是否支持多实例并发执行命令？**
+
+A: 是的。由于所有状态（缓冲区、输入索引）都是实例局部的，多个 shell 实例可以并发独立运行。每个实例需要自己的工作缓冲区和 I/O 端口。
 
 ---
 
