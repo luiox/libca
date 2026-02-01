@@ -1,8 +1,8 @@
 # Common Driver Patterns
 
-This document provides detailed examples of common driver patterns found in the libca em_driver module. Each pattern includes the port design rationale, device object structure, key implementation details, and usage examples.
+本文档提供 libca em_driver 模块中常见驱动模式的详细示例。每种模式都包含 Port 设计理由、Device object 结构、关键实现细节和使用示例。
 
-## Table of Contents
+## 目录
 
 1. [Simple GPIO Driver (LED)](#1-simple-gpio-driver-led)
 2. [I2C Sensor Driver (BH1750)](#2-i2c-sensor-driver-bh1750)
@@ -14,11 +14,11 @@ This document provides detailed examples of common driver patterns found in the 
 
 ## 1. Simple GPIO Driver (LED)
 
-### Overview
+### 概述
 
-A simple GPIO driver controls a single pin's output state. This is the simplest driver pattern and serves as a good starting point for understanding the em_driver framework.
+Simple GPIO 驱动控制单个引脚的输出状态。这是最简单的驱动模式，是理解 em_driver 框架的良好起点。
 
-### Port Design
+### Port 设计
 
 ```c
 typedef struct led_port {
@@ -26,28 +26,28 @@ typedef struct led_port {
 } led_port_t;
 ```
 
-**Rationale**:
-- Only needs to write to a GPIO pin
-- No need for reading (output-only device)
-- No timing requirements
-- Minimal hardware abstraction
+**设计理由**:
+- 只需要向 GPIO 引脚写入
+- 无需读取（仅输出设备）
+- 无时序要求
+- 最小化硬件抽象
 
 ### Device Object
 
 ```c
 typedef struct led {
-    void* gpio;       // GPIO handle (platform-specific)
-    u16 pin;          // Pin number
-    u8 active_level;  // Active level (0=low active, 1=high active)
+    void* gpio;       // GPIO handle（平台特定）
+    u16 pin;          // 引脚编号
+    u8 active_level;  // 有效电平（0=低电平有效，1=高电平有效）
 } led_t;
 ```
 
-**Member Explanation**:
-- `gpio`: Platform-specific GPIO port handle (e.g., `GPIOA` pointer)
-- `pin`: Pin number (e.g., `GPIO_PIN_5`)
-- `active_level`: Whether the LED turns on with HIGH or LOW signal
+**成员说明**:
+- `gpio`: 平台特定的 GPIO port handle（如 `GPIOA` 指针）
+- `pin`: 引脚编号（如 `GPIO_PIN_5`）
+- `active_level`: LED 用 HIGH 还是 LOW 信号打开
 
-### API Functions
+### API 函数
 
 ```c
 void led_init(led_t* self, void* gpio, u16 pin, u8 active_level);
@@ -56,7 +56,7 @@ void led_off(led_t* self);
 void led_toggle(led_t* self);
 ```
 
-### Implementation
+### 实现
 
 ```c
 #include "../em_base/debug.h"
@@ -78,67 +78,61 @@ void led_init(led_t* self, void* gpio, u16 pin, u8 active_level) {
 }
 
 void led_on(led_t* self) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
-    if (!g_led_port) {
-        debug_print("[led] error: port not registered\n");
-        return;
-    }
+    param_check(g_led_port != NULL);
     g_led_port->write_pin(self->gpio, self->pin, self->active_level);
 }
 
 void led_off(led_t* self) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
-    if (!g_led_port) {
-        debug_print("[led] error: port not registered\n");
-        return;
-    }
+    param_check(g_led_port != NULL);
     g_led_port->write_pin(self->gpio, self->pin, !self->active_level);
 }
 
 void led_toggle(led_t* self) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
-    if (!g_led_port) {
-        debug_print("[led] error: port not registered\n");
-        return;
-    }
-    // Read current state and toggle
-    // Note: This requires read_pin capability, which LED doesn't have
-    // Alternative: track state in led_t
+    param_check(g_led_port != NULL);
+    // 读取当前状态并切换
+    // 注意：这需要 read_pin 功能，而 LED 没有
+    // 替代方案：在 led_t 中跟踪状态
 }
 ```
 
-### Usage Example
+### 使用示例
 
 ```c
-// On STM32 with HAL
+// 在 STM32 上使用 HAL
 led_t status_led;
 led_bind_port(&(led_port_t){
     .write_pin = HAL_GPIO_WritePin
 });
 
-led_init(&status_led, GPIOA, GPIO_PIN_5, 1);  // High active
+led_init(&status_led, GPIOA, GPIO_PIN_5, 1);  // 高电平有效
 
-led_on(&status_led);   // Turn on
+led_on(&status_led);   // 打开
 HAL_Delay(500);
-led_off(&status_led);  // Turn off
+led_off(&status_led);  // 关闭
 ```
 
-### Key Takeaways
+### 关键要点
 
-- Simplest possible driver pattern
-- Demonstrates basic port binding
-- Shows `param_check` usage
-- Active level abstraction for flexibility
+- 最简单的驱动模式
+- 演示基本 Port 绑定
+- 展示 `param_check` 使用
+- 有效电平抽象提高灵活性
 
 ---
 
 ## 2. I2C Sensor Driver (BH1750)
 
-### Overview
+### 概述
 
-BH1750 is a digital light sensor that communicates via I2C. It demonstrates how to handle I2C communication, device addressing, and register-based configuration.
+BH1750 是通过 I2C 通信的数字光传感器。它演示了如何处理 I2C 通信、设备寻址和基于寄存器的配置。
 
-### Port Design
+### Port 设计
 
 ```c
 typedef struct bh1750_port {
@@ -149,26 +143,26 @@ typedef struct bh1750_port {
 } bh1750_port_t;
 ```
 
-**Rationale**:
-- Requires both I2C read and write operations
-- Uses standard HAL I2C function signature
-- Supports multiple I2C addresses (0x46 or 0x47)
-- No timing functions needed (I2C handles this)
+**设计理由**:
+- 需要 I2C 读写操作
+- 使用标准 HAL I2C 函数签名
+- 支持多个 I2C 地址（0x46 或 0x47）
+- 不需要时序函数（I2C 处理）
 
 ### Device Object
 
 ```c
 typedef struct bh1750 {
     void* hi2c;       // I2C handle
-    u16 dev_addr;     // I2C device address (0x46 or 0x47)
+    u16 dev_addr;     // I2C 设备地址（0x46 或 0x47）
 } bh1750_t;
 ```
 
-**Member Explanation**:
-- `hi2c`: I2C peripheral handle (e.g., `&hi2c1`)
-- `dev_addr`: 7-bit I2C address (depends on ADDR pin state)
+**成员说明**:
+- `hi2c`: I2C 外设 handle（如 `&hi2c1`）
+- `dev_addr`: 7 位 I2C 地址（取决于 ADDR 引脚状态）
 
-### Access Macros
+### Access 宏
 
 ```c
 #define BH1750_I2C_WRITE(reg, data, size) \
@@ -180,14 +174,14 @@ typedef struct bh1750 {
                             (buf), (size), 1000)
 ```
 
-### API Functions
+### API 函数
 
 ```c
 void bh1750_init(bh1750_t* self, void* hi2c, u16 dev_addr);
 i32  bh1750_read_light(bh1750_t* self, f32* lux);
 ```
 
-### Implementation
+### 实现
 
 ```c
 #include "../em_base/debug.h"
@@ -200,47 +194,47 @@ void bh1750_bind_port(const bh1750_port_t* port) {
 }
 
 void bh1750_init(bh1750_t* self, void* hi2c, u16 dev_addr) {
+    // 驱动内所有参数检查都用 param_check
+    param_check(self != NULL);
+    param_check(g_bh1750_port != NULL);
+
     self->hi2c = hi2c;
     self->dev_addr = dev_addr;
 
-    // Power on and set measurement mode
-    u8 cmd = 0x01;  // Power on
-    if (!g_bh1750_port) {
-        debug_print("[bh1750] error: port not registered\n");
-        return;
-    }
+    // 上电并设置测量模式
+    u8 cmd = 0x01;  // 上电
     g_bh1750_port->i2c_write(hi2c, dev_addr, 0, 0, &cmd, 1, 1000);
 }
 
 i32 bh1750_read_light(bh1750_t* self, f32* lux) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
     param_check(lux != NULL);
-
-    if (!g_bh1750_port) {
+    param_check(g_bh1750_port != NULL);
         debug_print("[bh1750] error: port not registered\n");
         return -1;
     }
 
-    // Start continuous measurement (high resolution mode)
+    // 开始连续测量（高分辨率模式）
     u8 cmd = 0x10;
     g_bh1750_port->i2c_write(self->hi2c, self->dev_addr, 0, 0, &cmd, 1, 1000);
 
-    // Wait for measurement
-    // (I2C polling delay is handled by the I2C implementation)
+    // 等待测量
+    //（I2C 轮询延迟由 I2C 实现处理）
 
-    // Read result (2 bytes)
+    // 读取结果（2 字节）
     u8 data[2];
     g_bh1750_port->i2c_read(self->hi2c, self->dev_addr, 0, 0, data, 2, 1000);
 
-    // Convert to lux
+    // 转换为 lux
     u16 raw = (data[0] << 8) | data[1];
-    *lux = raw / 1.2f;  // Conversion factor from datasheet
+    *lux = raw / 1.2f;  // datasheet 中的转换因子
 
     return 0;
 }
 ```
 
-### Usage Example
+### 使用示例
 
 ```c
 bh1750 light_sensor;
@@ -249,29 +243,29 @@ bh1750_bind_port(&(bh1750_port_t){
     .i2c_read = HAL_I2C_Master_Receive
 });
 
-bh1750_init(&light_sensor, &hi2c1, 0x46);  // ADDR pin low
+bh1750_init(&light_sensor, &hi2c1, 0x46);  // ADDR 引脚低
 
 f32 lux;
 bh1750_read_light(&light_sensor, &lux);
 printf("Light intensity: %.1f lux\n", lux);
 ```
 
-### Key Takeaways
+### 关键要点
 
-- Demonstrates I2C communication pattern
-- Shows register-based device control
-- Uses access macros for cleaner code
-- Conversion from raw data to physical units
+- 演示 I2C 通信模式
+- 展示基于寄存器的设备控制
+- 使用 Access 宏简化代码
+- 从原始数据转换为物理单位
 
 ---
 
 ## 3. Timing-Sensitive Driver (DHT11)
 
-### Overview
+### 概述
 
-DHT11 is a temperature and humidity sensor that requires precise timing (microsecond-level delays). It demonstrates bit-banging communication and bidirectional GPIO usage.
+DHT11 是温度和湿度传感器，需要精确时序（微秒级延时）。它演示了 bit-banging 通信和双向 GPIO 使用。
 
-### Port Design
+### Port 设计
 
 ```c
 typedef struct dht11_port {
@@ -284,23 +278,23 @@ typedef struct dht11_port {
 } dht11_port_t;
 ```
 
-**Rationale**:
-- **Bidirectional GPIO**: Needs to switch between output and input modes
-- **Precise timing**: Microsecond-level delays required for protocol
-- **Pin control**: Write for start signal, read for data bits
-- **Millisecond delays**: Between measurements (sensor needs recovery time)
+**设计理由**:
+- **双向 GPIO**: 需要在输出和输入模式间切换
+- **精确时序**: 协议需要微秒级延时
+- **引脚控制**: 写入用于起始信号，读取用于数据位
+- **毫秒延时**: 测量之间（传感器需要恢复时间）
 
 ### Device Object
 
 ```c
 typedef struct dht11 {
     void* gpio;       // GPIO handle
-    u16 pin;          // Pin number
-    u8 last_valid;    // Last read was successful
+    u16 pin;          // 引脚编号
+    u8 last_valid;    // 上次读取有效
 } dht11_t;
 ```
 
-### Access Macros
+### Access 宏
 
 ```c
 #define DHT11_OUTPUT_MODE(self) \
@@ -322,14 +316,14 @@ typedef struct dht11 {
     g_dht11_port->delay_ms(ms)
 ```
 
-### API Functions
+### API 函数
 
 ```c
 void dht11_init(dht11_t* self, void* gpio, u16 pin);
 i32  dht11_read(dht11_t* self, u8* temp, u8* humi);
 ```
 
-### Implementation
+### 实现
 
 ```c
 #include "../em_base/debug.h"
@@ -347,25 +341,25 @@ void dht11_init(dht11_t* self, void* gpio, u16 pin) {
 }
 
 i32 dht11_read(dht11_t* self, u8* temp, u8* humi) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
     param_check(temp != NULL);
     param_check(humi != NULL);
-
-    if (!g_dht11_port) {
+    param_check(g_dht11_port != NULL);
         debug_print("[dht11] error: port not registered\n");
         return -1;
     }
 
-    // 1. Send start signal (host pulls low for >18ms)
+    // 1. 发送起始信号（主机拉低 >18ms）
     DHT11_OUTPUT_MODE(self);
     DHT11_WRITE(self, 0);
     DHT11_DELAY_MS(20);
 
-    // 2. Pull high and wait for response
+    // 2. 拉高并等待响应
     DHT11_WRITE(self, 1);
     DHT11_INPUT_MODE(self);
 
-    // Wait for sensor to pull low (should be ~20-40us)
+    // 等待传感器拉低（应该 ~20-40us）
     u32 timeout = 100;
     while (DHT11_READ(self) && timeout-- > 0) DHT11_DELAY_US(1);
     if (timeout == 0) {
@@ -373,7 +367,7 @@ i32 dht11_read(dht11_t* self, u8* temp, u8* humi) {
         return -1;
     }
 
-    // Wait for sensor to pull high (should be ~80us)
+    // 等待传感器拉高（应该 ~80us）
     timeout = 100;
     while (!DHT11_READ(self) && timeout-- > 0) DHT11_DELAY_US(1);
     if (timeout == 0) {
@@ -381,44 +375,44 @@ i32 dht11_read(dht11_t* self, u8* temp, u8* humi) {
         return -1;
     }
 
-    // 3. Read 40 bits of data
+    // 3. 读取 40 位数据
     u8 data[5] = {0};
     for (u8 i = 0; i < 5; i++) {
         for (u8 j = 0; j < 8; j++) {
-            // Wait for bit start (low)
+            // 等待位起始（低）
             timeout = 100;
             while (DHT11_READ(self) && timeout-- > 0) DHT11_DELAY_US(1);
             timeout = 100;
             while (!DHT11_READ(self) && timeout-- > 0) DHT11_DELAY_US(1);
 
-            // Measure bit duration
-            DHT11_DELAY_US(40);  // Wait halfway through bit period
+            // 测量位持续时间
+            DHT11_DELAY_US(40);  // 等待到位周期中途
 
-            // If pin is high, it's a '1' (long pulse)
+            // 如果引脚高，是 '1'（长脉冲）
             if (DHT11_READ(self)) {
                 data[i] |= (1 << (7 - j));
-                // Wait for remaining high time
+                // 等待剩余高时间
                 timeout = 100;
                 while (DHT11_READ(self) && timeout-- > 0) DHT11_DELAY_US(1);
             }
         }
     }
 
-    // 4. Verify checksum
+    // 4. 验证校验和
     if (data[4] != (data[0] + data[1] + data[2] + data[3])) {
         debug_print("[dht11] checksum error\n");
         return -1;
     }
 
-    *humi = data[0];  // Humidity integer part
-    *temp = data[2];  // Temperature integer part
+    *humi = data[0];  // 湿度整数部分
+    *temp = data[2];  // 温度整数部分
     self->last_valid = 1;
 
     return 0;
 }
 ```
 
-### Usage Example
+### 使用示例
 
 ```c
 dht11 temp_sensor;
@@ -439,65 +433,65 @@ if (dht11_read(&temp_sensor, &temp, &humi) == 0) {
 }
 ```
 
-### Key Takeaways
+### 关键要点
 
-- Demonstrates bidirectional GPIO usage
-- Shows precise timing control with microsecond delays
-- Implements protocol-level bit reading
-- Includes checksum verification
+- 演示双向 GPIO 使用
+- 展示微秒延时的精确时序控制
+- 实现协议级位读取
+- 包含校验和验证
 
 ---
 
 ## 4. State Machine Driver (EC11 Encoder)
 
-### Overview
+### 概述
 
-EC11 is a rotary encoder that requires a state machine to decode rotation direction. It demonstrates how to maintain internal state and handle asynchronous events.
+EC11 是需要状态机解码旋转方向的旋转编码器。它演示了如何维护内部状态和处理异步事件。
 
-### Port Design
+### Port 设计
 
 ```c
 typedef struct ec11_port {
-    u8 (*read_a)(void* gpio, u16 pin_a);  // Read pin A
-    u8 (*read_b)(void* gpio, u16 pin_b);  // Read pin B
+    u8 (*read_a)(void* gpio, u16 pin_a);  // 读取引脚 A
+    u8 (*read_b)(void* gpio, u16 pin_b);  // 读取引脚 B
     void (*set_mode)(void* gpio, u16 pin_a, u16 pin_b, u8 mode);
 } ec11_port_t;
 ```
 
-**Rationale**:
-- Two input pins (A and B) with quadrature encoding
-- Only needs read operations (input device)
-- No timing requirements (polling-based)
-- State machine tracks rotation direction
+**设计理由**:
+- 两个输入引脚（A 和 B）带正交编码
+- 只需要读操作（输入设备）
+- 无时序要求（基于轮询）
+- 状态机跟踪旋转方向
 
 ### Device Object
 
 ```c
 typedef struct ec11 {
     void* gpio;       // GPIO handle
-    u16 pin_a;        // Pin A
-    u16 pin_b;        // Pin B
-    u8 state;         // Current state (0-3)
-    i16 count;        // Rotation counter
+    u16 pin_a;        // 引脚 A
+    u16 pin_b;        // 引脚 B
+    u8 state;         // 当前状态（0-3）
+    i16 count;        // 旋转计数器
 } ec11_t;
 ```
 
-**Member Explanation**:
-- `gpio`: GPIO handle for both pins
-- `pin_a`, `pin_b`: Pin numbers for quadrature signals
-- `state`: Current state in quadrature sequence (0-3)
-- `count`: Cumulative rotation count (positive for CW, negative for CCW)
+**成员说明**:
+- `gpio`: 两个引脚的 GPIO handle
+- `pin_a`, `pin_b`: 正交信号的引脚编号
+- `state`: 正交序列中的当前状态（0-3）
+- `count`: 累积旋转计数（CW 正，CCW 负）
 
-### API Functions
+### API 函数
 
 ```c
 void ec11_init(ec11_t* self, void* gpio, u16 pin_a, u16 pin_b);
-void ec11_update(ec11_t* self);  // Call periodically
+void ec11_update(ec11_t* self);  // 定期调用
 i16  ec11_get_count(ec11_t* self);
 void ec11_reset_count(ec11_t* self);
 ```
 
-### Implementation
+### 实现
 
 ```c
 #include "../em_base/debug.h"
@@ -515,34 +509,31 @@ void ec11_init(ec11_t* self, void* gpio, u16 pin_a, u16 pin_b) {
     self->state = 0;
     self->count = 0;
 
-    // Configure pins as input
+    // 配置引脚为输入
     if (g_ec11_port) {
         g_ec11_port->set_mode(gpio, pin_a, pin_b, 1);  // 1 = input
     }
 }
 
 void ec11_update(ec11_t* self) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
+    param_check(g_ec11_port != NULL);
 
-    if (!g_ec11_port) {
-        debug_print("[ec11] error: port not registered\n");
-        return;
-    }
-
-    // Read current state of both pins
+    // 读取两个引脚的当前状态
     u8 a = g_ec11_port->read_a(self->gpio, self->pin_a);
     u8 b = g_ec11_port->read_b(self->gpio, self->pin_b);
 
-    // State machine for quadrature decoding
+    // 正交解码状态机
     u8 new_state = (a << 1) | b;
 
-    // State transition table for CW rotation:
+    // CW 旋转的状态转换：
     // 00 -> 01 -> 11 -> 10 -> 00
-    // State transition table for CCW rotation:
+    // CCW 旋转的状态转换：
     // 00 -> 10 -> 11 -> 01 -> 00
 
-    // Transition matrix [old_state][new_state]
-    // -1: CCW, 0: invalid/no change, +1: CW
+    // 转换矩阵 [old_state][new_state]
+    // -1: CCW, 0: 无效/无变化, +1: CW
     static const i8 transition_table[4][4] = {
         // new state: 00  01  11  10
         /* 00 */ { 0, -1,  0,  1},
@@ -567,7 +558,7 @@ void ec11_reset_count(ec11_t* self) {
 }
 ```
 
-### Usage Example
+### 使用示例
 
 ```c
 ec11 rotary_encoder;
@@ -579,33 +570,33 @@ ec11_bind_port(&(ec11_port_t){
 
 ec11_init(&rotary_encoder, GPIOA, GPIO_PIN_7, GPIO_PIN_8);
 
-// In main loop
+// 在主循环中
 while (1) {
     ec11_update(&rotary_encoder);
     i16 count = ec11_get_count(&rotary_encoder);
     if (count != 0) {
         printf("Encoder count: %d\n", count);
     }
-    HAL_Delay(10);  // Poll at 100Hz
+    HAL_Delay(10);  // 以 100Hz 轮询
 }
 ```
 
-### Key Takeaways
+### 关键要点
 
-- Demonstrates state machine pattern
-- Shows internal state maintenance
-- Polling-based event handling
-- Quadrature signal decoding
+- 演示状态机模式
+- 展示内部状态维护
+- 基于轮询的事件处理
+- 正交信号解码
 
 ---
 
 ## 5. EEPROM Driver (AT24CXX)
 
-### Overview
+### 概述
 
-AT24CXX is a series of I2C EEPROMs with different capacities. It demonstrates I2C communication with address paging and write cycle handling.
+AT24CXX 是具有不同容量的 I2C EEPROM 系列。它演示了 I2C 通信与地址分页和写周期处理。
 
-### Port Design
+### Port 设计
 
 ```c
 typedef struct at24c_port {
@@ -617,23 +608,23 @@ typedef struct at24c_port {
 } at24c_port_t;
 ```
 
-**Rationale**:
-- Standard I2C operations for read/write
-- `delay_ms` needed for write cycle time (EEPROM needs ~5-10ms to complete write)
-- No timing requirements for reading
+**设计理由**:
+- 标准的 I2C 读写操作
+- `delay_ms` 需要写周期时间（EEPROM 需要 ~5-10ms 完成写入）
+- 读取无时序要求
 
 ### Device Object
 
 ```c
 typedef struct at24c {
     void* hi2c;       // I2C handle
-    u16 dev_addr;     // Base I2C address
-    u16 capacity;     // Total capacity in bytes
-    u16 page_size;    // Page size for writes (e.g., 32 bytes)
+    u16 dev_addr;     // 基本 I2C 地址
+    u16 capacity;     // 总容量（字节）
+    u16 page_size;    // 写入的页大小（如 32 字节）
 } at24c_t;
 ```
 
-### API Functions
+### API 函数
 
 ```c
 void at24c_init(at24c_t* self, void* hi2c, u16 dev_addr, u16 capacity, u16 page_size);
@@ -641,7 +632,7 @@ i32  at24c_read(at24c_t* self, u16 addr, u8* data, u16 len);
 i32  at24c_write(at24c_t* self, u16 addr, const u8* data, u16 len);
 ```
 
-### Implementation
+### 实现
 
 ```c
 #include "../em_base/debug.h"
@@ -660,19 +651,20 @@ void at24c_init(at24c_t* self, void* hi2c, u16 dev_addr, u16 capacity, u16 page_
 }
 
 i32 at24c_read(at24c_t* self, u16 addr, u8* data, u16 len) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
     param_check(data != NULL);
+    param_check(g_at24c_port != NULL);
+    param_check(len > 0);
     param_check(addr + len <= self->capacity);
-
-    if (!g_at24c_port) {
         debug_print("[at24c] error: port not registered\n");
         return -1;
     }
 
-    // Handle I2C address selection for larger EEPROMs
+    // 处理大 EEPROM 的 I2C 地址选择
     u16 i2c_addr = self->dev_addr;
     if (self->capacity > 256 * 1024) {
-        // Use address bits for devices >256KB
+        // 使用地址位用于 >256KB 的设备
         i2c_addr |= (addr >> 16) & 0x07;
         addr &= 0xFFFF;
     } else if (self->capacity > 32 * 1024) {
@@ -684,18 +676,19 @@ i32 at24c_read(at24c_t* self, u16 addr, u8* data, u16 len) {
 }
 
 i32 at24c_write(at24c_t* self, u16 addr, const u8* data, u16 len) {
+    // 驱动内所有参数检查都用 param_check
     param_check(self != NULL);
     param_check(data != NULL);
+    param_check(g_at24c_port != NULL);
+    param_check(len > 0);
     param_check(addr + len <= self->capacity);
-
-    if (!g_at24c_port) {
         debug_print("[at24c] error: port not registered\n");
         return -1;
     }
 
     u16 written = 0;
     while (written < len) {
-        // Calculate page-aligned write length
+        // 计算页对齐的写入长度
         u16 page_start = (addr + written) & ~(self->page_size - 1);
         u16 page_end = page_start + self->page_size;
         u16 write_len = page_end - (addr + written);
@@ -703,11 +696,11 @@ i32 at24c_write(at24c_t* self, u16 addr, const u8* data, u16 len) {
             write_len = len - written;
         }
 
-        // Write page
+        // 写入页
         g_at24c_port->i2c_write(self->hi2c, self->dev_addr, addr + written,
                                  2, (u8*)(data + written), write_len, 1000);
 
-        // Wait for write cycle to complete
+        // 等待写周期完成
         g_at24c_port->delay_ms(10);
 
         written += write_len;
@@ -717,7 +710,7 @@ i32 at24c_write(at24c_t* self, u16 addr, const u8* data, u16 len) {
 }
 ```
 
-### Usage Example
+### 使用示例
 
 ```c
 at24c eeprom;
@@ -727,74 +720,74 @@ at24c_bind_port(&(at24c_port_t){
     .delay_ms = HAL_Delay
 });
 
-at24c_init(&eeprom, &hi2c1, 0xA0, 32768, 32);  // AT24C256, 32KB, 32-byte pages
+at24c_init(&eeprom, &hi2c1, 0xA0, 32768, 32);  // AT24C256, 32KB, 32-byte 页
 
-// Write some data
+// 写入一些数据
 u8 write_data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 at24c_write(&eeprom, 0x1000, write_data, 10);
 
-// Read back
+// 读回
 u8 read_data[10];
 at24c_read(&eeprom, 0x1000, read_data, 10);
 ```
 
-### Key Takeaways
+### 关键要点
 
-- Demonstrates page-based write handling
-- Shows address selection for large EEPROMs
-- Includes write cycle timing
-- Handles boundary conditions (page alignment, capacity check)
+- 演示基于页的写入处理
+- 展示大 EEPROM 的地址选择
+- 包含写周期时序
+- 处理边界条件（页对齐，容量检查）
 
 ---
 
-## Pattern Selection Guide
+## 模式选择指南
 
-| Requirement | Recommended Pattern | Example |
-|-------------|---------------------|---------|
-| Single output control | Simple GPIO | LED, relay, buzzer |
-| Register-based sensor | I2C Sensor | BH1750, MPU6050 |
-| Precise timing protocol | Timing-Sensitive | DHT11, One-Wire |
-| Quadrature input | State Machine | EC11 encoder |
-| Non-volatile storage | EEPROM | AT24CXX |
-| Complex state machine | State Machine + Timing | RF modules |
+| 需求 | 推荐模式 | 示例 |
+|------|-----------|------|
+| 单输出控制 | Simple GPIO | LED, 继电器, 蜂鸣器 |
+| 基于寄存器的传感器 | I2C Sensor | BH1750, MPU6050 |
+| 精确时序协议 | Timing-Sensitive | DHT11, One-Wire |
+| 正交输入 | State Machine | EC11 编码器 |
+| 非易失存储 | EEPROM | AT24CXX |
+| 复杂状态机 | State Machine + Timing | 射频模块 |
 
-## Common Issues and Solutions
+## 常见问题和解决方案
 
-### Issue 1: Port Not Registered
+### 问题 1: Port 未注册
 
-**Symptoms**: `port not registered` error message
+**症状**: `port not registered` 错误消息
 
-**Solution**: Always call `xxx_bind_port()` before using any API function
+**解决方案**: 使用任何 API 函数前始终调用 `xxx_bind_port()`
 
-### Issue 2: Timing Problems
+### 问题 2: 时序问题
 
-**Symptoms**: Read/write failures, incorrect data
+**症状**: 读写失败，数据不正确
 
-**Solution**:
-- Verify delay functions are accurate (use oscilloscope if possible)
-- Check datasheet for minimum/maximum timing requirements
-- Consider hardware timing variations between MCUs
+**解决方案**:
+- 验证延时函数准确（尽可能使用示波器）
+- 检查 datasheet 的最小/最大时序要求
+- 考虑 MCU 间的硬件时序变化
 
-### Issue 3: I2C Address Issues
+### 问题 3: I2C 地址问题
 
-**Symptoms**: NACK on I2C bus
+**症状**: I2C 总线上 NACK
 
-**Solution**:
-- Verify device address (7-bit vs 8-bit)
-- Check address pins on hardware
-- Use I2C scanner to detect devices on bus
+**解决方案**:
+- 验证设备地址（7 位 vs 8 位）
+- 检查硬件上的地址引脚
+- 使用 I2C 扫描器检测总线上的设备
 
-### Issue 4: State Machine Glitches
+### 问题 4: 状态机毛刺
 
-**Symptoms**: Incorrect rotation direction or missed counts
+**症状**: 旋转方向错误或计数丢失
 
-**Solution**:
-- Poll at appropriate frequency (too slow: miss events, too fast: bounce)
-- Add debouncing if necessary
-- Verify signal quality (oscilloscope)
+**解决方案**:
+- 以适当频率轮询（太慢：丢失事件，太快：抖动）
+- 如有必要添加去抖动
+- 验证信号质量（示波器）
 
-## Related Documents
+## 相关文档
 
-- [Driver Development Workflow](./01_Driver_Development_Workflow.md) - Step-by-step guide
-- [Design Principles](./03_Design_Principles.md) - Best practices
-- [Driver Examples](./04_Driver_Examples.md) - More detailed analysis
+- [Driver Development Workflow](./01_Driver_Development_Workflow.md) - 逐步指南
+- [Design Principles](./03_Design_Principles.md) - 最佳实践
+- [Driver Examples](./04_Driver_Examples.md) - 更详细分析

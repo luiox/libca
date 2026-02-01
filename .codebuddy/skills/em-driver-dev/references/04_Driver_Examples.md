@@ -45,10 +45,9 @@ typedef struct led {
 
 ```c
 void led_on(led_t* self) {
-    if (!g_led_port) {
-        debug_print("[led] port not registered\n");
-        return;
-    }
+    // 驱动内所有参数检查都用 param_check
+    param_check(self != NULL);
+    param_check(g_led_port != NULL);
 
     if (self->valid) {
         g_led_port->write_pin(self->gpio, self->pin, 1);
@@ -119,10 +118,9 @@ typedef struct bh1750_port {
 
 ```c
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode) {
-    if (!g_bh1750_port) {
-        debug_print("[bh1750] port not registered\n");
-        return BH1750_ERR_PORT_NOT_REGISTERED;
-    }
+    // 驱动内所有参数检查都用 param_check
+    param_check(self != NULL);
+    param_check(g_bh1750_port != NULL);
 
     i32 ret = bh1750_send_cmd(self, mode);
     if (ret != 0) {
@@ -483,10 +481,9 @@ typedef struct xxx {
 **错误处理模式**：
 ```c
 i32 xxx_function(xxx_t* self, ...) {
-    if (!g_xxx_port) {
-        debug_print("[xxx] port not registered\n");
-        return XXX_ERR_PORT_NOT_REGISTERED;
-    }
+    // 驱动内所有参数检查都用 param_check
+    param_check(self != NULL);
+    param_check(g_xxx_port != NULL);
 
     // ... 操作
 
