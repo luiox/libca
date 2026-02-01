@@ -23,11 +23,10 @@
 em-driver-dev/
 ├── SKILL.md                                    # 快速开始指南
 └── references/
-    ├── 01_Driver_Development_Workflow.md       # 逐步开发指南
-    ├── 02_Common_Driver_Patterns.md           # 5 种常见模式（LED、I2C、DHT11、EC11、EEPROM）
-    ├── 03_Design_Principles.md                # 命名、OOP 使用、最佳实践、陷阱
-    ├── 04_Driver_Examples.md                  # 现有驱动分析
-    └── 05_Specification_CN.md                 # 完整中文规范
+    ├── 01_code_rule.md                        # 代码规范摘要（包括单元测试策略）
+    ├── 02_design_principle.md                 # 设计原则与最佳实践
+    ├── 03_develop_workflow.md                 # 驱动开发流程（从硬件分析到测试）
+    └── legacy/                                # 原始详细文档备份（示例与完整规范）
 ```
 
 **核心特性**:

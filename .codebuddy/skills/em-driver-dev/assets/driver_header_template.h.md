@@ -49,6 +49,13 @@ typedef struct xxx {
 void xxx_init(xxx_t* self, u16 mode);
 
 /**
+ * @important 重要规则
+ * - 当 `xxx_t` 的成员较多（例如超过 4 个）时，**硬件相关字段**（如 `void* gpio`、`u16 pin`、`void* hi2c` 等）应由使用者在外部初始化（例如结构体字面量或逐项赋值）并传入。`
+ * - `xxx_init()` 仅用于传入**配置型参数**（例如 `u16 mode`、配置标志等），并负责执行配置相关的检查与最小化初始化逻辑。
+ * - 该约定可避免将过多硬件句柄作为 `xxx_init` 的参数，从而保持接口简洁与可维护性。
+ */
+
+/**
  * @brief 示例操作
  * @param self 设备对象指针
  */

@@ -55,7 +55,7 @@ description: 用于开发 em_driver 硬件驱动，适用于嵌入式 MCU 系统
 4. **集成构建**（添加到 xmake.lua）
 5. **测试**（先模拟，后硬件）
 
-详见：[01_Driver_Development_Workflow.md](./references/01_Driver_Development_Workflow.md)
+详见：[03_develop_workflow.md](./references/03_develop_workflow.md)
 
 ### 常见驱动模式
 
@@ -105,40 +105,20 @@ i32 xxx_read(xxx_t* self, u8* data) {
 
 ## 参考资料
 
-### 详细文档
+### 详细文档（已重组）
 
-1. **[01_Driver_Development_Workflow.md](./references/01_Driver_Development_Workflow.md)**
-   - 完整的驱动开发流程
-   - 硬件需求分析
-   - 结构定义模式
-   - 构建系统集成
-   - 测试方法
-   - 维护工作流程
+1. **[01_code_rule.md](./references/01_code_rule.md)**
+   - 驱动/模块的编码规范摘要（语言、类型、命名、注释、单元测试策略）
 
-2. **[02_Common_Driver_Patterns.md](./references/02_Common_Driver_Patterns.md)**
-   - 5 种常见驱动模式及示例
-   - LED, BH1750, DHT11, EC11, AT24CXX
-   - Port 设计理由
-   - 实现细节
-   - 使用示例
+2. **[02_design_principle.md](./references/02_design_principle.md)**
+   - 设计原则、Port 层设计与错误处理、内存管理、OOP 使用指南
 
-3. **[03_Design_Principles.md](./references/03_Design_Principles.md)**
-   - 命名规范
-   - OOP 使用指南
-   - Port 层设计原则
-   - 错误处理模式
-   - 内存管理规则
-   - 常见问题和解决方案
+3. **[03_develop_workflow.md](./references/03_develop_workflow.md)**
+   - 驱动开发流程（从硬件分析到集成与测试）、Init 约定与测试策略
 
-4. **[04_Driver_Examples.md](./references/04_Driver_Examples.md)**
-   - 代码库中现有驱动分析
-   - 实际实现示例
-   - 代码片段和说明
+> 说明：详细文档已整理为 `01_code_rule.md`、`02_design_principle.md`、`03_develop_workflow.md`。示例驱动参考见 `04_Driver_Examples.md`。 
 
-5. **[05_Specification_CN.md](./references/05_Specification_CN.md)**
-   - 完整中文规范文档
-   - 详细编码标准
-   - 最佳实践和示例
+**Assets 使用说明**：请在创建驱动或提交 PR 时复用 `assets/` 下的模板（头文件、实现、单元测试样例、硬件验证计划与 PR 清单），并在 PR 描述中附上填写后的 `driver_testing_plan.md`。
 
 ### 快速参考
 
@@ -174,7 +154,7 @@ xxx.c:  Port 绑定, Access 宏, 实现
 | 数据损坏 | 等待写周期 (EEPROM) |
 | 数据类型错误 | 检查 datasheet 数据格式 |
 
-详细故障排查见 [常见陷阱](./references/03_Design_Principles.md#common-pitfalls)。
+详细故障排查见 [常见陷阱](./references/02_design_principle.md#常见陷阱与防御)。
 
 ## 不使用 OOP 的场景
 
@@ -187,7 +167,7 @@ u32 calculate_crc(const u8* data, u32 length) {
 }
 ```
 
-详见 [设计原则](./references/03_Design_Principles.md#oop-style-usage)。
+详见 [设计原则](./references/02_design_principle.md#oop-风格使用)。
 
 ---
 
