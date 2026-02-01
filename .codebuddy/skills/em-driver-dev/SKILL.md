@@ -26,9 +26,24 @@ description: 用于开发 em_driver 硬件驱动，适用于嵌入式 MCU 系统
 - 函数：`xxx_bind_port()`, `xxx_init()`, `xxx_operation()`
 - 宏：`XXX_WRITE()`, `XXX_READ()`, `XXX_OK`, `XXX_ERR_*`
 
-### 4. 无需单元测试
-- 驱动依赖硬件
-- 在真实 MCU 或模拟 port 上测试
+### 4. 单元测试政策和验证要求
+- 驱动实现通常不包含单元测试，因为驱动与硬件紧耦合，许多硬件行为难以在纯软件环境中复现。为避免误导，本 Skill 保持“驱动无需单元测试”的策略，但要求对每个驱动提供明确的验证计划（见下）。
+
+- 验证要求：
+  - 在驱动文档中包含**硬件验证计划**（测试步骤、需要的硬件/夹具、测试数据、验收标准）。
+  - 对驱动中可拆分的无硬件依赖逻辑，应抽离到独立模块并为该模块编写单元测试（遵循 `prompt/em_code_rule.md` 的单元测试规范）。
+  - 在 PR 中附上集成测试/硬件测试的复现步骤与结果（日志或截图）。
+
+#### 合规检查清单（reviewer 快速核对）
+- 使用 `datatype.h` 中的固定宽度类型（如 `u8/u16/u32` 等），避免直接使用 `int/size_t` 等。
+- 公共 API 必须有 doxygen `@brief/@param/@return` 注释。
+- 头文件必须使用项目约定的 include guard（禁止 `#pragma once`）。
+- 对于 `xxx_t *self` 等 self 指针，关键函数应使用 `param_check` 进行契约式检查。
+- 错误码以 `MODULE_ERR_*` 命名并为负数，成功返回 `MODULE_OK`（0）。
+- 缩进 4 空格，行长不超过 120 字符，K&R 花括号风格。
+- 避免在驱动中使用全局非前缀变量（如需全局，使用 `g_` 前缀）。
+
+> 注：此清单为快速核对项，详细规则以 `prompt/em_code_rule.md` 为准。
 
 ## 快速开始
 
@@ -176,4 +191,13 @@ u32 calculate_crc(const u8* data, u32 length) {
 
 ---
 
-**注意**：本 Skill 不需要单元测试，驱动在真实硬件或模拟环境中测试。
+## Assets 与 模板
+本 Skill 提供若干模板和检查单，位于 `assets/` 目录：
+- `driver_header_template.h.md`：驱动头文件模板（doxygen 注释、include guard、`extern "C"` 等）。
+- `driver_c_template.c.md`：驱动 C 文件模板（`param_check`、错误码、Access 宏示例）。
+- `unit_test_template.c`：无硬件依赖模块的单元测试样例（用于被抽离的可测试逻辑）。
+- `driver_testing_plan.md`：硬件验证计划模板（应随 PR 提交或在 PR 描述中链接）。
+- `pr_checklist.md`：PR 审查快速清单（建议 reviewer 使用）。
+
+**注意**：本 Skill 保持“驱动无需单元测试”的策略，驱动需要在真实硬件或模拟环境中测试；请在 PR 中附上硬件验证计划或说明为何不适合单元测试。
+
