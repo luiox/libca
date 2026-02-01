@@ -243,20 +243,20 @@ TEST_CASE(doubly_linked_list_iteration)
 TEST_CASE(doubly_linked_list_dynamic)
 {
     doubly_linked_list_t* list = doubly_linked_list_create();
-    TEST_param_check(list != NULL);
+    TEST_ASSERT(list != NULL);
     TEST_ASSERT_EQUAL_INT(0, (int)list->size);
 
     int val = 100;
     doubly_linked_list_node_t* node = doubly_linked_list_node_create(&val);
-    TEST_param_check(node != NULL);
-    TEST_param_check(node->data == &val);
+    TEST_ASSERT(node != NULL);
+    TEST_ASSERT(node->data == &val);
 
     doubly_linked_list_push_back(list, node);
     TEST_ASSERT_EQUAL_INT(1, (int)list->size);
-    TEST_param_check(list->head->data == &val);
+    TEST_ASSERT(list->head->data == &val);
 
     doubly_linked_list_node_t* popped = doubly_linked_list_pop_front(list);
-    TEST_param_check(popped == node);
+    TEST_ASSERT(popped == node);
     TEST_ASSERT_EQUAL_INT(0, (int)list->size);
 
     free(node);
