@@ -3,6 +3,7 @@
 #include "../em_util/math_util.h"
 #include "../em_base/debug.h"
 #include "../em_base/memory_util.h"
+#include <math.h>
 
 // ============================================
 // 二阶巴特沃斯低通滤波器实现

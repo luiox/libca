@@ -4,6 +4,8 @@ target("libca.em_util")
     set_group("em")
     add_files("**.c")
     add_deps("libca.em_base")
+    -- link libm for math functions (tanf, sqrtf, etc.)
+    add_syslinks("m")
 
 target("libca.em_util_static")
     set_kind("static")
@@ -41,6 +43,8 @@ target("test-filter")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("filter.c")
     add_deps("libca.em_base")
+    -- link libm for math functions (tanf, sqrtf, etc.)
+    add_syslinks("m")
 
 -- 嵌入式容器库
 target("libca.em_collection")
