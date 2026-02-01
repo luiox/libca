@@ -31,7 +31,7 @@ i32  bh1750_read(bh1750_t* self, f32* lux);
 
 ## 2. Port 层设计原则
 - 最小化硬件抽象：Port（`xxx_port_t`）只包含驱动运行所需的最少函数。避免把所有 HAL 接口全部暴露到 Port 中。
-- 使用 `void*` 作为 handle：使驱动与具体平台 HAL 解耦。
+- 使用 `void*` 作为 handle：使驱动与具体平台 HAL 解耦。命名应该是`htim`、`hi2c`、`hspi`等，但是gpio的port不需要写为`hgpio`，而是直接就是`void* gpio`
 - 分组相关函数：把 GPIO、I2C、时序函数等逻辑分组到同一 Port 结构内。
 - 单一全局 Port：默认采用单一全局 Port 指针并提供 `xxx_bind_port()` / `xxx_port_is_registered()`。
 - Access 宏：通过宏封装 Port 调用，便于修改与阅读，例如 `#define XXX_WRITE(self, v) g_xxx_port->write((self)->gpio, (self)->pin, (v))`。
