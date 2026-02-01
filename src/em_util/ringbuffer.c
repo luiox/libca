@@ -1,5 +1,5 @@
 #include "ringbuffer.h"
-#include <assert.h>
+#include "../em_base/debug.h"
 
 /**
  * @brief 初始化环形缓冲区.
@@ -9,8 +9,8 @@
  */
 void ringbuffer_init(ringbuffer_t* rb, uint8_t* buffer, position_size_t size)
 {
-    assert(rb);
-    assert(buffer);
+    param_check(rb);
+    param_check(buffer);
     rb->buffer = buffer;
     rb->size   = size;
     rb->used   = 0;
@@ -24,7 +24,7 @@ void ringbuffer_init(ringbuffer_t* rb, uint8_t* buffer, position_size_t size)
  */
 void ringbuffer_reset(ringbuffer_t* rb)
 {
-    assert(rb);
+    param_check(rb);
     rb->read  = 0;
     rb->write = 0;
     rb->used  = 0;
@@ -39,8 +39,8 @@ void ringbuffer_reset(ringbuffer_t* rb)
  */
 position_size_t ringbuffer_write(ringbuffer_t* rb, const uint8_t* data, position_size_t size)
 {
-    assert(rb);
-    assert(data);
+    param_check(rb);
+    param_check(data);
     
     position_size_t free_size = ringbuffer_free(rb);
     if (size > free_size) {
@@ -65,8 +65,8 @@ position_size_t ringbuffer_write(ringbuffer_t* rb, const uint8_t* data, position
  */
 position_size_t ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, position_size_t size)
 {
-    assert(rb);
-    assert(buf);
+    param_check(rb);
+    param_check(buf);
 
     position_size_t used_size = ringbuffer_used(rb);
     if (size > used_size) {
@@ -91,8 +91,8 @@ position_size_t ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, position_size_t 
  */
 position_size_t ringbuffer_peek(const ringbuffer_t* rb, uint8_t* buf, position_size_t size)
 {
-    assert(rb);
-    assert(buf);
+    param_check(rb);
+    param_check(buf);
 
     position_size_t used_size = ringbuffer_used(rb);
     if (size > used_size) {
@@ -115,7 +115,7 @@ position_size_t ringbuffer_peek(const ringbuffer_t* rb, uint8_t* buf, position_s
  */
 position_size_t ringbuffer_skip(ringbuffer_t* rb, position_size_t size)
 {
-    assert(rb);
+    param_check(rb);
     
     position_size_t used_size = ringbuffer_used(rb);
     if (size > used_size) {
@@ -134,7 +134,7 @@ position_size_t ringbuffer_skip(ringbuffer_t* rb, position_size_t size)
  */
 position_size_t ringbuffer_used(const ringbuffer_t* rb)
 {
-    assert(rb);
+    param_check(rb);
     return rb->used;
 }
 
@@ -145,7 +145,7 @@ position_size_t ringbuffer_used(const ringbuffer_t* rb)
  */
 position_size_t ringbuffer_free(const ringbuffer_t* rb)
 {
-    assert(rb);
+    param_check(rb);
     return rb->size - rb->used;
 }
 

@@ -1,11 +1,11 @@
 #include "doubly_linked_list.h"
 #include <stdlib.h>
-#include <assert.h>
+#include "../em_base/debug.h"
 
 // 初始化双向链表
 void doubly_linked_list_init(doubly_linked_list_t* list)
 {
-    assert(list);
+    param_check(list);
     list->size = 0;
     list->head = NULL;
     list->tail = NULL;
@@ -14,7 +14,7 @@ void doubly_linked_list_init(doubly_linked_list_t* list)
 // 初始化双向链表结点
 void doubly_linked_list_node_init(doubly_linked_list_node_t* node, void* data)
 {
-    assert(node);
+    param_check(node);
     node->data = data;
     node->next = NULL;
     node->prev = NULL;
@@ -23,8 +23,8 @@ void doubly_linked_list_node_init(doubly_linked_list_node_t* node, void* data)
 // 在双向链表的前面加上一个结点
 void doubly_linked_list_push_front(doubly_linked_list_t* list, doubly_linked_list_node_t* node)
 {
-    assert(list);
-    assert(node);
+    param_check(list);
+    param_check(node);
     if (list->size == 0) {
         // 头结点没有的情况，直接设置头尾指针
         list->head = node;
@@ -44,8 +44,8 @@ void doubly_linked_list_push_front(doubly_linked_list_t* list, doubly_linked_lis
 // 在双向链表的后面加上一个结点
 void doubly_linked_list_push_back(doubly_linked_list_t* list, doubly_linked_list_node_t* node)
 {
-    assert(list);
-    assert(node);
+    param_check(list);
+    param_check(node);
     if (list->size == 0) {
         // 头结点没有的情况，直接设置头尾指针
         list->head = node;
@@ -65,7 +65,7 @@ void doubly_linked_list_push_back(doubly_linked_list_t* list, doubly_linked_list
 // 移除双向链表中最后面的结点，并返回这个结点的地址
 doubly_linked_list_node_t* doubly_linked_list_pop_back(doubly_linked_list_t* list)
 {
-    assert(list);
+    param_check(list);
     if (list->size == 0) {
         return NULL;
     }
@@ -89,7 +89,7 @@ doubly_linked_list_node_t* doubly_linked_list_pop_back(doubly_linked_list_t* lis
 // 移除双向链表中最前面的结点，并返回这个结点的地址
 doubly_linked_list_node_t* doubly_linked_list_pop_front(doubly_linked_list_t* list)
 {
-    assert(list);
+    param_check(list);
     if (list->size == 0) {
         return NULL;
     }
@@ -134,28 +134,28 @@ doubly_linked_list_node_t* doubly_linked_list_node_create(void* data)
 // 获取开始的节点
 doubly_linked_list_node_t* doubly_linked_list_begin(doubly_linked_list_t* list)
 {
-    assert(list);
+    param_check(list);
     return list->head;
 }
 
 // 获取结束的节点
 doubly_linked_list_node_t* doubly_linked_list_end(doubly_linked_list_t* list)
 {
-    assert(list);
+    param_check(list);
     return list->tail;
 }
 
 // 获取下一个节点
 doubly_linked_list_node_t* doubly_linked_list_next(doubly_linked_list_node_t* node)
 {
-    assert(node);
+    param_check(node);
     return node->next;
 }
 
 // 获取上一个节点
 doubly_linked_list_node_t* doubly_linked_list_prev(doubly_linked_list_node_t* node)
 {
-    assert(node);
+    param_check(node);
     return node->prev;
 }
 
