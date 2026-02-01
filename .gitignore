@@ -16,3 +16,6 @@ third_party/libiconv/
 vsxmake2022/
 ref/
 testdemo/
+
+mcp/GDB-MCP/
+
