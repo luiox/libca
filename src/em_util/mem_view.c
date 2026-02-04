@@ -420,4 +420,15 @@ TEST_CASE(mem_view_read_f32_be_safe_insufficient) {
     TEST_ASSERT_EQUAL_FLOAT(-1.0f, out);
 }
 
+TEST_CASE(mem_view_read_f32_be_safe_success) {
+    u8 buf[4] = {0x3F,0x80,0x00,0x00}; /* big-endian 1.0f */
+    mem_view_t self;
+    f32 out = 0.0f;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    TEST_ASSERT_TRUE(mem_view_read_f32_be_safe(&self, &out));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, out);
+    TEST_ASSERT_EQUAL_UINT(0, mem_view_remain(&self));
+}
+
 #endif /* TEST_ENABLE */
