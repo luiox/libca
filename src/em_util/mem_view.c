@@ -324,4 +324,39 @@ TEST_CASE(mem_view_peek_u32_be_safe_success) {
     TEST_ASSERT_EQUAL_UINT(5, mem_view_remain(&self));
 }
 
+TEST_CASE(mem_view_read_u32_be_safe_success) {
+    u8 buf4[4] = {0x01, 0x02, 0x03, 0x04};
+    mem_view_t self;
+    u32 out = 0xFFFFFFFF;
+
+    mem_view_init(&self, buf4, 4);
+    TEST_ASSERT_TRUE(mem_view_read_u32_be_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT((u32)0x01020304, out);
+    TEST_ASSERT_EQUAL_UINT(0, mem_view_remain(&self));
+}
+
+TEST_CASE(mem_view_peek_u32_be_safe_insufficient_remain) {
+    u8 buf3[3] = {0x01,0x02,0x03};
+    mem_view_t self;
+    u32 out = 0xDEADBEEF;
+
+    mem_view_init(&self, buf3, 3);
+    TEST_ASSERT_FALSE(mem_view_peek_u32_be_safe(&self, 0, &out));
+    TEST_ASSERT_EQUAL_UINT(3, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_UINT(0xDEADBEEF, out);
+}
+
+TEST_CASE(mem_view_peek_u32_be_safe_offset_too_large) {
+    u8 buf5[5] = {0x01,0x02,0x03,0x04,0x05};
+    mem_view_t self;
+    u32 out = 0;
+
+    mem_view_init(&self, buf5, 5);
+    /* offset 2 -> remain=5, remain-4 =1, offset 2 >1 => should fail */
+    TEST_ASSERT_FALSE(mem_view_peek_u32_be_safe(&self, 2, &out));
+    /* but offset=1 should succeed */
+    TEST_ASSERT_TRUE(mem_view_peek_u32_be_safe(&self, 1, &out));
+    TEST_ASSERT_EQUAL_UINT((u32)0x02030405, out);
+}
+
 #endif /* TEST_ENABLE */
