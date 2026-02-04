@@ -123,3 +123,11 @@ rule("libca.em.driver")
         print_supported_modules()
     end)
 
+-- 单元测试目标：测试 `jy61p` 模块
+target("test-jy61p")
+    set_kind("binary")
+    -- 仅编译带测试的源文件；测试位于源文件底部并受 TEST_ENABLE 控制
+    add_files("jy61p.c")
+    add_deps("libca.em_base")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
