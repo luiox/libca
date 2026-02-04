@@ -22,13 +22,13 @@
 // 保证函数一定内联，不生成函数体，用于高频小函数
 #ifndef CA_INLINE
 #    if defined(__GNUC__) || defined(__clang__)
-#        define CA_INLINE static inline __attribute__((always_inline))
+#        define CA_INLINE inline __attribute__((always_inline))
 #    elif defined(__CC_ARM) || defined(__ARMCC_VERSION)   // ARM Compiler 5 / 6
-#        define CA_INLINE __attribute__((always_inline)) static inline
+#        define CA_INLINE __attribute__((always_inline)) inline
 #    elif defined(_MSC_VER)
 #        define CA_INLINE __forceinline
 #    else
-#        define CA_INLINE static inline
+#        define CA_INLINE inline
 #    endif
 #endif
 
