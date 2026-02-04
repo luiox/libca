@@ -247,4 +247,81 @@ TEST_CASE(mem_view_has_behavior) {
     TEST_ASSERT_FALSE(mem_view_has(&self, 4));
 }
 
+TEST_CASE(mem_view_peek_safe_overflow) {
+    u8 buf[10] = {0};
+    mem_view_t self;
+    u8 u8_out;
+    u16 u16_out;
+    u32 u32_out;
+
+    mem_view_init(&self, buf, sizeof(buf));
+
+    // Test with offset that would overflow
+    TEST_ASSERT_FALSE(mem_view_peek_u8_safe(&self, 0xFFFF, &u8_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u16_safe(&self, 0xFFFF, &u16_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u16_safe(&self, 0xFFFE, &u16_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u32_safe(&self, 0xFFFF, &u32_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u32_safe(&self, 0xFFFE, &u32_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u32_safe(&self, 0xFFFD, &u32_out));
+    TEST_ASSERT_FALSE(mem_view_peek_u32_safe(&self, 0xFFFC, &u32_out));
+}
+
+/* -- Additional tests to cover previously untested branches -- */
+TEST_CASE(mem_view_read_u32_safe_insufficient) {
+    u8 buf[3] = {0x10,0x20,0x30};
+    mem_view_t self;
+    u32 out = 0xDEADBEEF;
+
+    mem_view_init(&self, buf, 3);
+    TEST_ASSERT_FALSE(mem_view_read_u32_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT(3, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_UINT(0xDEADBEEF, out); /* out unchanged */
+}
+
+TEST_CASE(mem_view_read_u16_be_safe_insufficient) {
+    u8 buf[1] = {0xAA};
+    mem_view_t self;
+    u16 out = 0xFFFF;
+
+    mem_view_init(&self, buf, 1);
+    TEST_ASSERT_FALSE(mem_view_read_u16_be_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT(1, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_UINT(0xFFFF, out);
+}
+
+TEST_CASE(mem_view_read_u32_be_safe_insufficient) {
+    u8 buf[3] = {0x01,0x02,0x03};
+    mem_view_t self;
+    u32 out = 0xFFFFFFFF;
+
+    mem_view_init(&self, buf, 3);
+    TEST_ASSERT_FALSE(mem_view_read_u32_be_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT(3, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_UINT(0xFFFFFFFF, out);
+}
+
+TEST_CASE(mem_view_peek_u32_safe_success) {
+    u8 buf[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
+    mem_view_t self;
+    u32 out = 0;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    /* offset 1: bytes 1..4 -> little-endian value 0x05040302 */
+    TEST_ASSERT_TRUE(mem_view_peek_u32_safe(&self, 1, &out));
+    TEST_ASSERT_EQUAL_UINT((u32)0x05040302, out);
+    TEST_ASSERT_EQUAL_UINT(6, mem_view_remain(&self)); /* not advanced */
+}
+
+TEST_CASE(mem_view_peek_u32_be_safe_success) {
+    u8 buf[5] = {0xAA,0xBB,0xCC,0xDD,0xEE};
+    mem_view_t self;
+    u32 out = 0;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    /* offset 0: bytes 0..3 -> big-endian 0xAABBCCDD */
+    TEST_ASSERT_TRUE(mem_view_peek_u32_be_safe(&self, 0, &out));
+    TEST_ASSERT_EQUAL_UINT((u32)0xAABBCCDD, out);
+    TEST_ASSERT_EQUAL_UINT(5, mem_view_remain(&self));
+}
+
 #endif /* TEST_ENABLE */
