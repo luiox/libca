@@ -57,7 +57,7 @@ i32 jy61p_parse_frame(jy61p_t* self, const u8* ptr, usize total_len, jy61p_frame
     u8 recv_sum = ptr[10];
 
     if (calc_sum != recv_sum)
-        return JY61P_ERR_CRC;
+        return JY61P_ERR_CHECKSUM;
 
     // 5. 成功！
     out_frame->ptr  = ptr;
@@ -176,13 +176,12 @@ void jy61p_get_angle(jy61p_t* jy61p, jy61p_frame_t* frame, f32* roll, f32* pitch
     *yaw = (f32)tmp / 32768.0f * 180.0f;
 }
 
-static uint8_t JY61P_ULOCK_CMD[5] = {0xFF, 0xAA, 0x69, 0x88, 0xB5};   // 解锁
-static uint8_t JY61P_SAVE_CMD[5]  = {0xFF, 0xAA, 0x00, 0x00, 0x00};   // 保存
-static uint8_t JY61P_ACC_CMD[5]   = {0xFF, 0xAA, 0x01, 0x01, 0x00};   // 加速度校准
-static uint8_t JY61P_XY0_CMD[5]   = {0xFF, 0xAA, 0x01, 0x08, 0x00};   // XY轴归零
-static uint8_t JY61P_Z0_CMD[5]    = {0xFF, 0xAA, 0x01, 0x04, 0x00};   // Z轴归零
-
-#define jy61p_send_cmd(cmd, len) g_jy61p_port->uart_send(self->huart, cmd, (len))
+static const u8 JY61P_ULOCK_CMD[5] = {0xFF, 0xAA, 0x69, 0x88, 0xB5};   // 解锁
+static const u8 JY61P_SAVE_CMD[5]  = {0xFF, 0xAA, 0x00, 0x00, 0x00};   // 保存
+static const u8 JY61P_ACC_CMD[5]   = {0xFF, 0xAA, 0x01, 0x01, 0x00};   // 加速度校准
+static const u8 JY61P_XY0_CMD[5]   = {0xFF, 0xAA, 0x01, 0x08, 0x00};   // XY轴归零
+static const u8 JY61P_Z0_CMD[5]    = {0xFF, 0xAA, 0x01, 0x04, 0x00};   // Z轴归零
+#define jy61p_send_cmd(cmd, len) g_jy61p_port->uart_send(self->huart, (const u8*)cmd, (len))
 #define jy61p_delay_ms(ms) g_jy61p_port->delay_ms(ms)
 
 // 校准加速度器

@@ -35,11 +35,11 @@
 #define JY61P_ERR_SHORT -1    /* 数据包长度不足 */
 #define JY61P_ERR_HEADER -2   /* 帧头错误 */
 #define JY61P_ERR_TYPE -3     /* 类型不支持 */
-#define JY61P_ERR_CRC -4      /* 校验和错误 */
+#define JY61P_ERR_CHECKSUM -4      /* 校验和错误 */
 
 typedef struct jy61p_port
 {
-    i32 (*uart_send)(void* huart, u8* buf, usize len);
+    i32 (*uart_send)(void* huart, const u8* buf, usize len);
     void (*delay_ms)(u32 ms);
 } jy61p_port_t;
 
