@@ -146,6 +146,60 @@ static CA_INLINE u32 mem_view_read_u32_be(mem_view_t* self)
     return val;
 }
 
+/* ---------------------- Float (32-bit) ---------------------- */
+/**
+ * @brief 读取 32 位浮点数 (小端)
+ * @note 内部使用 memcpy 避免类型双关 (Type Punning) 引发的 UB
+ * @warning 在可用字节 < 4 时行为未定义，建议使用 mem_view_read_f32_safe
+ */
+static CA_INLINE f32 mem_view_read_f32(mem_view_t* self)
+{
+    f32 val;
+    memcpy(&val, self->ptr, 4);
+    self->ptr += 4;
+    return val;
+}
+
+/**
+ * @brief 读取 32 位浮点数 (大端)
+ * @note 先读 u32 再 memcpy 转成 f32
+ * @warning 在可用字节 < 4 时行为未定义，建议使用 mem_view_read_f32_be_safe
+ */
+static CA_INLINE f32 mem_view_read_f32_be(mem_view_t* self)
+{
+    u32 tmp = mem_view_read_u32_be(self); /* 复用已有大端读取 */
+    f32 val;
+    memcpy(&val, &tmp, 4);
+    return val;
+}
+
+/* ---------------------- Safe (Float) ---------------------- */
+/**
+ * @brief 安全读取 32 位浮点数（小端）
+ * @return true 成功并将 out 写入，游标前进；false 数据不足，out 不变，游标不变
+ */
+static CA_INLINE bool mem_view_read_f32_safe(mem_view_t* self, f32* out)
+{
+    if (!mem_view_has(self, 4)) return false;
+    memcpy(out, self->ptr, 4);
+    self->ptr += 4;
+    return true;
+}
+
+/**
+ * @brief 安全读取 32 位浮点数（大端）
+ * @return true 成功并将 out 写入，游标前进；false 数据不足，out 不变，游标不变
+ */
+static CA_INLINE bool mem_view_read_f32_be_safe(mem_view_t* self, f32* out)
+{
+    if (!mem_view_has(self, 4)) return false;
+    u32 tmp = (u32)(((u32)self->ptr[0] << 24) | ((u32)self->ptr[1] << 16) |
+                    ((u32)self->ptr[2] << 8) | self->ptr[3]);
+    memcpy(out, &tmp, 4);
+    self->ptr += 4;
+    return true;
+}
+
 /* ---------------------- Unsafe 窥探 (不移动游标) ---------------------- */
 /**
  * @brief 窥探指定偏移量的字节 (不移动 ptr)
@@ -256,6 +310,7 @@ static CA_INLINE bool mem_view_read_buf_safe(mem_view_t* self, u8* dst, u16 len)
     self->ptr += len;
     return true;
 }
+
 
 /**
  * @brief 安全窥探 8 位（不移动游标）

@@ -359,4 +359,65 @@ TEST_CASE(mem_view_peek_u32_be_safe_offset_too_large) {
     TEST_ASSERT_EQUAL_UINT((u32)0x02030405, out);
 }
 
+TEST_CASE(mem_view_read_f32_unsafe) {
+    u8 buf[4] = {0x00, 0x00, 0x80, 0x3F}; /* little-endian representation of 1.0f */
+    mem_view_t self;
+    f32 v;
+    u32 bits = 0;
+
+    mem_view_init(&self, buf, 4);
+    v = mem_view_read_f32(&self);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, v);
+    /* verify bit pattern */
+    memcpy(&bits, &v, 4);
+    TEST_ASSERT_EQUAL_UINT((u32)0x3F800000, bits);
+    TEST_ASSERT_EQUAL_UINT(0, mem_view_remain(&self));
+}
+
+TEST_CASE(mem_view_read_f32_safe_success) {
+    u8 buf[5] = {0x00,0x00,0x80,0x3F, 0xAA};
+    mem_view_t self;
+    f32 out = 0.0f;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    TEST_ASSERT_TRUE(mem_view_read_f32_safe(&self, &out));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, out);
+    TEST_ASSERT_EQUAL_UINT(1, mem_view_remain(&self));
+}
+
+TEST_CASE(mem_view_read_f32_safe_insufficient) {
+    u8 buf[3] = {0x00,0x00,0x80};
+    mem_view_t self;
+    f32 out = 1234.0f;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    TEST_ASSERT_FALSE(mem_view_read_f32_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT(3, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_FLOAT(1234.0f, out);
+}
+
+TEST_CASE(mem_view_read_f32_be_unsafe) {
+    u8 buf[4] = {0x3F,0x80,0x00,0x00}; /* big-endian representation of 1.0f */
+    mem_view_t self;
+    f32 v;
+    u32 bits = 0;
+
+    mem_view_init(&self, buf, 4);
+    v = mem_view_read_f32_be(&self);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, v);
+    memcpy(&bits, &v, 4);
+    TEST_ASSERT_EQUAL_UINT((u32)0x3F800000, bits);
+}
+
+TEST_CASE(mem_view_read_f32_be_safe_insufficient) {
+    u8 buf[2] = {0x3F,0x80};
+    mem_view_t self;
+    f32 out = -1.0f;
+
+    mem_view_init(&self, buf, sizeof(buf));
+    TEST_ASSERT_FALSE(mem_view_read_f32_be_safe(&self, &out));
+    TEST_ASSERT_EQUAL_UINT(2, mem_view_remain(&self));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, out);
+}
+
 #endif /* TEST_ENABLE */
