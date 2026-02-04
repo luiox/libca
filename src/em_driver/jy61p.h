@@ -25,11 +25,17 @@
 // 如果没有修改，那么默认就是0x50
 #define JY61P_DEFAULT_ADDRESS 0x50
 
+// 类型
+#define JY61P_TYPE_ACC 0x51   /* 加速度 */
+#define JY61P_TYPE_GYRO 0x52  /* 角速度 */
+#define JY61P_TYPE_ANGLE 0x53 /* 角度 */
+#define JY61P_TYPE_MAG 0x54   /* 磁场 */
+
 // 错误码
-#define JY61P_ERR_SHORT -1    // 数据包长度不足
-#define JY61P_ERR_HEADER -2   // 帧头错误
-#define JY61P_ERR_TYPE -3     // 类型不支持
-#define JY61P_ERR_CRC -4      // 校验和错误
+#define JY61P_ERR_SHORT -1    /* 数据包长度不足 */
+#define JY61P_ERR_HEADER -2   /* 帧头错误 */
+#define JY61P_ERR_TYPE -3     /* 类型不支持 */
+#define JY61P_ERR_CRC -4      /* 校验和错误 */
 
 typedef struct jy61p_port
 {
@@ -56,8 +62,8 @@ bool jy61p_port_is_registered(void);
 
 typedef struct jy61p_frame
 {
-    const uint8_t* ptr;    // 帧的起始地址 (指向 user buffer)
-    uint8_t        type;   // 0x51 ~ 0x54
+    const u8* ptr;    // 帧的起始地址 (指向 user buffer)
+    u8        type;   // 帧类型 (JY61P_TYPE_*)
 } jy61p_frame_t;
 
 typedef struct jy61p
