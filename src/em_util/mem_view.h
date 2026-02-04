@@ -55,12 +55,12 @@ static CA_INLINE bool mem_view_has(const mem_view_t *self, u16 size) {
 }
 
 /**
- * @brief 跳过 n 个字节
+ * @brief 安全跳过 n 个字节（带边界检查）
  * @param self 指向 mem_view_t 的实例
  * @param n 要跳过的字节数
  * @return true 跳过成功并将游标前进 n 字节；false 数据不足，游标不变
  */
-static CA_INLINE bool mem_view_skip(mem_view_t *self, u16 n) {
+static CA_INLINE bool mem_view_skip_safe(mem_view_t *self, u16 n) {
     if (!mem_view_has(self, n)) {
         return false; // 溢出保护
     }
@@ -68,6 +68,13 @@ static CA_INLINE bool mem_view_skip(mem_view_t *self, u16 n) {
     return true;
 }
 
+/**
+ * @brief 不安全跳过 n 个字节（不做边界检查，适用于调用者已确保足够数据以换取性能）
+ * @warning 在可用字节 < n 时调用将导致未定义行为
+ */
+static CA_INLINE void mem_view_skip(mem_view_t *self, u16 n) {
+    self->ptr += n;
+}
 /* ---------------------- Unsafe (高性能，可能 UB) ---------------------- */
 /**
  * @brief 读取 8 位无符号数（不做边界检查）
@@ -101,14 +108,12 @@ static CA_INLINE u32 mem_view_read_u32(mem_view_t *self) {
 }
 
 /**
- * @brief 批量读取 len 字节到 dst（不做边界检查）
- * @warning 若数据不足则不会拷贝，也不会移动游标
+ * @brief 不安全的批量读取 len 字节到 dst（不做边界检查，适用于调用者已确保有足够数据）
+ * @warning 在可用字节 < len 时调用将导致未定义行为
  */
 static CA_INLINE void mem_view_read_buf(mem_view_t *self, u8 *dst, u16 len) {
-    if (mem_view_has(self, len)) {
-        memcpy(dst, self->ptr, len);
-        self->ptr += len;
-    }
+    memcpy(dst, self->ptr, len);
+    self->ptr += len;
 }
 
 /* ---------------------- Unsafe (大端) ---------------------- */
@@ -242,7 +247,7 @@ static CA_INLINE bool mem_view_read_buf_safe(mem_view_t *self, u8 *dst, u16 len)
  * @brief 安全窥探 8 位（不移动游标）
  */
 static CA_INLINE bool mem_view_peek_u8_safe(const mem_view_t *self, u16 offset, u8 *out) {
-    if (offset >= mem_view_remain(self)) {
+    if (offset + 1 > mem_view_remain(self)) {
         return false;
     }
     *out = self->ptr[offset];
