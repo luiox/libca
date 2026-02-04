@@ -1,35 +1,41 @@
 /**
  * @file jy61p.h
- * @brief JY61P 传感器 (Wit 协议) 驱动头文件
+ * @author canrad (1517807724@qq.com)
+ * @brief  JY61P 传感器 (Wit 协议) 驱动头文件，已实物验证
  *
- * 本驱动基于串口通信，解析来自 JY61P 设备的 Wit 协议数据帧（帧头 0x55，类型 0x51~0x54，帧长 11 字节）。
- * 使用步骤：
+ * 本驱动基于串口通信，解析来自 JY61P 设备的 Wit 协议数据帧（帧头 0x55，类型 0x51~0x54，帧长 11
+ * 字节）。 使用步骤：
  *   1. 使用 CubeMX 或其他方式初始化平台串口
  *   2. 使用 `jy61p_bind_port` 注册平台相关的回调（串口发送/延时）
  *   3. 调用 `jy61p_init` 初始化设备实例
  *   4. 读取串口数据并使用 `jy61p_parse_frame` 解析帧，随后使用 `jy61p_get_*` 获取数据
  *
  * @note 请保证串口波特率为 9600、8N1（8 位数据、无校验、1 位停止位）以获得兼容性。
+ * @version 0.1
+ * @date 2026-02-04
+ *
+ * @copyright Copyright (c) 2026
+ *
  */
-#ifndef MYLIB_DEVICE_JY61P_H
-#define MYLIB_DEVICE_JY61P_H
+#ifndef LIBCA_EM_DRIVER_JY61P_H
+#define LIBCA_EM_DRIVER_JY61P_H
 
 #include "../em_base/datatype.h"
-#include <stdbool.h>
 
 // 如果没有修改，那么默认就是0x50
 #define JY61P_DEFAULT_ADDRESS 0x50
 
-// 定义一些清晰的错误码 (可选，直接返回负数也行)
-#define JY61P_ERR_SHORT   -1  // 数据包长度不足
-#define JY61P_ERR_HEADER  -2  // 帧头错误
-#define JY61P_ERR_TYPE    -3  // 类型不支持
-#define JY61P_ERR_CRC     -4  // 校验和错误
+// 错误码
+#define JY61P_ERR_SHORT -1    // 数据包长度不足
+#define JY61P_ERR_HEADER -2   // 帧头错误
+#define JY61P_ERR_TYPE -3     // 类型不支持
+#define JY61P_ERR_CRC -4      // 校验和错误
 
-typedef struct jy61p_port{
-	i32 (*uart_send)(void* huart, u8* buf, usize len);
-	void (*delay_ms)(u32 ms);
-}jy61p_port_t;
+typedef struct jy61p_port
+{
+    i32 (*uart_send)(void* huart, u8* buf, usize len);
+    void (*delay_ms)(u32 ms);
+} jy61p_port_t;
 
 /**
  * @brief 绑定平台相关接口
@@ -48,20 +54,22 @@ void jy61p_bind_port(const jy61p_port_t* port);
  */
 bool jy61p_port_is_registered(void);
 
-typedef struct jy61p_frame{
-    const uint8_t *ptr;  // 帧的起始地址 (指向 user buffer)
-    uint8_t       type;  // 0x51 ~ 0x54
+typedef struct jy61p_frame
+{
+    const uint8_t* ptr;    // 帧的起始地址 (指向 user buffer)
+    uint8_t        type;   // 0x51 ~ 0x54
 } jy61p_frame_t;
 
 typedef struct jy61p
 {
-	void* huart;
+    void* huart;
 } jy61p_t;
 
 /**
  * @brief 初始化 JY61P 设备实例
  *
- * 该函数仅保存用户传入的串口句柄并准备设备实例，驱动的硬件相关操作通过 `jy61p_bind_port` 提供的回调完成。
+ * 该函数仅保存用户传入的串口句柄并准备设备实例，驱动的硬件相关操作通过 `jy61p_bind_port`
+ * 提供的回调完成。
  *
  * @param jy61p [in] 设备实例指针，不能为空
  * @param huart [in] 平台串口句柄，不能为空（由应用负责生命周期）
@@ -70,7 +78,7 @@ void jy61p_init(jy61p_t* jy61p, void* huart);
 
 /**
  * @brief 尝试解析当前位置的一帧数据
- * 
+ *
  * @param ptr       [In]  当前 buffer 的起始指针
  * @param total_len [In]  buffer 的总长度
  * @param out_frame [Out] 解析成功后的帧信息
@@ -79,7 +87,7 @@ void jy61p_init(jy61p_t* jy61p, void* huart);
  *                  -1  : 数据不足 (建议缓存起来，等下一次数据)
  *                  -2  : 帧头/数据错误 (建议跳过当前字节 ptr++)
  */
-i32 jy61p_parse_frame(jy61p_t* self, const u8 *ptr, usize total_len, jy61p_frame_t *out_frame);
+i32 jy61p_parse_frame(jy61p_t* self, const u8* ptr, usize total_len, jy61p_frame_t* out_frame);
 
 /**
  * @brief 从数据帧中解析出加速度
@@ -90,7 +98,7 @@ i32 jy61p_parse_frame(jy61p_t* self, const u8 *ptr, usize total_len, jy61p_frame
  * @param acc_y [out] Y 轴加速度，单位 m/s^2，不能为空
  * @param acc_z [out] Z 轴加速度，单位 m/s^2，不能为空
  */
-void jy61p_get_acc(jy61p_t* self, jy61p_frame_t *frame,float* acc_x, float* acc_y, float* acc_z);
+void jy61p_get_acc(jy61p_t* self, jy61p_frame_t* frame, f32* acc_x, f32* acc_y, f32* acc_z);
 
 /**
  * @brief 从数据帧中解析出角速度
@@ -101,7 +109,7 @@ void jy61p_get_acc(jy61p_t* self, jy61p_frame_t *frame,float* acc_x, float* acc_
  * @param gyro_y [out] Y 轴角速度，单位 deg/s，不能为空
  * @param gyro_z [out] Z 轴角速度，单位 deg/s，不能为空
  */
-void jy61p_get_gyro(jy61p_t* self, jy61p_frame_t *frame,float* gyro_x, float* gyro_y, float* gyro_z);
+void jy61p_get_gyro(jy61p_t* self, jy61p_frame_t* frame, f32* gyro_x, f32* gyro_y, f32* gyro_z);
 
 /**
  * @brief 从数据帧中解析出角度
@@ -112,7 +120,7 @@ void jy61p_get_gyro(jy61p_t* self, jy61p_frame_t *frame,float* gyro_x, float* gy
  * @param pitch [out] 俯仰角，单位 deg，不能为空
  * @param yaw   [out] 偏航角，单位 deg，不能为空
  */
-void jy61p_get_angle(jy61p_t* self, jy61p_frame_t *frame,float* roll, float* pitch, float* yaw);
+void jy61p_get_angle(jy61p_t* self, jy61p_frame_t* frame, f32* roll, f32* pitch, f32* yaw);
 
 /**
  * @brief 对加速度计进行校准（发送解锁->校准->保存命令序列）
@@ -135,4 +143,4 @@ void jy61p_zero_xy(jy61p_t* self);
  */
 void jy61p_zero_yaw(jy61p_t* self);
 
-#endif   // !MYLIB_DEVICE_JY61P_H
+#endif   // !LIBCA_EM_DRIVER_JY61P_H
