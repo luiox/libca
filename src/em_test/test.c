@@ -89,6 +89,32 @@ void test_assertion_inc(void)
     g_current_assertion_count++;
 }
 
+/* 中央化失败上报：
+ * - 若启用结构化输出，调用 test_assert_failed_detail 上报
+ * - 始终打印到控制台（目前使用 test_print，未来可以重定向）
+ */
+#include <stdarg.h>
+
+void test_print(const char* fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+}
+
+void test_report_failure(const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...)
+{
+    if (test_is_structured_output_enabled()) {
+        test_assert_failed_detail(__FILE__, __LINE__, expression, expected_str, actual_str);
+    }
+
+    va_list ap;
+    va_start(ap, printf_fmt);
+    vprintf(printf_fmt, ap);
+    va_end(ap);
+}
+
 void test_suite_begin(const char* suite_name)
 {
     if (!g_use_structured_output) return;

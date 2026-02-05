@@ -15,34 +15,10 @@
 // 关闭clangformat对宏的格式化
 // clang-format off
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                                \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) != (actual)) {                                                          \
-            char _e_buf[32]; char _a_buf[32];                                                  \
-            snprintf(_e_buf, sizeof(_e_buf), "%d", (int)(expected));                         \
-            snprintf(_a_buf, sizeof(_a_buf), "%d", (int)(actual));                           \
-            if (test_is_structured_output_enabled()) {                                         \
-                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
-            }                                                                                  \
-            printf("Test failed: %s:%d, expected %d, got %d\n", __FILE__, __LINE__, (int)(expected), (int)(actual)); \
-            current_test_failed = 1;                                                           \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) != (actual)), #expected " == " #actual, "%d", "%d", "Test failed: %s:%d, expected %d, got %d\n", (int)(expected), (int)(actual))
 
 #define TEST_ASSERT_EQUAL_UINT(expected, actual)                                               \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) != (actual)) {                                                          \
-            char _e_buf[32]; char _a_buf[32];                                                  \
-            snprintf(_e_buf, sizeof(_e_buf), "%u", (unsigned int)(expected));                \
-            snprintf(_a_buf, sizeof(_a_buf), "%u", (unsigned int)(actual));                  \
-            if (test_is_structured_output_enabled()) {                                         \
-                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
-            }                                                                                  \
-            printf("Test failed: %s:%d, expected %u, got %u\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
-            current_test_failed = 1;                                                           \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) != (actual)), #expected " == " #actual, "%u", "%u", "Test failed: %s:%d, expected %u, got %u\n", (unsigned int)(expected), (unsigned int)(actual))
 
 #define TEST_ASSERT(condition)                                                                 \
     do {                                                                                       \
@@ -78,147 +54,75 @@
 #define TEST__SNPRINTF(buf, fmt, val)                                                           \
     do { snprintf((buf), sizeof(buf), (fmt), (val)); } while (0)
 
-#define TEST_ASSERT_EQUAL_FLOAT_(expected, actual, epsilon)                                     \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if (fabs((expected) - (actual)) > (epsilon)) {                                         \
-            char __e_buf[64]; char __a_buf[64];                                                \
-            TEST__SNPRINTF(__e_buf, "%f", (double)(expected));                               \
-            TEST__SNPRINTF(__a_buf, "%f", (double)(actual));                                 \
-            TEST__REPORT_FAIL(#expected " == " #actual, __e_buf, __a_buf,                      \
-                             "Test failed: %s:%d, expected %f, got %f\n", (double)(expected), (double)(actual)); \
-        }                                                                                      \
+/* 输出封装：统一上报并打印（方便将来替换输出实现） */
+void test_report_failure(const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...);
+void test_print(const char* fmt, ...);
+
+/* 通用比较宏模板：
+ * expected, actual: 表达式
+ * check_expr: 当为真时表示断言失败（例如 (expected) != (actual)）
+ * expr_str: 表达式字符串，送入结构化上报
+ * e_fmt/a_fmt: 用于 snprintf 构造期望/实际的格式字符串（例如 "%d"）
+ * printf_fmt/...: 最终打印使用的格式与参数（printf 风格），注意 printf_fmt 前两参数为 "%s:%d,"
+ */
+#define TEST_ASSERT_COMPARE(expected, actual, check_expr, expr_str, e_fmt, a_fmt, printf_fmt, ...) \
+    do {                                                                                           \
+        test_assertion_inc();                                                                      \
+        if (check_expr) {                                                                          \
+            char __e_buf[128]; char __a_buf[128];                                                  \
+            TEST__SNPRINTF(__e_buf, (e_fmt), (expected));                                          \
+            TEST__SNPRINTF(__a_buf, (a_fmt), (actual));                                            \
+            test_report_failure((expr_str), __e_buf, __a_buf, (printf_fmt), __VA_ARGS__);           \
+        }                                                                                          \
+    } while (0)
+
+#define TEST_ASSERT_EQUAL_FLOAT_(expected, actual, epsilon)                                         \
+    do {                                                                                           \
+        test_assertion_inc();                                                                      \
+        if (fabs((expected) - (actual)) > (epsilon)) {                                             \
+            char __e_buf[64]; char __a_buf[64];                                                    \
+            TEST__SNPRINTF(__e_buf, "%f", (double)(expected));                                   \
+            TEST__SNPRINTF(__a_buf, "%f", (double)(actual));                                     \
+            TEST_ASSERT_COMPARE((expected), (actual), fabs((expected) - (actual)) > (epsilon), #expected " == " #actual, "%f", "%f", "Test failed: %s:%d, expected %f, got %f\n", (double)(expected), (double)(actual)); \
+        }                                                                                          \
     } while (0)
 
 #define TEST_ASSERT_EQUAL_FLOAT(expected, actual) TEST_ASSERT_EQUAL_FLOAT_(expected, actual, DEFAULT_EPSILON)
 
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                                             \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if (strcmp((expected), (actual)) != 0) {                                               \
-            TEST__REPORT_FAIL(#expected " == " #actual, (expected), (actual),                 \
-                             "Test failed: %s:%d, expected \"%s\", got \"%s\"\n", (expected), (actual)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), (strcmp((expected), (actual)) != 0), #expected " == " #actual, "%s", "%s", "Test failed: %s:%d, expected \"%s\", got \"%s\"\n", (expected), (actual))
 
 #define TEST_ASSERT_NOT_EQUAL_INT(expected, actual)                                            \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) == (actual)) {                                                          \
-            char __e_buf[32]; char __a_buf[32];                                                \
-            TEST__SNPRINTF(__e_buf, "%d", (int)(expected));                                  \
-            TEST__SNPRINTF(__a_buf, "%d", (int)(actual));                                    \
-            TEST__REPORT_FAIL(#expected " != " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected %d to not equal %d\n", (int)(expected), (int)(actual)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) == (actual)), #expected " != " #actual, "%d", "%d", "Test failed: %s:%d, expected %d to not equal %d\n", (int)(expected), (int)(actual))
 
 #define TEST_ASSERT_NOT_EQUAL_UINT(expected, actual)                                           \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) == (actual)) {                                                          \
-            char __e_buf[32]; char __a_buf[32];                                                \
-            TEST__SNPRINTF(__e_buf, "%u", (unsigned int)(expected));                         \
-            TEST__SNPRINTF(__a_buf, "%u", (unsigned int)(actual));                           \
-            TEST__REPORT_FAIL(#expected " != " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected %u to not equal %u\n", (unsigned int)(expected), (unsigned int)(actual)); \
-        }                                                                                      \
-    } while (0)
-
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) == (actual)), #expected " != " #actual, "%u", "%u", "Test failed: %s:%d, expected %u to not equal %u\n", (unsigned int)(expected), (unsigned int)(actual))
 #define TEST_ASSERT_TRUE(condition)                                                            \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if (!(condition)) {                                                                    \
-            TEST__REPORT_FAIL(#condition " is true", "true", "false",                     \
-                             "Test failed: %s:%d, expected true but got false\n");                \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((condition), (condition), (!(condition)), #condition " is true", "true", "false", "Test failed: %s:%d, expected true but got false\n")
 
 #define TEST_ASSERT_FALSE(condition)                                                           \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((condition)) {                                                                     \
-            TEST__REPORT_FAIL(#condition " is false", "false", "true",                     \
-                             "Test failed: %s:%d, expected false but got true\n");                \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((condition), (condition), ((condition)), #condition " is false", "false", "true", "Test failed: %s:%d, expected false but got true\n")
 
 #define TEST_ASSERT_NULL(pointer)                                                              \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((pointer) != NULL) {                                                               \
-            TEST__REPORT_FAIL(#pointer " == NULL", "NULL", "non-NULL",                    \
-                             "Test failed: %s:%d, expected NULL pointer\n");                   \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((pointer), (pointer), ((pointer) != NULL), #pointer " == NULL", "NULL", "non-NULL", "Test failed: %s:%d, expected NULL pointer\n")
 
 #define TEST_ASSERT_NOT_NULL(pointer)                                                          \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((pointer) == NULL) {                                                               \
-            TEST__REPORT_FAIL(#pointer " != NULL", "non-NULL", "NULL",                    \
-                             "Test failed: %s:%d, expected non-NULL pointer\n");               \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((pointer), (pointer), ((pointer) == NULL), #pointer " != NULL", "non-NULL", "NULL", "Test failed: %s:%d, expected non-NULL pointer\n")
 
 #define TEST_ASSERT_EQUAL_PTR(expected, actual)                                                \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) != (actual)) {                                                          \
-            char __e_buf[32]; char __a_buf[32];                                                \
-            TEST__SNPRINTF(__e_buf, "%p", (void*)(expected));                                \
-            TEST__SNPRINTF(__a_buf, "%p", (void*)(actual));                                  \
-            TEST__REPORT_FAIL(#expected " == " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected pointer %p, got %p\n", (void*)(expected), (void*)(actual)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) != (actual)), #expected " == " #actual, "%p", "%p", "Test failed: %s:%d, expected pointer %p, got %p\n", (void*)(expected), (void*)(actual))
 
 #define TEST_ASSERT_EQUAL_MEMORY(expected, actual, size)                                       \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if (memcmp((expected), (actual), (size)) != 0) {                                       \
-            TEST__REPORT_FAIL("memcmp(...) == 0", "expected memory", "actual memory",     \
-                             "Test failed: %s:%d, memory mismatch\n");                         \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), (memcmp((expected), (actual), (size)) != 0), "memcmp(...) == 0", "expected memory", "actual memory", "Test failed: %s:%d, memory mismatch\n")
 
 #define TEST_ASSERT_INT_WITHIN(min, max, actual)                                               \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((actual) < (min) || (actual) > (max)) {                                            \
-            char __a_buf[32]; char __min_buf[32]; char __max_buf[32];                         \
-            TEST__SNPRINTF(__a_buf, "%d", (int)(actual));                                    \
-            TEST__SNPRINTF(__min_buf, "%d", (int)(min));                                     \
-            TEST__SNPRINTF(__max_buf, "%d", (int)(max));                                     \
-            TEST__REPORT_FAIL(#actual " in [" #min "," #max "]", __min_buf, __max_buf,    \
-                             "Test failed: %s:%d, expected %d to be within [%d, %d]\n", (int)(actual), (int)(min), (int)(max)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((actual), (actual), ((actual) < (min) || (actual) > (max)), #actual " in [" #min "," #max "]", "%d", "%d", "Test failed: %s:%d, expected %d to be within [%d, %d]\n", (int)(actual), (int)(min), (int)(max))
 
 #define TEST_ASSERT_UINT_WITHIN(min, max, actual)                                              \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((actual) < (min) || (actual) > (max)) {                                            \
-            char __a_buf[32]; char __min_buf[32]; char __max_buf[32];                         \
-            TEST__SNPRINTF(__a_buf, "%u", (unsigned int)(actual));                           \
-            TEST__SNPRINTF(__min_buf, "%u", (unsigned int)(min));                            \
-            TEST__SNPRINTF(__max_buf, "%u", (unsigned int)(max));                            \
-            TEST__REPORT_FAIL(#actual " in [" #min "," #max "]", __min_buf, __max_buf,    \
-                             "Test failed: %s:%d, expected %u to be within [%u, %u]\n", (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((actual), (actual), ((actual) < (min) || (actual) > (max)), #actual " in [" #min "," #max "]", "%u", "%u", "Test failed: %s:%d, expected %u to be within [%u, %u]\n", (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max))
 
 #define TEST_ASSERT_EQUAL_HEX(expected, actual)                                                \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        if ((expected) != (actual)) {                                                          \
-            char __e_buf[32]; char __a_buf[32];                                                \
-            TEST__SNPRINTF(__e_buf, "0x%X", (unsigned int)(expected));                       \
-            TEST__SNPRINTF(__a_buf, "0x%X", (unsigned int)(actual));                         \
-            TEST__REPORT_FAIL(#expected " == " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected 0x%X, got 0x%X\n", (unsigned int)(expected), (unsigned int)(actual)); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((expected) != (actual)), #expected " == " #actual, "0x%X", "0x%X", "Test failed: %s:%d, expected 0x%X, got 0x%X\n", (unsigned int)(expected), (unsigned int)(actual))
 
 /*
  * 精确类型断言宏
@@ -228,53 +132,15 @@
 
 // 无符号8位
 #define TEST_ASSERT_EQUAL_U8(expected, actual)                                                 \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        uint8_t _e = (uint8_t)(expected);                                                      \
-        uint8_t _a = (uint8_t)(actual);                                                        \
-        if (_e != _a) {                                                                        \
-            char _e_buf[32]; char _a_buf[32];                                                  \
-            snprintf(_e_buf, sizeof(_e_buf), "%u (0x%02X)", (unsigned int)_e, (unsigned int)_e); \
-            snprintf(_a_buf, sizeof(_a_buf), "%u (0x%02X)", (unsigned int)_a, (unsigned int)_a); \
-            if (test_is_structured_output_enabled()) {                                         \
-                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
-            }                                                                                  \
-            printf("Test failed: %s:%d, expected u8 %u (0x%02X), got %u (0x%02X)\n",          \
-                   __FILE__, __LINE__, (unsigned int)_e, (unsigned int)_e,                   \
-                   (unsigned int)_a, (unsigned int)_a);                                        \
-            current_test_failed = 1;                                                           \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((uint8_t)(expected) != (uint8_t)(actual)), #expected " == " #actual, "%u (0x%02X)", "%u (0x%02X)", "Test failed: %s:%d, expected u8 %u (0x%02X), got %u (0x%02X)\n", (unsigned int)(uint8_t)(expected), (unsigned int)(uint8_t)(expected), (unsigned int)(uint8_t)(actual), (unsigned int)(uint8_t)(actual))
 
 // 无符号16位
 #define TEST_ASSERT_EQUAL_U16(expected, actual)                                                \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        uint16_t _e = (uint16_t)(expected);                                                    \
-        uint16_t _a = (uint16_t)(actual);                                                      \
-        if (_e != _a) {                                                                        \
-            char __e_buf[32]; char __a_buf[32];                                                \
-            TEST__SNPRINTF(__e_buf, "%u (0x%04X)", (unsigned int)_e);                        \
-            TEST__SNPRINTF(__a_buf, "%u (0x%04X)", (unsigned int)_a);                        \
-            TEST__REPORT_FAIL(#expected " == " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected u16 %u (0x%04X), got %u (0x%04X)\n", (unsigned int)_e, (unsigned int)_e, (unsigned int)_a, (unsigned int)_a); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((uint16_t)(expected) != (uint16_t)(actual)), #expected " == " #actual, "%u (0x%04X)", "%u (0x%04X)", "Test failed: %s:%d, expected u16 %u (0x%04X), got %u (0x%04X)\n", (unsigned int)(uint16_t)(expected), (unsigned int)(uint16_t)(expected), (unsigned int)(uint16_t)(actual), (unsigned int)(uint16_t)(actual))
 
 // 无符号32位
 #define TEST_ASSERT_EQUAL_U32(expected, actual)                                                \
-    do {                                                                                       \
-        test_assertion_inc();                                                                  \
-        uint32_t _e = (uint32_t)(expected);                                                    \
-        uint32_t _a = (uint32_t)(actual);                                                      \
-        if (_e != _a) {                                                                        \
-            char __e_buf[48]; char __a_buf[48];                                                \
-            TEST__SNPRINTF(__e_buf, "%lu (0x%08lX)", (unsigned long)_e);                     \
-            TEST__SNPRINTF(__a_buf, "%lu (0x%08lX)", (unsigned long)_a);                     \
-            TEST__REPORT_FAIL(#expected " == " #actual, __e_buf, __a_buf,                     \
-                             "Test failed: %s:%d, expected u32 %lu (0x%08lX), got %lu (0x%08lX)\n", (unsigned long)_e, (unsigned long)_e, (unsigned long)_a, (unsigned long)_a); \
-        }                                                                                      \
-    } while (0)
+    TEST_ASSERT_COMPARE((expected), (actual), ((uint32_t)(expected) != (uint32_t)(actual)), #expected " == " #actual, "%lu (0x%08lX)", "%lu (0x%08lX)", "Test failed: %s:%d, expected u32 %lu (0x%08lX), got %lu (0x%08lX)\n", (unsigned long)(uint32_t)(expected), (unsigned long)(uint32_t)(expected), (unsigned long)(uint32_t)(actual), (unsigned long)(uint32_t)(actual))
 
 // 有符号8位
 #define TEST_ASSERT_EQUAL_I8(expected, actual)                                                 \
