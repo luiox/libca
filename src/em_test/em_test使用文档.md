@@ -240,42 +240,67 @@ TEST_PLUGIN_REGISTER(my_plugin, my_plugin_init);
 | `test_plugin_set_suite_end(fn)` | `int passed, int failed` | 测试套件结束时 |
 | `test_plugin_set_assert_fail(fn)` | `const char* file, int line, const char* expr` | 断言失败时 |
 
-#### 完整插件示例
+#### 完整插件示例（simple_file_recorder）
 
 ```c
-// json_reporter.c
+// simple_file_recorder.c
 #include "test.h"
 #include <stdio.h>
 
-static FILE* g_report = NULL;
+static FILE* g_fp = NULL;
 
-static void json_suite_start(int test_count) {
-    g_report = fopen("test_report.json", "w");
-    fprintf(g_report, "{\n  \"tests\": [\n");
+static void file_suite_start(int test_count) {
+    g_fp = fopen("test_report.txt", "w");
+    fprintf(g_fp, "Test Suite Started: %d tests\n", test_count);
+    fprintf(g_fp, "================================\n");
 }
 
-static void json_test_start(const char* name) {
-    fprintf(g_report, "    {\"name\": \"%s\", \"status\": \"running\"", name);
+static void file_test_start(const char* name) {
+    if (g_fp) {
+        fprintf(g_fp, "[RUN] %s\n", name);
+    }
 }
 
-static void json_test_end(const char* name, int passed) {
-    fprintf(g_report, ", \"result\": \"%s\"},\n", passed ? "passed" : "failed");
+static void file_test_end(const char* name, int passed) {
+    if (g_fp) {
+        fprintf(g_fp, "[%s] %s\n", passed ? "PASS" : "FAIL", name);
+    }
 }
 
-static void json_suite_end(int passed, int failed) {
-    fprintf(g_report, "  ],\n  \"summary\": {\"passed\": %d, \"failed\": %d}\n}\n", passed, failed);
-    fclose(g_report);
+static void file_suite_end(int passed, int failed) {
+    if (g_fp) {
+        fprintf(g_fp, "================================\n");
+        fprintf(g_fp, "Results: %d passed, %d failed\n", passed, failed);
+        fclose(g_fp);
+        g_fp = NULL;
+    }
 }
 
-static void json_plugin_init(void) {
-    test_plugin_set_suite_start(json_suite_start);
-    test_plugin_set_test_start(json_test_start);
-    test_plugin_set_test_end(json_test_end);
-    test_plugin_set_suite_end(json_suite_end);
+/* 插件初始化函数 - 在此注册回调 */
+static void file_recorder_init(void) {
+    test_plugin_set_suite_start(file_suite_start);
+    test_plugin_set_test_start(file_test_start);
+    test_plugin_set_test_end(file_test_end);
+    test_plugin_set_suite_end(file_suite_end);
 }
 
 /* 自动注册插件 - 只需添加此文件即可 */
-TEST_PLUGIN_REGISTER(json_reporter, json_plugin_init);
+TEST_PLUGIN_REGISTER(file_recorder, file_recorder_init);
+```
+
+**输出文件示例（test_report.txt）：**
+
+```
+Test Suite Started: 3 tests
+================================
+[RUN] test_add
+[PASS] test_add
+[RUN] test_subtract
+[PASS] test_subtract
+[RUN] test_divide
+[FAIL] test_divide
+================================
+Results: 2 passed, 1 failed
 ```
 
 #### 使用插件
@@ -301,7 +326,7 @@ target("my_test")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("main.c")
-    add_files("json_reporter.c")  -- 添加插件文件，自动注册
+    add_files("simple_file_recorder.c")  -- 添加插件文件，自动注册
 ```
 
 ---
