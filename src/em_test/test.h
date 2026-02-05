@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include "../em_base/macro_util.h"
 
 // 关闭clangformat对宏的格式化
@@ -143,6 +145,139 @@
             current_test_failed = 1;                                                           \
         }                                                                                      \
     } while (0)
+
+/*
+ * 精确类型断言宏
+ * 避免C语言整型提升导致的问题，强制按指定类型比较
+ * 适用于u8/u16/u32/i8/i16/i32等明确位宽的类型
+ */
+
+// 无符号8位
+#define TEST_ASSERT_EQUAL_U8(expected, actual)                                                 \
+    do {                                                                                       \
+        uint8_t _e = (uint8_t)(expected);                                                      \
+        uint8_t _a = (uint8_t)(actual);                                                        \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected u8 %u (0x%02X), got %u (0x%02X)\n",          \
+                   __FILE__, __LINE__, (unsigned int)_e, (unsigned int)_e,                   \
+                   (unsigned int)_a, (unsigned int)_a);                                        \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 无符号16位
+#define TEST_ASSERT_EQUAL_U16(expected, actual)                                                \
+    do {                                                                                       \
+        uint16_t _e = (uint16_t)(expected);                                                    \
+        uint16_t _a = (uint16_t)(actual);                                                      \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected u16 %u (0x%04X), got %u (0x%04X)\n",          \
+                   __FILE__, __LINE__, (unsigned int)_e, (unsigned int)_e,                   \
+                   (unsigned int)_a, (unsigned int)_a);                                        \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 无符号32位
+#define TEST_ASSERT_EQUAL_U32(expected, actual)                                                \
+    do {                                                                                       \
+        uint32_t _e = (uint32_t)(expected);                                                    \
+        uint32_t _a = (uint32_t)(actual);                                                      \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected u32 %lu (0x%08lX), got %lu (0x%08lX)\n",       \
+                   __FILE__, __LINE__, (unsigned long)_e, (unsigned long)_e,                 \
+                   (unsigned long)_a, (unsigned long)_a);                                      \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 有符号8位
+#define TEST_ASSERT_EQUAL_I8(expected, actual)                                                 \
+    do {                                                                                       \
+        int8_t _e = (int8_t)(expected);                                                        \
+        int8_t _a = (int8_t)(actual);                                                          \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected i8 %d (0x%02X), got %d (0x%02X)\n",           \
+                   __FILE__, __LINE__, (int)_e, (unsigned int)(uint8_t)_e,                   \
+                   (int)_a, (unsigned int)(uint8_t)_a);                                        \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 有符号16位
+#define TEST_ASSERT_EQUAL_I16(expected, actual)                                                \
+    do {                                                                                       \
+        int16_t _e = (int16_t)(expected);                                                      \
+        int16_t _a = (int16_t)(actual);                                                        \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected i16 %d (0x%04X), got %d (0x%04X)\n",          \
+                   __FILE__, __LINE__, (int)_e, (unsigned int)(uint16_t)_e,                  \
+                   (int)_a, (unsigned int)(uint16_t)_a);                                       \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 有符号32位
+#define TEST_ASSERT_EQUAL_I32(expected, actual)                                                \
+    do {                                                                                       \
+        int32_t _e = (int32_t)(expected);                                                      \
+        int32_t _a = (int32_t)(actual);                                                        \
+        if (_e != _a) {                                                                        \
+            printf("Test failed: %s:%d, expected i32 %ld (0x%08lX), got %ld (0x%08lX)\n",       \
+                   __FILE__, __LINE__, (long)_e, (unsigned long)(uint32_t)_e,                \
+                   (long)_a, (unsigned long)(uint32_t)_a);                                     \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+/*
+ * 位宽比较宏（处理符号混用场景）
+ * 强制按指定位宽的无符号类型比较，忽略符号差异
+ * 适用于需要比较二进制内容而非数值大小的场景
+ */
+
+// 8位无符号比较（处理有符号/无符号8位值混用）
+#define TEST_ASSERT_EQUAL_U8_BITS(value1, value2)                                              \
+    do {                                                                                       \
+        uint8_t _v1 = (uint8_t)(value1);                                                       \
+        uint8_t _v2 = (uint8_t)(value2);                                                       \
+        if (_v1 != _v2) {                                                                      \
+            printf("Test failed: %s:%d, 8-bit mismatch: 0x%02X != 0x%02X "                    \
+                   "(decimal: %u != %u, signed: %d != %d)\n",                                  \
+                   __FILE__, __LINE__, (unsigned int)_v1, (unsigned int)_v2,                 \
+                   (unsigned int)_v1, (unsigned int)_v2, (int)(int8_t)_v1, (int)(int8_t)_v2);  \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 16位无符号比较
+#define TEST_ASSERT_EQUAL_U16_BITS(value1, value2)                                             \
+    do {                                                                                       \
+        uint16_t _v1 = (uint16_t)(value1);                                                     \
+        uint16_t _v2 = (uint16_t)(value2);                                                     \
+        if (_v1 != _v2) {                                                                      \
+            printf("Test failed: %s:%d, 16-bit mismatch: 0x%04X != 0x%04X "                    \
+                   "(decimal: %u != %u, signed: %d != %d)\n",                                  \
+                   __FILE__, __LINE__, (unsigned int)_v1, (unsigned int)_v2,                 \
+                   (unsigned int)_v1, (unsigned int)_v2, (int)(int16_t)_v1, (int)(int16_t)_v2); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
+// 32位无符号比较
+#define TEST_ASSERT_EQUAL_U32_BITS(value1, value2)                                             \
+    do {                                                                                       \
+        uint32_t _v1 = (uint32_t)(value1);                                                     \
+        uint32_t _v2 = (uint32_t)(value2);                                                     \
+        if (_v1 != _v2) {                                                                      \
+            printf("Test failed: %s:%d, 32-bit mismatch: 0x%08lX != 0x%08lX "                  \
+                   "(decimal: %lu != %lu, signed: %ld != %ld)\n",                              \
+                   __FILE__, __LINE__, (unsigned long)_v1, (unsigned long)_v2,               \
+                   (unsigned long)_v1, (unsigned long)_v2, (long)(int32_t)_v1, (long)(int32_t)_v2); \
+            current_test_failed = 1;                                                           \
+        }                                                                                      \
+    } while (0)
+
 // clang-format on
 
 #ifdef __cplusplus

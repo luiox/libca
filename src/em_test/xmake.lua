@@ -42,3 +42,13 @@ target("test-em_self_test")
     -- 只需添加业务测试代码，框架代码由 rule 自动注入
     add_files("test.c")
 
+-- 测试新的精确类型断言宏
+target("test-em_enhanced_assertions")
+    set_kind("binary")
+
+    -- 应用 em_test 规则
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    
+    -- 添加新的测试文件
+    add_files("test_enhanced_assertions.c")
+
