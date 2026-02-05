@@ -1,13 +1,13 @@
 -- C的测试库，主要是用于C的单元测试
 -- 定义测试框架规则 (rule)
--- rule 适用于定义可复用的构建逻辑，比如“如何处理测试组件”
+-- rule 适用于定义可复用的构建逻辑，比如"如何处理测试组件"
 rule("em_test")
     on_load(function (target)
         -- extraconf 用于获取 add_rules("em_test", {configs}) 中传入的额外配置信息
         -- 第一个参数是类型 "rules"，第二个是规则名 "em_test"
         local configs = target:extraconf("rules", "em_test")
         
-        -- 添加测试的.c文件
+        -- 添加测试框架的.c文件
         target:add("files", path.join(os.scriptdir(), "test.c"))
 
         -- 自动为使用此规则的目标添加头文件搜索路径
@@ -41,4 +41,3 @@ target("test-em_self_test")
     
     -- 只需添加业务测试代码，框架代码由 rule 自动注入
     add_files("test.c")
-
