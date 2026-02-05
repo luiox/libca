@@ -1,0 +1,10 @@
+target("libca.em_crypto")
+    set_kind("static")
+    add_files("*.c")
+    add_deps("libca.em_base")
+
+target("test-em_crypto")
+    set_kind("binary")
+    add_files("crypto.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_deps("libca.em_base")
