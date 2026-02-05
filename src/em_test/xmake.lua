@@ -7,8 +7,9 @@ rule("em_test")
         -- 第一个参数是类型 "rules"，第二个是规则名 "em_test"
         local configs = target:extraconf("rules", "em_test")
         
-        -- 添加测试的.c文件
+        -- 添加测试框架的.c文件
         target:add("files", path.join(os.scriptdir(), "test.c"))
+        target:add("files", path.join(os.scriptdir(), "test_output.c"))
 
         -- 自动为使用此规则的目标添加头文件搜索路径
         target:add("includedirs", os.scriptdir(), {public = true})
@@ -51,4 +52,14 @@ target("test-em_enhanced_assertions")
     
     -- 添加新的测试文件
     add_files("test_enhanced_assertions.c")
+
+-- 演示结构化输出系统
+target("test-em_structured_output")
+    set_kind("binary")
+    
+    -- 应用 em_test 规则，但不使用默认的 main
+    add_rules("em_test", { test_enable = true, use_default_main = false })
+    
+    -- 添加演示文件（包含自定义 main）
+    add_files("test_structured_output_demo.c")
 

@@ -329,5 +329,60 @@ int run_tests();
 }
 #endif
 
+/* ==================== 结构化输出系统 ==================== */
+
+/**
+ * @brief 启用结构化输出系统
+ * 
+ * 调用此函数后，测试框架会自动将测试事件发送到所有配置的输出目标
+ * 如果不调用，则保持原有的 printf 输出行为（向后兼容）
+ */
+
+#include "test_output.h"
+
+/**
+ * @brief 初始化测试套件（用于结构化输出）
+ * @param suite_name 测试套件名称
+ */
+void test_suite_begin(const char* suite_name);
+
+/**
+ * @brief 结束测试套件（用于结构化输出）
+ */
+void test_suite_end(void);
+
+/**
+ * @brief 通知单个测试开始（用于结构化输出）
+ * @param test_name 测试名称
+ * @param file 源文件
+ * @param line 行号
+ */
+void test_case_begin(const char* test_name, const char* file, uint32_t line);
+
+/**
+ * @brief 通知单个测试结束（用于结构化输出）
+ * @param passed 是否通过
+ */
+void test_case_end(bool passed);
+
+/**
+ * @brief 通知断言失败详情（用于结构化输出）
+ */
+void test_assert_failed_detail(const char* file, uint32_t line, 
+                                const char* expression,
+                                const char* expected, 
+                                const char* actual);
+
+/**
+ * @brief 设置是否使用结构化输出
+ * @param enable true启用，false禁用（默认false，向后兼容）
+ */
+void test_set_structured_output(bool enable);
+
+/**
+ * @brief 获取结构化输出启用状态
+ */
+bool test_is_structured_output_enabled(void);
+
 #endif   // !LIBCA_CORE_TEST_H
 
