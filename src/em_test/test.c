@@ -154,14 +154,12 @@ void test_case_end(bool passed)
     uint64_t end_time = get_timestamp_ms();
     g_current_test_info.end_time_ms = end_time;
     g_current_test_info.assertion_count = g_current_assertion_count;
+    g_current_test_info.passed = passed;
     
     test_event_data_t data = {.test = g_current_test_info};
     
-    if (passed) {
-        test_output_emit(TEST_EVENT_TEST_PASS, &data);
-    } else {
-        test_output_emit(TEST_EVENT_TEST_FAIL, &data);
-    }
+    /* 使用统一的 TEST_EVENT_TEST_END 事件，formatter 根据 data->test.passed 输出 PASS/FAIL */
+    test_output_emit(TEST_EVENT_TEST_END, &data);
 }
 
 void test_assert_failed_detail(const char* file, uint32_t line,

@@ -129,14 +129,14 @@ static int plain_formatter_on_event(test_formatter_t* self,
             len = snprintf(buf, buf_size, "Running: %s ... ", data->test.name);
             break;
             
-        case TEST_EVENT_TEST_PASS:
-            len = snprintf(buf, buf_size, "PASS (%llu ms)\n",
-                (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms));
-            break;
-            
-        case TEST_EVENT_TEST_FAIL:
-            len = snprintf(buf, buf_size, "FAIL (%llu ms)\n",
-                (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms));
+        case TEST_EVENT_TEST_END:
+            if (data->test.passed) {
+                len = snprintf(buf, buf_size, "PASS (%llu ms)\n",
+                    (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms));
+            } else {
+                len = snprintf(buf, buf_size, "FAIL (%llu ms)\n",
+                    (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms));
+            }
             break;
             
         case TEST_EVENT_ASSERT_FAIL:
@@ -267,16 +267,16 @@ static int color_formatter_on_event(test_formatter_t* self,
                 C(COLOR_BLUE), data->test.name, C(COLOR_RESET));
             break;
             
-        case TEST_EVENT_TEST_PASS:
-            len = snprintf(buf, buf_size, "%s✓ PASS%s (%s%llu ms%s)\n",
-                C(COLOR_GREEN), C(COLOR_RESET),
-                C(COLOR_GRAY), (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms), C(COLOR_RESET));
-            break;
-            
-        case TEST_EVENT_TEST_FAIL:
-            len = snprintf(buf, buf_size, "%s✗ FAIL%s (%s%llu ms%s)\n",
-                C(COLOR_RED), C(COLOR_RESET),
-                C(COLOR_GRAY), (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms), C(COLOR_RESET));
+        case TEST_EVENT_TEST_END:
+            if (data->test.passed) {
+                len = snprintf(buf, buf_size, "%s✓ PASS%s (%s%llu ms%s)\n",
+                    C(COLOR_GREEN), C(COLOR_RESET),
+                    C(COLOR_GRAY), (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms), C(COLOR_RESET));
+            } else {
+                len = snprintf(buf, buf_size, "%s✗ FAIL%s (%s%llu ms%s)\n",
+                    C(COLOR_RED), C(COLOR_RESET),
+                    C(COLOR_GRAY), (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms), C(COLOR_RESET));
+            }
             break;
             
         case TEST_EVENT_ASSERT_FAIL:
