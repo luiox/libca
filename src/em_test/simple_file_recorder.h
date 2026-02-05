@@ -1,12 +1,10 @@
 /*
  * @file simple_file_recorder.h
- * @brief 简单文件输出插件
+ * @brief 简单文件输出插件（使用TEST_PLUGIN_REGISTER自动注册）
  * 
- * 将测试输出同时记录到文件
- * 用法：
- *   test_file_recorder_init("report.txt", 0);  // 覆盖模式
- *   test_run();
- *   test_file_recorder_close();
+ * 使用方法：
+ * 只需包含此头文件并链接对应的.c文件，插件会自动注册
+ * 无需在main中手动调用任何初始化函数
  */
 
 #ifndef SIMPLE_FILE_RECORDER_H
@@ -16,26 +14,19 @@
 extern "C" {
 #endif
 
-#include <stdio.h>
-
-/*
- * @brief 初始化文件记录器
- * @param filepath 输出文件路径
- * @param append 0=覆盖模式, 1=追加模式
- * @return 0=成功, -1=失败
+/* 
+ * 这个插件使用 TEST_PLUGIN_REGISTER 自动注册
+ * 只需将 simple_file_recorder.c 添加到项目中即可
+ * 
+ * 输出文件：test_report.txt
+ * 格式：
+ *   Test Suite Started: N tests
+ *   ================================
+ *   [RUN] test_name
+ *   [PASS/FAIL] test_name
+ *   ================================
+ *   Results: X passed, Y failed
  */
-int test_file_recorder_init(const char* filepath, int append);
-
-/*
- * @brief 关闭文件记录器
- */
-void test_file_recorder_close(void);
-
-/*
- * @brief 获取文件指针（高级用法）
- * @return 文件指针，未初始化时返回 NULL
- */
-FILE* test_file_recorder_get_fp(void);
 
 #ifdef __cplusplus
 }

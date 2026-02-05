@@ -234,6 +234,92 @@ void test_assert_eq_mem(const char* file, int line, const char* expr_p1, const c
 }
 
 /* ============================================================
+ * 插件管理
+ * ============================================================ */
+
+/* 插件section起止标记 */
+#if defined(_MSC_VER)
+__declspec(allocate(".tplugin$a")) const test_plugin_t* _plugin_start = NULL;
+__declspec(allocate(".tplugin$z")) const test_plugin_t* _plugin_stop  = NULL;
+#else
+TEST_PLUGIN_ALLOC const test_plugin_t* _plugin_dummy = NULL;
+#endif
+
+/* 当前激活的插件回调 */
+static test_plugin_suite_start_fn g_plugin_suite_start = NULL;
+static test_plugin_suite_end_fn g_plugin_suite_end = NULL;
+static test_plugin_test_start_fn g_plugin_test_start = NULL;
+static test_plugin_test_end_fn g_plugin_test_end = NULL;
+static test_plugin_assert_fail_fn g_plugin_assert_fail = NULL;
+
+/* 注册插件回调 */
+void test_plugin_set_suite_start(test_plugin_suite_start_fn fn) {
+    g_plugin_suite_start = fn;
+}
+
+void test_plugin_set_suite_end(test_plugin_suite_end_fn fn) {
+    g_plugin_suite_end = fn;
+}
+
+void test_plugin_set_test_start(test_plugin_test_start_fn fn) {
+    g_plugin_test_start = fn;
+}
+
+void test_plugin_set_test_end(test_plugin_test_end_fn fn) {
+    g_plugin_test_end = fn;
+}
+
+void test_plugin_set_assert_fail(test_plugin_assert_fail_fn fn) {
+    g_plugin_assert_fail = fn;
+}
+
+/* 初始化所有插件 */
+static void test_plugins_init(void) {
+#if defined(_MSC_VER)
+    const test_plugin_t** begin = (const test_plugin_t**)&_plugin_start;
+    const test_plugin_t** end   = (const test_plugin_t**)&_plugin_stop;
+    
+    for (const test_plugin_t** it = begin; it <= end; it++) {
+        if (*it != NULL && (*it)->name != NULL && (*it)->init != NULL) {
+            (*it)->init();
+        }
+    }
+#else
+    const test_plugin_t** begin = (const test_plugin_t**)__start_test_plugin;
+    const test_plugin_t** end   = (const test_plugin_t**)__stop_test_plugin;
+    
+    for (const test_plugin_t** p = begin; p < end; p++) {
+        if (*p != NULL && (*p)->name != NULL && (*p)->init != NULL) {
+            (*p)->init();
+        }
+    }
+#endif
+}
+
+/* 清理所有插件 */
+static void test_plugins_cleanup(void) {
+#if defined(_MSC_VER)
+    const test_plugin_t** begin = (const test_plugin_t**)&_plugin_start;
+    const test_plugin_t** end   = (const test_plugin_t**)&_plugin_stop;
+    
+    for (const test_plugin_t** it = begin; it <= end; it++) {
+        if (*it != NULL && (*it)->name != NULL && (*it)->cleanup != NULL) {
+            (*it)->cleanup();
+        }
+    }
+#else
+    const test_plugin_t** begin = (const test_plugin_t**)__start_test_plugin;
+    const test_plugin_t** end   = (const test_plugin_t**)__stop_test_plugin;
+    
+    for (const test_plugin_t** p = begin; p < end; p++) {
+        if (*p != NULL && (*p)->name != NULL && (*p)->cleanup != NULL) {
+            (*p)->cleanup();
+        }
+    }
+#endif
+}
+
+/* ============================================================
  * 测试运行器（按照原始代码逻辑）
  * ============================================================ */
 
@@ -243,6 +329,14 @@ int run_tests(void) {
     failed_tests = 0;
     g_assert_passed = 0;
     g_assert_failed = 0;
+    
+    /* 初始化所有插件 */
+    test_plugins_init();
+    
+    /* 通知插件测试套件开始 */
+    if (g_plugin_suite_start) {
+        g_plugin_suite_start(0);  // 暂时传0，后面更新
+    }
 
 #if defined(_MSC_VER)
     const test_t** begin = (const test_t**)&_test_start;
@@ -255,14 +349,31 @@ int run_tests(void) {
         }
     }
     test_output("num_tests = %d\n", total_tests);
+    
+    /* 更新测试数量 */
+    if (g_plugin_suite_start) {
+        g_plugin_suite_start(total_tests);
+    }
 
     for (const test_t** it = begin; it <= end; it++) {
         if (*it == NULL || (*it)->name == NULL) {
             continue;
         }
         test_output("Running test: %s\n", (*it)->name);
+        
+        /* 通知插件测试开始 */
+        if (g_plugin_test_start) {
+            g_plugin_test_start((*it)->name);
+        }
+        
         current_test_failed = 0;
         (*it)->func();
+        
+        /* 通知插件测试结束 */
+        if (g_plugin_test_end) {
+            g_plugin_test_end((*it)->name, current_test_failed ? 0 : 1);
+        }
+        
         if (current_test_failed) {
             failed_tests++;
         } else {
@@ -278,13 +389,30 @@ int run_tests(void) {
             total_tests++;
     }
     test_output("num_tests = %d\n", total_tests);
+    
+    /* 更新测试数量 */
+    if (g_plugin_suite_start) {
+        g_plugin_suite_start(total_tests);
+    }
 
     for (const test_t** t = begin; t < end; t++) {
         if (*t == NULL || (*t)->name == NULL)
             continue;
         test_output("Running test: %s\n", (*t)->name);
+        
+        /* 通知插件测试开始 */
+        if (g_plugin_test_start) {
+            g_plugin_test_start((*t)->name);
+        }
+        
         current_test_failed = 0;
         (*t)->func();
+        
+        /* 通知插件测试结束 */
+        if (g_plugin_test_end) {
+            g_plugin_test_end((*t)->name, current_test_failed ? 0 : 1);
+        }
+        
         if (current_test_failed) {
             failed_tests++;
         } else {
@@ -292,6 +420,15 @@ int run_tests(void) {
         }
     }
 #endif
+
+    /* 通知插件测试套件结束 */
+    if (g_plugin_suite_end) {
+        g_plugin_suite_end(passed_tests, failed_tests);
+    }
+    
+    /* 清理所有插件 */
+    test_plugins_cleanup();
+
     test_output("\nTests finished: %d total, %d passed, %d failed (assertions: %d passed, %d failed)\n", 
                 total_tests, passed_tests, failed_tests, g_assert_passed, g_assert_failed);
     return failed_tests;

@@ -76,6 +76,71 @@ extern const test_t* __stop_test_array[] __attribute__((visibility("hidden")));
 int run_tests(void);
 
 /* ============================================================
+ * 插件架构
+ * ============================================================ */
+
+/* 插件回调函数类型 */
+typedef void (*test_plugin_init_fn)(void);
+typedef void (*test_plugin_cleanup_fn)(void);
+typedef void (*test_plugin_suite_start_fn)(int test_count);
+typedef void (*test_plugin_suite_end_fn)(int passed, int failed);
+typedef void (*test_plugin_test_start_fn)(const char* test_name);
+typedef void (*test_plugin_test_end_fn)(const char* test_name, int passed);
+typedef void (*test_plugin_assert_fail_fn)(const char* file, int line, const char* expr);
+
+/* 插件结构体 */
+typedef struct {
+    const char* name;                           // 插件名称
+    test_plugin_init_fn init;                   // 初始化函数（注册回调）
+    test_plugin_cleanup_fn cleanup;             // 清理函数
+    test_plugin_suite_start_fn suite_start;     // 测试套件开始
+    test_plugin_suite_end_fn suite_end;         // 测试套件结束
+    test_plugin_test_start_fn test_start;       // 单个测试开始
+    test_plugin_test_end_fn test_end;           // 单个测试结束
+    test_plugin_assert_fail_fn assert_fail;     // 断言失败
+    void* user_data;                            // 用户数据
+} test_plugin_t;
+
+/* 插件section定义 */
+#if defined(_MSC_VER)
+#    pragma section(".tplugin$a", read)
+#    pragma section(".tplugin$m", read)
+#    pragma section(".tplugin$z", read)
+#    define TEST_PLUGIN_ALLOC __declspec(allocate(".tplugin$m"))
+#else
+#    define TEST_PLUGIN_ALLOC __attribute__((used, section("test_plugin")))
+#endif
+
+/* 
+ * 插件自动注册宏
+ * 用法：TEST_PLUGIN_REGISTER(my_plugin, my_plugin_init)
+ * 插件需要在init函数中设置自己的回调函数
+ */
+#define TEST_PLUGIN_REGISTER(plugin_name, init_func)                                           \
+    static void init_func(void);                                                               \
+    static const test_plugin_t test_plugin_data_##plugin_name = {                              \
+        CA_MAKE_STRING(plugin_name),                                                           \
+        init_func,                                                                             \
+        NULL, NULL, NULL, NULL, NULL, NULL,                                                    \
+        NULL                                                                                   \
+    };                                                                                         \
+    static TEST_PLUGIN_ALLOC const test_plugin_t* test_plugin_ptr_##plugin_name = &test_plugin_data_##plugin_name
+
+/* GCC/Clang 插件section外部符号 */
+#if !defined(_MSC_VER)
+extern const test_plugin_t* __start_test_plugin[] __attribute__((visibility("hidden")));
+extern const test_plugin_t* __stop_test_plugin[] __attribute__((visibility("hidden")));
+#endif
+
+/* 插件管理API */
+void test_plugin_register(test_plugin_t* plugin);
+void test_plugin_set_suite_start(test_plugin_suite_start_fn fn);
+void test_plugin_set_suite_end(test_plugin_suite_end_fn fn);
+void test_plugin_set_test_start(test_plugin_test_start_fn fn);
+void test_plugin_set_test_end(test_plugin_test_end_fn fn);
+void test_plugin_set_assert_fail(test_plugin_assert_fail_fn fn);
+
+/* ============================================================
  * 断言宏（全部带 TEST_ 前缀，防止命名冲突）
  * ============================================================ */
 
