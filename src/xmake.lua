@@ -29,7 +29,7 @@ includes("em_bus")
 -- includes("em_log")
 includes("em_protocol")
 -- includes("em_component")
-
+includes("em_crypto")
 -- shell依赖base
 includes("em_shell")
 
