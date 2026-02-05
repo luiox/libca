@@ -1,21 +1,30 @@
-/**
+/*
  * @file test.c
- * @brief em_test 核心实现 - 集成结构化输出系统
+ * @brief libca 测试框架实现 v2.2
  */
 
 #include "test.h"
-#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <math.h>
 
-#if defined(_WIN32)
-    #include <windows.h>
-#endif
-
-/* ==================== 全局变量 ==================== */
+/* ============================================================
+ * 全局统计（保持原名称）
+ * ============================================================ */
 
 int total_tests = 0;
 int passed_tests = 0;
 int failed_tests = 0;
 int current_test_failed = 0;
+
+/* 断言统计（新增） */
+static int g_assert_passed = 0;
+static int g_assert_failed = 0;
+
+/* ============================================================
+ * Section 起止标记（关键！按照原始代码）
+ * ============================================================ */
 
 #if defined(_MSC_VER)
 __declspec(allocate(".test$a")) const test_t* _test_start = NULL;
@@ -24,216 +33,217 @@ __declspec(allocate(".test$z")) const test_t* _test_stop  = NULL;
 TEST_CASE_ALLOC const test_t* _test_dummy = NULL;
 #endif
 
-/* ==================== 结构化输出相关 ==================== */
+/* ============================================================
+ * 输出系统
+ * ============================================================ */
 
-static bool g_use_structured_output = false;
-static uint64_t g_suite_start_time = 0;
-static uint64_t g_test_start_time = 0;
-static test_case_info_t g_current_test_info = {0};
-static uint32_t g_current_assertion_count = 0;
+typedef void (*test_output_fn)(const char* msg);
+static test_output_fn g_output_fn = NULL;
 
-/**
- * @brief 获取当前时间戳（毫秒）
- */
-static uint64_t get_timestamp_ms(void)
-{
-#if defined(_WIN32)
-    FILETIME ft;
-    GetSystemTimeAsFileTime(&ft);
-    ULARGE_INTEGER ull;
-    ull.LowPart = ft.dwLowDateTime;
-    ull.HighPart = ft.dwHighDateTime;
-    return (ull.QuadPart / 10000) - 11644473600000ULL;
-#elif defined(__MACH__) && defined(__APPLE__)
-    /* macOS */
-    #include <mach/mach_time.h>
-    static mach_timebase_info_data_t timebase;
-    if (timebase.denom == 0) {
-        mach_timebase_info(&timebase);
-    }
-    uint64_t time = mach_absolute_time();
-    return (time * timebase.numer / timebase.denom) / 1000000;
-#elif defined(CLOCK_MONOTONIC)
-    /* Linux and POSIX with clock_gettime */
-    struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-        return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-    }
-    /* Fallback */
-    return (uint64_t)clock() * 1000 / CLOCKS_PER_SEC;
-#else
-    /* Standard C fallback */
-    return (uint64_t)clock() * 1000 / CLOCKS_PER_SEC;
-#endif
+static void test_default_output(const char* msg) {
+    printf("%s", msg);
 }
 
-void test_set_structured_output(bool enable)
-{
-    g_use_structured_output = enable;
-    if (enable) {
-        test_output_init();
+static void test_output(const char* fmt, ...) {
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    
+    if (g_output_fn) {
+        g_output_fn(buf);
+    } else {
+        test_default_output(buf);
     }
 }
 
-bool test_is_structured_output_enabled(void)
-{
-    return g_use_structured_output;
+/* ============================================================
+ * 断言实现
+ * ============================================================ */
+
+void test_assert(const char* file, int line, const char* expr, int passed) {
+    if (!passed) {
+        test_output("  ✗ %s:%d: ASSERT(%s)\n", file, line, expr);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
 }
 
-/*
- * 增加断言计数的简单接口：每个断言宏在被执行时应调用它一次
- * 这样 test.c 内部维护的 g_current_assertion_count 会被更新
- */
-void test_assertion_inc(void)
-{
-    g_current_assertion_count++;
+void test_assert_eq_u8(const char* file, int line, const char* expr_e, const char* expr_a, uint8_t expected, uint8_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_U8(%s, %s) failed: expected %u (0x%02X), got %u (0x%02X)\n",
+                    file, line, expr_e, expr_a, expected, expected, actual, actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
 }
 
-/* 中央化失败上报：
- * - 若启用结构化输出，调用 test_assert_failed_detail 上报
- * - 始终打印到控制台（目前使用 test_print，未来可以重定向）
- */
-#include <stdarg.h>
-
-void test_print(const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);
+void test_assert_eq_i8(const char* file, int line, const char* expr_e, const char* expr_a, int8_t expected, int8_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_I8(%s, %s) failed: expected %d (0x%02X), got %d (0x%02X)\n",
+                    file, line, expr_e, expr_a, expected, (uint8_t)expected, actual, (uint8_t)actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
 }
 
-/* 简单的测试名校验：只允许字母/数字/下划线，且必须包含至少一个下划线（module_feature） */
-static bool is_valid_test_name(const char* name)
-{
-    if (!name || name[0] == '\0') return false;
-    int underscore_count = 0;
-    for (const char* p = name; *p != '\0'; p++) {
-        char ch = *p;
-        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_'))) {
-            return false;
+void test_assert_eq_u16(const char* file, int line, const char* expr_e, const char* expr_a, uint16_t expected, uint16_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_U16(%s, %s) failed: expected %u (0x%04X), got %u (0x%04X)\n",
+                    file, line, expr_e, expr_a, expected, expected, actual, actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_i16(const char* file, int line, const char* expr_e, const char* expr_a, int16_t expected, int16_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_I16(%s, %s) failed: expected %d (0x%04X), got %d (0x%04X)\n",
+                    file, line, expr_e, expr_a, expected, (uint16_t)expected, actual, (uint16_t)actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_u32(const char* file, int line, const char* expr_e, const char* expr_a, uint32_t expected, uint32_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_U32(%s, %s) failed: expected %lu (0x%08lX), got %lu (0x%08lX)\n",
+                    file, line, expr_e, expr_a, (unsigned long)expected, (unsigned long)expected, 
+                    (unsigned long)actual, (unsigned long)actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_i32(const char* file, int line, const char* expr_e, const char* expr_a, int32_t expected, int32_t actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_I32(%s, %s) failed: expected %ld (0x%08lX), got %ld (0x%08lX)\n",
+                    file, line, expr_e, expr_a, (long)expected, (unsigned long)expected, 
+                    (long)actual, (unsigned long)actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_f32(const char* file, int line, const char* expr_e, const char* expr_a, float expected, float actual, float epsilon) {
+    float diff = expected > actual ? expected - actual : actual - expected;
+    if (diff > epsilon) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_F32(%s, %s) failed: expected %f, got %f (diff: %f, epsilon: %f)\n",
+                    file, line, expr_e, expr_a, expected, actual, diff, epsilon);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_f64(const char* file, int line, const char* expr_e, const char* expr_a, double expected, double actual, double epsilon) {
+    double diff = expected > actual ? expected - actual : actual - expected;
+    if (diff > epsilon) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_F64(%s, %s) failed: expected %f, got %f (diff: %f, epsilon: %f)\n",
+                    file, line, expr_e, expr_a, expected, actual, diff, epsilon);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_bool(const char* file, int line, const char* expr_e, const char* expr_a, bool expected, bool actual) {
+    if (expected != actual) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_BOOL(%s, %s) failed: expected %s, got %s\n",
+                    file, line, expr_e, expr_a, expected ? "true" : "false", actual ? "true" : "false");
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_null(const char* file, int line, const char* expr, const void* ptr) {
+    if (ptr != NULL) {
+        test_output("  ✗ %s:%d: EXPECT_NULL(%s) failed: pointer is not NULL (%p)\n",
+                    file, line, expr, ptr);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_not_null(const char* file, int line, const char* expr, const void* ptr) {
+    if (ptr == NULL) {
+        test_output("  ✗ %s:%d: EXPECT_NOT_NULL(%s) failed: pointer is NULL\n",
+                    file, line, expr);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
+    }
+}
+
+void test_assert_eq_str(const char* file, int line, const char* expr_e, const char* expr_a, const char* expected, const char* actual) {
+    if (expected == NULL || actual == NULL) {
+        if (expected != actual) {
+            test_output("  ✗ %s:%d: EXPECT_EQ_STR(%s, %s) failed: NULL pointer comparison\n",
+                        file, line, expr_e, expr_a);
+            g_assert_failed++;
+            current_test_failed = 1;
+        } else {
+            g_assert_passed++;
         }
-        if (ch == '_') underscore_count++;
+    } else if (strcmp(expected, actual) != 0) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_STR(%s, %s) failed: expected \"%s\", got \"%s\"\n",
+                    file, line, expr_e, expr_a, expected, actual);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
     }
-    return underscore_count > 0;
 }
 
-void test_report_failure(const char* file, uint32_t line, const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...)
-{
-    if (test_is_structured_output_enabled()) {
-        test_assert_failed_detail(file, line, expression, expected_str, actual_str);
+void test_assert_eq_mem(const char* file, int line, const char* expr_p1, const char* expr_p2, const void* p1, const void* p2, size_t size) {
+    if (p1 == NULL || p2 == NULL) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_MEM(%s, %s) failed: NULL pointer\n",
+                    file, line, expr_p1, expr_p2);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else if (memcmp(p1, p2, size) != 0) {
+        test_output("  ✗ %s:%d: EXPECT_EQ_MEM(%s, %s) failed: memory mismatch at %zu bytes\n",
+                    file, line, expr_p1, expr_p2, size);
+        g_assert_failed++;
+        current_test_failed = 1;
+    } else {
+        g_assert_passed++;
     }
-
-    va_list ap;
-    va_start(ap, printf_fmt);
-    vprintf(printf_fmt, ap);
-    va_end(ap);
 }
 
-void test_suite_begin(const char* suite_name)
-{
-    if (!g_use_structured_output) return;
-    
-    g_suite_start_time = get_timestamp_ms();
-    g_current_assertion_count = 0;
-    
-    test_suite_info_t suite_info = {
-        .name = suite_name,
-        .total_tests = 0,
-        .passed_tests = 0,
-        .failed_tests = 0,
-        .start_time_ms = g_suite_start_time,
-        .end_time_ms = 0
-    };
-    
-    test_event_data_t data = {.suite = suite_info};
-    test_output_emit(TEST_EVENT_SUITE_START, &data);
-}
+/* ============================================================
+ * 测试运行器（按照原始代码逻辑）
+ * ============================================================ */
 
-void test_suite_end(void)
-{
-    if (!g_use_structured_output) return;
-    
-    uint64_t end_time = get_timestamp_ms();
-    
-    test_suite_info_t suite_info = {
-        .name = NULL,  /* 使用当前套件名称 */
-        .total_tests = total_tests,
-        .passed_tests = passed_tests,
-        .failed_tests = failed_tests,
-        .start_time_ms = g_suite_start_time,
-        .end_time_ms = end_time
-    };
-    
-    test_event_data_t data = {.suite = suite_info};
-    test_output_emit(TEST_EVENT_SUITE_END, &data);
-    test_output_flush();
-}
-
-void test_case_begin(const char* test_name, const char* file, uint32_t line)
-{
-    if (!g_use_structured_output) return;
-    
-    g_test_start_time = get_timestamp_ms();
-    g_current_assertion_count = 0;
-    
-    g_current_test_info.name = test_name;
-    g_current_test_info.file = file;
-    g_current_test_info.line = line;
-    g_current_test_info.start_time_ms = g_test_start_time;
-    g_current_test_info.end_time_ms = 0;
-    g_current_test_info.assertion_count = 0;
-    
-    test_event_data_t data = {.test = g_current_test_info};
-    test_output_emit(TEST_EVENT_TEST_START, &data);
-}
-
-void test_case_end(bool passed)
-{
-    if (!g_use_structured_output) return;
-    
-    uint64_t end_time = get_timestamp_ms();
-    g_current_test_info.end_time_ms = end_time;
-    g_current_test_info.assertion_count = g_current_assertion_count;
-    g_current_test_info.passed = passed;
-    
-    test_event_data_t data = {.test = g_current_test_info};
-    
-    /* 使用统一的 TEST_EVENT_TEST_END 事件，formatter 根据 data->test.passed 输出 PASS/FAIL */
-    test_output_emit(TEST_EVENT_TEST_END, &data);
-}
-
-void test_assert_failed_detail(const char* file, uint32_t line,
-                                const char* expression,
-                                const char* expected,
-                                const char* actual)
-{
-    if (!g_use_structured_output) return;
-
-    fprintf(stderr, "[test] emit ASSERT_FAIL for %s:%u expr=%s\n", file ? file : "unknown", line, expression ? expression : "(null)");
-    
-    test_assert_fail_info_t fail_info = {
-        .file = file,
-        .line = line,
-        .expression = expression,
-        .message = NULL,
-        .expected = expected,
-        .actual = actual,
-        .format = TEST_FORMAT_PLAIN
-    };
-    
-    test_event_data_t data = {.assert_fail = fail_info};
-    test_output_emit(TEST_EVENT_ASSERT_FAIL, &data);
-}
-
-/* ==================== 原有 run_tests 实现（向后兼容） ==================== */
-
-int run_tests(void)
-{
+int run_tests(void) {
     total_tests = 0;
     passed_tests = 0;
     failed_tests = 0;
-    
+    g_assert_passed = 0;
+    g_assert_failed = 0;
+
 #if defined(_MSC_VER)
     const test_t** begin = (const test_t**)&_test_start;
     const test_t** end   = (const test_t**)&_test_stop;
@@ -244,53 +254,20 @@ int run_tests(void)
             total_tests++;
         }
     }
-    
-    if (!g_use_structured_output) {
-        printf("num_tests = %d\n", total_tests);
-    }
-    
-    // 发送套件开始事件
-    if (g_use_structured_output) {
-        test_suite_begin("test_suite");
-    }
+    test_output("num_tests = %d\n", total_tests);
 
     for (const test_t** it = begin; it <= end; it++) {
         if (*it == NULL || (*it)->name == NULL) {
             continue;
         }
-        
-        if (!g_use_structured_output) {
-            printf("Running test: %s\n", (*it)->name);
-            if (!is_valid_test_name((*it)->name)) {
-                test_print("[test][WARN] test name '%s' does not follow '<module>_<feature>' convention\n", (*it)->name);
-            }
-        }
-        
-        // 发送测试开始事件
-        if (g_use_structured_output) {
-            test_case_begin((*it)->name, "", 0);
-        }
-        
+        test_output("Running test: %s\n", (*it)->name);
         current_test_failed = 0;
-        g_current_assertion_count = 0;
         (*it)->func();
-        
-        bool test_passed = !current_test_failed;
-        if (test_passed) {
-            passed_tests++;
-        } else {
+        if (current_test_failed) {
             failed_tests++;
+        } else {
+            passed_tests++;
         }
-        
-        // 发送测试结束事件
-        if (g_use_structured_output) {
-            test_case_end(test_passed);
-        }
-    }
-    
-    // 发送套件结束事件
-    if (g_use_structured_output) {
-        test_suite_end();
     }
 #else
     const test_t** begin = (const test_t**)__start_test_array;
@@ -300,64 +277,29 @@ int run_tests(void)
         if (*t != NULL && (*t)->name != NULL)
             total_tests++;
     }
-    
-    if (!g_use_structured_output) {
-        printf("num_tests = %d\n", total_tests);
-    }
-    
-    // 发送套件开始事件
-    if (g_use_structured_output) {
-        test_suite_begin("test_suite");
-    }
+    test_output("num_tests = %d\n", total_tests);
 
     for (const test_t** t = begin; t < end; t++) {
         if (*t == NULL || (*t)->name == NULL)
             continue;
-        
-        if (!g_use_structured_output) {
-            printf("Running test: %s\n", (*t)->name);
-            if (!is_valid_test_name((*t)->name)) {
-                test_print("[test][WARN] test name '%s' does not follow '<module>_<feature>' convention\n", (*t)->name);
-            }
-        }
-        
-        // 发送测试开始事件
-        if (g_use_structured_output) {
-            test_case_begin((*t)->name, "", 0);
-        }
-        
+        test_output("Running test: %s\n", (*t)->name);
         current_test_failed = 0;
-        g_current_assertion_count = 0;
         (*t)->func();
-        
-        bool test_passed = !current_test_failed;
-        if (test_passed) {
-            passed_tests++;
-        } else {
+        if (current_test_failed) {
             failed_tests++;
+        } else {
+            passed_tests++;
         }
-        
-        // 发送测试结束事件
-        if (g_use_structured_output) {
-            test_case_end(test_passed);
-        }
-    }
-    
-    // 发送套件结束事件
-    if (g_use_structured_output) {
-        test_suite_end();
     }
 #endif
-    
-    if (!g_use_structured_output) {
-        printf("\nTests finished: %d total, %d passed, %d failed\n", 
-               total_tests, passed_tests, failed_tests);
-    }
-    
+    test_output("\nTests finished: %d total, %d passed, %d failed (assertions: %d passed, %d failed)\n", 
+                total_tests, passed_tests, failed_tests, g_assert_passed, g_assert_failed);
     return failed_tests;
 }
 
-/* ==================== 测试用例 ==================== */
+/* ============================================================
+ * 自测试
+ * ============================================================ */
 
 #if TEST_ENABLE
 

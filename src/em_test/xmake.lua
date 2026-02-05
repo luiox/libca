@@ -1,6 +1,6 @@
 -- C的测试库，主要是用于C的单元测试
 -- 定义测试框架规则 (rule)
--- rule 适用于定义可复用的构建逻辑，比如“如何处理测试组件”
+-- rule 适用于定义可复用的构建逻辑，比如"如何处理测试组件"
 rule("em_test")
     on_load(function (target)
         -- extraconf 用于获取 add_rules("em_test", {configs}) 中传入的额外配置信息
@@ -9,7 +9,6 @@ rule("em_test")
         
         -- 添加测试框架的.c文件
         target:add("files", path.join(os.scriptdir(), "test.c"))
-        target:add("files", path.join(os.scriptdir(), "test_output.c"))
 
         -- 自动为使用此规则的目标添加头文件搜索路径
         target:add("includedirs", os.scriptdir(), {public = true})
@@ -42,24 +41,3 @@ target("test-em_self_test")
     
     -- 只需添加业务测试代码，框架代码由 rule 自动注入
     add_files("test.c")
-
--- 测试新的精确类型断言宏
-target("test-em_enhanced_assertions")
-    set_kind("binary")
-
-    -- 应用 em_test 规则
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    
-    -- 添加新的测试文件
-    add_files("test_enhanced_assertions.c")
-
--- 演示结构化输出系统
-target("test-em_structured_output")
-    set_kind("binary")
-    
-    -- 应用 em_test 规则，但不使用默认的 main
-    add_rules("em_test", { test_enable = true, use_default_main = false })
-    
-    -- 添加演示文件（包含自定义 main）
-    add_files("test_structured_output_demo.c")
-

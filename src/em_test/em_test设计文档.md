@@ -115,22 +115,24 @@ libca/src/em_test/
 | 类别 | 宏名称 | 参数 | 说明 |
 |-----|--------|------|------|
 | **测试定义** | `TEST_CASE(name)` | name: 测试名 | 定义测试用例块 |
-| **通用断言** | `ASSERT(cond)` | cond: 布尔表达式 | 通用条件断言 |
-| **8位整数** | `EXPECT_EQ_U8(e, a)` | e: 期望值, a: 实际值 | uint8_t 相等比较 |
-| | `EXPECT_EQ_I8(e, a)` | e: 期望值, a: 实际值 | int8_t 相等比较 |
-| **16位整数** | `EXPECT_EQ_U16(e, a)` | e: 期望值, a: 实际值 | uint16_t 相等比较 |
-| | `EXPECT_EQ_I16(e, a)` | e: 期望值, a: 实际值 | int16_t 相等比较 |
-| **32位整数** | `EXPECT_EQ_U32(e, a)` | e: 期望值, a: 实际值 | uint32_t 相等比较 |
-| | `EXPECT_EQ_I32(e, a)` | e: 期望值, a: 实际值 | int32_t 相等比较 |
-| **浮点数** | `EXPECT_EQ_F32(e, a)` | e: 期望值, a: 实际值 | float 相等（ε=1e-6） |
-| | `EXPECT_EQ_F64(e, a)` | e: 期望值, a: 实际值 | double 相等（ε=1e-6） |
-| | `EXPECT_EQ_F32_E(e, a, eps)` | e: 期望值, a: 实际值, eps: 精度 | float 相等（自定义精度） |
-| | `EXPECT_EQ_F64_E(e, a, eps)` | e: 期望值, a: 实际值, eps: 精度 | double 相等（自定义精度） |
-| **布尔** | `EXPECT_EQ_BOOL(e, a)` | e: 期望值, a: 实际值 | bool 相等比较 |
-| **指针** | `EXPECT_NULL(ptr)` | ptr: 指针 | 检查空指针 |
-| | `EXPECT_NOT_NULL(ptr)` | ptr: 指针 | 检查非空指针 |
-| **字符串** | `EXPECT_EQ_STR(s1, s2)` | s1: 字符串1, s2: 字符串2 | 字符串相等比较 |
-| **内存** | `EXPECT_EQ_MEM(p1, p2, n)` | p1: 指针1, p2: 指针2, n: 字节数 | 二进制内存比较 |
+| **通用断言** | `TEST_ASSERT(cond)` | cond: 布尔表达式 | 通用条件断言 |
+| **8位整数** | `TEST_EXPECT_EQ_U8(e, a)` | e: 期望值, a: 实际值 | uint8_t 相等比较 |
+| | `TEST_EXPECT_EQ_I8(e, a)` | e: 期望值, a: 实际值 | int8_t 相等比较 |
+| **16位整数** | `TEST_EXPECT_EQ_U16(e, a)` | e: 期望值, a: 实际值 | uint16_t 相等比较 |
+| | `TEST_EXPECT_EQ_I16(e, a)` | e: 期望值, a: 实际值 | int16_t 相等比较 |
+| **32位整数** | `TEST_EXPECT_EQ_U32(e, a)` | e: 期望值, a: 实际值 | uint32_t 相等比较 |
+| | `TEST_EXPECT_EQ_I32(e, a)` | e: 期望值, a: 实际值 | int32_t 相等比较 |
+| **浮点数** | `TEST_EXPECT_EQ_F32(e, a)` | e: 期望值, a: 实际值 | float 相等（ε=1e-6） |
+| | `TEST_EXPECT_EQ_F64(e, a)` | e: 期望值, a: 实际值 | double 相等（ε=1e-6） |
+| | `TEST_EXPECT_EQ_F32_E(e, a, eps)` | e: 期望值, a: 实际值, eps: 精度 | float 相等（自定义精度） |
+| | `TEST_EXPECT_EQ_F64_E(e, a, eps)` | e: 期望值, a: 实际值, eps: 精度 | double 相等（自定义精度） |
+| **布尔** | `TEST_EXPECT_EQ_BOOL(e, a)` | e: 期望值, a: 实际值 | bool 相等比较 |
+| | `TEST_EXPECT_EQ_TRUE(a)` | a: 实际值 | 检查为 true |
+| | `TEST_EXPECT_EQ_FALSE(a)` | a: 实际值 | 检查为 false |
+| **指针** | `TEST_EXPECT_NULL(ptr)` | ptr: 指针 | 检查空指针 |
+| | `TEST_EXPECT_NOT_NULL(ptr)` | ptr: 指针 | 检查非空指针 |
+| **字符串** | `TEST_EXPECT_EQ_STR(s1, s2)` | s1: 字符串1, s2: 字符串2 | 字符串相等比较 |
+| **内存** | `TEST_EXPECT_EQ_MEM(p1, p2, n)` | p1: 指针1, p2: 指针2, n: 字节数 | 二进制内存比较 |
 
 ### 4.2 测试运行 API
 
@@ -180,16 +182,16 @@ int32_t add(int32_t a, int32_t b) {
 #include "test.h"
 
 TEST_CASE(test_add_basic) {
-    EXPECT_EQ_I32(5, add(2, 3));
-    EXPECT_EQ_I32(0, add(-1, 1));
+    TEST_EXPECT_EQ_I32(5, add(2, 3));
+    TEST_EXPECT_EQ_I32(0, add(-1, 1));
 }
 
 TEST_CASE(test_add_overflow) {
-    EXPECT_EQ_I32(INT32_MAX, add(INT32_MAX, 0));
+    TEST_EXPECT_EQ_I32(INT32_MAX, add(INT32_MAX, 0));
 }
 
 int main() {
-    return em_test_run();
+    return run_tests();
 }
 ```
 
@@ -201,11 +203,11 @@ TEST_CASE(test_type_safety) {
     uint8_t unsigned_val = 255; // 0xFF
     
     // 显式类型比较，避免整数提升问题
-    EXPECT_EQ_I8(-1, signed_val);
-    EXPECT_EQ_U8(255, unsigned_val);
+    TEST_EXPECT_EQ_I8(-1, signed_val);
+    TEST_EXPECT_EQ_U8(255, unsigned_val);
     
     // 二进制比较（无视符号）
-    EXPECT_EQ_MEM(&signed_val, &unsigned_val, 1);
+    TEST_EXPECT_EQ_MEM(&signed_val, &unsigned_val, 1);
 }
 ```
 
@@ -288,40 +290,47 @@ TEST_CASE(test_new) {
 #!/bin/bash
 # migrate_test.sh - 自动替换旧宏到新宏
 
-sed -i 's/TEST_ASSERT_EQUAL_INT(/EXPECT_EQ_I32(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_UINT(/EXPECT_EQ_U32(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_U8(/EXPECT_EQ_U8(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_I8(/EXPECT_EQ_I8(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_U16(/EXPECT_EQ_U16(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_I16(/EXPECT_EQ_I16(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_U32(/EXPECT_EQ_U32(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_I32(/EXPECT_EQ_I32(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_FLOAT(/EXPECT_EQ_F32(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_DOUBLE(/EXPECT_EQ_F64(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_STRING(/EXPECT_EQ_STR(/g' "$1"
-sed -i 's/TEST_ASSERT_NULL(/EXPECT_NULL(/g' "$1"
-sed -i 's/TEST_ASSERT_NOT_NULL(/EXPECT_NOT_NULL(/g' "$1"
-sed -i 's/TEST_ASSERT_TRUE(/ASSERT(/g' "$1"
-sed -i 's/TEST_ASSERT_FALSE(/ASSERT(!(/g' "$1"
-sed -i 's/TEST_ASSERT_EQUAL_MEMORY(/EXPECT_EQ_MEM(/g' "$1"
-sed -i 's/TEST_ASSERT(/ASSERT(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_INT(/TEST_ASSERT((e) == (a))/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_UINT(/TEST_ASSERT((e) == (a))/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_U8(/TEST_EXPECT_EQ_U8(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_I8(/TEST_EXPECT_EQ_I8(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_U16(/TEST_EXPECT_EQ_U16(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_I16(/TEST_EXPECT_EQ_I16(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_U32(/TEST_EXPECT_EQ_U32(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_I32(/TEST_EXPECT_EQ_I32(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_FLOAT(/TEST_EXPECT_EQ_F32(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_DOUBLE(/TEST_EXPECT_EQ_F64(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_STRING(/TEST_EXPECT_EQ_STR(/g' "$1"
+sed -i 's/TEST_ASSERT_NULL(/TEST_EXPECT_NULL(/g' "$1"
+sed -i 's/TEST_ASSERT_NOT_NULL(/TEST_EXPECT_NOT_NULL(/g' "$1"
+sed -i 's/TEST_ASSERT_TRUE(/TEST_ASSERT(/g' "$1"
+sed -i 's/TEST_ASSERT_FALSE(/TEST_ASSERT(!(/g' "$1"
+sed -i 's/TEST_ASSERT_EQUAL_MEMORY(/TEST_EXPECT_EQ_MEM(/g' "$1"
+sed -i 's/TEST_ASSERT(/TEST_ASSERT(/g' "$1"
 ```
 
 ### 6.4 手动迁移检查清单
 
 迁移每个测试文件时，请检查：
 
-- [ ] 头文件从旧路径改为 `#include "em_test/test.h"`（或新路径）
-- [ ] `TEST_ASSERT_EQUAL_INT` → `EXPECT_EQ_I32`（注意：int 可能是 32位或64位，根据需要选择）
-- [ ] `TEST_ASSERT_EQUAL_UINT` → `EXPECT_EQ_U32`
-- [ ] `TEST_ASSERT_EQUAL_FLOAT` → `EXPECT_EQ_F32`
-- [ ] `TEST_ASSERT_EQUAL_DOUBLE` → `EXPECT_EQ_F64`
-- [ ] `TEST_ASSERT_EQUAL_STRING` → `EXPECT_EQ_STR`
-- [ ] `TEST_ASSERT_NULL` → `EXPECT_NULL`
-- [ ] `TEST_ASSERT_NOT_NULL` → `EXPECT_NOT_NULL`
-- [ ] `TEST_ASSERT_TRUE`/`TEST_ASSERT_FALSE` → `ASSERT`
-- [ ] 删除旧的 `test_output.h` 相关代码（如果有）
-- [ ] 检查浮点数比较是否需要自定义精度（使用 `EXPECT_EQ_F32_E` 或 `EXPECT_EQ_F64_E`）
+- [ ] 头文件从旧路径改为 `#include "test.h"`
+- [ ] `TEST_ASSERT_EQUAL_INT` → `TEST_ASSERT((e) == (a))`
+- [ ] `TEST_ASSERT_EQUAL_UINT` → `TEST_ASSERT((e) == (a))`
+- [ ] `TEST_ASSERT_EQUAL_U8` → `TEST_EXPECT_EQ_U8`
+- [ ] `TEST_ASSERT_EQUAL_I8` → `TEST_EXPECT_EQ_I8`
+- [ ] `TEST_ASSERT_EQUAL_U16` → `TEST_EXPECT_EQ_U16`
+- [ ] `TEST_ASSERT_EQUAL_I16` → `TEST_EXPECT_EQ_I16`
+- [ ] `TEST_ASSERT_EQUAL_U32` → `TEST_EXPECT_EQ_U32`
+- [ ] `TEST_ASSERT_EQUAL_I32` → `TEST_EXPECT_EQ_I32`
+- [ ] `TEST_ASSERT_EQUAL_FLOAT` → `TEST_EXPECT_EQ_F32`
+- [ ] `TEST_ASSERT_EQUAL_DOUBLE` → `TEST_EXPECT_EQ_F64`
+- [ ] `TEST_ASSERT_EQUAL_STRING` → `TEST_EXPECT_EQ_STR`
+- [ ] `TEST_ASSERT_NULL` → `TEST_EXPECT_NULL`
+- [ ] `TEST_ASSERT_NOT_NULL` → `TEST_EXPECT_NOT_NULL`
+- [ ] `TEST_ASSERT_TRUE` → `TEST_ASSERT`
+- [ ] `TEST_ASSERT_FALSE` → `TEST_ASSERT(!(cond))`
+- [ ] `TEST_ASSERT_EQUAL_MEMORY` → `TEST_EXPECT_EQ_MEM`
+- [ ] 检查浮点数比较是否需要自定义精度（使用 `TEST_EXPECT_EQ_F32_E` 或 `TEST_EXPECT_EQ_F64_E`）
 
 ---
 
