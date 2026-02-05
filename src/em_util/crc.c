@@ -241,7 +241,7 @@ u8 checksum_calc_u8(const u8* data, usize len)
 #    include <string.h>
 
 // CRC 模块单元测试
-TEST_CASE(crc)
+TEST_CASE(crc_standard_vectors)
 {
     const char* data = "123456789";
     usize       len  = strlen(data);

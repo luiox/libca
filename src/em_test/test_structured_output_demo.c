@@ -55,26 +55,18 @@ int main(int argc, char** argv)
     
     printf("=== em_test Structured Output Demo ===\n\n");
     
-    /* 初始化结构化输出系统 */
-    test_output_init();
-    
     /* 配置输出目标 */
     printf("Configuring output targets...\n");
     
-    /* 1. 添加控制台彩色输出 */
-    if (test_output_add_console(TEST_FORMAT_COLOR) != 0) {
-        printf("Warning: Failed to add console output\n");
+    /* 使用默认配置：控制台（彩色） + JSON 文件报告 */
+    if (test_output_setup_default("test_report.json") != 0) {
+        printf("Warning: Failed to setup default outputs\n");
     }
     
-    /* 2. 添加 JSON 文件输出 (暂时禁用以排查崩溃) */
-    /* if (test_output_add_file("test_report.json", TEST_FORMAT_JSON, false) != 0) {
-        printf("Warning: Failed to add JSON file output\n");
-    } */
-    
-    /* 3. 添加纯文本文件输出 (暂时禁用以排查崩溃) */
-    /* if (test_output_add_file("test_report.txt", TEST_FORMAT_PLAIN, false) != 0) {
+    /* 另外生成 plain 文本报告，便于人工查看 */
+    if (test_output_add_file("test_report.txt", TEST_FORMAT_PLAIN, false) != 0) {
         printf("Warning: Failed to add plain text file output\n");
-    } */
+    }
     
     printf("\nRunning tests with structured output...\n\n");
     

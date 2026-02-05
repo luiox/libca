@@ -103,6 +103,21 @@ void test_print(const char* fmt, ...)
     va_end(ap);
 }
 
+/* 简单的测试名校验：只允许字母/数字/下划线，且必须包含至少一个下划线（module_feature） */
+static bool is_valid_test_name(const char* name)
+{
+    if (!name || name[0] == '\0') return false;
+    int underscore_count = 0;
+    for (const char* p = name; *p != '\0'; p++) {
+        char ch = *p;
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || (ch == '_'))) {
+            return false;
+        }
+        if (ch == '_') underscore_count++;
+    }
+    return underscore_count > 0;
+}
+
 void test_report_failure(const char* file, uint32_t line, const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...)
 {
     if (test_is_structured_output_enabled()) {
@@ -246,6 +261,9 @@ int run_tests(void)
         
         if (!g_use_structured_output) {
             printf("Running test: %s\n", (*it)->name);
+            if (!is_valid_test_name((*it)->name)) {
+                test_print("[test][WARN] test name '%s' does not follow '<module>_<feature>' convention\n", (*it)->name);
+            }
         }
         
         // 发送测试开始事件
@@ -298,6 +316,9 @@ int run_tests(void)
         
         if (!g_use_structured_output) {
             printf("Running test: %s\n", (*t)->name);
+            if (!is_valid_test_name((*t)->name)) {
+                test_print("[test][WARN] test name '%s' does not follow '<module>_<feature>' convention\n", (*t)->name);
+            }
         }
         
         // 发送测试开始事件
