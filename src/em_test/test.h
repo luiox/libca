@@ -16,7 +16,14 @@
 // clang-format off
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                                \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) != (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%d", (int)(expected));                         \
+            snprintf(_a_buf, sizeof(_a_buf), "%d", (int)(actual));                           \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %d, got %d\n", __FILE__, __LINE__, (int)(expected), (int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -24,7 +31,14 @@
 
 #define TEST_ASSERT_EQUAL_UINT(expected, actual)                                               \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) != (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%u", (unsigned int)(expected));                \
+            snprintf(_a_buf, sizeof(_a_buf), "%u", (unsigned int)(actual));                  \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %u, got %u\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -32,7 +46,11 @@
 
 #define TEST_ASSERT(condition)                                                                 \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if (!(condition)) {                                                                    \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #condition, NULL, NULL);        \
+            }                                                                                  \
             printf("Test failed: %s:%d, condition %s is false\n", __FILE__, __LINE__, #condition);     \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -42,7 +60,14 @@
 
 #define TEST_ASSERT_EQUAL_FLOAT_(expected, actual, epsilon)                                     \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if (fabs((expected) - (actual)) > (epsilon)) {                                         \
+            char _e_buf[64]; char _a_buf[64];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%f", (double)(expected));                      \
+            snprintf(_a_buf, sizeof(_a_buf), "%f", (double)(actual));                        \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %f, got %f\n", __FILE__, __LINE__, (double)(expected), (double)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -52,7 +77,11 @@
 
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                                             \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if (strcmp((expected), (actual)) != 0) {                                               \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, (expected), (actual)); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected \"%s\", got \"%s\"\n", __FILE__, __LINE__, (expected), (actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -60,7 +89,14 @@
 
 #define TEST_ASSERT_NOT_EQUAL_INT(expected, actual)                                            \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) == (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%d", (int)(expected));                         \
+            snprintf(_a_buf, sizeof(_a_buf), "%d", (int)(actual));                           \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " != " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %d to not equal %d\n", __FILE__, __LINE__, (int)(expected), (int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -68,7 +104,14 @@
 
 #define TEST_ASSERT_NOT_EQUAL_UINT(expected, actual)                                           \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) == (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%u", (unsigned int)(expected));                \
+            snprintf(_a_buf, sizeof(_a_buf), "%u", (unsigned int)(actual));                  \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " != " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %u to not equal %u\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -76,7 +119,11 @@
 
 #define TEST_ASSERT_TRUE(condition)                                                            \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if (!(condition)) {                                                                    \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #condition " is true", "true", "false"); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected true but got false\n", __FILE__, __LINE__);           \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -84,7 +131,11 @@
 
 #define TEST_ASSERT_FALSE(condition)                                                           \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((condition)) {                                                                     \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #condition " is false", "false", "true"); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected false but got true\n", __FILE__, __LINE__);           \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -92,7 +143,11 @@
 
 #define TEST_ASSERT_NULL(pointer)                                                              \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((pointer) != NULL) {                                                               \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #pointer " == NULL", "NULL", "non-NULL"); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected NULL pointer\n", __FILE__, __LINE__);                 \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -100,7 +155,11 @@
 
 #define TEST_ASSERT_NOT_NULL(pointer)                                                          \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((pointer) == NULL) {                                                               \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #pointer " != NULL", "non-NULL", "NULL"); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected non-NULL pointer\n", __FILE__, __LINE__);             \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -108,7 +167,14 @@
 
 #define TEST_ASSERT_EQUAL_PTR(expected, actual)                                                \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) != (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%p", (void*)(expected));                        \
+            snprintf(_a_buf, sizeof(_a_buf), "%p", (void*)(actual));                          \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected pointer %p, got %p\n", __FILE__, __LINE__, (void*)(expected), (void*)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -116,7 +182,11 @@
 
 #define TEST_ASSERT_EQUAL_MEMORY(expected, actual, size)                                       \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if (memcmp((expected), (actual), (size)) != 0) {                                       \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, "memcmp(...) == 0", "expected memory", "actual memory"); \
+            }                                                                                  \
             printf("Test failed: %s:%d, memory mismatch\n", __FILE__, __LINE__);                       \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -124,7 +194,15 @@
 
 #define TEST_ASSERT_INT_WITHIN(min, max, actual)                                               \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((actual) < (min) || (actual) > (max)) {                                            \
+            char _a_buf[32]; char _min_buf[32]; char _max_buf[32];                             \
+            snprintf(_a_buf, sizeof(_a_buf), "%d", (int)(actual));                           \
+            snprintf(_min_buf, sizeof(_min_buf), "%d", (int)(min));                          \
+            snprintf(_max_buf, sizeof(_max_buf), "%d", (int)(max));                          \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #actual " in [" #min "," #max "]", _min_buf, _max_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %d to be within [%d, %d]\n", __FILE__, __LINE__, (int)(actual), (int)(min), (int)(max)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -132,7 +210,15 @@
 
 #define TEST_ASSERT_UINT_WITHIN(min, max, actual)                                              \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((actual) < (min) || (actual) > (max)) {                                            \
+            char _a_buf[32]; char _min_buf[32]; char _max_buf[32];                             \
+            snprintf(_a_buf, sizeof(_a_buf), "%u", (unsigned int)(actual));                  \
+            snprintf(_min_buf, sizeof(_min_buf), "%u", (unsigned int)(min));                 \
+            snprintf(_max_buf, sizeof(_max_buf), "%u", (unsigned int)(max));                 \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #actual " in [" #min "," #max "]", _min_buf, _max_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected %u to be within [%u, %u]\n", __FILE__, __LINE__, (unsigned int)(actual), (unsigned int)(min), (unsigned int)(max)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -140,7 +226,14 @@
 
 #define TEST_ASSERT_EQUAL_HEX(expected, actual)                                                \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         if ((expected) != (actual)) {                                                          \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "0x%X", (unsigned int)(expected));              \
+            snprintf(_a_buf, sizeof(_a_buf), "0x%X", (unsigned int)(actual));                \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected 0x%X, got 0x%X\n", __FILE__, __LINE__, (unsigned int)(expected), (unsigned int)(actual)); \
             current_test_failed = 1;                                                           \
         }                                                                                      \
@@ -155,9 +248,16 @@
 // 无符号8位
 #define TEST_ASSERT_EQUAL_U8(expected, actual)                                                 \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         uint8_t _e = (uint8_t)(expected);                                                      \
         uint8_t _a = (uint8_t)(actual);                                                        \
         if (_e != _a) {                                                                        \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%u (0x%02X)", (unsigned int)_e, (unsigned int)_e); \
+            snprintf(_a_buf, sizeof(_a_buf), "%u (0x%02X)", (unsigned int)_a, (unsigned int)_a); \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected u8 %u (0x%02X), got %u (0x%02X)\n",          \
                    __FILE__, __LINE__, (unsigned int)_e, (unsigned int)_e,                   \
                    (unsigned int)_a, (unsigned int)_a);                                        \
@@ -194,9 +294,16 @@
 // 有符号8位
 #define TEST_ASSERT_EQUAL_I8(expected, actual)                                                 \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         int8_t _e = (int8_t)(expected);                                                        \
         int8_t _a = (int8_t)(actual);                                                          \
         if (_e != _a) {                                                                        \
+            char _e_buf[32]; char _a_buf[32];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "%d (0x%02X)", (int)_e, (unsigned int)(uint8_t)_e); \
+            snprintf(_a_buf, sizeof(_a_buf), "%d (0x%02X)", (int)_a, (unsigned int)(uint8_t)_a); \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #expected " == " #actual, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, expected i8 %d (0x%02X), got %d (0x%02X)\n",           \
                    __FILE__, __LINE__, (int)_e, (unsigned int)(uint8_t)_e,                   \
                    (int)_a, (unsigned int)(uint8_t)_a);                                        \
@@ -239,9 +346,16 @@
 // 8位无符号比较（处理有符号/无符号8位值混用）
 #define TEST_ASSERT_EQUAL_U8_BITS(value1, value2)                                              \
     do {                                                                                       \
+        test_assertion_inc();                                                                  \
         uint8_t _v1 = (uint8_t)(value1);                                                       \
         uint8_t _v2 = (uint8_t)(value2);                                                       \
         if (_v1 != _v2) {                                                                      \
+            char _e_buf[64]; char _a_buf[64];                                                  \
+            snprintf(_e_buf, sizeof(_e_buf), "0x%02X (decimal: %u, signed: %d)", (unsigned int)_v1, (unsigned int)_v1, (int)(int8_t)_v1); \
+            snprintf(_a_buf, sizeof(_a_buf), "0x%02X (decimal: %u, signed: %d)", (unsigned int)_v2, (unsigned int)_v2, (int)(int8_t)_v2); \
+            if (test_is_structured_output_enabled()) {                                         \
+                test_assert_failed_detail(__FILE__, __LINE__, #value1 " == " #value2, _e_buf, _a_buf); \
+            }                                                                                  \
             printf("Test failed: %s:%d, 8-bit mismatch: 0x%02X != 0x%02X "                    \
                    "(decimal: %u != %u, signed: %d != %d)\n",                                  \
                    __FILE__, __LINE__, (unsigned int)_v1, (unsigned int)_v2,                 \
@@ -383,6 +497,11 @@ void test_set_structured_output(bool enable);
  * @brief 获取结构化输出启用状态
  */
 bool test_is_structured_output_enabled(void);
+
+/**
+ * @brief 增加当前测试的断言计数（每个断言调用时都应调用）
+ */
+void test_assertion_inc(void);
 
 #endif   // !LIBCA_CORE_TEST_H
 

@@ -80,6 +80,15 @@ bool test_is_structured_output_enabled(void)
     return g_use_structured_output;
 }
 
+/*
+ * 增加断言计数的简单接口：每个断言宏在被执行时应调用它一次
+ * 这样 test.c 内部维护的 g_current_assertion_count 会被更新
+ */
+void test_assertion_inc(void)
+{
+    g_current_assertion_count++;
+}
+
 void test_suite_begin(const char* suite_name)
 {
     if (!g_use_structured_output) return;
