@@ -419,8 +419,6 @@ static int json_formatter_on_event(test_formatter_t* self,
             
         case TEST_EVENT_ASSERT_FAIL:
             /* 调试：记录是否触发 */
-            fprintf(stderr, "[json-formatter] ASSERT_FAIL event received for %s:%u\n", data->assert_fail.file ? data->assert_fail.file : "unknown", data->assert_fail.line);
-
             /* 如果是第一次失败，需要输出 failures 数组开头 */
             if (fmt_data->first_assert) {
                 fmt_data->first_assert = false;
