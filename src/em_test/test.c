@@ -103,10 +103,10 @@ void test_print(const char* fmt, ...)
     va_end(ap);
 }
 
-void test_report_failure(const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...)
+void test_report_failure(const char* file, uint32_t line, const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...)
 {
     if (test_is_structured_output_enabled()) {
-        test_assert_failed_detail(__FILE__, __LINE__, expression, expected_str, actual_str);
+        test_assert_failed_detail(file, line, expression, expected_str, actual_str);
     }
 
     va_list ap;

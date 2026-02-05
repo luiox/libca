@@ -55,7 +55,7 @@
     do { snprintf((buf), sizeof(buf), (fmt), (val)); } while (0)
 
 /* 输出封装：统一上报并打印（方便将来替换输出实现） */
-void test_report_failure(const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...);
+void test_report_failure(const char* file, uint32_t line, const char* expression, const char* expected_str, const char* actual_str, const char* printf_fmt, ...);
 void test_print(const char* fmt, ...);
 
 /* 通用比较宏模板：
@@ -72,7 +72,8 @@ void test_print(const char* fmt, ...);
             char __e_buf[128]; char __a_buf[128];                                                  \
             TEST__SNPRINTF(__e_buf, (e_fmt), (expected));                                          \
             TEST__SNPRINTF(__a_buf, (a_fmt), (actual));                                            \
-            test_report_failure((expr_str), __e_buf, __a_buf, (printf_fmt), __VA_ARGS__);           \
+            test_report_failure(__FILE__, __LINE__, (expr_str), __e_buf, __a_buf, (printf_fmt), __VA_ARGS__);           \
+            current_test_failed = 1;                                                               \
         }                                                                                          \
     } while (0)
 
