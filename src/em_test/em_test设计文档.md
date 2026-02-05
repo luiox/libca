@@ -1,4 +1,4 @@
-# em_test 实现原理
+# em_test 设计文档
 
 本文档介绍 em_test 测试框架的内部实现机制，包括测试用例的自动收集、插件架构等核心原理。
 
@@ -229,25 +229,193 @@ int test_file_recorder_init(const char* filepath, int append) {
 }
 ```
 
-### 2.5 生命周期事件
+### 2.5 插件自动注册机制
 
-虽然当前实现简化了生命周期，但预留了扩展点：
+#### 2.5.1 设计目标
+
+实现类似 `TEST_CASE` 的插件自动收集机制：
+- **零配置**：添加插件文件即可，无需修改main
+- **自动初始化**：框架自动调用插件初始化函数
+- **批量注册**：支持多个插件并存
+
+#### 2.5.2 实现原理
+
+插件自动注册机制与测试用例收集机制完全类似：
+
+**1. 插件结构体**
 
 ```c
 typedef struct {
-    void (*on_suite_start)(int test_count);
-    void (*on_test_start)(const char* name);
-    void (*on_assert_fail)(const char* file, int line, ...);
-    void (*on_test_end)(const char* name, int passed);
-    void (*on_suite_end)(int passed, int failed);
+    const char* name;                           // 插件名称
+    test_plugin_init_fn init;                   // 初始化函数
+    test_plugin_cleanup_fn cleanup;             // 清理函数
+    test_plugin_suite_start_fn suite_start;     // 套件开始回调
+    test_plugin_suite_end_fn suite_end;         // 套件结束回调
+    test_plugin_test_start_fn test_start;       // 测试开始回调
+    test_plugin_test_end_fn test_end;           // 测试结束回调
+    test_plugin_assert_fail_fn assert_fail;     // 断言失败回调
+    void* user_data;                            // 用户数据
 } test_plugin_t;
 ```
 
-**未来扩展方向：**
-- JSON/XML 报告生成器
-- IDE 集成插件
-- CI/CD 集成插件
-- 性能分析插件
+**2. 独立的 Section**
+
+插件使用单独的 section `test_plugin`（MSVC: `.tplugin$m`）：
+
+```c
+#if defined(_MSC_VER)
+#    pragma section(".tplugin$a", read)
+#    pragma section(".tplugin$m", read)
+#    pragma section(".tplugin$z", read)
+#    define TEST_PLUGIN_ALLOC __declspec(allocate(".tplugin$m"))
+#else
+#    define TEST_PLUGIN_ALLOC __attribute__((used, section("test_plugin")))
+#endif
+```
+
+**3. 自动注册宏 TEST_PLUGIN_REGISTER**
+
+```c
+#define TEST_PLUGIN_REGISTER(plugin_name, init_func)                                           \
+    static void init_func(void);                                                               \
+    static const test_plugin_t test_plugin_data_##plugin_name = {                              \
+        CA_MAKE_STRING(plugin_name),                                                           \
+        init_func,                                                                             \
+        NULL, NULL, NULL, NULL, NULL, NULL,                                                    \
+        NULL                                                                                   \
+    };                                                                                         \
+    static TEST_PLUGIN_ALLOC const test_plugin_t* test_plugin_ptr_##plugin_name = &test_plugin_data_##plugin_name
+```
+
+**展开后示例：**
+
+```c
+TEST_PLUGIN_REGISTER(json_reporter, json_init);
+```
+
+展开为：
+
+```c
+static void json_init(void);
+static const test_plugin_t test_plugin_data_json_reporter = {
+    "json_reporter",
+    json_init,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL
+};
+static __attribute__((used, section("test_plugin"))) 
+    const test_plugin_t* test_plugin_ptr_json_reporter = &test_plugin_data_json_reporter;
+```
+
+**4. 批量初始化**
+
+在 `run_tests()` 中自动遍历并初始化所有插件：
+
+```c
+static void test_plugins_init(void) {
+#if defined(_MSC_VER)
+    const test_plugin_t** begin = (const test_plugin_t**)&_plugin_start;
+    const test_plugin_t** end   = (const test_plugin_t**)&_plugin_stop;
+    
+    for (const test_plugin_t** it = begin; it <= end; it++) {
+        if (*it != NULL && (*it)->name != NULL && (*it)->init != NULL) {
+            (*it)->init();  // 调用插件初始化函数
+        }
+    }
+#else
+    // GCC/Clang 版本...
+#endif
+}
+```
+
+#### 2.5.3 生命周期调用
+
+```
+run_tests()
+    ├─ test_plugins_init()          // 1. 批量初始化所有插件
+    │   └─ 遍历所有 TEST_PLUGIN_REGISTER 注册的插件
+    │       └─ 调用 plugin->init()
+    │           └─ 插件在init中设置回调函数
+    │
+    ├─ g_plugin_suite_start()       // 2. 套件开始
+    │
+    ├─ 遍历测试:
+    │   ├─ g_plugin_test_start()    // 3. 测试开始
+    │   ├─ 执行测试...
+    │   └─ g_plugin_test_end()      // 4. 测试结束
+    │
+    ├─ g_plugin_suite_end()         // 5. 套件结束
+    │
+    └─ test_plugins_cleanup()       // 6. 批量清理所有插件
+```
+
+#### 2.5.4 与测试用例机制的对比
+
+| 特性 | TEST_CASE | TEST_PLUGIN_REGISTER |
+|-----|-----------|---------------------|
+| Section | `test_array` / `.test$m` | `test_plugin` / `.tplugin$m` |
+| 存储内容 | `test_t*` 指针 | `test_plugin_t*` 指针 |
+| 自动收集 | ✓ | ✓ |
+| 批量处理 | `run_tests()` 遍历 | `test_plugins_init()` 遍历 |
+| 用户代码 | 在宏内定义测试函数 | 在宏外定义init函数 |
+| 配置方式 | 无需配置 | 在init函数中设置回调 |
+
+#### 2.5.5 使用示例
+
+**插件实现：**
+
+```c
+// json_reporter.c
+#include "test.h"
+#include <stdio.h>
+
+static FILE* g_report = NULL;
+
+static void json_suite_start(int test_count) {
+    g_report = fopen("report.json", "w");
+    fprintf(g_report, "{\"tests\": [");
+}
+
+static void json_test_end(const char* name, int passed) {
+    fprintf(g_report, "{\"name\":\"%s\",\"status\":\"%s\"},",
+            name, passed ? "passed" : "failed");
+}
+
+static void json_suite_end(int passed, int failed) {
+    fprintf(g_report, "],\"passed\":%d,\"failed\":%d}", passed, failed);
+    fclose(g_report);
+}
+
+// 初始化函数 - 设置回调
+static void json_init(void) {
+    test_plugin_set_suite_start(json_suite_start);
+    test_plugin_set_test_end(json_test_end);
+    test_plugin_set_suite_end(json_suite_end);
+}
+
+// 自动注册 - 只需一行！
+TEST_PLUGIN_REGISTER(json_reporter, json_init);
+```
+
+**用户使用：**
+
+```c
+// main.c
+#include "test.h"
+
+int main() {
+    return run_tests();  // 插件自动生效！
+}
+```
+
+**构建：**
+
+```lua
+-- xmake.lua
+target("my_test")
+    add_files("main.c")
+    add_files("json_reporter.c")  -- 添加即可，自动注册
+```
 
 ---
 
@@ -396,21 +564,37 @@ target("my_test")
 
 ### 7.1 查看 Section 内容
 
-**Linux/GCC：**
+**测试用例 Section：**
 
 ```bash
-# 查看 section 大小
+# Linux/GCC
 readelf -S my_test | grep test_array
-
-# 查看 section 内容
 readelf -p test_array my_test
+
+# Windows/MSVC
+dumpbin /SECTION:.test$m my_test.exe
 ```
 
-**Windows/MSVC：**
+**插件 Section：**
 
 ```bash
-# 查看 section
-dumpbin /SECTION:.test$m my_test.exe
+# Linux/GCC
+readelf -S my_test | grep test_plugin
+readelf -p test_plugin my_test
+
+# Windows/MSVC
+dumpbin /SECTION:.tplugin$m my_test.exe
+```
+
+**查看所有 section：**
+
+```bash
+# 查看 section 数量和大小
+readelf -S my_test | grep -E "(test_array|test_plugin)"
+
+# 典型输出：
+# [25] test_array        PROGBITS  0000000000000000 001000 000180 00   0   0  8
+# [26] test_plugin       PROGBITS  0000000000000000 001180 000040 00   0   0  8
 ```
 
 ### 7.2 验证测试收集
@@ -442,6 +626,28 @@ for (const test_t** t = begin; t < end; t++) {
 - 确认 section 名称无冲突
 - 验证内存对齐
 
+**问题4：插件未被收集**
+- 检查是否使用了 `TEST_PLUGIN_REGISTER` 宏
+- 确认插件文件被添加到编译
+- 查看 `test_plugin` section 是否存在
+
+```bash
+# 检查插件section
+readelf -S my_test | grep test_plugin
+```
+
+**问题5：插件回调未生效**
+- 确认在 `init` 函数中设置了回调
+- 检查回调函数是否正确实现
+- 在 `init` 函数中添加调试输出确认被调用
+
+```c
+static void my_plugin_init(void) {
+    printf("Plugin init called\n");  // 调试用
+    test_plugin_set_suite_start(my_callback);
+}
+```
+
 ---
 
 ## 8. 扩展指南
@@ -463,13 +669,147 @@ void test_assert_eq_custom(...) {
 }
 ```
 
-### 8.2 实现新插件
+### 8.2 实现新插件（使用 TEST_PLUGIN_REGISTER）
 
-1. 创建插件文件
-2. 实现输出回调
-3. 提供初始化/清理函数
+**步骤1：创建插件文件**
 
-示例见 `simple_file_recorder.c`
+```c
+// my_plugin.c
+#include "test.h"
+#include <stdio.h>
+```
+
+**步骤2：定义回调函数**
+
+```c
+// 私有数据
+static FILE* g_log = NULL;
+static int g_test_count = 0;
+
+// 套件开始回调
+static void my_suite_start(int test_count) {
+    g_log = fopen("my_plugin.log", "w");
+    fprintf(g_log, "Starting %d tests\n", test_count);
+    g_test_count = 0;
+}
+
+// 测试开始回调
+static void my_test_start(const char* test_name) {
+    fprintf(g_log, "[%d] Running: %s\n", ++g_test_count, test_name);
+}
+
+// 测试结束回调
+static void my_test_end(const char* test_name, int passed) {
+    fprintf(g_log, "    Result: %s\n", passed ? "PASS" : "FAIL");
+}
+
+// 套件结束回调
+static void my_suite_end(int passed, int failed) {
+    fprintf(g_log, "Finished: %d passed, %d failed\n", passed, failed);
+    fclose(g_log);
+    g_log = NULL;
+}
+```
+
+**步骤3：实现初始化函数**
+
+```c
+// 插件初始化函数 - 在此注册所有回调
+static void my_plugin_init(void) {
+    // 设置需要的回调（可选）
+    test_plugin_set_suite_start(my_suite_start);
+    test_plugin_set_test_start(my_test_start);
+    test_plugin_set_test_end(my_test_end);
+    test_plugin_set_suite_end(my_suite_end);
+    
+    // 可以在此处打开文件、连接网络等
+    printf("My plugin loaded\n");
+}
+
+// 可选：实现清理函数
+static void my_plugin_cleanup(void) {
+    // 关闭资源
+    if (g_log) {
+        fclose(g_log);
+        g_log = NULL;
+    }
+}
+```
+
+**步骤4：自动注册插件**
+
+```c
+// 关键：使用 TEST_PLUGIN_REGISTER 自动注册
+TEST_PLUGIN_REGISTER(my_plugin, my_plugin_init);
+```
+
+**完整示例：**
+
+```c
+// jenkins_reporter.c
+#include "test.h"
+#include <stdio.h>
+#include <time.h>
+
+static FILE* g_xml = NULL;
+
+static void xml_suite_start(int test_count) {
+    g_xml = fopen("test_result.xml", "w");
+    fprintf(g_xml, "<?xml version=\"1.0\"?>\n");
+    fprintf(g_xml, "<testsuites>\n");
+    fprintf(g_xml, "  <testsuite name=\"em_test\" tests=\"%d\">\n", test_count);
+}
+
+static void xml_test_end(const char* name, int passed) {
+    fprintf(g_xml, "    <testcase name=\"%s\">\n", name);
+    if (!passed) {
+        fprintf(g_xml, "      <failure/>\n");
+    }
+    fprintf(g_xml, "    </testcase>\n");
+}
+
+static void xml_suite_end(int passed, int failed) {
+    fprintf(g_xml, "  </testsuite>\n");
+    fprintf(g_xml, "</testsuites>\n");
+    fclose(g_xml);
+}
+
+static void xml_init(void) {
+    test_plugin_set_suite_start(xml_suite_start);
+    test_plugin_set_test_end(xml_test_end);
+    test_plugin_set_suite_end(xml_suite_end);
+}
+
+TEST_PLUGIN_REGISTER(jenkins_reporter, xml_init);
+```
+
+**使用插件：**
+
+```lua
+-- xmake.lua
+target("my_test")
+    add_files("main.c")
+    add_files("jenkins_reporter.c")  -- 自动注册！
+```
+
+```c
+// main.c
+#include "test.h"
+
+int main() {
+    return run_tests();  // 插件自动生效
+}
+```
+
+**回调选择指南：**
+
+| 如果你需要 | 设置回调 |
+|-----------|---------|
+| 打开输出文件 | `suite_start` |
+| 写入测试开始信息 | `test_start` |
+| 写入测试结果 | `test_end` |
+| 关闭文件并生成报告 | `suite_end` |
+| 实时捕获断言失败 | `assert_fail` |
 
 ---
 

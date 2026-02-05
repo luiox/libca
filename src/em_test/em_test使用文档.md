@@ -1,4 +1,4 @@
-# em_test 使用手册
+# em_test 使用文档
 
 ## 目录
 
@@ -204,23 +204,104 @@ int main() {
 }
 ```
 
-### 3.5 文件输出插件
+### 3.5 插件自动注册（推荐）
 
-框架提供简单的文件记录器插件：
+em_test 支持插件的**自动注册机制**，类似于 `TEST_CASE` 的自动收集。
+
+#### 使用 TEST_PLUGIN_REGISTER
+
+只需一行代码即可注册插件：
 
 ```c
+// my_plugin.c
 #include "test.h"
-#include "simple_file_recorder.h"
+#include <stdio.h>
+
+/* 插件初始化函数 - 在此注册回调 */
+static void my_plugin_init(void) {
+    // 设置各种回调函数
+    test_plugin_set_suite_start(my_suite_start);
+    test_plugin_set_test_start(my_test_start);
+    test_plugin_set_test_end(my_test_end);
+    test_plugin_set_suite_end(my_suite_end);
+}
+
+/* 自动注册插件 */
+TEST_PLUGIN_REGISTER(my_plugin, my_plugin_init);
+```
+
+#### 插件生命周期回调
+
+| 回调设置函数 | 参数 | 触发时机 |
+|-------------|------|---------|
+| `test_plugin_set_suite_start(fn)` | `int test_count` | 测试套件开始时 |
+| `test_plugin_set_test_start(fn)` | `const char* test_name` | 单个测试开始时 |
+| `test_plugin_set_test_end(fn)` | `const char* test_name, int passed` | 单个测试结束时 |
+| `test_plugin_set_suite_end(fn)` | `int passed, int failed` | 测试套件结束时 |
+| `test_plugin_set_assert_fail(fn)` | `const char* file, int line, const char* expr` | 断言失败时 |
+
+#### 完整插件示例
+
+```c
+// json_reporter.c
+#include "test.h"
+#include <stdio.h>
+
+static FILE* g_report = NULL;
+
+static void json_suite_start(int test_count) {
+    g_report = fopen("test_report.json", "w");
+    fprintf(g_report, "{\n  \"tests\": [\n");
+}
+
+static void json_test_start(const char* name) {
+    fprintf(g_report, "    {\"name\": \"%s\", \"status\": \"running\"", name);
+}
+
+static void json_test_end(const char* name, int passed) {
+    fprintf(g_report, ", \"result\": \"%s\"},\n", passed ? "passed" : "failed");
+}
+
+static void json_suite_end(int passed, int failed) {
+    fprintf(g_report, "  ],\n  \"summary\": {\"passed\": %d, \"failed\": %d}\n}\n", passed, failed);
+    fclose(g_report);
+}
+
+static void json_plugin_init(void) {
+    test_plugin_set_suite_start(json_suite_start);
+    test_plugin_set_test_start(json_test_start);
+    test_plugin_set_test_end(json_test_end);
+    test_plugin_set_suite_end(json_suite_end);
+}
+
+/* 自动注册插件 - 只需添加此文件即可 */
+TEST_PLUGIN_REGISTER(json_reporter, json_plugin_init);
+```
+
+#### 使用插件
+
+将插件文件添加到项目中即可，**无需在main中初始化**：
+
+```c
+// main.c - 无需修改
+#include "test.h"
+
+TEST_CASE(test_example) {
+    TEST_ASSERT(2 + 2 == 4);
+}
 
 int main() {
-    // 启用文件记录（同时保留终端输出）
-    test_file_recorder_init("report.txt", 0);  // 0=覆盖, 1=追加
-    
-    int result = run_tests();
-    
-    test_file_recorder_close();
-    return result;
+    return run_tests();  // 插件自动生效
 }
+```
+
+```lua
+-- xmake.lua
+target("my_test")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("main.c")
+    add_files("json_reporter.c")  -- 添加插件文件，自动注册
 ```
 
 ---
@@ -271,12 +352,9 @@ TEST_CASE(test_feature) {
 ```c
 // my_test.c
 #include "test.h"
-#include "simple_file_recorder.h"
 
 int main() {
-    test_file_recorder_init("report.txt", 0);
     int result = run_tests();
-    test_file_recorder_close();
     return result;
 }
 ```
@@ -290,7 +368,7 @@ target("my_test")
         use_default_main = false    -- 使用自定义main
     })
     add_files("my_test.c")
-    add_files("simple_file_recorder.c")  -- 添加插件
+    add_files("json_reporter.c")  -- 添加插件文件，自动注册
 ```
 
 ### 4.4 运行测试
