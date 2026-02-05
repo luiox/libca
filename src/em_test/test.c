@@ -168,6 +168,8 @@ void test_assert_failed_detail(const char* file, uint32_t line,
                                 const char* actual)
 {
     if (!g_use_structured_output) return;
+
+    fprintf(stderr, "[test] emit ASSERT_FAIL for %s:%u expr=%s\n", file ? file : "unknown", line, expression ? expression : "(null)");
     
     test_assert_fail_info_t fail_info = {
         .file = file,
