@@ -332,11 +332,6 @@ int run_tests(void) {
     
     /* 初始化所有插件 */
     test_plugins_init();
-    
-    /* 通知插件测试套件开始 */
-    if (g_plugin_suite_start) {
-        g_plugin_suite_start(0);  // 暂时传0，后面更新
-    }
 
 #if defined(_MSC_VER)
     const test_t** begin = (const test_t**)&_test_start;

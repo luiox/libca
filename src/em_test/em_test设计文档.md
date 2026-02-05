@@ -290,21 +290,21 @@ typedef struct {
 **展开后示例：**
 
 ```c
-TEST_PLUGIN_REGISTER(json_reporter, json_init);
+TEST_PLUGIN_REGISTER(file_recorder, file_recorder_init);
 ```
 
 展开为：
 
 ```c
-static void json_init(void);
-static const test_plugin_t test_plugin_data_json_reporter = {
-    "json_reporter",
-    json_init,
+static void file_recorder_init(void);
+static const test_plugin_t test_plugin_data_file_recorder = {
+    "file_recorder",
+    file_recorder_init,
     NULL, NULL, NULL, NULL, NULL, NULL,
     NULL
 };
 static __attribute__((used, section("test_plugin"))) 
-    const test_plugin_t* test_plugin_ptr_json_reporter = &test_plugin_data_json_reporter;
+    const test_plugin_t* test_plugin_ptr_file_recorder = &test_plugin_data_file_recorder;
 ```
 
 **4. 批量初始化**
@@ -362,39 +362,64 @@ run_tests()
 
 #### 2.5.5 使用示例
 
-**插件实现：**
+**插件实现（simple_file_recorder）：**
 
 ```c
-// json_reporter.c
+// simple_file_recorder.c
 #include "test.h"
 #include <stdio.h>
+#include <stdlib.h>
 
-static FILE* g_report = NULL;
+static FILE* g_fp = NULL;
 
-static void json_suite_start(int test_count) {
-    g_report = fopen("report.json", "w");
-    fprintf(g_report, "{\"tests\": [");
+static void file_suite_start(int test_count) {
+    // 从环境变量获取文件名，默认 test_report.txt
+    const char* filepath = getenv("EM_TEST_REPORT_FILE");
+    if (filepath == NULL) {
+        filepath = "test_report.txt";
+    }
+    
+    g_fp = fopen(filepath, "w");
+    if (g_fp == NULL) {
+        fprintf(stderr, "Warning: em_test file_recorder plugin failed to open report file '%s'.\n", filepath);
+        return;
+    }
+    
+    fprintf(g_fp, "Test Suite Started: %d tests\n", test_count);
+    fprintf(g_fp, "================================\n");
 }
 
-static void json_test_end(const char* name, int passed) {
-    fprintf(g_report, "{\"name\":\"%s\",\"status\":\"%s\"},",
-            name, passed ? "passed" : "failed");
+static void file_test_start(const char* name) {
+    if (g_fp) {
+        fprintf(g_fp, "[RUN] %s\n", name);
+    }
 }
 
-static void json_suite_end(int passed, int failed) {
-    fprintf(g_report, "],\"passed\":%d,\"failed\":%d}", passed, failed);
-    fclose(g_report);
+static void file_test_end(const char* name, int passed) {
+    if (g_fp) {
+        fprintf(g_fp, "[%s] %s\n", passed ? "PASS" : "FAIL", name);
+    }
+}
+
+static void file_suite_end(int passed, int failed) {
+    if (g_fp) {
+        fprintf(g_fp, "================================\n");
+        fprintf(g_fp, "Results: %d passed, %d failed\n", passed, failed);
+        fclose(g_fp);
+        g_fp = NULL;
+    }
 }
 
 // 初始化函数 - 设置回调
-static void json_init(void) {
-    test_plugin_set_suite_start(json_suite_start);
-    test_plugin_set_test_end(json_test_end);
-    test_plugin_set_suite_end(json_suite_end);
+static void file_recorder_init(void) {
+    test_plugin_set_suite_start(file_suite_start);
+    test_plugin_set_test_start(file_test_start);
+    test_plugin_set_test_end(file_test_end);
+    test_plugin_set_suite_end(file_suite_end);
 }
 
 // 自动注册 - 只需一行！
-TEST_PLUGIN_REGISTER(json_reporter, json_init);
+TEST_PLUGIN_REGISTER(file_recorder, file_recorder_init);
 ```
 
 **用户使用：**
@@ -414,7 +439,22 @@ int main() {
 -- xmake.lua
 target("my_test")
     add_files("main.c")
-    add_files("json_reporter.c")  -- 添加即可，自动注册
+    add_files("simple_file_recorder.c")  -- 添加即可，自动注册
+```
+
+**输出文件示例：**
+
+```
+Test Suite Started: 3 tests
+================================
+[RUN] test_add
+[PASS] test_add
+[RUN] test_subtract
+[PASS] test_subtract
+[RUN] test_divide
+[FAIL] test_divide
+================================
+Results: 2 passed, 1 failed
 ```
 
 ---

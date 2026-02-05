@@ -132,8 +132,7 @@ extern const test_plugin_t* __start_test_plugin[] __attribute__((visibility("hid
 extern const test_plugin_t* __stop_test_plugin[] __attribute__((visibility("hidden")));
 #endif
 
-/* 插件管理API */
-void test_plugin_register(test_plugin_t* plugin);
+/* 插件回调设置API（在插件init函数中调用） */
 void test_plugin_set_suite_start(test_plugin_suite_start_fn fn);
 void test_plugin_set_suite_end(test_plugin_suite_end_fn fn);
 void test_plugin_set_test_start(test_plugin_test_start_fn fn);
@@ -237,18 +236,18 @@ void test_assert_eq_mem(const char* file, int line, const char* expr_p1, const c
  * 兼容旧 API（全部映射到新的 TEST_ 前缀宏）
  * ============================================================ */
 
-/* 旧宏映射到新宏 */
-#define TEST_ASSERT_EQUAL_INT(e, a)     TEST_ASSERT((e) == (a))
-#define TEST_ASSERT_EQUAL_UINT(e, a)    TEST_ASSERT((e) == (a))
-#define TEST_ASSERT_EQUAL_FLOAT(e, a)   TEST_ASSERT(fabsf((e) - (a)) < TEST_EPSILON_F32)
+/* 旧宏映射到新宏（保留详细失败报告） */
+#define TEST_ASSERT_EQUAL_INT(e, a)     TEST_EXPECT_EQ_I32(e, a)
+#define TEST_ASSERT_EQUAL_UINT(e, a)    TEST_EXPECT_EQ_U32(e, a)
+#define TEST_ASSERT_EQUAL_FLOAT(e, a)   TEST_EXPECT_EQ_F32(e, a)
 #define TEST_ASSERT_EQUAL_STRING(e, a)  TEST_EXPECT_EQ_STR(e, a)
 #define TEST_ASSERT_NOT_EQUAL_INT(e, a) TEST_ASSERT((e) != (a))
 #define TEST_ASSERT_NOT_EQUAL_UINT(e, a) TEST_ASSERT((e) != (a))
-#define TEST_ASSERT_TRUE(c)             TEST_ASSERT(c)
-#define TEST_ASSERT_FALSE(c)            TEST_ASSERT(!(c))
+#define TEST_ASSERT_TRUE(c)             TEST_EXPECT_EQ_TRUE(c)
+#define TEST_ASSERT_FALSE(c)            TEST_EXPECT_EQ_FALSE(c)
 #define TEST_ASSERT_NULL(p)             TEST_EXPECT_NULL(p)
 #define TEST_ASSERT_NOT_NULL(p)         TEST_EXPECT_NOT_NULL(p)
-#define TEST_ASSERT_EQUAL_PTR(e, a)     TEST_ASSERT((e) == (a))
+#define TEST_ASSERT_EQUAL_PTR(e, a)     TEST_ASSERT((void*)(e) == (void*)(a))
 #define TEST_ASSERT_EQUAL_MEMORY(e, a, s) TEST_EXPECT_EQ_MEM(e, a, s)
 #define TEST_ASSERT_INT_WITHIN(min, max, a) TEST_ASSERT((a) >= (min) && (a) <= (max))
 #define TEST_ASSERT_UINT_WITHIN(min, max, a) TEST_ASSERT((a) >= (min) && (a) <= (max))

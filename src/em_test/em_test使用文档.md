@@ -499,11 +499,12 @@ TEST_CASE(test_add) {
 }
 
 // main.c
+// 无需包含 simple_file_recorder.h
+// 无需手动调用初始化/关闭函数
+
 int main() {
-    test_file_recorder_init("test_report.txt", 0);
-    int result = run_tests();
-    test_file_recorder_close();
-    return result;
+    // 插件将自动被初始化和执行
+    return run_tests();
 }
 ```
 
@@ -518,7 +519,7 @@ target("test-calculator")
     add_files("calculator.c")      -- 被测代码
     add_files("calculator_test.c") -- 测试代码
     add_files("main.c")            -- 自定义main
-    add_files("simple_file_recorder.c")
+    add_files("simple_file_recorder.c")  -- 添加插件文件，自动注册
 ```
 
 ---
