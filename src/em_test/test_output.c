@@ -388,6 +388,7 @@ static int json_formatter_on_event(test_formatter_t* self,
                 fprintf(fp, ",\n");
             }
             fmt_data->first_test = false;
+            /* 在每个新测试开始时，重置断言标记（用于判断是否有失败详情） */
             fmt_data->first_assert = true;
             fprintf(fp, "      {\n");
             fprintf(fp, "        \"name\": \"%s\",\n", data->test.name ? data->test.name : "unnamed");
@@ -396,6 +397,11 @@ static int json_formatter_on_event(test_formatter_t* self,
             break;
             
         case TEST_EVENT_TEST_END:
+            /* 如果之前有断言失败写入了 failures 数组，则需要关闭数组 */
+            if (!fmt_data->first_assert) {
+                fprintf(fp, "\n        ],\n");
+            }
+
             if (data->test.passed) {
                 fprintf(fp, "        \"status\": \"passed\",\n");
                 fprintf(fp, "        \"duration_ms\": %llu,\n",
@@ -406,20 +412,20 @@ static int json_formatter_on_event(test_formatter_t* self,
                 fprintf(fp, "        \"status\": \"failed\",\n");
                 fprintf(fp, "        \"duration_ms\": %llu,\n",
                     (unsigned long long)(data->test.end_time_ms - data->test.start_time_ms));
-                fprintf(fp, "        \"assertions\": %u,\n", data->test.assertion_count);
-                fprintf(fp, "        \"failures\": [\n");
-                // 如果有失败详情，在这里输出
-                // 注意：ASSERT_FAIL 事件应该在 TEST_END 之前发送
-                fprintf(fp, "        ]\n");
+                fprintf(fp, "        \"assertions\": %u\n", data->test.assertion_count);
                 fprintf(fp, "      }");
             }
             break;
             
         case TEST_EVENT_ASSERT_FAIL:
-            if (!fmt_data->first_assert) {
+            /* 如果是第一次失败，需要输出 failures 数组开头 */
+            if (fmt_data->first_assert) {
+                fmt_data->first_assert = false;
+                fprintf(fp, "        \"failures\": [\n");
+            } else {
                 fprintf(fp, ",\n");
             }
-            fmt_data->first_assert = false;
+
             fprintf(fp, "          {\n");
             fprintf(fp, "            \"file\": \"%s\",\n", 
                 data->assert_fail.file ? data->assert_fail.file : "");
