@@ -1,0 +1,31 @@
+# modules.toml
+
+[libca.em_base]
+path = "src/em_base"
+files = ["*.c"]
+macros = [
+    "CA_USE_CUSTOM_DEBUG_CONFIG", 
+    "CA_USE_DEBUG_MODE", 
+    "CA_USE_DEBUG_ASSERT",
+    "CA_USE_PARAM_CHECK",
+    "CA_PRINT_BUFFER_SIZE",
+    "CA_PRINT_NEWLINE"
+]
+
+[libca.em_util]
+path = "src/em_util"
+files = ["crc.c"]
+
+[libca.em_shell]
+path = "src/em_shell"
+files = ["shell.c"]
+
+[modules.em_driver]
+desc = "Hardware drivers"
+path = "src/em_driver"
+options = {
+    "dht11",
+    "as5600"
+}
+
+
