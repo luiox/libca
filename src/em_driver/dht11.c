@@ -39,10 +39,14 @@ static i32 dht11_reset_and_start(dht11_t* self)
 {
     if (!g_dht11_port) return DHT11_ERR_PORT_NOT_REGISTERED;
 
-    // 输出模式（已经是输出，无需重新配置）
-    // 主机拉低
+    // 先确保输出模式并拉高2ms，让DHT11复位到空闲状态
+    // 这在中断通信后很重要，可以让DHT11从任何异常状态恢复
+    DHT11_OUTPUT_MODE(self);
+    DHT11_WRITE(self, 1);
+    DHT11_DELAY_MS(2);
+
+    // 主机拉低至少18ms
     DHT11_WRITE(self, 0);
-    // 延时18ms（ref代码是18ms）
     DHT11_DELAY_MS(18);
 
     // 总线拉高，主机延时30us
@@ -110,29 +114,45 @@ i32 dht11_read(dht11_t* self, u16* humidity, i16* temperature)
     if (!self) return DHT11_ERR_INVALID_PARAM;
 
     u8 buf[5];
-    i32 ret = dht11_reset_and_start(self);
-    if (ret != DHT11_OK) return ret;
+    i32 ret;
 
+    // 步骤1: 发送起始信号
+    ret = dht11_reset_and_start(self);
+    if (ret != DHT11_OK) {
+        // 错误时恢复总线状态
+        goto cleanup;
+    }
+
+    // 步骤2: 检查DHT11响应
     ret = dht11_check_response(self);
-    if (ret != DHT11_OK) return ret;
+    if (ret != DHT11_OK) {
+        goto cleanup;
+    }
 
+    // 步骤3: 读取40位数据
     for (int i = 0; i < 5; i++) {
         buf[i] = dht11_read_byte(self);
     }
 
+    // 步骤4: 校验数据
     if ((u8)(buf[0] + buf[1] + buf[2] + buf[3]) != buf[4]) {
         debug_print("[dht11] checksum fail\n");
-        return DHT11_ERR_CHECKSUM_FAIL;
+        ret = DHT11_ERR_CHECKSUM_FAIL;
+        goto cleanup;
     }
 
+    // 成功，解析数据
     // DHT11数据格式：buf[0]=湿度整数, buf[1]=湿度小数(0), buf[2]=温度整数, buf[3]=温度小数(0)
-    // 实际DHT11通常只使用整数部分，但为了兼容性乘以10保持0.1精度单位
     if (humidity) *humidity = (u16)(buf[0]) * 10;      // 转换为0.1%单位
     if (temperature) *temperature = (i16)(buf[2]) * 10; // 转换为0.1°C单位
     
-    // 读取完成，设为输出并拉高（与ref代码一致）
+    ret = DHT11_OK;
+
+cleanup:
+    // 无论成功还是失败，都将总线设为输出并拉高
+    // 这确保下次通信从确定状态开始，提高健壮性
     DHT11_OUTPUT_MODE(self);
     DHT11_WRITE(self, 1);
 
-    return DHT11_OK;
+    return ret;
 }
