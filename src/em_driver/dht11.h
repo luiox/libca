@@ -42,6 +42,11 @@ typedef struct dht11 {
 #define DHT11_ERR_CHECKSUM_FAIL           (-6)
 #define DHT11_ERR_INVALID_PARAM           (-7)
 
+// 超时配置（循环计数，可根据CPU频率调整）
+#ifndef DHT11_MAX_TIMEOUT
+#define DHT11_MAX_TIMEOUT    100000  // 默认约几ms @72MHz
+#endif
+
 // 初始化（绑定 gpio/pin）
 void dht11_init(dht11_t* self, void* gpio, u16 pin);
 // 读取一次测量结果，输出：humidity（单位 0.1%RH），temperature（单位 0.1°C，带符号）

@@ -60,26 +60,45 @@ static i32 dht11_reset_and_start(dht11_t* self)
 
 static i32 dht11_check_response(dht11_t* self)
 {
+    volatile u32 timeout;
+    
     // 判断从机是否有低电平响应信号，如不响应则跳出
     if (DHT11_READ(self)) {
         return DHT11_ERR_NO_RESPONSE;
     }
     
     // 轮询直到从机发出的80us低电平响应信号结束
-    while (!DHT11_READ(self));
+    timeout = 0;
+    while (!DHT11_READ(self)) {
+        if (++timeout > DHT11_MAX_TIMEOUT) {
+            return DHT11_ERR_BAD_ACK1;
+        }
+    }
     
     // 轮询直到从机发出的80us高电平标志信号结束
-    while (DHT11_READ(self));
+    timeout = 0;
+    while (DHT11_READ(self)) {
+        if (++timeout > DHT11_MAX_TIMEOUT) {
+            return DHT11_ERR_BAD_ACK2;
+        }
+    }
 
     return DHT11_OK;
 }
 
 static u8 dht11_read_bit(dht11_t* self)
 {
+    volatile u32 timeout;
+    
     // 每bit以50us低电平开始，轮询直到低电平结束
     // 数据0：50us低 + 26~28us高
     // 数据1：50us低 + 70us高
-    while (!DHT11_READ(self));
+    timeout = 0;
+    while (!DHT11_READ(self)) {
+        if (++timeout > DHT11_MAX_TIMEOUT) {
+            return 0; // 超时，假设为数据0
+        }
+    }
     
     // DHT11在26~28us的高电平表示数据0，70us的高电平表示数据1
     // 通过延时x us后的电平状态来判断（x要大于28us且小于70us）
@@ -90,7 +109,12 @@ static u8 dht11_read_bit(dht11_t* self)
     
     // 如果是数据1，等待高电平结束（防止影响下一位读取）
     if (bit) {
-        while (DHT11_READ(self));
+        timeout = 0;
+        while (DHT11_READ(self)) {
+            if (++timeout > DHT11_MAX_TIMEOUT) {
+                break; // 超时，直接退出
+            }
+        }
     }
     
     return bit;
