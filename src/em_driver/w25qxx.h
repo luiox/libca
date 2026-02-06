@@ -17,6 +17,7 @@ typedef struct w25qxx_port {
     void (*write_pin)(void* gpio_port, u16 pin, u8 value);
     void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
     void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);
+    void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
 }w25qxx_port_t;
 
 void w25qxx_bind_port(const w25qxx_port_t* port);
