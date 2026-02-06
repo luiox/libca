@@ -1,7 +1,7 @@
 /**
  * @file dht11.h
  * @author canrad (1517807724@qq.com)
- * @brief DHT11 温湿度传感器驱动
+ * @brief DHT11 温湿度传感器驱动 已实物验证
  * @version 0.1
  * @date 2026-01-22
  * 
