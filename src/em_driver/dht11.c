@@ -33,6 +33,10 @@ void dht11_init(dht11_t* self, void* gpio, u16 pin)
 #define DHT11_INPUT_MODE(self)  g_dht11_port->set_input_mode((self)->gpio, (self)->pin)
 #define DHT11_DELAY_US(us)      g_dht11_port->delay_us(us)
 #define DHT11_DELAY_MS(ms)      g_dht11_port->delay_ms(ms)
+#define DHT11_GET_TICK_US()     g_dht11_port->get_tick_us()
+
+// 超时时间（微秒），与CPU频率无关
+#define DHT11_WAIT_TIMEOUT_US   2000  // 2ms，足够覆盖80us响应
 
 // 复位并发起一次测量
 static i32 dht11_reset_and_start(dht11_t* self)
@@ -60,25 +64,25 @@ static i32 dht11_reset_and_start(dht11_t* self)
 
 static i32 dht11_check_response(dht11_t* self)
 {
-    volatile u32 timeout;
+    u32 start_tick;
     
     // 判断从机是否有低电平响应信号，如不响应则跳出
     if (DHT11_READ(self)) {
         return DHT11_ERR_NO_RESPONSE;
     }
     
-    // 轮询直到从机发出的80us低电平响应信号结束
-    timeout = 0;
+    // 轮询直到从机发出的80us低电平响应信号结束（使用DWT时间戳超时）
+    start_tick = DHT11_GET_TICK_US();
     while (!DHT11_READ(self)) {
-        if (++timeout > DHT11_MAX_TIMEOUT) {
+        if ((DHT11_GET_TICK_US() - start_tick) > DHT11_WAIT_TIMEOUT_US) {
             return DHT11_ERR_BAD_ACK1;
         }
     }
     
     // 轮询直到从机发出的80us高电平标志信号结束
-    timeout = 0;
+    start_tick = DHT11_GET_TICK_US();
     while (DHT11_READ(self)) {
-        if (++timeout > DHT11_MAX_TIMEOUT) {
+        if ((DHT11_GET_TICK_US() - start_tick) > DHT11_WAIT_TIMEOUT_US) {
             return DHT11_ERR_BAD_ACK2;
         }
     }
@@ -88,14 +92,14 @@ static i32 dht11_check_response(dht11_t* self)
 
 static u8 dht11_read_bit(dht11_t* self)
 {
-    volatile u32 timeout;
+    u32 start_tick;
     
-    // 每bit以50us低电平开始，轮询直到低电平结束
+    // 每bit以50us低电平开始，轮询直到低电平结束（使用DWT时间戳超时）
     // 数据0：50us低 + 26~28us高
     // 数据1：50us低 + 70us高
-    timeout = 0;
+    start_tick = DHT11_GET_TICK_US();
     while (!DHT11_READ(self)) {
-        if (++timeout > DHT11_MAX_TIMEOUT) {
+        if ((DHT11_GET_TICK_US() - start_tick) > DHT11_WAIT_TIMEOUT_US) {
             return 0; // 超时，假设为数据0
         }
     }
@@ -109,9 +113,9 @@ static u8 dht11_read_bit(dht11_t* self)
     
     // 如果是数据1，等待高电平结束（防止影响下一位读取）
     if (bit) {
-        timeout = 0;
+        start_tick = DHT11_GET_TICK_US();
         while (DHT11_READ(self)) {
-            if (++timeout > DHT11_MAX_TIMEOUT) {
+            if ((DHT11_GET_TICK_US() - start_tick) > DHT11_WAIT_TIMEOUT_US) {
                 break; // 超时，直接退出
             }
         }
