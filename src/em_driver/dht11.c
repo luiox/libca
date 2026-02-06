@@ -25,7 +25,6 @@ void dht11_init(dht11_t* self, void* gpio, u16 pin)
 #define DHT11_START_LOW_MS         20  // host pull low >=18 ms
 #define DHT11_PULLUP_WAIT_US       100
 #define DHT11_ACK_WAIT_US_MAX      100
-#define DHT11_BIT_WAIT_LOW_US_MAX  100
 
 // 访问宏
 #define DHT11_WRITE(self, v)    g_dht11_port->write_pin((self)->gpio, (self)->pin, (v))
@@ -40,62 +39,57 @@ static i32 dht11_reset_and_start(dht11_t* self)
 {
     if (!g_dht11_port) return DHT11_ERR_PORT_NOT_REGISTERED;
 
-    DHT11_OUTPUT_MODE(self);
+    // 输出模式（已经是输出，无需重新配置）
+    // 主机拉低
     DHT11_WRITE(self, 0);
-    DHT11_DELAY_MS(DHT11_START_LOW_MS);
+    // 延时18ms（ref代码是18ms）
+    DHT11_DELAY_MS(18);
+
+    // 总线拉高，主机延时30us
     DHT11_WRITE(self, 1);
     DHT11_DELAY_US(30);
 
+    // 主机设为输入，判断从机响应信号
     DHT11_INPUT_MODE(self);
     return DHT11_OK;
 }
 
 static i32 dht11_check_response(dht11_t* self)
 {
-    u32 retry = 0;
-    // wait for response low
-    while (DHT11_READ(self)) {
-        DHT11_DELAY_US(1);
-        retry++;
-        if (retry >= DHT11_ACK_WAIT_US_MAX) break;
+    // 判断从机是否有低电平响应信号，如不响应则跳出
+    if (DHT11_READ(self)) {
+        return DHT11_ERR_NO_RESPONSE;
     }
-    if (retry >= DHT11_ACK_WAIT_US_MAX) return DHT11_ERR_NO_RESPONSE;
-
-    retry = 0;
-    while (!DHT11_READ(self)) {
-        DHT11_DELAY_US(1);
-        retry++;
-        if (retry >= DHT11_ACK_WAIT_US_MAX) break;
-    }
-    if (retry >= DHT11_ACK_WAIT_US_MAX) return DHT11_ERR_BAD_ACK1;
-
-    retry = 0;
-    while (DHT11_READ(self)) {
-        DHT11_DELAY_US(1);
-        retry++;
-        if (retry >= DHT11_ACK_WAIT_US_MAX) break;
-    }
-    if (retry >= DHT11_ACK_WAIT_US_MAX) return DHT11_ERR_BAD_ACK2;
+    
+    // 轮询直到从机发出的80us低电平响应信号结束
+    while (!DHT11_READ(self));
+    
+    // 轮询直到从机发出的80us高电平标志信号结束
+    while (DHT11_READ(self));
 
     return DHT11_OK;
 }
 
 static u8 dht11_read_bit(dht11_t* self)
 {
-    u32 retry = 0;
-    while (!DHT11_READ(self)) {
-        DHT11_DELAY_US(1);
-        retry++;
-        if (retry >= DHT11_BIT_WAIT_LOW_US_MAX) break;
+    // 每bit以50us低电平开始，轮询直到低电平结束
+    // 数据0：50us低 + 26~28us高
+    // 数据1：50us低 + 70us高
+    while (!DHT11_READ(self));
+    
+    // DHT11在26~28us的高电平表示数据0，70us的高电平表示数据1
+    // 通过延时x us后的电平状态来判断（x要大于28us且小于70us）
+    DHT11_DELAY_US(40); // 延时40us
+    
+    // x us后仍为高电平表示数据1
+    u8 bit = DHT11_READ(self) ? 1 : 0;
+    
+    // 如果是数据1，等待高电平结束（防止影响下一位读取）
+    if (bit) {
+        while (DHT11_READ(self));
     }
-    retry = 0;
-    while (DHT11_READ(self)) {
-        DHT11_DELAY_US(1);
-        retry++;
-        if (retry >= DHT11_BIT_WAIT_LOW_US_MAX) break;
-    }
-    DHT11_DELAY_US(40);
-    return (DHT11_READ(self) ? 1 : 0);
+    
+    return bit;
 }
 
 static u8 dht11_read_byte(dht11_t* self)
@@ -131,8 +125,14 @@ i32 dht11_read(dht11_t* self, u16* humidity, i16* temperature)
         return DHT11_ERR_CHECKSUM_FAIL;
     }
 
-    if (humidity) *humidity = (u16)(buf[0]);
-    if (temperature) *temperature = (i16)(buf[2]);
+    // DHT11数据格式：buf[0]=湿度整数, buf[1]=湿度小数(0), buf[2]=温度整数, buf[3]=温度小数(0)
+    // 实际DHT11通常只使用整数部分，但为了兼容性乘以10保持0.1精度单位
+    if (humidity) *humidity = (u16)(buf[0]) * 10;      // 转换为0.1%单位
+    if (temperature) *temperature = (i16)(buf[2]) * 10; // 转换为0.1°C单位
+    
+    // 读取完成，设为输出并拉高（与ref代码一致）
+    DHT11_OUTPUT_MODE(self);
+    DHT11_WRITE(self, 1);
 
     return DHT11_OK;
 }
