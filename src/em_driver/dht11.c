@@ -66,10 +66,30 @@ static i32 dht11_check_response(dht11_t* self)
 {
     u32 start_tick;
     
+
     // 判断从机是否有低电平响应信号，如不响应则跳出
     if (DHT11_READ(self)) {
         return DHT11_ERR_NO_RESPONSE;
     }
+    // 也许上面的这个if代码应该用下面预处理器包着的代码方案实现
+    // 下面这个多行注释内容是gemini的代码审计内容
+    // 我目前还没有考虑到底如何实现会更好，需要验证。
+    /*
+    这里的响应检测逻辑存在潜在的竞争条件。
+    在主机释放总线后，DHT11需要一些时间来将总线拉低以发出响应信号。
+    当前代码只检查一次电平状态，如果此时DHT11还未将总线拉低，则会误判为无响应。
+    建议使用一个带超时的循环来等待总线被拉低，以确保能可靠地捕捉到DHT11的响应信号。
+    这与旧代码中的等待逻辑类似，但可以结合新的基于时间戳的超时机制来实现，会更加健壮。
+     */
+#if 0
+    // 等待从机拉低总线，表示响应开始
+    start_tick = DHT11_GET_TICK_US();
+    while (DHT11_READ(self)) {
+        if ((DHT11_GET_TICK_US() - start_tick) > DHT11_WAIT_TIMEOUT_US) {
+            return DHT11_ERR_NO_RESPONSE;
+        }
+    }
+#endif
     
     // 轮询直到从机发出的80us低电平响应信号结束（使用DWT时间戳超时）
     start_tick = DHT11_GET_TICK_US();
