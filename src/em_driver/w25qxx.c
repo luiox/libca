@@ -54,7 +54,7 @@ void w25qxx_init(w25qxx_t* self)
     // nothing to do
 }
 
-// 发送一个字节
+// 发送一个字节并接收返回（SPI全双工同时收发）
 int8_t w25qxx_send_byte(w25qxx_t* self, u8 byte)
 {
     u8 ret = 0;
@@ -62,8 +62,15 @@ int8_t w25qxx_send_byte(w25qxx_t* self, u8 byte)
         debug_print("[w25qxx] port not registered\n");
         return -1;
     }
-    g_w25qxx_port->spi_transmit(self->hspi, &byte, 1, 1000);
-    g_w25qxx_port->spi_receive(self->hspi, &ret, 1, 1000);
+    
+    // 使用TransmitReceive实现同时收发
+    if (g_w25qxx_port->spi_transmit_receive) {
+        g_w25qxx_port->spi_transmit_receive(self->hspi, &byte, &ret, 1, 1000);
+    } else {
+        // 兼容旧版本：分开收发（不推荐）
+        g_w25qxx_port->spi_transmit(self->hspi, &byte, 1, 1000);
+        g_w25qxx_port->spi_receive(self->hspi, &ret, 1, 1000);
+    }
     return ret;
 }
 
@@ -99,11 +106,11 @@ void w25qxx_write_enable(w25qxx_t* self)
     // 1.把CS片选引脚拉低  表示选中
     W25QXX_CS_LOW();
 
-    // 2.发送指令
-    w25qxx_send_byte(self, 0x04);
+    // 2.发送指令(0x06是写使能)
+    w25qxx_send_byte(self, 0x06);
 
     // 3.把CS片选引脚拉高  表示不通信
-    W25QXX_CS_LOW();
+    W25QXX_CS_HIGH();
 }
 // 禁用写入
 void w25qxx4_write_disable(w25qxx_t* self)
@@ -111,11 +118,11 @@ void w25qxx4_write_disable(w25qxx_t* self)
     // 1.把CS片选引脚拉低  表示选中
     W25QXX_CS_LOW();
 
-    // 2.发送指令
-    w25qxx_send_byte(self, 0x06);
+    // 2.发送指令(0x04是写禁用)
+    w25qxx_send_byte(self, 0x04);
 
     // 3.把CS片选引脚拉高  表示不通信
-    W25QXX_CS_LOW();
+    W25QXX_CS_HIGH();
 }
 // 读取状态寄存器
 u8 w25qxx_read_status_register(w25qxx_t* self)

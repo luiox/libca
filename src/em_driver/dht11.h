@@ -1,7 +1,7 @@
 /**
  * @file dht11.h
  * @author canrad (1517807724@qq.com)
- * @brief DHT11 温湿度传感器驱动
+ * @brief DHT11 温湿度传感器驱动 已实物验证
  * @version 0.1
  * @date 2026-01-22
  * 
@@ -21,6 +21,7 @@ typedef struct dht11_port {
     void (*set_input_mode)(void* gpio, u16 pin);
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
+    u32  (*get_tick_us)(void);  // 获取微秒级时间戳（用于超时计算）
 } dht11_port_t;
 
 void dht11_bind_port(const dht11_port_t* port);
@@ -41,6 +42,8 @@ typedef struct dht11 {
 #define DHT11_ERR_TIMEOUT                 (-5)
 #define DHT11_ERR_CHECKSUM_FAIL           (-6)
 #define DHT11_ERR_INVALID_PARAM           (-7)
+
+// 超时时间（微秒），由驱动内部定义，与CPU频率无关
 
 // 初始化（绑定 gpio/pin）
 void dht11_init(dht11_t* self, void* gpio, u16 pin);

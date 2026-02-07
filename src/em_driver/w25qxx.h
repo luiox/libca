@@ -1,7 +1,7 @@
 /**
  * @file w25qxx.h
  * @author canrad (1517807724@qq.com)
- * @brief w25qxx系列spi flash驱动
+ * @brief w25qxx系列spi flash驱动 已实物验证w25q64模块
  * @version 0.1
  * @date 2026-01-11
  * 
@@ -17,6 +17,13 @@ typedef struct w25qxx_port {
     void (*write_pin)(void* gpio_port, u16 pin, u8 value);
     void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
     void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);
+    /**
+     * @brief SPI同时发送和接收（全双工）
+     * @note 推荐使用此函数，与spi_transmit/spi_receive二选一
+     *       如果实现了此函数，驱动会优先使用它进行SPI通信
+     *       如果为NULL，则使用分开的transmit和receive
+     */
+    void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
 }w25qxx_port_t;
 
 void w25qxx_bind_port(const w25qxx_port_t* port);
