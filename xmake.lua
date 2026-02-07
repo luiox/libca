@@ -7,7 +7,8 @@ set_languages("cxx17")
 
 add_rules("mode.debug", "mode.release", "mode.coverage")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
-
+-- 如果上面这个不行使用下面这个命令
+-- xmake project -k compile_commands
 
 -- 设置 C 编译选项
 -- add_cflags("-finput-charset=UTF-8", "-fexec-charset=UTF-8")
