@@ -79,12 +79,6 @@ typedef struct tofxxf_port {
      * @return 成功返回接收字节数，失败返回负值
      */
     i32 (*uart_recv)(void* huart, u8* buf, usize len, u32 timeout_ms);
-    
-    /**
-     * @brief 延时函数
-     * @param ms 延时毫秒数
-     */
-    void (*delay_ms)(u32 ms);
 } tofxxf_port_t;
 
 void tofxxf_bind_port(const tofxxf_port_t* port);

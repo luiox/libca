@@ -1,6 +1,7 @@
 #include "tofxxf.h"
 #include "../em_base/debug.h"
 #include "../em_util/crc.h"
+#include <string.h>
 
 static const tofxxf_port_t* g_port = NULL;
 
@@ -39,9 +40,7 @@ static usize build_request_frame(u8 slave_addr, u8 func,
     out_buf[0] = slave_addr;
     out_buf[1] = func;
     
-    for (usize i = 0; i < data_len; i++) {
-        out_buf[2 + i] = data[i];
-    }
+    memcpy(&out_buf[2], data, data_len);
     
     // 使用 em_util/crc 计算 CRC16-MODBUS
     u16 crc = crc16_modbus_fast(out_buf, 2 + data_len);
@@ -177,9 +176,7 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
         return TOFXF_ERR_RESPONSE;
     }
     
-    for (u8 i = 0; i < data_bytes; i++) {
-        out_buf[i] = resp_frame[3 + i];
-    }
+    memcpy(out_buf, &resp_frame[3], data_bytes);
     
     return TOFXF_OK;
 }
@@ -234,10 +231,8 @@ i32 tofxxf_write_reg(tofxxf_t* self, u16 reg_addr, u16 value)
     }
     
     // 验证写入的数据是否一致
-    for (usize i = 0; i < req_len - 2; i++) {
-        if (req_frame[i] != resp_frame[i]) {
-            return TOFXF_ERR_RESPONSE;
-        }
+    if (memcmp(req_frame, resp_frame, req_len - 2) != 0) {
+        return TOFXF_ERR_RESPONSE;
     }
     
     return TOFXF_OK;
