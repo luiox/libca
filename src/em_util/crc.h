@@ -4,8 +4,8 @@
  * 不带 _fast 后缀的函数为朴素实现（多项式计算），带 _fast 后缀的为查表实现。
  * 参数均为 (data, size)，返回计算得到的 CRC 值。
  */
-#ifndef CRC_H
-#define CRC_H
+#ifndef LIBCA_EM_UTIL_CRC_H
+#define LIBCA_EM_UTIL_CRC_H
 
 #include "../em_base/datatype.h"
 
@@ -36,4 +36,4 @@ u16 crc16_ymodem_fast(const void* data, usize size);
 // u8的checksum计算
 u8 checksum_calc_u8(const u8* data, usize len);
 
-#endif // CRC_H
+#endif // !LIBCA_EM_UTIL_CRC_H
