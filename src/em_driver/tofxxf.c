@@ -54,6 +54,20 @@ static usize build_request_frame(u8 slave_addr, u8 func,
 }
 
 /**
+ * @brief 清空串口接收缓冲区
+ */
+static void uart_flush_rx(void* huart)
+{
+    if (!g_port) return;
+    
+    u8 dummy;
+    // 非阻塞方式读取并丢弃缓冲区中的所有数据
+    while (g_port->uart_recv(huart, &dummy, 1, 0) > 0) {
+        // 继续清空
+    }
+}
+
+/**
  * @brief 验证 Modbus RTU 响应帧
  */
 static i32 validate_response(const u8* frame, usize len, 
@@ -63,9 +77,20 @@ static i32 validate_response(const u8* frame, usize len,
         return TOFXF_ERR_RESPONSE;
     }
     if (frame[0] != expected_addr) {
+        debug_print("[tofxxf] addr mismatch: exp=0x%02X, recv=0x%02X\n", 
+                    expected_addr, frame[0]);
         return TOFXF_ERR_SLAVE_ADDR;
     }
+    
+    // 检查是否是异常响应（功能码最高位置1）
+    if (frame[1] == (expected_func | 0x80)) {
+        debug_print("[tofxxf] exception response, code=0x%02X\n", frame[2]);
+        return TOFXF_ERR_EXCEPTION;
+    }
+    
     if (frame[1] != expected_func) {
+        debug_print("[tofxxf] func mismatch: exp=0x%02X, recv=0x%02X\n", 
+                    expected_func, frame[1]);
         return TOFXF_ERR_FUNC_CODE;
     }
     
@@ -74,6 +99,8 @@ static i32 validate_response(const u8* frame, usize len,
     u16 recv_crc = (u16)frame[len - 1] << 8 | frame[len - 2];
     
     if (calc_crc != recv_crc) {
+        debug_print("[tofxxf] crc mismatch: calc=0x%04X, recv=0x%04X\n", 
+                    calc_crc, recv_crc);
         return TOFXF_ERR_CRC;
     }
     
@@ -86,6 +113,9 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
     param_check(self != NULL);
     param_check(out_buf != NULL);
     param_check(g_port != NULL);
+    
+    // 清空接收缓冲区，避免残留数据干扰
+    uart_flush_rx(self->huart);
     
     // 构建请求数据
     u8 req_data[4];
@@ -158,6 +188,9 @@ i32 tofxxf_write_reg(tofxxf_t* self, u16 reg_addr, u16 value)
 {
     param_check(self != NULL);
     param_check(g_port != NULL);
+    
+    // 清空接收缓冲区，避免残留数据干扰
+    uart_flush_rx(self->huart);
     
     // 构建请求数据
     u8 req_data[4];

@@ -1,7 +1,7 @@
 /**
  * @file tofxxf.h
  * @author canrad (1517807724@qq.com)
- * @brief TOFxxF系列传感器 Modbus RTU 驱动
+ * @brief TOFxxF系列传感器 Modbus RTU 驱动 已实物验证
  * 
  * 支持 TOF050F/TOF200F/TOF400F，使用标准 Modbus RTU 协议通信。
  * 串口参数：115200bps, 8N1
@@ -56,6 +56,7 @@
 #define TOFXF_ERR_RESPONSE      -6      /* 响应格式错误 */
 #define TOFXF_ERR_SLAVE_ADDR    -7      /* 从机地址错误 */
 #define TOFXF_ERR_FUNC_CODE     -8      /* 功能码错误 */
+#define TOFXF_ERR_EXCEPTION     -9      /* Modbus异常响应 */
 
 /* ========== Port层 ========== */
 
