@@ -1,17 +1,5 @@
 {
     "editor.formatOnSave": false,
-    "mcp": {
-        "servers": {
-            "gdb-mcp": {
-            "type": "stdio",
-            "command": "D:\\WorkSpace\\GDB-MCP\\.venv\\Scripts\\python.exe",
-            "args": ["D:\\WorkSpace\\GDB-MCP\\server.py"],
-            "env": {
-                    "PATH": "D:\\sdk\\msys2\\mingw64\\bin;${env:PATH}"
-                }
-            }
-        }
-    },
     "MicroPython.executeButton": [
         {
             "text": "▶",
@@ -29,5 +17,22 @@
             "command": "extension.execute",
             "priority": 4
         }
-    ]
+    ],
+    "chat.mcp.serverSampling": {
+        "libca/.vscode/mcp.json: my-mcp-server-db89eee1": {
+            "allowedModels": [
+                "copilot/auto",
+                "copilot/gemini-2.5-pro",
+                "copilot/gemini-3-flash-preview",
+                "copilot/gemini-3-pro-preview",
+                "copilot/gpt-5-mini",
+                "copilot/gpt-5-codex",
+                "copilot/gpt-5.1-codex-max",
+                "copilot/gpt-5.1-codex-mini",
+                "copilot/gpt-5.2-codex",
+                "copilot/grok-code-fast-1",
+                "copilot/oswe-vscode-prime"
+            ]
+        }
+    }
 }
