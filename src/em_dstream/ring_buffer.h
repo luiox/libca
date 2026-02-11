@@ -6,30 +6,27 @@
  * @date   2024.05.31
  *********************************************************************/
 
-#ifndef RINGBUFFER_H
-#define RINGBUFFER_H
+#ifndef LIBCA_EM_DSTREAM_RING_BUFFER_H
+#define LIBCA_EM_DSTREAM_RING_BUFFER_H
 
 #include "../em_base/datatype.h"
 
-// 如果定义了USE_LESS_MEMORY，则使用uint16_t作为位置大小类型，否则使用uint32_t
-#ifdef USE_LESS_MEMORY
-typedef u16 position_size_t;
-#else
-typedef u32 position_size_t;
-#endif   // USE_LESS_MEMORY
+// position_size_t 已弃用，直接使用 usize 类型
+// typedef usize position_size_t;
+
 
 // 缓冲区可以选择的大小
 #define RINGBUFFER_SIZE_GEN(n) (1 << n)
 
 // 环形缓冲区结构体
-typedef struct ringbuffer
+typedef struct ring_buffer
 {
     uint8_t*       buffer;   // 缓冲区，要求是2的幂次方
-    position_size_t size;     // 缓冲区大小
-    position_size_t used;     // 已使用的大小
-    position_size_t read;     // 读指针的位置
-    position_size_t write;    // 写指针的位置
-} ringbuffer_t;
+    usize           size;     // 缓冲区大小
+    usize           used;     // 已使用的大小
+    usize           read;     // 读指针的位置
+    usize           write;    // 写指针的位置
+} ring_buffer_t;
 
 /**
  * @brief 初始化环形缓冲区.
@@ -37,13 +34,13 @@ typedef struct ringbuffer
  * @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
  * @param size 缓冲区大小
  */
-void ringbuffer_init(ringbuffer_t* rb, uint8_t* buffer, position_size_t size);
+void ring_buf_init(ring_buffer_t* rb, uint8_t* buffer, usize size);
 
 /**
  * @brief 重置环形缓冲区.
  * @param rb 环形缓冲区指针
  */
-void ringbuffer_reset(ringbuffer_t* rb);
+void ring_buf_reset(ring_buffer_t* rb);
 
 /**
  * @brief 往环形缓冲区里写数据.
@@ -52,7 +49,7 @@ void ringbuffer_reset(ringbuffer_t* rb);
  * @param size 期望写入的数据大小
  * @return position_size_t 实际写入的数据大小
  */
-position_size_t ringbuffer_write(ringbuffer_t* rb, const uint8_t* data, position_size_t size);
+usize ring_buf_write(ring_buffer_t* rb, const uint8_t* data, usize size);
 
 /**
  * @brief 从环形缓冲区里读数据.
@@ -61,7 +58,7 @@ position_size_t ringbuffer_write(ringbuffer_t* rb, const uint8_t* data, position
  * @param size 期望读取的数据大小
  * @return position_size_t 实际读取的数据大小
  */
-position_size_t ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, position_size_t size);
+usize ring_buf_read(ring_buffer_t* rb, uint8_t* buf, usize size);
 
 /**
  * @brief 预览环形缓冲区里的数据（不弹出）.
@@ -70,7 +67,7 @@ position_size_t ringbuffer_read(ringbuffer_t* rb, uint8_t* buf, position_size_t 
  * @param size 期望预览的数据大小
  * @return position_size_t 实际预览的数据大小
  */
-position_size_t ringbuffer_peek(const ringbuffer_t* rb, uint8_t* buf, position_size_t size);
+usize ring_buf_peek(const ring_buffer_t* rb, uint8_t* buf, usize size);
 
 /**
  * @brief 跳过（丢弃）环形缓冲区里的数据.
@@ -78,50 +75,50 @@ position_size_t ringbuffer_peek(const ringbuffer_t* rb, uint8_t* buf, position_s
  * @param size 期望跳过的数据大小
  * @return position_size_t 实际跳过的数据大小
  */
-position_size_t ringbuffer_skip(ringbuffer_t* rb, position_size_t size);
+usize ring_buf_skip(ring_buffer_t* rb, usize size);
 
 /**
  * @brief 获取环形缓冲区里的数据大小.
  * @param rb 环形缓冲区指针
  * @return position_size_t 已使用的大小
  */
-position_size_t ringbuffer_used(const ringbuffer_t* rb);
+usize ring_buf_used(const ring_buffer_t* rb);
 
 /**
  * @brief 获取环形缓冲区里的空闲大小.
  * @param rb 环形缓冲区指针
  * @return position_size_t 空闲大小
  */
-position_size_t ringbuffer_free(const ringbuffer_t* rb);
+usize ring_buf_free(const ring_buffer_t* rb);
 
 
 // 工具函数
 
 // 读取单个字节
-u8 ringbuffer_read_u8(ringbuffer_t* rb);
+u8 ring_buf_read_u8(ring_buffer_t* rb);
 // 写入单个字节
-void ringbuffer_write_u8(ringbuffer_t* rb, u8 value);
+void ring_buf_write_u8(ring_buffer_t* rb, u8 value);
 
 // 读取 16 位整数
-i16 ringbuffer_read_i16(ringbuffer_t* rb);
-u16 ringbuffer_read_u16(ringbuffer_t* rb);
+i16 ring_buf_read_i16(ring_buffer_t* rb);
+u16 ring_buf_read_u16(ring_buffer_t* rb);
 // 写入 16 位整数
-void ringbuffer_write_i16(ringbuffer_t* rb, i16 value);
-void ringbuffer_write_u16(ringbuffer_t* rb, u16 value);
+void ring_buf_write_i16(ring_buffer_t* rb, i16 value);
+void ring_buf_write_u16(ring_buffer_t* rb, u16 value);
 
 // 读取 32 位整数
-i32 ringbuffer_read_i32(ringbuffer_t* rb);
-u32 ringbuffer_read_u32(ringbuffer_t* rb);
+i32 ring_buf_read_i32(ring_buffer_t* rb);
+u32 ring_buf_read_u32(ring_buffer_t* rb);
 // 写入 32 位整数
-void ringbuffer_write_i32(ringbuffer_t* rb, i32 value);
-void ringbuffer_write_u32(ringbuffer_t* rb, u32 value);
+void ring_buf_write_i32(ring_buffer_t* rb, i32 value);
+void ring_buf_write_u32(ring_buffer_t* rb, u32 value);
 
 // 读取浮点数
-float ringbuffer_read_float(ringbuffer_t* rb);
+float ring_buf_read_float(ring_buffer_t* rb);
 // 写入浮点数
-void ringbuffer_write_float(ringbuffer_t* rb, float value);
+void ring_buf_write_float(ring_buffer_t* rb, float value);
 
 // 计算缓冲区中所有数据的校验和
-u8 ringbuffer_calculate_checksum(const ringbuffer_t* rb);
+u8 ring_buf_calculate_checksum(const ring_buffer_t* rb);
 
-#endif   // !RINGBUFFER_H
+#endif   // !LIBCA_EM_DSTREAM_RING_BUFFER_H

@@ -1,6 +1,6 @@
 #include "trace.h"
 #include "log.h"
-#include "ringbuffer.h"
+#include "../em_dstream/ring_buffer.h"
 #include "async.h"
 #include "soft_timer.h"
 #include "../em_arch/cpu_adapter.h"
@@ -42,7 +42,7 @@ typedef struct {
 #pragma pack(pop)
 
 static uint8_t g_trace_rb_mem[TRACE_RB_SIZE];
-static ringbuffer_t g_trace_rb;
+static ring_buffer_t g_trace_rb;
 static const char* g_trace_strings[TRACE_MAX_STRINGS];
 static volatile int g_trace_string_count = 0;
 static async_t* g_trace_async = NULL;
@@ -51,7 +51,7 @@ static volatile bool g_trace_task_active = false;
 static void trace_process_task(void* arg);
 
 void trace_init(void) {
-    ringbuffer_init(&g_trace_rb, g_trace_rb_mem, TRACE_RB_SIZE);
+    ring_buf_init(&g_trace_rb, g_trace_rb_mem, TRACE_RB_SIZE);
     g_trace_string_count = 0;
     g_trace_task_active = false;
 }
@@ -98,8 +98,8 @@ void trace_write(trace_id_t id, uint64_t value, const void* func_addr, uint32_t 
     packet.line = line;
 
     TRACE_ENTER_CRITICAL();
-    if (ringbuffer_free(&g_trace_rb) >= sizeof(packet)) {
-        ringbuffer_write(&g_trace_rb, (uint8_t*)&packet, sizeof(packet));
+    if (ring_buf_free(&g_trace_rb) >= sizeof(packet)) {
+        ring_buf_write(&g_trace_rb, (uint8_t*)&packet, sizeof(packet));
         
         if (g_trace_async && !g_trace_task_active) {
             if (async_submit(g_trace_async, trace_process_task, NULL)) {
@@ -117,11 +117,11 @@ static void trace_process_task(void* arg) {
 
     while (1) {
         TRACE_ENTER_CRITICAL();
-        if (ringbuffer_used(&g_trace_rb) < sizeof(packet)) {
+        if (ring_buf_used(&g_trace_rb) < sizeof(packet)) {
             TRACE_EXIT_CRITICAL();
             break;
         }
-        ringbuffer_read(&g_trace_rb, (uint8_t*)&packet, sizeof(packet));
+        ring_buf_read(&g_trace_rb, (uint8_t*)&packet, sizeof(packet));
         TRACE_EXIT_CRITICAL();
 
         // Format
@@ -149,7 +149,7 @@ static void trace_process_task(void* arg) {
 
     TRACE_ENTER_CRITICAL();
     g_trace_task_active = false;
-    if (ringbuffer_used(&g_trace_rb) > 0) {
+    if (ring_buf_used(&g_trace_rb) > 0) {
         if (g_trace_async && async_submit(g_trace_async, trace_process_task, NULL)) {
             g_trace_task_active = true;
         }
