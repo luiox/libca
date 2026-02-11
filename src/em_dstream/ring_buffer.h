@@ -1,11 +1,15 @@
-/*********************************************************************
- * @file   ringbuffer.h
- * @brief  一个简单的环形缓冲区实现
+/**
+ * @file ring_buffer.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 一个简单的环形缓冲区实现
  *
- * @author Canrad
+ * @version 0.1
  * @date   2024.05.31
- *********************************************************************/
-
+ * @update 2026-02-11
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_DSTREAM_RING_BUFFER_H
 #define LIBCA_EM_DSTREAM_RING_BUFFER_H
 
