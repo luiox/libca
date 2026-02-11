@@ -151,5 +151,87 @@ TEST_CASE(ds_fixed_buf_basic_ops)
     TEST_ASSERT_EQUAL_UINT(6, dstream_used(&ds));
 }
 
+TEST_CASE(ds_fixed_buf_detailed_ops)
+{
+    u8 mem[10];
+    fixed_buffer_t fb;
+    fixed_buf_init(&fb, mem, 10);
+    fixed_buf_append(&fb, (u8*)"ABCDE", 5);
+
+    dstream_t ds = {0};
+    ds.buf_obj = &fb;
+    ds.ops = fixed_buf_get_dstream_ops();
+
+    // capacity / used / offset
+    TEST_ASSERT_EQUAL_UINT(10, dstream_capacity(&ds));
+    TEST_ASSERT_EQUAL_UINT(5, dstream_used(&ds));
+    TEST_ASSERT_EQUAL_UINT(0, dstream_offset(&ds));
+
+    // skip normal and overshoot
+    dstream_skip(&ds, 3);
+    TEST_ASSERT_EQUAL_UINT(3, dstream_offset(&ds));
+    dstream_skip(&ds, 10);
+    TEST_ASSERT_EQUAL_UINT(5, dstream_offset(&ds));
+
+    // rewind normal and overshoot
+    dstream_rewind(&ds, 2);
+    TEST_ASSERT_EQUAL_UINT(3, dstream_offset(&ds));
+    dstream_rewind(&ds, 10);
+    TEST_ASSERT_EQUAL_UINT(0, dstream_offset(&ds));
+
+    // reset valid and invalid
+    TEST_ASSERT_EQUAL_INT(true, dstream_reset(&ds, 2));
+    TEST_ASSERT_EQUAL_UINT(2, dstream_offset(&ds));
+    TEST_ASSERT_EQUAL_INT(false, dstream_reset(&ds, 6));
+    TEST_ASSERT_EQUAL_UINT(2, dstream_offset(&ds)); // unchanged
+
+    // read partial and to-end
+    u8 out[6] = {0};
+    i32 rn = dstream_read(&ds, out, 3);
+    TEST_ASSERT_EQUAL_INT(3, rn);
+    TEST_ASSERT_EQUAL_UINT('C', out[0]);
+    TEST_ASSERT_EQUAL_UINT('D', out[1]);
+    TEST_ASSERT_EQUAL_UINT('E', out[2]);
+    TEST_ASSERT_EQUAL_UINT(5, dstream_offset(&ds)); // at end
+
+    // read when empty
+    TEST_ASSERT_EQUAL_INT(0, dstream_read(&ds, out, 2));
+
+    // reset and peek tests
+    dstream_reset(&ds, 1);
+    u8 pbuf[3] = {0};
+    i32 pr = dstream_peek(&ds, 1, pbuf, 2); // peek at cursor+1 => should be 'C','D'
+    TEST_ASSERT_EQUAL_INT(2, pr);
+    TEST_ASSERT_EQUAL_UINT('C', pbuf[0]);
+    TEST_ASSERT_EQUAL_UINT('D', pbuf[1]);
+
+    // peek beyond used
+    TEST_ASSERT_EQUAL_INT(0, dstream_peek(&ds, 10, pbuf, 1));
+
+    // write overwrite
+    dstream_reset(&ds, 1);
+    const u8 w[] = {'X', 'Y'};
+    TEST_ASSERT_EQUAL_INT(2, dstream_write(&ds, w, 2));
+    TEST_ASSERT_EQUAL_UINT('X', mem[1]);
+    TEST_ASSERT_EQUAL_UINT('Y', mem[2]);
+    TEST_ASSERT_EQUAL_UINT(3, dstream_offset(&ds));
+    TEST_ASSERT_EQUAL_UINT(5, dstream_used(&ds)); // used unchanged if within previous used
+
+    // write append
+    dstream_reset(&ds, 5);
+    const u8 w2[] = {'Z'};
+    TEST_ASSERT_EQUAL_INT(1, dstream_write(&ds, w2, 1));
+    TEST_ASSERT_EQUAL_UINT('Z', mem[5]);
+    TEST_ASSERT_EQUAL_UINT(6, dstream_used(&ds));
+
+    // partial write near capacity: first extend used to 9, then try to write 2 bytes
+    fixed_buf_append(&fb, (u8*)"123", 3); // used becomes 9
+    dstream_reset(&ds, 9);
+    const u8 w3[] = {'A','B'};
+    TEST_ASSERT_EQUAL_INT(1, dstream_write(&ds, w3, 2));
+    TEST_ASSERT_EQUAL_UINT('A', mem[9]);
+    TEST_ASSERT_EQUAL_UINT(10, dstream_used(&ds));
+}
+
 #endif // TEST_ENABLE
 
