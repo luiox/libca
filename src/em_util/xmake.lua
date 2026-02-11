@@ -25,12 +25,6 @@ target("test-pid")
     add_files("pid.c")
     add_deps("libca.em_base")
 
-target("test-ping_pong_buffer")
-    set_kind("binary")
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_files("ping_pong_buffer.c")
-    add_deps("libca.em_base")
-
 target("test-filter")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
