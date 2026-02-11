@@ -1,5 +1,5 @@
 #include "log.h"
-#include "../em_util/ringbuffer.h"
+#include "../em_dstream/ring_buffer.h"
 #include "../em_platform/async.h"
 #include "../em_platform/time_util.h"
 #include "../em_platform/cpu_adapter.h"
@@ -27,7 +27,7 @@ typedef struct
 } log_tag_filter_t;
 
 static u8               g_log_rb_mem[LOG_RB_SIZE];
-static ringbuffer_t     g_log_rb;
+static ring_buffer_t     g_log_rb;
 static log_backend_t*   g_backend_list = NULL;
 static log_level_t      g_log_level    = LOG_LEVEL_DEFAULT;
 static log_tag_filter_t g_tag_filters[LOG_MAX_TAG_FILTERS];
@@ -53,7 +53,7 @@ static void log_dispatch_to_backends(const log_record_t* rec)
 
 void log_init(void)
 {
-    ringbuffer_init(&g_log_rb, g_log_rb_mem, LOG_RB_SIZE);
+    ring_buf_init(&g_log_rb, g_log_rb_mem, LOG_RB_SIZE);
     g_backend_list     = NULL;
     g_log_task_active  = false;
     g_log_drop_count   = 0;
@@ -143,9 +143,9 @@ void log_write(log_level_t level, const char* tag, const char* fmt, ...)
     h.total_len = (u16)(sizeof(h) + (u16)(n + 1));
 
     CPU_ENTER_CRITICAL();
-    if (ringbuffer_free(&g_log_rb) >= h.total_len) {
-        ringbuffer_write(&g_log_rb, (u8*)&h, sizeof(h));
-        ringbuffer_write(&g_log_rb, (u8*)buf, (u32)(n + 1));
+    if (ring_buf_free(&g_log_rb) >= h.total_len) {
+        ring_buf_write(&g_log_rb, (u8*)&h, sizeof(h));
+        ring_buf_write(&g_log_rb, (u8*)buf, (u32)(n + 1));
         if (g_async && !g_log_task_active) {
             if (async_submit(g_async, log_process_task, NULL))
                 g_log_task_active = true;
@@ -165,21 +165,21 @@ static void log_process_task(void* arg)
 
     while (1) {
         CPU_ENTER_CRITICAL();
-        if (ringbuffer_used(&g_log_rb) < sizeof(h)) {
+        if (ring_buf_used(&g_log_rb) < sizeof(h)) {
             CPU_EXIT_CRITICAL();
             break;
         }
-        ringbuffer_peek(&g_log_rb, (u8*)&h, sizeof(h));
-        if (ringbuffer_used(&g_log_rb) < h.total_len) {
+        ring_buf_peek(&g_log_rb, (u8*)&h, sizeof(h));
+        if (ring_buf_used(&g_log_rb) < h.total_len) {
             CPU_EXIT_CRITICAL();
             break;
         }
 
 #if ENABLE_DEBUG_OUTPUT
-        printf("[log_debug] used=%u total_len=%u\n", (unsigned)ringbuffer_used(&g_log_rb), (unsigned)h.total_len);
+        printf("[log_debug] used=%u total_len=%u\n", (unsigned)ring_buf_used(&g_log_rb), (unsigned)h.total_len);
 #endif
 
-        ringbuffer_read(&g_log_rb, (u8*)&h, sizeof(h));
+        ring_buf_read(&g_log_rb, (u8*)&h, sizeof(h));
         u16 pl_len = (u16)(h.total_len - sizeof(h));
 
 #if ENABLE_DEBUG_OUTPUT
@@ -187,11 +187,11 @@ static void log_process_task(void* arg)
 #endif
 
         if (pl_len > sizeof(payload)) {
-            ringbuffer_skip(&g_log_rb, pl_len);
+            ring_buf_skip(&g_log_rb, pl_len);
             CPU_EXIT_CRITICAL();
             continue;
         }
-        ringbuffer_read(&g_log_rb, (u8*)payload, pl_len);
+        ring_buf_read(&g_log_rb, (u8*)payload, pl_len);
         CPU_EXIT_CRITICAL();
 
 #if ENABLE_DEBUG_OUTPUT
@@ -212,7 +212,7 @@ static void log_process_task(void* arg)
 
     CPU_ENTER_CRITICAL();
     g_log_task_active = false;
-    if (ringbuffer_used(&g_log_rb) > 0) {
+    if (ring_buf_used(&g_log_rb) > 0) {
         if (g_async && async_submit(g_async, log_process_task, NULL))
             g_log_task_active = true;
     }

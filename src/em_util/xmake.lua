@@ -5,7 +5,7 @@ target("libca.em_util")
     add_files("**.c")
     add_deps("libca.em_base")
     -- link libm for math functions (tanf, sqrtf, etc.)
-    add_syslinks("m")
+    -- add_syslinks("m")
 
 target("libca.em_util_static")
     set_kind("static")
@@ -19,23 +19,10 @@ target("test-crc")
     add_files("crc.c")
     add_deps("libca.em_base")
 
--- ringbuffer的单元测试
-target("test-ringbuffer")
-    set_kind("binary")
-    add_files("ringbuffer.c")
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_deps("libca.em_base")
-
 target("test-pid")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("pid.c")
-    add_deps("libca.em_base")
-
-target("test-ping_pong_buffer")
-    set_kind("binary")
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_files("ping_pong_buffer.c")
     add_deps("libca.em_base")
 
 target("test-filter")
@@ -44,7 +31,7 @@ target("test-filter")
     add_files("filter.c")
     add_deps("libca.em_base")
     -- link libm for math functions (tanf, sqrtf, etc.)
-    add_syslinks("m")
+    -- add_syslinks("m")
 
 -- 嵌入式容器库
 target("libca.em_collection")
@@ -71,12 +58,6 @@ target("test-stack")
     set_kind("binary")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_files("stack.c")
-    add_deps("libca.em_base")
-
-target("test-fixed_size_buffer")
-    set_kind("binary")
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_files("fixed_size_buffer.c")
     add_deps("libca.em_base")
 
 -- mem_view 单元测试

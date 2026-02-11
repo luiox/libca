@@ -1,17 +1,18 @@
 /**
- * @file fixed_size_buffer.h
+ * @file fixed_buffer.h
  * @author canrad (1517807724@qq.com)
  * @brief 固定大小的缓冲区
  * 用途：1. 包装原始u8*的缓冲区，方便解析
  *      2. 组织数据写入缓冲区
- * @version 0.1
+ * @version 0.2
  * @date 2026-01-29
+ * @update 2026-02-11
  * 
  * @copyright Copyright (c) 2026
  * 
  */
-#ifndef LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
-#define LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
+#ifndef LIBCA_EM_DSTREAM_FIXED_BUFFER_H
+#define LIBCA_EM_DSTREAM_FIXED_BUFFER_H
 
 #include "../em_base/datatype.h"
 #include "../em_base/debug.h"
@@ -21,13 +22,13 @@ extern "C" {
 #endif
 
 /**
- * @brief fixed_size_buffer 的错误码
+ * @brief fixed_buffer 的错误码
  */
-#define FSB_OK          0  /**< 成功 */
-#define FSB_ERR_FULL    -1 /**< 缓冲区已满 */
-#define FSB_ERR_EMPTY   -2 /**< 缓冲区为空 */
-#define FSB_ERR_INVALID -3 /**< 无效参数 */
-#define FSB_ERR_OOB     -4 /**< 越界访问 */
+#define FIXED_BUF_OK          0  /**< 成功 */
+#define FIXED_BUF_ERR_FULL    -1 /**< 缓冲区已满 */
+#define FIXED_BUF_ERR_EMPTY   -2 /**< 缓冲区为空 */
+#define FIXED_BUF_ERR_INVALID -3 /**< 无效参数 */
+#define FIXED_BUF_ERR_OOB     -4 /**< 越界访问 */
 
 /**
  * @brief 固定大小的缓冲区结构
@@ -35,13 +36,13 @@ extern "C" {
  * cursor 是读写共用的处理位置标记。
  * used 是当前缓冲区中有效数据的长度。
  */
-typedef struct fixed_size_buffer
+typedef struct fixed_buffer
 {
     u8*   raw;      /**< 缓冲区指针 */
     usize capacity; /**< 缓冲区的总大小 */
     usize used;     /**< 缓冲区使用了的大小 */
     usize cursor;   /**< 当前游标位置 */
-} fixed_size_buffer_t;
+} fixed_buffer_t;
 
 /**
  * @brief 初始化 FSB 缓冲区
@@ -49,14 +50,14 @@ typedef struct fixed_size_buffer
  * @param data 外部提供的内存块
  * @param capacity 内存块容量
  */
-void fsb_init(fixed_size_buffer_t* self, u8* data, usize capacity);
+void fixed_buf_init(fixed_buffer_t* self, u8* data, usize capacity);
 
 /**
  * @brief 获取数据指针
  * @param self FSB 指针
  * @return u8* 数据起始指针
  */
-static inline u8* fsb_data(fixed_size_buffer_t* self)
+static inline u8* fixed_buf_data(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     return self->raw;
@@ -67,7 +68,7 @@ static inline u8* fsb_data(fixed_size_buffer_t* self)
  * @param self FSB 指针
  * @return usize 容量
  */
-static inline usize fsb_capacity(fixed_size_buffer_t* self)
+static inline usize fixed_buf_capacity(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     return self->capacity;
@@ -78,7 +79,7 @@ static inline usize fsb_capacity(fixed_size_buffer_t* self)
  * @param self FSB 指针
  * @return usize 长度
  */
-static inline usize fsb_used(fixed_size_buffer_t* self)
+static inline usize fixed_buf_used(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     return self->used;
@@ -89,7 +90,7 @@ static inline usize fsb_used(fixed_size_buffer_t* self)
  * @param self FSB 指针
  * @return usize 剩余大小
  */
-static inline usize fsb_available(fixed_size_buffer_t* self)
+static inline usize fixed_buf_available(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     return self->capacity - self->used;
@@ -100,7 +101,7 @@ static inline usize fsb_available(fixed_size_buffer_t* self)
  * @param self FSB 指针
  * @return usize 可读字节数
  */
-static inline usize fsb_remaining_to_read(fixed_size_buffer_t* self)
+static inline usize fixed_buf_remaining_to_read(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     if (self->cursor >= self->used) {
@@ -116,20 +117,20 @@ static inline usize fsb_remaining_to_read(fixed_size_buffer_t* self)
  * @param self FSB 指针
  * @param size 跳过的字节数
  */
-void fsb_skip(fixed_size_buffer_t* self, usize size);
+void fixed_buf_skip(fixed_buffer_t* self, usize size);
 
 /**
  * @brief 回退 n 个字节的 cursor
  * @param self FSB 指针
  * @param size 回退的字节数
  */
-void fsb_rewind(fixed_size_buffer_t* self, usize size);
+void fixed_buf_rewind(fixed_buffer_t* self, usize size);
 
 /**
  * @brief 重置 cursor 到起始位置
  * @param self FSB 指针
  */
-static inline void fsb_reset_cursor(fixed_size_buffer_t* self)
+static inline void fixed_buf_reset_cursor(fixed_buffer_t* self)
 {
     param_check(self != NULL);
     self->cursor = 0;
@@ -143,14 +144,14 @@ static inline void fsb_reset_cursor(fixed_size_buffer_t* self)
  * 
  * @param self FSB 指针
  */
-void fsb_flush(fixed_size_buffer_t* self);
+void fixed_buf_flush(fixed_buffer_t* self);
 
 /**
  * @brief 从 [cursor, used) 创建一个新的 FSB (浅拷贝)
  * @param self 源 FSB 指针
  * @param new_b 目标 FSB 指针
  */
-void fsb_new_from_cursor(fixed_size_buffer_t* self, fixed_size_buffer_t* new_b);
+void fixed_buf_new_from_cursor(fixed_buffer_t* self, fixed_buffer_t* new_b);
 
 // 基于 cursor 的读取
 
@@ -158,9 +159,9 @@ void fsb_new_from_cursor(fixed_size_buffer_t* self, fixed_size_buffer_t* new_b);
  * @brief 在 cursor 处读取一个 u8 字节并推进 cursor
  * @param self FSB 指针
  * @param value 接收值的指针
- * @return i32 FSB_OK 成功，FSB_ERR_EMPTY 无数据可读
+ * @return i32 FIXED_BUF_OK 成功，FIXED_BUF_ERR_EMPTY 无数据可读
  */
-i32 fsb_read_u8(fixed_size_buffer_t* self, u8* value);
+i32 fixed_buf_read_u8(fixed_buffer_t* self, u8* value);
 
 /**
  * @brief 从 cursor 开始读取 n 个字节，并推进 cursor
@@ -169,15 +170,15 @@ i32 fsb_read_u8(fixed_size_buffer_t* self, u8* value);
  * @param size 读取大小
  * @return i32 实际读取的大小，或错误码
  */
-i32 fsb_read(fixed_size_buffer_t* self, u8* buffer, usize size);
+i32 fixed_buf_read(fixed_buffer_t* self, u8* buffer, usize size);
 
 /**
  * @brief 尝试查看当前游标处的字节，不移动游标
  * @param self FSB 指针
  * @param value 接收字节值的指针
- * @return i32 FSB_OK 成功，FSB_ERR_EMPTY 无数据可读，FSB_ERR_INVALID 无效参数
+ * @return i32 FIXED_BUF_OK 成功，FIXED_BUF_ERR_EMPTY 无数据可读，FIXED_BUF_ERR_INVALID 无效参数
  */
-i32 fsb_peek(fixed_size_buffer_t* self, u8* value);
+i32 fixed_buf_peek(fixed_buffer_t* self, u8* buf, usize size);
 
 /**
  * @brief 读取 cursor + offset 处的字节，不移动游标
@@ -185,7 +186,7 @@ i32 fsb_peek(fixed_size_buffer_t* self, u8* value);
  * @param offset 偏移量
  * @return u8 字节值，如果越界返回 0
  */
-u8 fsb_peek_at(fixed_size_buffer_t* self, usize offset);
+u8 fixed_buf_peek_at(fixed_buffer_t* self, usize offset);
 
 /**
  * @brief 从 used 结尾处追加数据（不改变 cursor）
@@ -197,7 +198,7 @@ u8 fsb_peek_at(fixed_size_buffer_t* self, usize offset);
  * @param size 数据长度
  * @return i32 实际追加的大小
  */
-i32 fsb_append(fixed_size_buffer_t* self, const u8* data, usize size);
+i32 fixed_buf_append(fixed_buffer_t* self, const u8* data, usize size);
 
 /**
  * @brief 将 other 缓冲区的内容合并到 self (从 used 追加，不改变 cursor)
@@ -205,7 +206,7 @@ i32 fsb_append(fixed_size_buffer_t* self, const u8* data, usize size);
  * @param other 源 FSB 指针
  * @return i32 实际合并的大小
  */
-i32 fsb_merge(fixed_size_buffer_t* self, const fixed_size_buffer_t* other);
+i32 fixed_buf_merge(fixed_buffer_t* self, const fixed_buffer_t* other);
 
 /**
  * @brief 在指定索引索引 index 处直接写值 (不改变 cursor 和 used)
@@ -213,7 +214,7 @@ i32 fsb_merge(fixed_size_buffer_t* self, const fixed_size_buffer_t* other);
  * @param index 索引位置
  * @param value 写入的值
  */
-void fsb_write_u8(fixed_size_buffer_t* self, usize index, u8 value);
+void fixed_buf_write_u8(fixed_buffer_t* self, usize index, u8 value);
 
 /**
  * @brief 从 cursor 位置开始写数据，并推进 cursor
@@ -226,10 +227,10 @@ void fsb_write_u8(fixed_size_buffer_t* self, usize index, u8 value);
  * @param size 数据大小
  * @return i32 实际写入的大小
  */
-i32 fsb_write(fixed_size_buffer_t* self, const u8* data, usize size);
+i32 fixed_buf_write(fixed_buffer_t* self, const u8* data, usize size);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif   // !LIBCA_EM_UTIL_FIXED_SIZE_BUFFER_H
+#endif   // !LIBCA_EM_DSTREAM_FIXED_BUFFER_H
