@@ -17,6 +17,8 @@ includes("em_base")
 includes("em_test")
 -- util依赖base
 includes("em_util")
+-- dstream依赖base
+includes("em_dstream")
 -- driver依赖base
 includes("em_driver")
 -- platform依赖base
