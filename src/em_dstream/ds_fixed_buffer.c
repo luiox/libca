@@ -233,5 +233,107 @@ TEST_CASE(ds_fixed_buf_detailed_ops)
     TEST_ASSERT_EQUAL_UINT(10, dstream_used(&ds));
 }
 
+TEST_CASE(ds_fixed_buf_peek_helpers)
+{
+    u8 mem[16];
+    fixed_buffer_t fb;
+    const u8 seq[] = {1,2,3,4, 0xFF,0xFF, 0x01,0x02};
+    fixed_buf_init(&fb, mem, 16);
+    fixed_buf_append(&fb, seq, sizeof(seq));
+
+    dstream_t ds = {0};
+    ds.buf_obj = &fb;
+    ds.ops = fixed_buf_get_dstream_ops();
+
+    TEST_ASSERT_EQUAL_UINT(8, dstream_used(&ds));
+
+    // basic peek helpers (unsigned)
+    TEST_ASSERT_EQUAL_UINT(1, dstream_peek_u8(&ds, 0));
+    TEST_ASSERT_EQUAL_UINT(0x0201, dstream_peek_u16_le(&ds, 0));
+    TEST_ASSERT_EQUAL_UINT(0x0102, dstream_peek_u16_be(&ds, 0));
+    TEST_ASSERT_EQUAL_UINT(0x04030201, dstream_peek_u32_le(&ds, 0));
+    TEST_ASSERT_EQUAL_UINT(0x01020304, dstream_peek_u32_be(&ds, 0));
+
+    // signed peek
+    TEST_ASSERT_EQUAL_INT(-1, dstream_peek_i8(&ds, 4));         // 0xFF
+    TEST_ASSERT_EQUAL_INT(-1, dstream_peek_i16_le(&ds, 4));     // 0xFFFF
+
+    // out-of-range peek yields zero via helpers
+    TEST_ASSERT_EQUAL_UINT(0, dstream_peek_u8(&ds, 20));
+}
+
+TEST_CASE(ds_fixed_buf_read_helpers)
+{
+    u8 mem[16];
+    fixed_buffer_t fb;
+    const u8 seq[] = {0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88};
+    fixed_buf_init(&fb, mem, 16);
+    fixed_buf_append(&fb, seq, sizeof(seq));
+
+    dstream_t ds = {0};
+    ds.buf_obj = &fb;
+    ds.ops = fixed_buf_get_dstream_ops();
+
+    dstream_reset(&ds, 0);
+    TEST_ASSERT_EQUAL_UINT(0x11, dstream_read_u8(&ds));
+    TEST_ASSERT_EQUAL_UINT(0x3322, dstream_read_u16_le(&ds)); // reads 0x22,0x33 -> 0x3322 due to helper order
+    TEST_ASSERT_EQUAL_UINT(0x44, dstream_read_u8(&ds));
+    TEST_ASSERT_EQUAL_UINT(0x5566, dstream_read_u16_be(&ds)); // reads 0x55,0x66 (big-endian -> 0x5566)
+
+    // read beyond available returns actual bytes read (partial reads)
+    dstream_reset(&ds, 7);
+    TEST_ASSERT_EQUAL_INT(1, dstream_read(&ds, mem, 4));
+}
+
+TEST_CASE(ds_fixed_buf_write_helpers)
+{
+    u8 mem[8] = {0};
+    fixed_buffer_t fb;
+    fixed_buf_init(&fb, mem, sizeof(mem));
+
+    dstream_t ds = {0};
+    ds.buf_obj = &fb;
+    ds.ops = fixed_buf_get_dstream_ops();
+
+    dstream_reset(&ds, 0);
+    TEST_ASSERT_EQUAL_INT(1, dstream_write_u8(&ds, 0xAA));
+    TEST_ASSERT_EQUAL_UINT(0xAA, mem[0]);
+    TEST_ASSERT_EQUAL_UINT(1, dstream_offset(&ds));
+    TEST_ASSERT_EQUAL_UINT(1, dstream_used(&ds));
+
+    TEST_ASSERT_EQUAL_INT(2, dstream_write_u16_le(&ds, 0x2233));
+    TEST_ASSERT_EQUAL_UINT(0x33, mem[1]);
+    TEST_ASSERT_EQUAL_UINT(0x22, mem[2]);
+    TEST_ASSERT_EQUAL_UINT(3, dstream_offset(&ds));
+    TEST_ASSERT_EQUAL_UINT(3, dstream_used(&ds));
+
+    // append to near capacity and do partial write
+    fixed_buf_append(&fb, (u8*)"12345", 5); // used becomes 8
+    dstream_reset(&ds, 7);
+    TEST_ASSERT_EQUAL_INT(1, dstream_write_u16_le(&ds, 0x4455)); // only 1 byte fits
+    TEST_ASSERT_EQUAL_UINT(0x55, mem[7]);
+    TEST_ASSERT_EQUAL_UINT(8, dstream_used(&ds));
+}
+
+TEST_CASE(ds_fixed_buf_misc_helpers)
+{
+    u8 mem[8];
+    fixed_buffer_t fb;
+    fixed_buf_init(&fb, mem, sizeof(mem));
+    fixed_buf_append(&fb, (u8*)"ABCD", 4);
+
+    dstream_t ds = {0};
+    ds.buf_obj = &fb;
+    ds.ops = fixed_buf_get_dstream_ops();
+
+    TEST_ASSERT_EQUAL_UINT(4, dstream_used(&ds));
+    TEST_ASSERT_EQUAL_UINT(8, dstream_capacity(&ds));
+    TEST_ASSERT_EQUAL_UINT(4, dstream_available(&ds));
+
+    dstream_reset(&ds, 2);
+    TEST_ASSERT_EQUAL_UINT(4, dstream_available(&ds)); // capacity - used (cursor doesn't affect available)
+
+}
+
 #endif // TEST_ENABLE
 
