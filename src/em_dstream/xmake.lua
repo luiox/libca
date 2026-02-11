@@ -1,7 +1,7 @@
 -- ringbuffer的单元测试
 target("test-ring_buffer")
     set_kind("binary")
-    add_files("ring_buffer.c")
+    add_files("ring_buffer.c", "ds_ring_buffer.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_deps("libca.em_base")
 
