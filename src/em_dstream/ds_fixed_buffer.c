@@ -1,6 +1,8 @@
 #include "ds_fixed_buffer.h"
 #include "dstream.h"
 #include "fixed_buffer.h"
+#include <string.h> // for memcpy
+
 
 static inline usize fixed_buf_dstream_capacity(dstream_t* self)
 {
@@ -51,16 +53,13 @@ static inline i32 fixed_buf_dstream_read(dstream_t* self, void* dest, usize len)
 static inline i32 fixed_buf_dstream_peek(dstream_t* self, usize offset, void* dest, usize len)
 {
     fixed_buffer_t* buf = (fixed_buffer_t*)self->buf_obj;
-    // ensure offset from cursor is within used range
-    if (buf->cursor + offset >= buf->used || len == 0) {
+    usize remaining = fixed_buf_remaining_to_read(buf);
+    if (offset >= remaining || len == 0) {
         return 0;
     }
-    usize available = buf->used - (buf->cursor + offset);
+    usize available = remaining - offset;
     usize to_read = (len > available) ? available : len;
-    u8* out = (u8*)dest;
-    for (usize i = 0; i < to_read; ++i) {
-        out[i] = fixed_buf_peek_at(buf, offset + i);
-    }
+    memcpy(dest, buf->raw + buf->cursor + offset, to_read);
     return (i32)to_read;
 }
 

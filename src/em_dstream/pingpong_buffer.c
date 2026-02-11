@@ -1,4 +1,5 @@
 #include "pingpong_buffer.h"
+#include <string.h> // for memset
 
 /**
  * @brief 初始化乒乓缓冲区
@@ -79,9 +80,7 @@ usize pingpong_buf_get_size(pingpong_buffer_t* pingpong_buf)
  */
 void pingpong_buf_clear(u8* buffer, usize size)
 {
-    for (u16 i = 0; i < size; i++) {
-        buffer[i] = 0;
-    }
+    memset(buffer, 0, size);
 }
 
 /**

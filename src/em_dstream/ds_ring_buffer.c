@@ -1,6 +1,8 @@
 #include "ds_ring_buffer.h"
 #include "dstream.h"
 #include "ring_buffer.h"
+#include <string.h> // for memcpy
+
 
 typedef struct ring_buf_adapter
 {
@@ -64,14 +66,17 @@ static inline i32 ring_buf_dstream_read(dstream_t* self, void* dest, usize len)
     ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
     ring_buffer_t* rb = a->rb;
     usize used = ring_buf_used(rb);
-    if (a->cursor >= used || len == 0) return 0;
-    usize avail = used - a->cursor;
-    usize to_read = (len > avail) ? avail : len;
+    usize remaining = (used > a->cursor) ? (used - a->cursor) : 0;
+    if (remaining == 0 || len == 0) return 0;
+    usize to_read = (len > remaining) ? remaining : len;
     uint8_t* out = (uint8_t*)dest;
-    usize idx = (rb->read + a->cursor) & (rb->size - 1);
-    for (usize i = 0; i < to_read; ++i) {
-        out[i] = rb->buffer[idx];
-        idx = (idx + 1) & (rb->size - 1);
+    usize start_idx = (rb->read + a->cursor) & (rb->size - 1);
+    if (start_idx + to_read <= rb->size) {
+        memcpy(out, &rb->buffer[start_idx], to_read);
+    } else {
+        usize first = rb->size - start_idx;
+        memcpy(out, &rb->buffer[start_idx], first);
+        memcpy(out + first, rb->buffer, to_read - first);
     }
     a->cursor += to_read;
     return (i32)to_read;
@@ -82,14 +87,18 @@ static inline i32 ring_buf_dstream_peek(dstream_t* self, usize offset, void* des
     ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
     ring_buffer_t* rb = a->rb;
     usize used = ring_buf_used(rb);
-    if (a->cursor + offset >= used || len == 0) return 0;
-    usize avail = used - (a->cursor + offset);
-    usize to_read = (len > avail) ? avail : len;
+    usize remaining = (used > a->cursor) ? (used - a->cursor) : 0;
+    if (offset >= remaining || len == 0) return 0;
+    usize available = remaining - offset;
+    usize to_read = (len > available) ? available : len;
     uint8_t* out = (uint8_t*)dest;
-    usize idx = (rb->read + a->cursor + offset) & (rb->size - 1);
-    for (usize i = 0; i < to_read; ++i) {
-        out[i] = rb->buffer[idx];
-        idx = (idx + 1) & (rb->size - 1);
+    usize start_idx = (rb->read + a->cursor + offset) & (rb->size - 1);
+    if (start_idx + to_read <= rb->size) {
+        memcpy(out, &rb->buffer[start_idx], to_read);
+    } else {
+        usize first = rb->size - start_idx;
+        memcpy(out, &rb->buffer[start_idx], first);
+        memcpy(out + first, rb->buffer, to_read - first);
     }
     return (i32)to_read;
 }

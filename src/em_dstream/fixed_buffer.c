@@ -94,8 +94,12 @@ i32 fixed_buf_peek(fixed_buffer_t* self, u8* buf, usize size)
     param_check(self != NULL);
     param_check(buf != NULL);
 
-    if (self->cursor >= self->used) {
+    usize available = fixed_buf_remaining_to_read(self);
+    if (available == 0) {
         return FIXED_BUF_ERR_EMPTY;
+    }
+    if (size > available) {
+        return FIXED_BUF_ERR_OOB;
     }
     memcpy(buf, self->raw + self->cursor, size);
     return FIXED_BUF_OK;
