@@ -178,7 +178,7 @@ i32 fixed_buf_read(fixed_buffer_t* self, u8* buffer, usize size);
  * @param value 接收字节值的指针
  * @return i32 FIXED_BUF_OK 成功，FIXED_BUF_ERR_EMPTY 无数据可读，FIXED_BUF_ERR_INVALID 无效参数
  */
-i32 fixed_buf_peek(fixed_buffer_t* self, u8* value);
+i32 fixed_buf_peek(fixed_buffer_t* self, u8* buf, usize size);
 
 /**
  * @brief 读取 cursor + offset 处的字节，不移动游标

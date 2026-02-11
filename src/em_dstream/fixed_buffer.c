@@ -89,15 +89,15 @@ i32 fixed_buf_read(fixed_buffer_t* self, u8* buffer, usize size)
     return (i32)to_read;
 }
 
-i32 fixed_buf_peek(fixed_buffer_t* self, u8* value)
+i32 fixed_buf_peek(fixed_buffer_t* self, u8* buf, usize size)
 {
     param_check(self != NULL);
-    param_check(value != NULL);
+    param_check(buf != NULL);
 
     if (self->cursor >= self->used) {
         return FIXED_BUF_ERR_EMPTY;
     }
-    *value = self->raw[self->cursor];
+    memcpy(buf, self->raw + self->cursor, size);
     return FIXED_BUF_OK;
 }
 

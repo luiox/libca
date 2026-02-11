@@ -32,14 +32,14 @@ typedef struct dstream_ops
     i32 (*peek)(dstream_t* self, usize offset, void* dest, usize len);
     // 写入数据，返回实际写入的字节数，如果写入失败返回负数错误码
     i32 (*write)(dstream_t* self, const void* src, usize len);
-} dstream_ops;
+} dstream_ops_t;
 
 struct dstream
 {
     // 指向底层具体缓冲区对象
     void* buf_obj;
     // 操作函数指针表
-    const dstream_ops* ops;
+    const dstream_ops_t* ops;
 };
 
 static inline usize dstream_capacity(dstream_t* self)
