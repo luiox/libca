@@ -255,7 +255,7 @@ TEST_CASE(fixed_buf_test_read_ops)
 
     // Peek
     fixed_buf_reset_cursor(&fsb);
-    TEST_ASSERT_EQUAL_INT(FIXED_BUF_OK, fixed_buf_peek(&fsb, &val));
+    TEST_ASSERT_EQUAL_INT(FIXED_BUF_OK, fixed_buf_peek(&fsb, &val, 1));
     TEST_ASSERT_EQUAL_UINT('A', val);
     TEST_ASSERT_EQUAL_UINT('B', fixed_buf_peek_at(&fsb, 1));
     TEST_ASSERT_EQUAL_UINT('C', fixed_buf_peek_at(&fsb, 2));
@@ -263,7 +263,7 @@ TEST_CASE(fixed_buf_test_read_ops)
 
     // Peek empty
     fixed_buf_skip(&fsb, 10);
-    TEST_ASSERT_EQUAL_INT(FIXED_BUF_ERR_EMPTY, fixed_buf_peek(&fsb, &val));
+    TEST_ASSERT_EQUAL_INT(FIXED_BUF_ERR_EMPTY, fixed_buf_peek(&fsb, &val, 1));
 }
 
 TEST_CASE(fixed_buf_test_write_ops)
