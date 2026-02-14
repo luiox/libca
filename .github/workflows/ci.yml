@@ -12,7 +12,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: false
 
     # 参考https://github.com/xmake-io/github-action-setup-xmake的README配置缓存
     - name: Setup xmake
