@@ -3,6 +3,7 @@
  * @author canrad (1517807724@qq.com)
  * @brief NRF24L01 2.4G无线模块
  * 参考文章：https://blog.csdn.net/weixin_43772810/article/details/123811245
+ * 可以参考的代码：https://github.com/AFeng-Studio/NRF24L01plus_test/blob/main/Core/Src/NRF24L01.c
  * @version 0.1
  * @date 2026-01-22
  *
