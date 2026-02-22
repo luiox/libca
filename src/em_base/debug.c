@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-static void (*g_hw_puts_output)(const char* str) = NULL;
+void debug_default_output(const char* str)
+{
+    // 默认我们什么也不做
+    // 这样子可以避免不debug_init时候调用debug_puts导致的空指针问题
+}
+
+static void (*g_hw_puts_output)(const char* str) = debug_default_output;
 // 内部打印缓冲区
 static char g_print_buffer[CA_PRINT_BUFFER_SIZE];
 
