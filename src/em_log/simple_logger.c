@@ -66,21 +66,102 @@ static void slog_buf_put_u32_base(char *buf, usize buf_size, usize *pos, u32 val
 }
 
 /**
- * @brief 追加有符号32位整数
+ * @brief 按最小宽度追加无符号32位十进制整数
  */
-static void slog_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
+static void slog_buf_put_u32_width(char *buf, usize buf_size, usize *pos, u32 value, u32 min_width, char pad_char)
 {
+    char tmp[16];
+    usize digits_len = 0;
+    usize pad_count;
+    usize i;
+
+    if (value == 0U) {
+        tmp[digits_len++] = '0';
+    }
+    else {
+        while (value != 0U && digits_len < (usize)sizeof(tmp)) {
+            u32 d = value % 10U;
+            tmp[digits_len++] = (char)('0' + d);
+            value /= 10U;
+        }
+    }
+
+    pad_count = min_width > digits_len ? (min_width - digits_len) : 0U;
+
+    for (i = 0; i < pad_count; i++) {
+        slog_buf_putc(buf, buf_size, pos, pad_char);
+    }
+
+    while (digits_len > 0U) {
+        digits_len--;
+        slog_buf_putc(buf, buf_size, pos, tmp[digits_len]);
+    }
+}
+
+/**
+ * @brief 按最小宽度追加有符号32位十进制整数
+ */
+static void slog_buf_put_i32_width(char *buf, usize buf_size, usize *pos, i32 value, u32 min_width, char pad_char)
+{
+    bool negative = false;
     u32 abs_value;
+    usize digits_len = 0;
+    usize total_len;
+    usize pad_count;
+    char tmp[16];
+    usize i;
 
     if (value < 0) {
-        slog_buf_putc(buf, buf_size, pos, '-');
+        negative = true;
         abs_value = (u32)(-(value + 1)) + 1U;
     }
     else {
         abs_value = (u32)value;
     }
 
-    slog_buf_put_u32_base(buf, buf_size, pos, abs_value, 10U, false);
+    if (abs_value == 0U) {
+        tmp[digits_len++] = '0';
+    }
+    else {
+        while (abs_value != 0U && digits_len < (usize)sizeof(tmp)) {
+            u32 d = abs_value % 10U;
+            tmp[digits_len++] = (char)('0' + d);
+            abs_value /= 10U;
+        }
+    }
+
+    total_len = digits_len + (negative ? 1U : 0U);
+    pad_count = min_width > total_len ? (min_width - total_len) : 0U;
+
+    if (pad_char == '0') {
+        if (negative) {
+            slog_buf_putc(buf, buf_size, pos, '-');
+        }
+        for (i = 0; i < pad_count; i++) {
+            slog_buf_putc(buf, buf_size, pos, '0');
+        }
+    }
+    else {
+        for (i = 0; i < pad_count; i++) {
+            slog_buf_putc(buf, buf_size, pos, pad_char);
+        }
+        if (negative) {
+            slog_buf_putc(buf, buf_size, pos, '-');
+        }
+    }
+
+    while (digits_len > 0U) {
+        digits_len--;
+        slog_buf_putc(buf, buf_size, pos, tmp[digits_len]);
+    }
+}
+
+/**
+ * @brief 追加有符号32位整数
+ */
+static void slog_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
+{
+    slog_buf_put_i32_width(buf, buf_size, pos, value, 0U, ' ');
 }
 
 /**
@@ -118,7 +199,7 @@ static void slog_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 va
 }
 
 /**
- * @brief 轻量级格式化函数，仅支持 %d %u %f %x %X %s 和 %%，支持 %.Nf
+ * @brief 轻量级格式化函数，仅支持 %d %u %f %x %X %s 和 %%，支持 %.Nf 与 %0Nd
  */
 static i32 slog_fast_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 {
@@ -142,8 +223,21 @@ static i32 slog_fast_vsnprintf(char *buf, usize buf_size, const char *fmt, va_li
             continue;
         }
 
+        bool zero_pad = false;
+        u32 width = 0U;
+
         u32 precision = 6U;
         bool has_precision = false;
+
+        if (*fmt == '0') {
+            zero_pad = true;
+            fmt++;
+        }
+
+        while (*fmt >= '0' && *fmt <= '9') {
+            width = width * 10U + (u32)(*fmt - '0');
+            fmt++;
+        }
 
         if (*fmt == '.') {
             has_precision = true;
@@ -158,12 +252,22 @@ static i32 slog_fast_vsnprintf(char *buf, usize buf_size, const char *fmt, va_li
         switch (*fmt) {
         case 'd': {
             i32 value = (i32)va_arg(args, int);
-            slog_buf_put_i32(buf, buf_size, &pos, value);
+            if (width > 0U) {
+                slog_buf_put_i32_width(buf, buf_size, &pos, value, width, zero_pad ? '0' : ' ');
+            }
+            else {
+                slog_buf_put_i32(buf, buf_size, &pos, value);
+            }
             break;
         }
         case 'u': {
             u32 value = (u32)va_arg(args, unsigned int);
-            slog_buf_put_u32_base(buf, buf_size, &pos, value, 10U, false);
+            if (width > 0U) {
+                slog_buf_put_u32_width(buf, buf_size, &pos, value, width, zero_pad ? '0' : ' ');
+            }
+            else {
+                slog_buf_put_u32_base(buf, buf_size, &pos, value, 10U, false);
+            }
             break;
         }
         case 'x': {
@@ -347,6 +451,20 @@ TEST_CASE(simple_logger_format_unsigned_max)
     test_slog_reset();
     _slog_printf("%u", 4294967295U);
     TEST_ASSERT_EQUAL_STRING("4294967295", g_test_buf);
+}
+
+TEST_CASE(simple_logger_format_zero_pad_d)
+{
+    test_slog_reset();
+    _slog_printf("%02d %03d %02d", 7, -7, 12);
+    TEST_ASSERT_EQUAL_STRING("07 -07 12", g_test_buf);
+}
+
+TEST_CASE(simple_logger_format_zero_pad_u)
+{
+    test_slog_reset();
+    _slog_printf("%02u %05u", 3U, 123U);
+    TEST_ASSERT_EQUAL_STRING("03 00123", g_test_buf);
 }
 
 TEST_CASE(simple_logger_long_message_truncate)
