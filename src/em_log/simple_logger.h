@@ -1,3 +1,14 @@
+/**
+ * @file simple_logger.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 一个简单可以配置的的日志库
+ * 是对em_log标准下的log语义的简单实现
+ * @version 0.1
+ * @date 2026-02-22
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_LOG_SIMPLE_LOGGER_H
 #define LIBCA_EM_LOG_SIMPLE_LOGGER_H
 
@@ -8,8 +19,76 @@ extern "C" {
 #endif
 
 // ==========================================
-// 1. 后端接口定义
+// 2. 用户配置区
 // ==========================================
+
+#ifndef LOG_MODULE_NAME
+    #define LOG_MODULE_NAME ""
+#endif
+
+// 配置开关 (0/1)
+#ifndef SLOG_ENABLE_TAG
+    #define SLOG_ENABLE_TAG 1
+#endif
+
+#ifndef SLOG_DEBUG_SHOW_FILE_LINE
+    #define SLOG_DEBUG_SHOW_FILE_LINE 1
+#endif
+
+#ifndef SLOG_BUFFER_SIZE
+    #define SLOG_BUFFER_SIZE 128
+#endif
+
+#ifndef SLOG_LEVEL_BRIEF
+    #define SLOG_LEVEL_BRIEF 0
+#endif
+
+#ifndef SLOG_ENABLE_RUNTIME_LEVEL
+    #define SLOG_ENABLE_RUNTIME_LEVEL 0
+#endif
+
+#ifndef SLOG_USE_FAST_VSNPRINTF
+    #define SLOG_USE_FAST_VSNPRINTF 0
+#endif
+
+// 静态过滤等级
+#ifndef SLOG_COMPILE_LEVEL
+    #define SLOG_COMPILE_LEVEL 4 // 4=DEBUG
+#endif
+
+// 锁是否启用，如果是RTOS建议实现锁
+#ifndef SLOG_USER_LOCK
+#define SLOG_USER_LOCK 0
+#endif
+
+// 锁的定义：
+// 1) 当 SLOG_USER_LOCK=1 时，建议由用户在包含本头文件前自定义 SLOG_LOCK_ENTER/SLOG_LOCK_EXIT
+// 2) 若未自定义，则默认降级为 no-op，保证可编译
+// 3) 当 SLOG_USER_LOCK=0 时，固定为 no-op
+#if SLOG_USER_LOCK
+#ifndef SLOG_LOCK_ENTER
+#define SLOG_LOCK_ENTER() ((void)0)
+#endif
+#ifndef SLOG_LOCK_EXIT
+#define SLOG_LOCK_EXIT() ((void)0)
+#endif
+#else
+#ifndef SLOG_LOCK_ENTER
+#define SLOG_LOCK_ENTER() ((void)0)
+#endif
+#ifndef SLOG_LOCK_EXIT
+#define SLOG_LOCK_EXIT() ((void)0)
+#endif
+#endif
+
+// 日志等级
+#define LOG_LEVEL_RAW   0
+#define LOG_LEVEL_ERROR 1
+#define LOG_LEVEL_WARN  2
+#define LOG_LEVEL_INFO  3
+#define LOG_LEVEL_DEBUG 4
+
+// 输出函数类型定义
 typedef void (*slog_output_fn_t)(const u8 *buf, usize len);
 
 /**
@@ -51,48 +130,6 @@ u8 slog_get_runtime_level(void);
 bool slog_should_log(u8 level);
 #endif
 
-// ==========================================
-// 2. 用户配置区
-// ==========================================
-
-#ifndef LOG_MODULE_NAME
-    #define LOG_MODULE_NAME ""
-#endif
-
-// 配置开关 (0/1)
-#ifndef SLOG_ENABLE_TAG
-    #define SLOG_ENABLE_TAG 1
-#endif
-
-#ifndef SLOG_DEBUG_SHOW_FILE_LINE
-    #define SLOG_DEBUG_SHOW_FILE_LINE 1
-#endif
-
-#ifndef SLOG_BUFFER_SIZE
-    #define SLOG_BUFFER_SIZE 128
-#endif
-
-#ifndef SLOG_LEVEL_BRIEF
-    #define SLOG_LEVEL_BRIEF 0
-#endif
-
-#ifndef SLOG_ENABLE_RUNTIME_LEVEL
-    #define SLOG_ENABLE_RUNTIME_LEVEL 0
-#endif
-
-#ifndef SLOG_USE_FAST_VSNPRINTF
-    #define SLOG_USE_FAST_VSNPRINTF 0
-#endif
-
-// 静态过滤等级
-#ifndef SLOG_COMPILE_LEVEL
-    #define SLOG_COMPILE_LEVEL 4 // 4=DEBUG
-#endif
-
-// ==========================================
-// 3. 内部宏拼接工具
-// ==========================================
-
 // 等级字符串转换宏
 #if SLOG_LEVEL_BRIEF
     #define _SLOG_LVL_STR_E "E"
@@ -117,10 +154,6 @@ bool slog_should_log(u8 level);
 #define _SLOG_STRINGIFY(x) #x
 #define _SLOG_TOSTRING(x) _SLOG_STRINGIFY(x)
 
-// ==========================================
-// 4. 核心日志宏
-// ==========================================
-
 // 禁止直接调用 _slog_printf
 // 最终生成格式: "[LEVEL][TAG] user_fmt\n"
 #define _SLOG_CORE(level_str, fmt, ...) \
@@ -135,16 +168,6 @@ bool slog_should_log(u8 level);
 #else
     #define _SLOG_CORE_DEBUG(fmt, ...) _SLOG_CORE(_SLOG_LVL_STR_D, fmt, ##__VA_ARGS__)
 #endif
-
-// ==========================================
-// 5. 用户 API (带静态过滤)
-// ==========================================
-
-#define LOG_LEVEL_RAW   0
-#define LOG_LEVEL_ERROR 1
-#define LOG_LEVEL_WARN  2
-#define LOG_LEVEL_INFO  3
-#define LOG_LEVEL_DEBUG 4
 
 #if SLOG_ENABLE_RUNTIME_LEVEL
     #define _SLOG_RUNTIME_GUARD(level) if (slog_should_log((u8)(level)))

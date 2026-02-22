@@ -226,7 +226,9 @@ static i32 slog_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list ar
 }
 
 void slog_init(slog_output_fn_t out_fn) {
+    SLOG_LOCK_ENTER();
     g_out_fn = out_fn;
+    SLOG_LOCK_EXIT();
 }
 
 #if SLOG_ENABLE_RUNTIME_LEVEL
@@ -251,7 +253,13 @@ bool slog_should_log(u8 level)
 
 // 唯一的底层函数
 void _slog_printf(const char *fmt, ...) {
-    if (g_out_fn == NULL || fmt == NULL) {
+    if (fmt == NULL) {
+        return;
+    }
+
+    SLOG_LOCK_ENTER();
+    if (g_out_fn == NULL) {
+        SLOG_LOCK_EXIT();
         return;
     }
 
@@ -263,6 +271,7 @@ void _slog_printf(const char *fmt, ...) {
     va_end(args);
 
     if (len <= 0) {
+        SLOG_LOCK_EXIT();
         return;
     }
 
@@ -272,6 +281,7 @@ void _slog_printf(const char *fmt, ...) {
     }
 
     g_out_fn((const u8 *)buf, (usize)len);
+    SLOG_LOCK_EXIT();
 }
 
 #if TEST_ENABLE
