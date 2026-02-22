@@ -1,7 +1,7 @@
 /**
  * @file debug.h
  * @author canrad (1517807724@qq.com)
- * @brief 调试打印模块接口
+ * @brief 调试打印模块接口，此模块仅仅用于libca库内部的信息打印，外部user请使用em_log模块
  * 本模块用于在调试时将字符串输出到指定的硬件输出（例如串口）。
  * 提供初始化、直接输出和格式化输出接口，以及调试辅助宏（debug_print、debug_assert、param_check）。
  *
