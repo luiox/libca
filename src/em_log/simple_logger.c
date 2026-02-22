@@ -118,7 +118,7 @@ static void slog_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 va
 }
 
 /**
- * @brief 轻量级格式化函数，仅支持 %d %f %x %X %s 和 %%，支持 %.Nf
+ * @brief 轻量级格式化函数，仅支持 %d %u %f %x %X %s 和 %%，支持 %.Nf
  */
 static i32 slog_fast_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 {
@@ -159,6 +159,11 @@ static i32 slog_fast_vsnprintf(char *buf, usize buf_size, const char *fmt, va_li
         case 'd': {
             i32 value = (i32)va_arg(args, int);
             slog_buf_put_i32(buf, buf_size, &pos, value);
+            break;
+        }
+        case 'u': {
+            u32 value = (u32)va_arg(args, unsigned int);
+            slog_buf_put_u32_base(buf, buf_size, &pos, value, 10U, false);
             break;
         }
         case 'x': {
@@ -333,8 +338,15 @@ TEST_CASE(simple_logger_raw_no_newline)
 TEST_CASE(simple_logger_format_core)
 {
     test_slog_reset();
-    _slog_printf("%d %x %X %s %.2f", -12, 0x2a, 0x2a, "ok", 3.14159);
-    TEST_ASSERT_EQUAL_STRING("-12 2a 2A ok 3.14", g_test_buf);
+    _slog_printf("%d %u %x %X %s %.2f", -12, 42U, 0x2a, 0x2a, "ok", 3.14159);
+    TEST_ASSERT_EQUAL_STRING("-12 42 2a 2A ok 3.14", g_test_buf);
+}
+
+TEST_CASE(simple_logger_format_unsigned_max)
+{
+    test_slog_reset();
+    _slog_printf("%u", 4294967295U);
+    TEST_ASSERT_EQUAL_STRING("4294967295", g_test_buf);
 }
 
 TEST_CASE(simple_logger_long_message_truncate)
