@@ -44,3 +44,14 @@ rule("libca.em_driver")
         target:add("files", path.join(src_dir, "*.c"))
     end)
 rule_end()
+
+-- 目前这个em_log只给simple_logger这个实现
+rule("libca.em_log")
+    on_load(function (target)
+        local inc_dir = path.join(os.scriptdir(), "src")
+        local src_dir = path.join(inc_dir, "em_log")
+        target:add("includedirs", inc_dir)
+        target:add("files", path.join(src_dir, "simple_logger.c"))
+    end)
+rule_end()
+
