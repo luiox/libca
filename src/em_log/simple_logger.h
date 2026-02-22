@@ -3,14 +3,53 @@
 
 #include "../em_base/datatype.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // ==========================================
 // 1. 后端接口定义
 // ==========================================
 typedef void (*slog_output_fn_t)(const u8 *buf, usize len);
+
+/**
+ * @brief 初始化 simple logger 的底层输出函数
+ *
+ * @param out_fn 底层输出回调，传入 NULL 表示关闭输出
+ */
 void slog_init(slog_output_fn_t out_fn);
 
-// 底层实现：只需要一个格式化输出函数
+/**
+ * @brief simple logger 的底层格式化输出函数
+ *
+ * @param fmt printf 风格格式字符串
+ * @param ... 格式参数
+ */
 void _slog_printf(const char *fmt, ...);
+
+#if SLOG_ENABLE_RUNTIME_LEVEL
+/**
+ * @brief 设置运行时日志过滤等级
+ *
+ * @param level 运行时等级，范围见 LOG_LEVEL_*
+ */
+void slog_set_runtime_level(u8 level);
+
+/**
+ * @brief 获取当前运行时日志过滤等级
+ *
+ * @return u8 当前等级
+ */
+u8 slog_get_runtime_level(void);
+
+/**
+ * @brief 判断某等级日志在当前运行时配置下是否允许输出
+ *
+ * @param level 待判断等级
+ * @return bool true 表示允许输出
+ */
+bool slog_should_log(u8 level);
+#endif
 
 // ==========================================
 // 2. 用户配置区
@@ -35,6 +74,14 @@ void _slog_printf(const char *fmt, ...);
 
 #ifndef SLOG_LEVEL_BRIEF
     #define SLOG_LEVEL_BRIEF 0
+#endif
+
+#ifndef SLOG_ENABLE_RUNTIME_LEVEL
+    #define SLOG_ENABLE_RUNTIME_LEVEL 0
+#endif
+
+#ifndef SLOG_USE_FAST_VSNPRINTF
+    #define SLOG_USE_FAST_VSNPRINTF 0
 #endif
 
 // 静态过滤等级
@@ -93,33 +140,50 @@ void _slog_printf(const char *fmt, ...);
 // 5. 用户 API (带静态过滤)
 // ==========================================
 
+#define LOG_LEVEL_RAW   0
 #define LOG_LEVEL_ERROR 1
 #define LOG_LEVEL_WARN  2
 #define LOG_LEVEL_INFO  3
 #define LOG_LEVEL_DEBUG 4
 
+#if SLOG_ENABLE_RUNTIME_LEVEL
+    #define _SLOG_RUNTIME_GUARD(level) if (slog_should_log((u8)(level)))
+#else
+    #define _SLOG_RUNTIME_GUARD(level) if (1)
+#endif
+
+#define log_raw(fmt, ...) _slog_printf(fmt, ##__VA_ARGS__)
+
 #if SLOG_COMPILE_LEVEL >= LOG_LEVEL_ERROR
-    #define log_error(fmt, ...) _SLOG_CORE(_SLOG_LVL_STR_E, fmt, ##__VA_ARGS__)
+    #define log_error(fmt, ...) \
+        do { _SLOG_RUNTIME_GUARD(LOG_LEVEL_ERROR) { _SLOG_CORE(_SLOG_LVL_STR_E, fmt, ##__VA_ARGS__); } } while (0)
 #else
     #define log_error(fmt, ...) ((void)0)
 #endif
 
 #if SLOG_COMPILE_LEVEL >= LOG_LEVEL_WARN
-    #define log_warn(fmt, ...)  _SLOG_CORE(_SLOG_LVL_STR_W, fmt, ##__VA_ARGS__)
+    #define log_warn(fmt, ...)  \
+        do { _SLOG_RUNTIME_GUARD(LOG_LEVEL_WARN) { _SLOG_CORE(_SLOG_LVL_STR_W, fmt, ##__VA_ARGS__); } } while (0)
 #else
     #define log_warn(fmt, ...)  ((void)0)
 #endif
 
 #if SLOG_COMPILE_LEVEL >= LOG_LEVEL_INFO
-    #define log_info(fmt, ...)  _SLOG_CORE(_SLOG_LVL_STR_I, fmt, ##__VA_ARGS__)
+    #define log_info(fmt, ...)  \
+        do { _SLOG_RUNTIME_GUARD(LOG_LEVEL_INFO) { _SLOG_CORE(_SLOG_LVL_STR_I, fmt, ##__VA_ARGS__); } } while (0)
 #else
     #define log_info(fmt, ...)  ((void)0)
 #endif
 
 #if SLOG_COMPILE_LEVEL >= LOG_LEVEL_DEBUG
-    #define log_debug(fmt, ...) _SLOG_CORE_DEBUG(fmt, ##__VA_ARGS__)
+    #define log_debug(fmt, ...) \
+        do { _SLOG_RUNTIME_GUARD(LOG_LEVEL_DEBUG) { _SLOG_CORE_DEBUG(fmt, ##__VA_ARGS__); } } while (0)
 #else
     #define log_debug(fmt, ...) ((void)0)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif // !LIBCA_EM_LOG_SIMPLE_LOGGER_H
