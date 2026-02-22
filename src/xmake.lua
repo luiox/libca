@@ -34,6 +34,8 @@ includes("em_protocol")
 includes("em_crypto")
 -- shell依赖base
 includes("em_shell")
+-- log依赖base
+includes("em_log")
 
 -------------------------------------------------------------------------------
 
