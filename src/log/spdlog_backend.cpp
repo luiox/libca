@@ -1,5 +1,6 @@
 #include "spdlog_backend.hpp"
 #include <array>
+#include <fmt/format.h>
 #include <iterator>
 
 namespace libca {
@@ -46,7 +47,8 @@ void SpdlogBackend::log(Level level,
 
     const auto spdLevel = to_spdlog_level(level);
 
-    spdlog::memory_buf_t buffer;
+    thread_local spdlog::memory_buf_t buffer;
+    buffer.clear();
     fmt::vformat_to(std::back_inserter(buffer), formatStr, args);
 
     logger_->log(spdlog::source_loc{file.data(), line, ""},

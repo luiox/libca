@@ -72,7 +72,7 @@ private:
 };
 
 void set_global_logger(std::shared_ptr<ILogBackend> backend);
-std::shared_ptr<Logger> get_global_logger();
+Logger* get_global_logger();
 
 namespace detail {
 template <Level level, typename... Args>
@@ -84,7 +84,7 @@ inline void log_with_source(fmt::string_view        target,
 {
 	if constexpr (should_compile(level)) {
 		auto logger = get_global_logger();
-		if (!logger || !logger->should_log(level)) {
+		if (logger == nullptr || !logger->should_log(level)) {
 			return;
 		}
 
@@ -94,25 +94,25 @@ inline void log_with_source(fmt::string_view        target,
 }
 }   // namespace detail
 
-}   // namespace ca
+}   // namespace libca
 
 #define LOG_LEVEL(level, target, ...) \
-	::libca::log::detail::log_with_source<level>(target, __FILE__, __LINE__, __VA_ARGS__)
+	::libca::detail::log_with_source<level>(target, __FILE__, __LINE__, __VA_ARGS__)
 
-#define LOG_TRACE(...) LOG_LEVEL(::libca::log::Level::Trace, "default", __VA_ARGS__)
-#define LOG_DEBUG(...) LOG_LEVEL(::libca::log::Level::Debug, "default", __VA_ARGS__)
-#define LOG_INFO(...) LOG_LEVEL(::libca::log::Level::Info, "default", __VA_ARGS__)
-#define LOG_WARN(...) LOG_LEVEL(::libca::log::Level::Warn, "default", __VA_ARGS__)
-#define LOG_ERROR(...) LOG_LEVEL(::libca::log::Level::Error, "default", __VA_ARGS__)
-#define LOG_CRITICAL(...) LOG_LEVEL(::libca::log::Level::Critical, "default", __VA_ARGS__)
+#define LOG_TRACE(...) LOG_LEVEL(::libca::Level::Trace, "default", __VA_ARGS__)
+#define LOG_DEBUG(...) LOG_LEVEL(::libca::Level::Debug, "default", __VA_ARGS__)
+#define LOG_INFO(...) LOG_LEVEL(::libca::Level::Info, "default", __VA_ARGS__)
+#define LOG_WARN(...) LOG_LEVEL(::libca::Level::Warn, "default", __VA_ARGS__)
+#define LOG_ERROR(...) LOG_LEVEL(::libca::Level::Error, "default", __VA_ARGS__)
+#define LOG_CRITICAL(...) LOG_LEVEL(::libca::Level::Critical, "default", __VA_ARGS__)
 
-#define LOGT_TRACE(target, ...) LOG_LEVEL(::libca::log::Level::Trace, target, __VA_ARGS__)
-#define LOGT_DEBUG(target, ...) LOG_LEVEL(::libca::log::Level::Debug, target, __VA_ARGS__)
-#define LOGT_INFO(target, ...) LOG_LEVEL(::libca::log::Level::Info, target, __VA_ARGS__)
-#define LOGT_WARN(target, ...) LOG_LEVEL(::libca::log::Level::Warn, target, __VA_ARGS__)
-#define LOGT_ERROR(target, ...) LOG_LEVEL(::libca::log::Level::Error, target, __VA_ARGS__)
+#define LOGT_TRACE(target, ...) LOG_LEVEL(::libca::Level::Trace, target, __VA_ARGS__)
+#define LOGT_DEBUG(target, ...) LOG_LEVEL(::libca::Level::Debug, target, __VA_ARGS__)
+#define LOGT_INFO(target, ...) LOG_LEVEL(::libca::Level::Info, target, __VA_ARGS__)
+#define LOGT_WARN(target, ...) LOG_LEVEL(::libca::Level::Warn, target, __VA_ARGS__)
+#define LOGT_ERROR(target, ...) LOG_LEVEL(::libca::Level::Error, target, __VA_ARGS__)
 #define LOGT_CRITICAL(target, ...) \
-	LOG_LEVEL(::libca::log::Level::Critical, target, __VA_ARGS__)
+	LOG_LEVEL(::libca::Level::Critical, target, __VA_ARGS__)
 
 
 #endif   // ! LIBCA_LOG_LOGGER_H

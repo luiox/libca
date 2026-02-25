@@ -5,20 +5,23 @@
 #include <memory>
 
 namespace libca {
-    constexpr std::array<std::string_view, 7> kLevelNames = {
+constexpr std::array<std::string_view, 7> kLevelNames = {
     "Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
 
 
 Level stringToLevel(std::string_view level)
 {
     for (std::size_t index = 0; index < kLevelNames.size(); ++index) {
-        if (std::equal(level.begin(), level.end(), kLevelNames[index].begin(), kLevelNames[index].end(),
-                       [](char lhs, char rhs) {
-                           return static_cast<unsigned char>(lhs) ==
-                                  static_cast<unsigned char>(rhs) ||
-                                  std::tolower(static_cast<unsigned char>(lhs)) ==
-                                      std::tolower(static_cast<unsigned char>(rhs));
-                       })) {
+		if (level.size() == kLevelNames[index].size() &&
+			std::equal(level.begin(),
+					   level.end(),
+					   kLevelNames[index].begin(),
+					   [](char lhs, char rhs) {
+						   return static_cast<unsigned char>(lhs) ==
+								  static_cast<unsigned char>(rhs) ||
+								  std::tolower(static_cast<unsigned char>(lhs)) ==
+									  std::tolower(static_cast<unsigned char>(rhs));
+					   })) {
             return static_cast<Level>(index);
         }
     }
@@ -35,7 +38,8 @@ std::string levelToString(Level level)
 }
 
 namespace {
-std::shared_ptr<Logger> g_logger;
+std::atomic<Logger*>       g_logger_ptr {nullptr};
+std::shared_ptr<Logger>    g_logger_holder;
 }
 
 Logger::Logger(std::shared_ptr<ILogBackend> backend)
@@ -59,26 +63,26 @@ ILogBackend* Logger::backend() const
 
 void Logger::set_level(Level level) const
 {
-	if (!backend_ || !levelPtr_) {
-		return;
+	if (backend_) {
+		backend_->set_level(level);
 	}
-	const_cast<std::atomic<Level>*>(levelPtr_)->store(level, std::memory_order_relaxed);
-	backend_->set_level(level);
 }
 
 void set_global_logger(std::shared_ptr<ILogBackend> backend)
 {
 	if (!backend) {
-		std::atomic_store(&g_logger, std::shared_ptr<Logger>{});
+		g_logger_ptr.store(nullptr, std::memory_order_release);
+		g_logger_holder.reset();
 		return;
 	}
 
-	std::atomic_store(&g_logger, std::make_shared<Logger>(std::move(backend)));
+	g_logger_holder = std::make_shared<Logger>(std::move(backend));
+	g_logger_ptr.store(g_logger_holder.get(), std::memory_order_release);
 }
 
-std::shared_ptr<Logger> get_global_logger()
+Logger* get_global_logger()
 {
-	return std::atomic_load(&g_logger);
+	return g_logger_ptr.load(std::memory_order_acquire);
 }
 
 }   // namespace libca
