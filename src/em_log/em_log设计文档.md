@@ -23,7 +23,7 @@ simple_logger是最简单的一个实现，后端可以接入stdio或者uart，�
 ```c
 void output_func(const u8 *buf, usize len);
 
-slog_inif(output_func);
+slog_init(output_func);
 ```
 
 使用时候的代码，例如`dht11.c`内部
@@ -59,3 +59,33 @@ void dht11_init(void)
 7. 支持 `%0Nd` / `%0Nu`（例如 `%02d`、`%05u`，仅支持前导0填充）
 8. 支持 `%%` 输出 `%` 字符
 9. 不支持左对齐、空格填充、`%ld/%llu` 等扩展格式，遇到不支持格式按原样回退输出
+
+### rtt_logger
+
+rtt_logger是对SEGGER_RTT的封装。
+
+初始化的函数
+
+```c
+void rlog_init(void);
+```
+
+使用时候的代码，例如`dht11.c`内部
+
+```c
+#define LOG_MODULE_NAME "dht11"
+#include "dht11.h"
+#include "rtt_logger.h"
+
+void dht11_init(void)
+{
+    log_info("dht11 init");
+}
+
+```
+
+并且这个库应该是可以配置的，可以配置的功能列表。
+
+- 日志等级信息，可以选择为精简模式（只有首字母），也可以全称。默认是全称模式。
+- tag是否开启，默认开启
+- debug等级下是否输出文件名和行号，默认开启
