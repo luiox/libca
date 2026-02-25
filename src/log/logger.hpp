@@ -1,53 +1,118 @@
 #ifndef LIBCA_LOG_LOGGER_H
 #define LIBCA_LOG_LOGGER_H
 
-#include <fstream>
+#include <atomic>
+#include <memory>
+#include <utility>
+#include <cstdint>
 #include <string>
+#include <string_view>
 
-// #define debug(format, ...)                                                               \
-//     Logger::instance()->log(Logger::DEBUG, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#include <fmt/core.h>
 
-// #define info(format, ...)                                                                \
-//     Logger::instance()->log(Logger::INFO, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#ifndef COMPILE_LOG_LEVEL
+#define COMPILE_LOG_LEVEL 2
+#endif
 
-// #define warn(format, ...)                                                                \
-//     Logger::instance()->log(Logger::WARN, __FILE__, __LINE__, format, ##__VA_ARGS__)
+namespace libca {
 
-// #define error(format, ...)                                                               \
-//     Logger::instance()->log(Logger::ERROR, __FILE__, __LINE__, format, ##__VA_ARGS__)
+// 日志等级
+enum class Level : uint8_t
+{
+    Trace = 0,
+    Debug = 1,
+    Info = 2,
+    Warn = 3,
+    Error = 4,
+    Critical = 5,
+    Off = 6
+};
 
-// #define fatal(format, ...)                                                               \
-//     Logger::instance()->log(Logger::FATAL, __FILE__, __LINE__, format, ##__VA_ARGS__)
+// 从字符串转换为日志级别
+Level stringToLevel(std::string_view level);
 
-namespace libca::log {
-// 日志器，负责收集日志，并且调用格式化器进行格式化日志，然后存到缓冲区里
-// class Logger final
-// {
-// public:
-//     enum Level { DEBUG = 0, INFO, WARN, ERROR, FATAL, LEVEL_COUNT };
+// 将日志级别转换为字符串
+std::string levelToString(Level level);
 
-//     static Logger * instance();
-//     void open(const std::string & filename);
-//     void close();
-//     void log(Level level, const char * file, int line, const char * format, ...);
-//     void max(int bytes);
-//     void level(int level);
+inline constexpr Level kCompileTimeLevel = static_cast<Level>(COMPILE_LOG_LEVEL);
 
-// private:
-//     Logger();
-//     ~Logger();
-//     void rotate();
+constexpr bool should_compile(Level level)
+{
+	return static_cast<int>(level) >= static_cast<int>(kCompileTimeLevel);
+}
 
-// private:
-//     std::string m_filename;
-//     std::ofstream m_fout;
-//     int m_max;
-//     int m_len;
-//     int m_level;
-//     static const char * s_level[LEVEL_COUNT];
-//     static Logger * m_instance;
-// };
+class ILogBackend
+{
+public:
+	virtual ~ILogBackend() = default;
 
-}   // namespace libca::log
+	virtual void log(Level level,
+					 fmt::string_view target,
+					 fmt::string_view file,
+					 int line,
+					 fmt::string_view formatStr,
+					 fmt::format_args args) = 0;
+
+	virtual const std::atomic<Level>& get_level_atomic() const = 0;
+	virtual void set_level(Level level)                         = 0;
+};
+
+class Logger final
+{
+public:
+	explicit Logger(std::shared_ptr<ILogBackend> backend);
+
+	bool should_log(Level level) const;
+	ILogBackend* backend() const;
+	void set_level(Level level) const;
+
+private:
+	std::shared_ptr<ILogBackend> backend_;
+	const std::atomic<Level>*    levelPtr_;
+};
+
+void set_global_logger(std::shared_ptr<ILogBackend> backend);
+std::shared_ptr<Logger> get_global_logger();
+
+namespace detail {
+template <Level level, typename... Args>
+inline void log_with_source(fmt::string_view        target,
+							const char*             file,
+							int                     line,
+							fmt::format_string<Args...> formatStr,
+							Args&&... args)
+{
+	if constexpr (should_compile(level)) {
+		auto logger = get_global_logger();
+		if (!logger || !logger->should_log(level)) {
+			return;
+		}
+
+		logger->backend()->log(level, target, file, line, formatStr,
+							   fmt::make_format_args(std::forward<Args>(args)...));
+	}
+}
+}   // namespace detail
+
+}   // namespace ca
+
+#define LOG_LEVEL(level, target, ...) \
+	::libca::log::detail::log_with_source<level>(target, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_TRACE(...) LOG_LEVEL(::libca::log::Level::Trace, "default", __VA_ARGS__)
+#define LOG_DEBUG(...) LOG_LEVEL(::libca::log::Level::Debug, "default", __VA_ARGS__)
+#define LOG_INFO(...) LOG_LEVEL(::libca::log::Level::Info, "default", __VA_ARGS__)
+#define LOG_WARN(...) LOG_LEVEL(::libca::log::Level::Warn, "default", __VA_ARGS__)
+#define LOG_ERROR(...) LOG_LEVEL(::libca::log::Level::Error, "default", __VA_ARGS__)
+#define LOG_CRITICAL(...) LOG_LEVEL(::libca::log::Level::Critical, "default", __VA_ARGS__)
+
+#define LOGT_TRACE(target, ...) LOG_LEVEL(::libca::log::Level::Trace, target, __VA_ARGS__)
+#define LOGT_DEBUG(target, ...) LOG_LEVEL(::libca::log::Level::Debug, target, __VA_ARGS__)
+#define LOGT_INFO(target, ...) LOG_LEVEL(::libca::log::Level::Info, target, __VA_ARGS__)
+#define LOGT_WARN(target, ...) LOG_LEVEL(::libca::log::Level::Warn, target, __VA_ARGS__)
+#define LOGT_ERROR(target, ...) LOG_LEVEL(::libca::log::Level::Error, target, __VA_ARGS__)
+#define LOGT_CRITICAL(target, ...) \
+	LOG_LEVEL(::libca::log::Level::Critical, target, __VA_ARGS__)
+
 
 #endif   // ! LIBCA_LOG_LOGGER_H
