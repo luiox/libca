@@ -122,6 +122,20 @@ usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num);
 i32 fmt_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args);
 
 /**
+ * @brief 轻量级格式化（va_list 快速有界版本）
+ *
+ * 与 fmt_vsnprintf 的格式能力一致，但返回值采用快速语义：
+ * 发生截断时返回 @p buf_size - 1（实际写入字符数，不包含 '\0'）。
+ *
+ * @param buf 输出缓冲区
+ * @param buf_size 输出缓冲区总长度（字节）
+ * @param fmt 格式字符串
+ * @param args 可变参数列表
+ * @return 实际写入字符数（不包含 '\0'）；参数非法返回 0
+ */
+i32 fmt_vsnprintf_fast(char* buf, usize buf_size, const char* fmt, va_list args);
+
+/**
  * @brief 轻量级格式化（有界版本）
  *
  * 最多写入 @p buf_size - 1 个字符，并保证结尾 '\0'。

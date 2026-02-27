@@ -594,6 +594,14 @@ i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 }
 
 /**
+ * @brief 轻量格式化（va_list 快速有界版本）
+ */
+i32 fmt_vsnprintf_fast(char *buf, usize buf_size, const char *fmt, va_list args)
+{
+    return fmt_vsnprintf_impl(buf, buf_size, fmt, args, true);
+}
+
+/**
  * @brief 轻量格式化（有界版本）
  */
 i32 fmt_snprintf(char *buf, usize buf_size, const char *fmt, ...)
@@ -666,6 +674,18 @@ static i32 test_fmt_vsnprintf_call(char *buf, usize buf_size, const char *fmt, .
     return len;
 }
 
+static i32 test_fmt_vsnprintf_fast_call(char *buf, usize buf_size, const char *fmt, ...)
+{
+    va_list args;
+    i32 len;
+
+    va_start(args, fmt);
+    len = fmt_vsnprintf_fast(buf, buf_size, fmt, args);
+    va_end(args);
+
+    return len;
+}
+
 TEST_CASE(test_u32_to_str_basic)
 {
     char buf[16];
@@ -731,6 +751,10 @@ TEST_CASE(test_f32_to_str_basic)
     TEST_EXPECT_EQ_U32(2U, (u32)len);
     TEST_EXPECT_EQ_STR("42", buf);
 
+    len = f32_to_str(buf, 4294967295.0f, 2U);
+    TEST_EXPECT_EQ_U32(13U, (u32)len);
+    TEST_EXPECT_EQ_STR("4294967295.00", buf);
+
     TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str(NULL, 1.25f, 2U));
 }
 
@@ -778,6 +802,10 @@ TEST_CASE(test_f64_to_str_basic)
     len = f64_to_str(buf, 1.0, 4U);
     TEST_EXPECT_EQ_U32(6U, (u32)len);
     TEST_EXPECT_EQ_STR("1.0000", buf);
+
+    len = f64_to_str(buf, 4294967295.0, 3U);
+    TEST_EXPECT_EQ_U32(14U, (u32)len);
+    TEST_EXPECT_EQ_STR("4294967295.000", buf);
 
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str(NULL, 1.0, 2U));
 }
@@ -896,6 +924,20 @@ TEST_CASE(test_fmt_buffer_boundary)
     TEST_EXPECT_EQ_STR("", buf);
 }
 
+TEST_CASE(test_fmt_vsnprintf_fast_semantics)
+{
+    char buf[8];
+    i32 len;
+
+    len = test_fmt_vsnprintf_fast_call(buf, sizeof(buf), "%s", "123456789");
+    TEST_EXPECT_EQ_I32(7, len);
+    TEST_EXPECT_EQ_STR("1234567", buf);
+
+    len = test_fmt_vsnprintf_fast_call(buf, 1U, "A");
+    TEST_EXPECT_EQ_I32(0, len);
+    TEST_EXPECT_EQ_STR("", buf);
+}
+
 TEST_CASE(test_fmt_invalid_input)
 {
     char buf[8];
@@ -905,6 +947,11 @@ TEST_CASE(test_fmt_invalid_input)
 
     TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_call(NULL, sizeof(buf), "x"));
     TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_call(buf, 0U, "x"));
+    TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_call(buf, sizeof(buf), NULL));
+
+    TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_fast_call(NULL, sizeof(buf), "x"));
+    TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_fast_call(buf, 0U, "x"));
+    TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_fast_call(buf, sizeof(buf), NULL));
 }
 
 #endif
