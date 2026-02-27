@@ -116,7 +116,7 @@ static u32 fmt_next_frac_digit(f64* frac_val)
     return digit;
 }
 
-static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num, bool round_mode)
+static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num)
 {
     usize pos     = 0U;
     f64   abs_val = val;
@@ -135,7 +135,7 @@ static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num,
         abs_val = -abs_val;
     }
 
-    if (round_mode && decimal_num > 0U) {
+    if (decimal_num > 0U) {
         abs_val += 0.5 * fmt_pow10_neg(decimal_num);
     }
 
@@ -187,33 +187,31 @@ static u32 fmt_pow10_u32(u32 n)
     return 1000000000U;
 }
 
-static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num, bool round_mode)
+static usize f32_to_str_core_fast(char* buf, usize buf_len, f32 val, u32 decimal_num)
 {
     usize pos     = 0U;
-    f64   abs_val = val;
+    f32   abs_val = val;
     u32   int_part;
-    f64   frac_val;
+    f32   frac_val;
     u32   frac_part = 0U;
     u32   pow10;
     char  int_buf[FMT_U32_TMP_BUF_SIZE];
     usize int_len;
     usize i;
 
-    (void)round_mode;
-
     if (buf == NULL || buf_len == 0U) {
         return 0U;
     }
 
-    if (abs_val < 0.0) {
+    if (abs_val < 0.0f) {
         safe_buf_putc(buf, buf_len, &pos, '-');
         abs_val = -abs_val;
     }
 
     int_part = (u32)abs_val;
-    frac_val = abs_val - (f64)int_part;
-    if (frac_val < 0.0) {
-        frac_val = 0.0;
+    frac_val = abs_val - (f32)int_part;
+    if (frac_val < 0.0f) {
+        frac_val = 0.0f;
     }
 
     int_len = u32_to_str_safe(int_buf, sizeof(int_buf), int_part);
@@ -225,7 +223,7 @@ static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num,
         safe_buf_putc(buf, buf_len, &pos, '.');
 
         pow10 = fmt_pow10_u32(decimal_num);
-        frac_part = (u32)(frac_val * (f64)pow10);
+        frac_part = (u32)(frac_val * (f32)pow10);
 
         if (pow10 > 1U) {
             u32 div = pow10 / 10U;
@@ -255,9 +253,9 @@ usize f32_to_str(char* buf, f32 val, u32 decimal_num)
     decimal_num = FMT_FIXED_DECIMALS;
 #endif
 #if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)val, decimal_num, true);
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)val, decimal_num);
 #else
-    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)val, decimal_num, false);
+    return f32_to_str_core_fast(buf, FMT_SPRINTF_MAX, val, decimal_num);
 #endif
 }
 
@@ -267,9 +265,9 @@ usize f32_to_str_safe(char* buf, usize buf_len, f32 val, u32 decimal_num)
     decimal_num = FMT_FIXED_DECIMALS;
 #endif
 #if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    return f64_to_str_core(buf, buf_len, (f64)val, decimal_num, true);
+    return f64_to_str_core(buf, buf_len, (f64)val, decimal_num);
 #else
-    return f64_to_str_core(buf, buf_len, (f64)val, decimal_num, false);
+    return f32_to_str_core_fast(buf, buf_len, val, decimal_num);
 #endif
 }
 
@@ -279,9 +277,9 @@ usize f64_to_str(char* buf, f64 val, u32 decimal_num)
     decimal_num = FMT_FIXED_DECIMALS;
 #endif
 #if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    return f64_to_str_core(buf, FMT_SPRINTF_MAX, val, decimal_num, true);
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, val, decimal_num);
 #else
-    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)(f32)val, decimal_num, false);
+    return f32_to_str_core_fast(buf, FMT_SPRINTF_MAX, (f32)val, decimal_num);
 #endif
 }
 
@@ -291,9 +289,9 @@ usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num)
     decimal_num = FMT_FIXED_DECIMALS;
 #endif
 #if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    return f64_to_str_core(buf, buf_len, val, decimal_num, true);
+    return f64_to_str_core(buf, buf_len, val, decimal_num);
 #else
-    return f64_to_str_core(buf, buf_len, (f64)(f32)val, decimal_num, false);
+    return f32_to_str_core_fast(buf, buf_len, (f32)val, decimal_num);
 #endif
 }
 
@@ -446,9 +444,9 @@ static void fmt_buf_put_f64(char* buf, usize buf_size, usize* pos, f64 value, u3
     usize i;
 
 #    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    len = f64_to_str_core(tmp, sizeof(tmp), value, precision, true);
+    len = f64_to_str_core(tmp, sizeof(tmp), value, precision);
 #    else
-    len = f64_to_str_core(tmp, sizeof(tmp), (f64)(f32)value, precision, false);
+    len = f32_to_str_core_fast(tmp, sizeof(tmp), (f32)value, precision);
 #    endif
 
     for (i = 0U; i < len; i++) {
