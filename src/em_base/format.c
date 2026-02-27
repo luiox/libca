@@ -154,6 +154,9 @@ static void fmt_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 val
     }
 }
 
+/**
+ * @brief 将 u32 转为十进制字符串（无边界检查）
+ */
 usize u32_to_str(char *buf, u32 val)
 {
     char tmp[16];
@@ -183,6 +186,9 @@ usize u32_to_str(char *buf, u32 val)
     return len;
 }
 
+/**
+ * @brief 将 u32 转为十进制字符串（安全版，保证 '\0' 结尾）
+ */
 usize u32_to_str_safe(char *buf, usize buf_len, u32 val)
 {
     char tmp[16];
@@ -208,6 +214,9 @@ usize u32_to_str_safe(char *buf, usize buf_len, u32 val)
     return copy_len;
 }
 
+/**
+ * @brief 将 f32 转为定点十进制字符串（无边界检查）
+ */
 usize f32_to_str(char *buf, f32 val, u32 decimal_num)
 {
     char *p = buf;
@@ -249,6 +258,9 @@ usize f32_to_str(char *buf, f32 val, u32 decimal_num)
     return (usize)(p - buf);
 }
 
+/**
+ * @brief 将 f32 转为定点十进制字符串（安全版，保证 '\0' 结尾）
+ */
 usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
 {
     usize pos = 0U;
@@ -297,6 +309,9 @@ usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
     return pos;
 }
 
+/**
+ * @brief 轻量格式化（va_list 版本）
+ */
 i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 {
     usize pos = 0U;
@@ -413,6 +428,28 @@ i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
     return (i32)pos;
 }
 
+/**
+ * @brief 轻量格式化（有界版本）
+ */
+i32 fmt_snprintf(char *buf, usize buf_size, const char *fmt, ...)
+{
+    va_list args;
+    i32 len;
+
+    if (buf == NULL || fmt == NULL || buf_size == 0U) {
+        return 0;
+    }
+
+    va_start(args, fmt);
+    len = fmt_vsnprintf(buf, buf_size, fmt, args);
+    va_end(args);
+
+    return len;
+}
+
+/**
+ * @brief 轻量格式化（无界版本）
+ */
 i32 fmt_sprintf(char *buf, const char *fmt, ...)
 {
     va_list args;
@@ -466,6 +503,7 @@ TEST_CASE(test_u32_to_str_basic)
 TEST_CASE(test_u32_to_str_safe)
 {
     char buf[8];
+    char guard[10] = {'L', 'L', '#', '#', '#', '#', '#', '#', 'R', 'R'};
     usize len;
 
     len = u32_to_str_safe(buf, sizeof(buf), 12345U);
@@ -475,6 +513,14 @@ TEST_CASE(test_u32_to_str_safe)
     len = u32_to_str_safe(buf, 4U, 12345U);
     TEST_EXPECT_EQ_U32(3U, (u32)len);
     TEST_EXPECT_EQ_STR("123", buf);
+
+    len = u32_to_str_safe(&guard[2], 4U, 12345U);
+    TEST_EXPECT_EQ_U32(3U, (u32)len);
+    TEST_EXPECT_EQ_STR("123", &guard[2]);
+    TEST_EXPECT_EQ_I8('L', guard[0]);
+    TEST_EXPECT_EQ_I8('L', guard[1]);
+    TEST_EXPECT_EQ_I8('R', guard[8]);
+    TEST_EXPECT_EQ_I8('R', guard[9]);
 
     len = u32_to_str_safe(buf, 1U, 88U);
     TEST_EXPECT_EQ_U32(0U, (u32)len);
@@ -507,6 +553,7 @@ TEST_CASE(test_f32_to_str_basic)
 TEST_CASE(test_f32_to_str_safe)
 {
     char buf[16];
+    char guard[12] = {'L', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', 'R'};
     usize len;
 
     len = f32_to_str_safe(buf, sizeof(buf), 1.25f, 3U);
@@ -516,6 +563,12 @@ TEST_CASE(test_f32_to_str_safe)
     len = f32_to_str_safe(buf, 5U, 123.45f, 2U);
     TEST_EXPECT_EQ_U32(4U, (u32)len);
     TEST_EXPECT_EQ_STR("123.", buf);
+
+    len = f32_to_str_safe(&guard[1], 4U, -9.99f, 2U);
+    TEST_EXPECT_EQ_U32(3U, (u32)len);
+    TEST_EXPECT_EQ_STR("-9.", &guard[1]);
+    TEST_EXPECT_EQ_I8('L', guard[0]);
+    TEST_EXPECT_EQ_I8('R', guard[11]);
 
     len = f32_to_str_safe(buf, 1U, -3.14f, 2U);
     TEST_EXPECT_EQ_U32(0U, (u32)len);
@@ -537,6 +590,28 @@ TEST_CASE(test_fmt_sprintf_core)
     len = fmt_sprintf(buf, "%s", NULL);
     TEST_EXPECT_EQ_I32(6, len);
     TEST_EXPECT_EQ_STR("(null)", buf);
+}
+
+TEST_CASE(test_fmt_snprintf_basic_and_truncate)
+{
+    char buf[10];
+    i32 len;
+
+    len = fmt_snprintf(buf, sizeof(buf), "%s-%u", "ab", 12U);
+    TEST_EXPECT_EQ_I32(5, len);
+    TEST_EXPECT_EQ_STR("ab-12", buf);
+
+    len = fmt_snprintf(buf, 6U, "%s", "123456789");
+    TEST_EXPECT_EQ_I32(5, len);
+    TEST_EXPECT_EQ_STR("12345", buf);
+
+    len = fmt_snprintf(buf, 1U, "xyz");
+    TEST_EXPECT_EQ_I32(0, len);
+    TEST_EXPECT_EQ_STR("", buf);
+
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf(NULL, sizeof(buf), "x"));
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, sizeof(buf), NULL));
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, 0U, "x"));
 }
 
 TEST_CASE(test_fmt_padding_and_unknown_spec)
