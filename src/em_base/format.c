@@ -2,82 +2,7 @@
 
 #define FMT_SPRINTF_MAX ((usize)(~(usize)0))
 
-#if FMT_MODE == FMT_MODE_NORMAL
-static void normalize_fraction_f32(u32 *int_part, f32 *frac_val)
-{
-    if (*frac_val < 0.0f) {
-        *frac_val = 0.0f;
-    }
-    else if (*frac_val >= 1.0f) {
-        if (*int_part < 0xFFFFFFFFU) {
-            *int_part = *int_part + 1U;
-        }
-        *frac_val = 0.0f;
-    }
-}
-
-static void normalize_fraction_f64(u32 *int_part, f64 *frac_val)
-{
-    if (*frac_val < 0.0) {
-        *frac_val = 0.0;
-    }
-    else if (*frac_val >= 1.0) {
-        if (*int_part < 0xFFFFFFFFU) {
-            *int_part = *int_part + 1U;
-        }
-        *frac_val = 0.0;
-    }
-}
-
-static u32 next_frac_digit_f32(f32 *frac_val)
-{
-    f32 scaled = (*frac_val) * 10.0f;
-    u32 digit;
-
-    if (scaled < 0.0f) {
-        scaled = 0.0f;
-    }
-    else if (scaled >= 10.0f) {
-        scaled = 9.0f;
-    }
-
-    digit = (u32)scaled;
-    *frac_val = scaled - (f32)digit;
-    return digit;
-}
-
-static u32 next_frac_digit_f64(f64 *frac_val)
-{
-    f64 scaled = (*frac_val) * 10.0;
-    u32 digit;
-
-    if (scaled < 0.0) {
-        scaled = 0.0;
-    }
-    else if (scaled >= 10.0) {
-        scaled = 9.0;
-    }
-
-    digit = (u32)scaled;
-    *frac_val = scaled - (f64)digit;
-    return digit;
-}
-#else
-static u32 next_frac_digit_f32(f32 *frac_val)
-{
-    u32 digit;
-
-    *frac_val = (*frac_val) * 10.0f;
-    digit = (u32)(*frac_val);
-    if (digit > 9U) {
-        digit = 9U;
-    }
-    *frac_val = (*frac_val) - (f32)digit;
-    return digit;
-}
-#endif
-
-static void safe_buf_putc(char *buf, usize buf_len, usize *pos, char ch)
+static void safe_buf_putc(char* buf, usize buf_len, usize* pos, char ch)
 {
     if (buf_len > 0U && *pos + 1U < buf_len) {
         buf[*pos] = ch;
@@ -85,7 +10,7 @@ static void safe_buf_putc(char *buf, usize buf_len, usize *pos, char ch)
     *pos = *pos + 1U;
 }
 
-static void safe_buf_terminate(char *buf, usize buf_len, usize pos)
+static void safe_buf_terminate(char* buf, usize buf_len, usize pos)
 {
     if (buf == NULL || buf_len == 0U) {
         return;
@@ -93,175 +18,15 @@ static void safe_buf_terminate(char *buf, usize buf_len, usize pos)
 
     if (pos >= buf_len) {
         buf[buf_len - 1U] = '\0';
-        return;
-    }
-
-    buf[pos] = '\0';
-}
-
-static void fmt_buf_puts(char *buf, usize buf_size, usize *pos, const char *str)
-{
-    if (str == NULL) {
-        str = "(null)";
-    }
-
-    while (*str != '\0') {
-        safe_buf_putc(buf, buf_size, pos, *str);
-        str++;
-    }
-}
-
-static void fmt_buf_put_u32_base(char *buf, usize buf_size, usize *pos, u32 value, u32 base, bool upper)
-{
-    char digits_lower[] = "0123456789abcdef";
-    char digits_upper[] = "0123456789ABCDEF";
-    char tmp[FMT_BASE_CONV_TMP_BUF_SIZE];
-    usize i = 0U;
-
-    if (value == 0U) {
-        safe_buf_putc(buf, buf_size, pos, '0');
-        return;
-    }
-
-    while (value != 0U && i < (usize)sizeof(tmp)) {
-        u32 d = value % base;
-        tmp[i++] = upper ? digits_upper[d] : digits_lower[d];
-        value /= base;
-    }
-
-    while (i > 0U) {
-        i--;
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
-    }
-}
-
-static void fmt_buf_put_u32_dec(char *buf, usize buf_size, usize *pos, u32 value)
-{
-    char tmp[FMT_U32_TMP_BUF_SIZE];
-    usize len = u32_to_str_safe(tmp, sizeof(tmp), value);
-    usize i;
-
-    for (i = 0U; i < len; i++) {
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
-    }
-}
-
-#if FMT_MODE != FMT_MODE_MINIMAL
-static void fmt_buf_put_u32_width(char *buf, usize buf_size, usize *pos, u32 value, u32 min_width, char pad_char)
-{
-    char tmp[FMT_U32_TMP_BUF_SIZE];
-    usize digits_len = u32_to_str_safe(tmp, sizeof(tmp), value);
-    usize pad_count;
-    usize i;
-
-    pad_count = min_width > digits_len ? (min_width - digits_len) : 0U;
-    for (i = 0U; i < pad_count; i++) {
-        safe_buf_putc(buf, buf_size, pos, pad_char);
-    }
-
-    for (i = 0U; i < digits_len; i++) {
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
-    }
-}
-
-static void fmt_buf_put_i32_width(char *buf, usize buf_size, usize *pos, i32 value, u32 min_width, char pad_char)
-{
-    bool negative = false;
-    u32 abs_value;
-    usize digits_len;
-    usize total_len;
-    usize pad_count;
-    char tmp[FMT_U32_TMP_BUF_SIZE];
-    usize i;
-
-    if (value < 0) {
-        negative = true;
-        abs_value = (u32)(-(value + 1)) + 1U;
     }
     else {
-        abs_value = (u32)value;
-    }
-
-    digits_len = u32_to_str_safe(tmp, sizeof(tmp), abs_value);
-
-    total_len = digits_len + (negative ? 1U : 0U);
-    pad_count = min_width > total_len ? (min_width - total_len) : 0U;
-
-    if (pad_char == '0') {
-        if (negative) {
-            safe_buf_putc(buf, buf_size, pos, '-');
-        }
-        for (i = 0U; i < pad_count; i++) {
-            safe_buf_putc(buf, buf_size, pos, '0');
-        }
-    }
-    else {
-        for (i = 0U; i < pad_count; i++) {
-            safe_buf_putc(buf, buf_size, pos, pad_char);
-        }
-        if (negative) {
-            safe_buf_putc(buf, buf_size, pos, '-');
-        }
-    }
-
-    for (i = 0U; i < digits_len; i++) {
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+        buf[pos] = '\0';
     }
 }
 
-static void fmt_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
+usize u32_to_str(char* buf, u32 val)
 {
-    fmt_buf_put_i32_width(buf, buf_size, pos, value, 0U, ' ');
-}
-#else
-static void fmt_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
-{
-    bool negative = false;
-    u32 abs_value;
-    char tmp[FMT_U32_TMP_BUF_SIZE];
-    usize digits_len;
-    usize i;
-
-    if (value < 0) {
-        negative = true;
-        abs_value = (u32)(-(value + 1)) + 1U;
-    }
-    else {
-        abs_value = (u32)value;
-    }
-
-    if (negative) {
-        safe_buf_putc(buf, buf_size, pos, '-');
-    }
-
-    digits_len = u32_to_str_safe(tmp, sizeof(tmp), abs_value);
-    for (i = 0U; i < digits_len; i++) {
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
-    }
-}
-#endif
-
-static void fmt_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 value, u32 precision)
-{
-    char tmp[FMT_F64_TO_STR_TMP_BUF_SIZE];
-#if FMT_MODE == FMT_MODE_NORMAL
-    usize len = f64_to_str_safe(tmp, sizeof(tmp), value, precision);
-#else
-    usize len = f32_to_str_safe(tmp, sizeof(tmp), (f32)value, precision);
-#endif
-    usize i;
-
-    for (i = 0U; i < len; i++) {
-        safe_buf_putc(buf, buf_size, pos, tmp[i]);
-    }
-}
-
-/**
- * @brief 将 u32 转为十进制字符串（无边界检查）
- */
-usize u32_to_str(char *buf, u32 val)
-{
-    char tmp[FMT_U32_TMP_BUF_SIZE];
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
     usize i = 0U;
     usize len;
 
@@ -288,12 +53,9 @@ usize u32_to_str(char *buf, u32 val)
     return len;
 }
 
-/**
- * @brief 将 u32 转为十进制字符串（安全版，保证 '\0' 结尾）
- */
-usize u32_to_str_safe(char *buf, usize buf_len, u32 val)
+usize u32_to_str_safe(char* buf, usize buf_len, u32 val)
 {
-    char tmp[FMT_U32_TMP_BUF_SIZE];
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
     usize total_len;
     usize copy_len;
     usize i;
@@ -303,7 +65,7 @@ usize u32_to_str_safe(char *buf, usize buf_len, u32 val)
     }
 
     total_len = u32_to_str(tmp, val);
-    copy_len = total_len;
+    copy_len  = total_len;
     if (copy_len + 1U > buf_len) {
         copy_len = buf_len - 1U;
     }
@@ -316,177 +78,52 @@ usize u32_to_str_safe(char *buf, usize buf_len, u32 val)
     return copy_len;
 }
 
-/**
- * @brief 将 f32 转为定点十进制字符串（无边界检查）
- */
-usize f32_to_str(char *buf, f32 val, u32 decimal_num)
+static f64 fmt_pow10_neg(u32 n)
 {
-    char *p = buf;
-    f32 abs_val = val;
-    u32 int_part;
-    f32 frac_val;
-    u32 i;
-    usize int_len;
-
-#if FMT_MODE == FMT_MODE_MINIMAL
-    decimal_num = 3U;
-#endif
-
-    if (buf == NULL) {
-        return 0U;
+    // 优先使用查找表实现
+    static const f64 pow10_neg_tbl[] = {1.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8};
+    if (n < sizeof(pow10_neg_tbl) / sizeof(pow10_neg_tbl[0])) {
+        return pow10_neg_tbl[n];
     }
-
-    if (abs_val < 0.0f) {
-        *p++ = '-';
-        abs_val = -abs_val;
+    // 对于超出表范围的 n，再回退到循环
+    f64 value = pow10_neg_tbl[(sizeof(pow10_neg_tbl) / sizeof(pow10_neg_tbl[0])) - 1];
+    n -= (sizeof(pow10_neg_tbl) / sizeof(pow10_neg_tbl[0])) - 1;
+    while (n > 0U) {
+        value /= 10.0;
+        n--;
     }
-
-    int_part = (u32)abs_val;
-    frac_val = abs_val - (f32)int_part;
-#if FMT_MODE == FMT_MODE_NORMAL
-    if (abs_val >= 4294967295.0f) {
-        int_part = 4294967295U;
-        frac_val = 0.0f;
-    }
-    else {
-        normalize_fraction_f32(&int_part, &frac_val);
-    }
-#endif
-
-    int_len = u32_to_str(p, int_part);
-    p += int_len;
-
-    if (decimal_num > 0U) {
-        *p++ = '.';
-        for (i = 0U; i < decimal_num; i++) {
-            u32 digit = next_frac_digit_f32(&frac_val);
-            *p++ = (char)('0' + digit);
-        }
-    }
-
-    *p = '\0';
-    return (usize)(p - buf);
+    return value;
 }
 
-/**
- * @brief 将 f32 转为定点十进制字符串（安全版，保证 '\0' 结尾）
- */
-usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
+static u32 fmt_next_frac_digit(f64* frac_val)
 {
-    usize pos = 0U;
-    f32 abs_val = val;
-    u32 int_part;
-    f32 frac_val;
-    char int_buf[FMT_U32_TMP_BUF_SIZE];
-    usize int_len;
-    usize i;
+    f64 scaled = (*frac_val) * 10.0;
+    u32 digit;
 
-#if FMT_MODE == FMT_MODE_MINIMAL
-    decimal_num = 3U;
-#endif
-
-    if (buf == NULL || buf_len == 0U) {
-        return 0U;
+    if (scaled < 0.0) {
+        scaled = 0.0;
     }
 
-    if (abs_val < 0.0f) {
-        safe_buf_putc(buf, buf_len, &pos, '-');
-        abs_val = -abs_val;
+    digit = (u32)scaled;
+    if (digit > 9U) {
+        digit = 9U;
     }
 
-    int_part = (u32)abs_val;
-    frac_val = abs_val - (f32)int_part;
-#if FMT_MODE == FMT_MODE_NORMAL
-    if (abs_val >= 4294967295.0f) {
-        int_part = 4294967295U;
-        frac_val = 0.0f;
-    }
-    else {
-        normalize_fraction_f32(&int_part, &frac_val);
-    }
-#endif
-
-    int_len = u32_to_str_safe(int_buf, sizeof(int_buf), int_part);
-    for (i = 0U; i < int_len; i++) {
-        safe_buf_putc(buf, buf_len, &pos, int_buf[i]);
+    *frac_val = scaled - (f64)digit;
+    if (*frac_val < 0.0) {
+        *frac_val = 0.0;
     }
 
-    if (decimal_num > 0U) {
-        safe_buf_putc(buf, buf_len, &pos, '.');
-        for (i = 0U; i < decimal_num; i++) {
-            u32 digit = next_frac_digit_f32(&frac_val);
-            safe_buf_putc(buf, buf_len, &pos, (char)('0' + digit));
-        }
-    }
-
-    safe_buf_terminate(buf, buf_len, pos);
-    if (pos >= buf_len) {
-        return buf_len - 1U;
-    }
-    return pos;
+    return digit;
 }
 
-/**
- * @brief 将 f64 转为定点十进制字符串（无边界检查）
- */
-usize f64_to_str(char *buf, f64 val, u32 decimal_num)
+static usize f64_to_str_core(char* buf, usize buf_len, f64 val, u32 decimal_num, bool round_mode)
 {
-#if FMT_MODE == FMT_MODE_NORMAL
-    char *p = buf;
-    f64 abs_val = val;
-    u32 int_part;
-    f64 frac_val;
-    u32 i;
-    usize int_len;
-
-    if (buf == NULL) {
-        return 0U;
-    }
-
-    if (abs_val < 0.0) {
-        *p++ = '-';
-        abs_val = -abs_val;
-    }
-
-    if (abs_val >= 4294967295.0) {
-        int_part = 4294967295U;
-        frac_val = 0.0;
-    }
-    else {
-        int_part = (u32)abs_val;
-        frac_val = abs_val - (f64)int_part;
-        normalize_fraction_f64(&int_part, &frac_val);
-    }
-
-    int_len = u32_to_str(p, int_part);
-    p += int_len;
-
-    if (decimal_num > 0U) {
-        *p++ = '.';
-        for (i = 0U; i < decimal_num; i++) {
-            u32 digit = next_frac_digit_f64(&frac_val);
-            *p++ = (char)('0' + digit);
-        }
-    }
-
-    *p = '\0';
-    return (usize)(p - buf);
-#else
-    return f32_to_str(buf, (f32)val, decimal_num);
-#endif
-}
-
-/**
- * @brief 将 f64 转为定点十进制字符串（安全版，保证 '\0' 结尾）
- */
-usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
-{
-#if FMT_MODE == FMT_MODE_NORMAL
-    usize pos = 0U;
-    f64 abs_val = val;
-    u32 int_part;
-    f64 frac_val;
-    char int_buf[FMT_U32_TMP_BUF_SIZE];
+    usize pos     = 0U;
+    f64   abs_val = val;
+    u32   int_part;
+    f64   frac_val;
+    char  int_buf[FMT_U32_TMP_BUF_SIZE];
     usize int_len;
     usize i;
 
@@ -499,6 +136,10 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
         abs_val = -abs_val;
     }
 
+    if (round_mode && decimal_num > 0U) {
+        abs_val += 0.5 * fmt_pow10_neg(decimal_num);
+    }
+
     if (abs_val >= 4294967295.0) {
         int_part = 4294967295U;
         frac_val = 0.0;
@@ -506,7 +147,15 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
     else {
         int_part = (u32)abs_val;
         frac_val = abs_val - (f64)int_part;
-        normalize_fraction_f64(&int_part, &frac_val);
+        if (frac_val < 0.0) {
+            frac_val = 0.0;
+        }
+        if (frac_val >= 1.0) {
+            frac_val = 0.0;
+            if (int_part < 4294967295U) {
+                int_part++;
+            }
+        }
     }
 
     int_len = u32_to_str_safe(int_buf, sizeof(int_buf), int_part);
@@ -517,7 +166,7 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
     if (decimal_num > 0U) {
         safe_buf_putc(buf, buf_len, &pos, '.');
         for (i = 0U; i < decimal_num; i++) {
-            u32 digit = next_frac_digit_f64(&frac_val);
+            u32 digit = fmt_next_frac_digit(&frac_val);
             safe_buf_putc(buf, buf_len, &pos, (char)('0' + digit));
         }
     }
@@ -527,15 +176,218 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
         return buf_len - 1U;
     }
     return pos;
+}
+
+usize f32_to_str(char* buf, f32 val, u32 decimal_num)
+{
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    decimal_num = FMT_FIXED_DECIMALS;
+#endif
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)val, decimal_num, true);
 #else
-    return f32_to_str_safe(buf, buf_len, (f32)val, decimal_num);
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)val, decimal_num, false);
 #endif
 }
 
-/**
- * @brief 轻量格式化（va_list 版本）
- */
-static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_list args, bool fast_return)
+usize f32_to_str_safe(char* buf, usize buf_len, f32 val, u32 decimal_num)
+{
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    decimal_num = FMT_FIXED_DECIMALS;
+#endif
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    return f64_to_str_core(buf, buf_len, (f64)val, decimal_num, true);
+#else
+    return f64_to_str_core(buf, buf_len, (f64)val, decimal_num, false);
+#endif
+}
+
+usize f64_to_str(char* buf, f64 val, u32 decimal_num)
+{
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    decimal_num = FMT_FIXED_DECIMALS;
+#endif
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, val, decimal_num, true);
+#else
+    return f64_to_str_core(buf, FMT_SPRINTF_MAX, (f64)(f32)val, decimal_num, false);
+#endif
+}
+
+usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num)
+{
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    decimal_num = FMT_FIXED_DECIMALS;
+#endif
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    return f64_to_str_core(buf, buf_len, val, decimal_num, true);
+#else
+    return f64_to_str_core(buf, buf_len, (f64)(f32)val, decimal_num, false);
+#endif
+}
+
+static void fmt_buf_puts(char* buf, usize buf_size, usize* pos, const char* str)
+{
+    if (str == NULL) {
+        str = "(null)";
+    }
+
+    while (*str != '\0') {
+        safe_buf_putc(buf, buf_size, pos, *str);
+        str++;
+    }
+}
+
+static void fmt_buf_put_u32_dec(char* buf, usize buf_size, usize* pos, u32 value)
+{
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
+    usize len = u32_to_str_safe(tmp, sizeof(tmp), value);
+    usize i;
+
+    for (i = 0U; i < len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+
+#if FMT_ENABLE_HEX
+static void fmt_buf_put_u32_hex(char* buf, usize buf_size, usize* pos, u32 value, bool upper)
+{
+    char  digits_lower[] = "0123456789abcdef";
+    char  digits_upper[] = "0123456789ABCDEF";
+    char  tmp[FMT_BASE_CONV_TMP_BUF_SIZE];
+    usize i = 0U;
+
+    if (value == 0U) {
+        safe_buf_putc(buf, buf_size, pos, '0');
+        return;
+    }
+
+    while (value != 0U && i < (usize)sizeof(tmp)) {
+        // 明确写出以提高优化性能
+        u32 d = value & 0xFU; // u32 d = value % 16U;
+        tmp[i++] = upper ? digits_upper[d] : digits_lower[d];
+        value >>= 4; // value /= 16U;
+    }
+
+    while (i > 0U) {
+        i--;
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+#endif
+
+#if FMT_ENABLE_WIDTH_PRECISION
+static void fmt_buf_put_u32_width(char* buf, usize buf_size, usize* pos, u32 value, u32 min_width,
+                                  char pad_char)
+{
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
+    usize digits_len = u32_to_str_safe(tmp, sizeof(tmp), value);
+    usize pad_count;
+    usize i;
+
+    pad_count = min_width > digits_len ? (min_width - digits_len) : 0U;
+    for (i = 0U; i < pad_count; i++) {
+        safe_buf_putc(buf, buf_size, pos, pad_char);
+    }
+
+    for (i = 0U; i < digits_len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+
+static void fmt_buf_put_i32_width(char* buf, usize buf_size, usize* pos, i32 value, u32 min_width,
+                                  char pad_char)
+{
+    bool  negative = false;
+    u32   abs_value;
+    usize digits_len;
+    usize total_len;
+    usize pad_count;
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
+    usize i;
+
+    if (value < 0) {
+        negative  = true;
+        abs_value = (u32)(-(value + 1)) + 1U;
+    }
+    else {
+        abs_value = (u32)value;
+    }
+
+    digits_len = u32_to_str_safe(tmp, sizeof(tmp), abs_value);
+    total_len  = digits_len + (negative ? 1U : 0U);
+    pad_count  = min_width > total_len ? (min_width - total_len) : 0U;
+
+    if (pad_char == '0') {
+        if (negative) {
+            safe_buf_putc(buf, buf_size, pos, '-');
+        }
+        for (i = 0U; i < pad_count; i++) {
+            safe_buf_putc(buf, buf_size, pos, '0');
+        }
+    }
+    else {
+        for (i = 0U; i < pad_count; i++) {
+            safe_buf_putc(buf, buf_size, pos, pad_char);
+        }
+        if (negative) {
+            safe_buf_putc(buf, buf_size, pos, '-');
+        }
+    }
+
+    for (i = 0U; i < digits_len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+#endif
+
+static void fmt_buf_put_i32_basic(char* buf, usize buf_size, usize* pos, i32 value)
+{
+    bool  negative = false;
+    u32   abs_value;
+    char  tmp[FMT_U32_TMP_BUF_SIZE];
+    usize len;
+    usize i;
+
+    if (value < 0) {
+        negative  = true;
+        abs_value = (u32)(-(value + 1)) + 1U;
+    }
+    else {
+        abs_value = (u32)value;
+    }
+
+    if (negative) {
+        safe_buf_putc(buf, buf_size, pos, '-');
+    }
+
+    len = u32_to_str_safe(tmp, sizeof(tmp), abs_value);
+    for (i = 0U; i < len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+
+#if FMT_ENABLE_FLOAT
+static void fmt_buf_put_f64(char* buf, usize buf_size, usize* pos, f64 value, u32 precision)
+{
+    char  tmp[FMT_F64_TO_STR_TMP_BUF_SIZE];
+    usize len;
+    usize i;
+
+#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    len = f64_to_str_core(tmp, sizeof(tmp), value, precision, true);
+#    else
+    len = f64_to_str_core(tmp, sizeof(tmp), (f64)(f32)value, precision, false);
+#    endif
+
+    for (i = 0U; i < len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+#endif
+
+static i32 fmt_vsnprintf_impl(char* buf, usize buf_size, const char* fmt, va_list args,
+                              bool fast_return)
 {
     usize pos = 0U;
 
@@ -557,53 +409,11 @@ static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_lis
             continue;
         }
 
-#if FMT_MODE == FMT_MODE_MINIMAL
-        switch (*fmt) {
-        case 'd': {
-            i32 value = (i32)va_arg(args, int);
-            fmt_buf_put_i32(buf, buf_size, &pos, value);
-            break;
-        }
-        case 'u': {
-            u32 value = (u32)va_arg(args, unsigned int);
-            fmt_buf_put_u32_dec(buf, buf_size, &pos, value);
-            break;
-        }
-        case 'x': {
-            u32 value = (u32)va_arg(args, unsigned int);
-            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, false);
-            break;
-        }
-        case 'X': {
-            u32 value = (u32)va_arg(args, unsigned int);
-            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, true);
-            break;
-        }
-        case 's': {
-            const char *value = va_arg(args, const char *);
-            fmt_buf_puts(buf, buf_size, &pos, value);
-            break;
-        }
-        case 'f': {
-            f64 value = (f64)va_arg(args, double);
-            fmt_buf_put_f64_trunc(buf, buf_size, &pos, value, 3U);
-            break;
-        }
-        case '\0':
-            fmt--;
-            break;
-        default:
-            safe_buf_putc(buf, buf_size, &pos, '%');
-            if (*fmt != '\0') {
-                safe_buf_putc(buf, buf_size, &pos, *fmt);
-            }
-            break;
-        }
-#else
-        bool zero_pad = false;
-        u32 width = 0U;
-        u32 precision = 6U;
-        bool has_precision = false;
+#if FMT_ENABLE_WIDTH_PRECISION
+        bool zero_pad         = false;
+        u32  width            = 0U;
+        bool has_precision    = false;
+        u32  parsed_precision = 0U;
 
         if (*fmt == '0') {
             zero_pad = true;
@@ -616,70 +426,93 @@ static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_lis
         }
 
         if (*fmt == '.') {
-            has_precision = true;
-            precision = 0U;
+            has_precision    = true;
+            parsed_precision = 0U;
             fmt++;
             while (*fmt >= '0' && *fmt <= '9') {
-                precision = precision * 10U + (u32)(*fmt - '0');
+                parsed_precision = parsed_precision * 10U + (u32)(*fmt - '0');
                 fmt++;
             }
         }
+#endif
 
         switch (*fmt) {
-        case 'd': {
+        case 'd':
+        {
             i32 value = (i32)va_arg(args, int);
+#if FMT_ENABLE_WIDTH_PRECISION
             if (width > 0U) {
                 fmt_buf_put_i32_width(buf, buf_size, &pos, value, width, zero_pad ? '0' : ' ');
             }
             else {
-                fmt_buf_put_i32(buf, buf_size, &pos, value);
+                fmt_buf_put_i32_basic(buf, buf_size, &pos, value);
             }
+#else
+            fmt_buf_put_i32_basic(buf, buf_size, &pos, value);
+#endif
             break;
         }
-        case 'u': {
+        case 'u':
+        {
             u32 value = (u32)va_arg(args, unsigned int);
+#if FMT_ENABLE_WIDTH_PRECISION
             if (width > 0U) {
                 fmt_buf_put_u32_width(buf, buf_size, &pos, value, width, zero_pad ? '0' : ' ');
             }
             else {
                 fmt_buf_put_u32_dec(buf, buf_size, &pos, value);
             }
+#else
+            fmt_buf_put_u32_dec(buf, buf_size, &pos, value);
+#endif
             break;
         }
-        case 'x': {
+#if FMT_ENABLE_HEX
+        case 'x':
+        {
             u32 value = (u32)va_arg(args, unsigned int);
-            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, false);
+            fmt_buf_put_u32_hex(buf, buf_size, &pos, value, false);
             break;
         }
-        case 'X': {
+        case 'X':
+        {
             u32 value = (u32)va_arg(args, unsigned int);
-            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, true);
+            fmt_buf_put_u32_hex(buf, buf_size, &pos, value, true);
             break;
         }
-        case 's': {
-            const char *value = va_arg(args, const char *);
+#endif
+        case 's':
+        {
+            const char* value = va_arg(args, const char*);
             fmt_buf_puts(buf, buf_size, &pos, value);
             break;
         }
-        case 'f': {
+#if FMT_ENABLE_FLOAT
+        case 'f':
+        {
             f64 value = (f64)va_arg(args, double);
-            fmt_buf_put_f64_trunc(buf, buf_size, &pos, value, precision);
+            u32 precision;
+#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+            precision = FMT_FIXED_DECIMALS;
+#    else
+#        if FMT_ENABLE_WIDTH_PRECISION
+            precision = has_precision ? parsed_precision : FMT_DEFAULT_PRECISION;
+#        else
+            precision = FMT_DEFAULT_PRECISION;
+#        endif
+#    endif
+            fmt_buf_put_f64(buf, buf_size, &pos, value, precision);
             break;
         }
-        case '\0':
-            fmt--;
-            break;
+#endif
+        case '\0': fmt--; break;
         default:
             safe_buf_putc(buf, buf_size, &pos, '%');
-            if (has_precision) {
-                safe_buf_putc(buf, buf_size, &pos, '.');
-            }
             if (*fmt != '\0') {
                 safe_buf_putc(buf, buf_size, &pos, *fmt);
             }
             break;
         }
-#endif
 
         if (*fmt != '\0') {
             fmt++;
@@ -696,29 +529,20 @@ static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_lis
     return (i32)pos;
 }
 
-/**
- * @brief 轻量格式化（va_list 版本）
- */
-i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
+i32 fmt_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args)
 {
     return fmt_vsnprintf_impl(buf, buf_size, fmt, args, false);
 }
 
-/**
- * @brief 轻量格式化（va_list 快速有界版本）
- */
-i32 fmt_vsnprintf_fast(char *buf, usize buf_size, const char *fmt, va_list args)
+i32 fmt_vsnprintf_fast(char* buf, usize buf_size, const char* fmt, va_list args)
 {
     return fmt_vsnprintf_impl(buf, buf_size, fmt, args, true);
 }
 
-/**
- * @brief 轻量格式化（有界版本）
- */
-i32 fmt_snprintf(char *buf, usize buf_size, const char *fmt, ...)
+i32 fmt_snprintf(char* buf, usize buf_size, const char* fmt, ...)
 {
     va_list args;
-    i32 len;
+    i32     len;
 
     if (buf == NULL || fmt == NULL || buf_size == 0U) {
         return 0;
@@ -731,13 +555,10 @@ i32 fmt_snprintf(char *buf, usize buf_size, const char *fmt, ...)
     return len;
 }
 
-/**
- * @brief 轻量格式化（快速有界版本）
- */
-i32 fmt_snprintf_fast(char *buf, usize buf_size, const char *fmt, ...)
+i32 fmt_snprintf_fast(char* buf, usize buf_size, const char* fmt, ...)
 {
     va_list args;
-    i32 len;
+    i32     len;
 
     if (buf == NULL || fmt == NULL || buf_size == 0U) {
         return 0;
@@ -750,13 +571,10 @@ i32 fmt_snprintf_fast(char *buf, usize buf_size, const char *fmt, ...)
     return len;
 }
 
-/**
- * @brief 轻量格式化（无界版本）
- */
-i32 fmt_sprintf(char *buf, const char *fmt, ...)
+i32 fmt_sprintf(char* buf, const char* fmt, ...)
 {
     va_list args;
-    i32 len;
+    i32     len;
 
     if (buf == NULL || fmt == NULL) {
         return 0;
@@ -769,14 +587,13 @@ i32 fmt_sprintf(char *buf, const char *fmt, ...)
     return len;
 }
 
-
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#    include "../em_test/test.h"
 
-static i32 test_fmt_vsnprintf_call(char *buf, usize buf_size, const char *fmt, ...)
+static i32 test_fmt_vsnprintf_call(char* buf, usize buf_size, const char* fmt, ...)
 {
     va_list args;
-    i32 len;
+    i32     len;
 
     va_start(args, fmt);
     len = fmt_vsnprintf(buf, buf_size, fmt, args);
@@ -785,10 +602,10 @@ static i32 test_fmt_vsnprintf_call(char *buf, usize buf_size, const char *fmt, .
     return len;
 }
 
-static i32 test_fmt_vsnprintf_fast_call(char *buf, usize buf_size, const char *fmt, ...)
+static i32 test_fmt_vsnprintf_fast_call(char* buf, usize buf_size, const char* fmt, ...)
 {
     va_list args;
-    i32 len;
+    i32     len;
 
     va_start(args, fmt);
     len = fmt_vsnprintf_fast(buf, buf_size, fmt, args);
@@ -799,15 +616,15 @@ static i32 test_fmt_vsnprintf_fast_call(char *buf, usize buf_size, const char *f
 
 TEST_CASE(test_u32_to_str_basic)
 {
-    char buf[16];
+    char  buf[16];
     usize len;
 
-    len = u32_to_str(buf, 0U);
+    len      = u32_to_str(buf, 0U);
     buf[len] = '\0';
     TEST_EXPECT_EQ_U32(1U, (u32)len);
     TEST_EXPECT_EQ_STR("0", buf);
 
-    len = u32_to_str(buf, 4294967295U);
+    len      = u32_to_str(buf, 4294967295U);
     buf[len] = '\0';
     TEST_EXPECT_EQ_U32(10U, (u32)len);
     TEST_EXPECT_EQ_STR("4294967295", buf);
@@ -817,8 +634,8 @@ TEST_CASE(test_u32_to_str_basic)
 
 TEST_CASE(test_u32_to_str_safe)
 {
-    char buf[8];
-    char guard[10] = {'L', 'L', '#', '#', '#', '#', '#', '#', 'R', 'R'};
+    char  buf[8];
+    char  guard[10] = {'L', 'L', '#', '#', '#', '#', '#', '#', 'R', 'R'};
     usize len;
 
     len = u32_to_str_safe(buf, sizeof(buf), 12345U);
@@ -845,295 +662,144 @@ TEST_CASE(test_u32_to_str_safe)
     TEST_EXPECT_EQ_U32(0U, (u32)u32_to_str_safe(buf, 0U, 7U));
 }
 
-TEST_CASE(test_f32_to_str_basic)
-{
-    char buf[32];
-    usize len;
-
-    len = f32_to_str(buf, 3.14159f, 2U);
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_U32(5U, (u32)len);
-    TEST_EXPECT_EQ_STR("3.141", buf);
-#else
-    TEST_EXPECT_EQ_U32(4U, (u32)len);
-    TEST_EXPECT_EQ_STR("3.14", buf);
-#endif
-
-    len = f32_to_str(buf, -0.5f, 3U);
-    TEST_EXPECT_EQ_U32(6U, (u32)len);
-    TEST_EXPECT_EQ_STR("-0.500", buf);
-
-    len = f32_to_str(buf, 42.9f, 0U);
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_U32(6U, (u32)len);
-    TEST_EXPECT_EQ_STR("42.900", buf);
-#else
-    TEST_EXPECT_EQ_U32(2U, (u32)len);
-    TEST_EXPECT_EQ_STR("42", buf);
-#endif
-
-#if FMT_MODE == FMT_MODE_NORMAL
-    len = f32_to_str(buf, 4294967295.0f, 2U);
-    TEST_EXPECT_EQ_U32(13U, (u32)len);
-    TEST_EXPECT_EQ_STR("4294967295.00", buf);
-#endif
-
-    TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str(NULL, 1.25f, 2U));
-}
-
-TEST_CASE(test_f32_to_str_safe)
-{
-    char buf[16];
-    char guard[12] = {'L', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', 'R'};
-    usize len;
-
-    len = f32_to_str_safe(buf, sizeof(buf), 1.25f, 3U);
-    TEST_EXPECT_EQ_U32(5U, (u32)len);
-    TEST_EXPECT_EQ_STR("1.250", buf);
-
-    len = f32_to_str_safe(buf, 5U, 123.45f, 2U);
-    TEST_EXPECT_EQ_U32(4U, (u32)len);
-    TEST_EXPECT_EQ_STR("123.", buf);
-
-    len = f32_to_str_safe(&guard[1], 4U, -9.99f, 2U);
-    TEST_EXPECT_EQ_U32(3U, (u32)len);
-    TEST_EXPECT_EQ_STR("-9.", &guard[1]);
-    TEST_EXPECT_EQ_I8('L', guard[0]);
-    TEST_EXPECT_EQ_I8('R', guard[11]);
-
-    len = f32_to_str_safe(buf, 1U, -3.14f, 2U);
-    TEST_EXPECT_EQ_U32(0U, (u32)len);
-    TEST_EXPECT_EQ_STR("", buf);
-
-    TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str_safe(NULL, 8U, 1.0f, 2U));
-    TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str_safe(buf, 0U, 1.0f, 2U));
-}
-
-TEST_CASE(test_f64_to_str_basic)
+TEST_CASE(test_float_converters)
 {
     char buf[64];
-    usize len;
 
-    len = f64_to_str(buf, 3.14159265358979, 6U);
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_U32(5U, (u32)len);
-    TEST_EXPECT_EQ_STR("3.141", buf);
-#else
-    TEST_EXPECT_EQ_U32(8U, (u32)len);
-    TEST_EXPECT_EQ_STR("3.141592", buf);
-#endif
+#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    (void)f32_to_str(buf, 1.2367f, 1U);
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#    elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    (void)f32_to_str(buf, 1.2367f, 2U);
+    TEST_EXPECT_EQ_STR("1.24", buf);
+#    else
+    (void)f32_to_str(buf, 1.2367f, 2U);
+    TEST_EXPECT_EQ_STR("1.23", buf);
+#    endif
 
-    len = f64_to_str(buf, -0.125, 3U);
-    TEST_EXPECT_EQ_U32(6U, (u32)len);
+    (void)f64_to_str_safe(buf, sizeof(buf), -0.125, 3U);
+#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
     TEST_EXPECT_EQ_STR("-0.125", buf);
+#    else
+    TEST_EXPECT_EQ_STR("-0.125", buf);
+#    endif
 
-    len = f64_to_str(buf, 1.0, 4U);
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_U32(5U, (u32)len);
-    TEST_EXPECT_EQ_STR("1.000", buf);
-#else
-    TEST_EXPECT_EQ_U32(6U, (u32)len);
-    TEST_EXPECT_EQ_STR("1.0000", buf);
-#endif
-
-#if FMT_MODE == FMT_MODE_NORMAL
-    len = f64_to_str(buf, 4294967295.0, 3U);
-    TEST_EXPECT_EQ_U32(14U, (u32)len);
-    TEST_EXPECT_EQ_STR("4294967295.000", buf);
-#endif
-
-    TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str(NULL, 1.0, 2U));
-}
-
-TEST_CASE(test_f64_to_str_safe)
-{
-    char buf[16];
-    char guard[12] = {'L', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', 'R'};
-    usize len;
-
-    len = f64_to_str_safe(buf, sizeof(buf), 12.3456, 3U);
-    TEST_EXPECT_EQ_U32(6U, (u32)len);
-    TEST_EXPECT_EQ_STR("12.345", buf);
-
-    len = f64_to_str_safe(buf, 5U, -9.99, 2U);
-    TEST_EXPECT_EQ_U32(4U, (u32)len);
-    TEST_EXPECT_EQ_STR("-9.9", buf);
-
-    len = f64_to_str_safe(&guard[1], 4U, 123.45, 2U);
-    TEST_EXPECT_EQ_U32(3U, (u32)len);
-    TEST_EXPECT_EQ_STR("123", &guard[1]);
-    TEST_EXPECT_EQ_I8('L', guard[0]);
-    TEST_EXPECT_EQ_I8('R', guard[11]);
-
-    len = f64_to_str_safe(buf, 1U, 7.77, 2U);
-    TEST_EXPECT_EQ_U32(0U, (u32)len);
-    TEST_EXPECT_EQ_STR("", buf);
-
+    TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str(NULL, 1.0f, 2U));
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str_safe(NULL, 8U, 1.0, 2U));
-    TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str_safe(buf, 0U, 1.0, 2U));
 }
 
-#if FMT_MODE == FMT_MODE_SIMPLE
-TEST_CASE(test_fmt_mode_simple_f64_degrade_to_f32)
-{
-    char buf_f64[64];
-    char buf_f32[64];
-
-    TEST_EXPECT_EQ_U32((u32)f32_to_str(buf_f32, (f32)0.1234567890123, 8U),
-                       (u32)f64_to_str(buf_f64, 0.1234567890123, 8U));
-    TEST_EXPECT_EQ_STR(buf_f32, buf_f64);
-
-    TEST_EXPECT_EQ_U32((u32)f32_to_str_safe(buf_f32, sizeof(buf_f32), (f32)-9.87654321, 6U),
-                       (u32)f64_to_str_safe(buf_f64, sizeof(buf_f64), -9.87654321, 6U));
-    TEST_EXPECT_EQ_STR(buf_f32, buf_f64);
-}
-#endif
-
-#if FMT_MODE == FMT_MODE_MINIMAL
-TEST_CASE(test_fmt_mode_minimal_fixed_float3)
-{
-    char buf[64];
-
-    (void)f32_to_str(buf, 1.9999f, 8U);
-    TEST_EXPECT_EQ_STR("1.999", buf);
-
-    (void)f64_to_str(buf, 1.23456789, 9U);
-    TEST_EXPECT_EQ_STR("1.234", buf);
-
-    (void)fmt_snprintf(buf, sizeof(buf), "%f", 2.7182818);
-    TEST_EXPECT_EQ_STR("2.718", buf);
-}
-
-TEST_CASE(test_fmt_mode_minimal_no_width_precision)
-{
-    char buf[64];
-
-    (void)fmt_snprintf(buf, sizeof(buf), "%02d", 7);
-    TEST_EXPECT_EQ_STR("%02d", buf);
-
-    (void)fmt_snprintf(buf, sizeof(buf), "%.2f", 3.14159);
-    TEST_EXPECT_EQ_STR("%.2f", buf);
-
-    (void)fmt_snprintf(buf, sizeof(buf), "%03u", 9U);
-    TEST_EXPECT_EQ_STR("%03u", buf);
-}
-#endif
-
-#if FMT_MODE == FMT_MODE_NORMAL
-TEST_CASE(test_fmt_mode_normal_f64_precision_path)
-{
-    char buf[64];
-
-    (void)f64_to_str(buf, 0.1234567890123, 10U);
-    TEST_EXPECT_EQ_STR("0.1234567890", buf);
-
-    (void)f64_to_str_safe(buf, sizeof(buf), -0.0000001234567, 12U);
-    TEST_EXPECT_EQ_STR("-0.000000123456", buf);
-}
-#endif
-
-TEST_CASE(test_fmt_sprintf_core)
+TEST_CASE(test_fmt_core_basic)
 {
     char buf[96];
-    i32 len;
+    i32  len;
 
-    len = fmt_sprintf(buf, "%d %u %x %X %s %.2f %%", -12, 42U, 0x2aU, 0x2aU, "ok", 3.14159);
-    TEST_EXPECT_EQ_I32(22, len);
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_STR("-12 42 2a 2A ok %.2f %", buf);
-#else
-    TEST_EXPECT_EQ_STR("-12 42 2a 2A ok 3.14 %", buf);
-#endif
+    len = fmt_sprintf(buf, "%d %u %s %%", -12, 42U, "ok");
+    TEST_EXPECT_EQ_I32(11, len);
+    TEST_EXPECT_EQ_STR("-12 42 ok %", buf);
 
     len = fmt_sprintf(buf, "%s", NULL);
     TEST_EXPECT_EQ_I32(6, len);
     TEST_EXPECT_EQ_STR("(null)", buf);
 }
 
-TEST_CASE(test_fmt_snprintf_basic_and_truncate)
+TEST_CASE(test_fmt_hex_feature)
+{
+    char buf[32];
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%x %X", 0x2aU, 0x2aU);
+#    if FMT_ENABLE_HEX
+    TEST_EXPECT_EQ_STR("2a 2A", buf);
+#    else
+    TEST_EXPECT_EQ_STR("%x %X", buf);
+#    endif
+}
+
+TEST_CASE(test_fmt_width_precision_feature)
+{
+    char buf[32];
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%02d", 7);
+#    if FMT_ENABLE_WIDTH_PRECISION
+    TEST_EXPECT_EQ_STR("07", buf);
+#    else
+    TEST_EXPECT_EQ_STR("%02d", buf);
+#    endif
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%.2q");
+#    if FMT_ENABLE_WIDTH_PRECISION
+    TEST_EXPECT_EQ_STR("%q", buf);
+#    else
+    TEST_EXPECT_EQ_STR("%.2q", buf);
+#    endif
+}
+
+TEST_CASE(test_fmt_float_feature)
+{
+    char buf[64];
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%f", 1.2367);
+#    if FMT_ENABLE_FLOAT
+#        if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#        elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    TEST_EXPECT_EQ_STR("1.237", buf);
+#        else
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#        endif
+#    else
+    TEST_EXPECT_EQ_STR("%f", buf);
+#    endif
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%.2f", 1.2367);
+#    if FMT_ENABLE_FLOAT
+#        if FMT_ENABLE_WIDTH_PRECISION
+#            if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#            elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    TEST_EXPECT_EQ_STR("1.24", buf);
+#            else
+    TEST_EXPECT_EQ_STR("1.23", buf);
+#            endif
+#        else
+#            if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#            elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    TEST_EXPECT_EQ_STR("1.237", buf);
+#            else
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#            endif
+#        endif
+#    else
+#        if FMT_ENABLE_WIDTH_PRECISION
+    TEST_EXPECT_EQ_STR("%f", buf);
+#        else
+    TEST_EXPECT_EQ_STR("%.2f", buf);
+#        endif
+#    endif
+}
+
+TEST_CASE(test_fmt_snprintf_semantics)
 {
     char buf[10];
-    i32 len;
+    i32  len;
 
-    len = fmt_snprintf(buf, sizeof(buf), "%s-%u", "ab", 12U);
-    TEST_EXPECT_EQ_I32(5, len);
-    TEST_EXPECT_EQ_STR("ab-12", buf);
+    len = fmt_snprintf(buf, sizeof(buf), "%s", "123456789");
+    TEST_EXPECT_EQ_I32(9, len);
+    TEST_EXPECT_EQ_STR("123456789", buf);
 
     len = fmt_snprintf(buf, 6U, "%s", "123456789");
     TEST_EXPECT_EQ_I32(9, len);
     TEST_EXPECT_EQ_STR("12345", buf);
 
-    len = fmt_snprintf(buf, 1U, "xyz");
-    TEST_EXPECT_EQ_I32(3, len);
-    TEST_EXPECT_EQ_STR("", buf);
-
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf(NULL, sizeof(buf), "x"));
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, sizeof(buf), NULL));
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, 0U, "x"));
-}
-
-TEST_CASE(test_fmt_snprintf_fast_semantics)
-{
-    char buf[10];
-    i32 len;
-
-    len = fmt_snprintf_fast(buf, sizeof(buf), "%s-%u", "ab", 12U);
-    TEST_EXPECT_EQ_I32(5, len);
-    TEST_EXPECT_EQ_STR("ab-12", buf);
-
     len = fmt_snprintf_fast(buf, 6U, "%s", "123456789");
     TEST_EXPECT_EQ_I32(5, len);
     TEST_EXPECT_EQ_STR("12345", buf);
-
-    len = fmt_snprintf_fast(buf, 1U, "xyz");
-    TEST_EXPECT_EQ_I32(0, len);
-    TEST_EXPECT_EQ_STR("", buf);
-
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(NULL, sizeof(buf), "x"));
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(buf, sizeof(buf), NULL));
-    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(buf, 0U, "x"));
-}
-
-TEST_CASE(test_fmt_padding_and_unknown_spec)
-{
-    char buf[96];
-
-#if FMT_MODE == FMT_MODE_MINIMAL
-    TEST_EXPECT_EQ_I32(14, test_fmt_vsnprintf_call(buf, sizeof(buf), "%02d %03d %02u", 7, -7, 3U));
-    TEST_EXPECT_EQ_STR("%02d %03d %02u", buf);
-
-    TEST_EXPECT_EQ_I32(4, test_fmt_vsnprintf_call(buf, sizeof(buf), "%.2q"));
-    TEST_EXPECT_EQ_STR("%.2q", buf);
-#else
-    TEST_EXPECT_EQ_I32(9, test_fmt_vsnprintf_call(buf, sizeof(buf), "%02d %03d %02u", 7, -7, 3U));
-    TEST_EXPECT_EQ_STR("07 -07 03", buf);
-
-    TEST_EXPECT_EQ_I32(3, test_fmt_vsnprintf_call(buf, sizeof(buf), "%.2q"));
-    TEST_EXPECT_EQ_STR("%.q", buf);
-#endif
-
-    TEST_EXPECT_EQ_I32(3, test_fmt_vsnprintf_call(buf, sizeof(buf), "abc%"));
-    TEST_EXPECT_EQ_STR("abc", buf);
-}
-
-TEST_CASE(test_fmt_buffer_boundary)
-{
-    char buf[8];
-    i32 len;
-
-    len = test_fmt_vsnprintf_call(buf, sizeof(buf), "123456789");
-    TEST_EXPECT_EQ_I32(9, len);
-    TEST_EXPECT_EQ_STR("1234567", buf);
-
-    len = test_fmt_vsnprintf_call(buf, 1U, "A");
-    TEST_EXPECT_EQ_I32(1, len);
-    TEST_EXPECT_EQ_STR("", buf);
 }
 
 TEST_CASE(test_fmt_vsnprintf_fast_semantics)
 {
     char buf[8];
-    i32 len;
+    i32  len;
 
     len = test_fmt_vsnprintf_fast_call(buf, sizeof(buf), "%s", "123456789");
     TEST_EXPECT_EQ_I32(7, len);
@@ -1161,4 +827,3 @@ TEST_CASE(test_fmt_invalid_input)
 }
 
 #endif
-
