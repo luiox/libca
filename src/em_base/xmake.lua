@@ -44,3 +44,9 @@ target("test-memory_util")
     add_files("memory_util.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
 
+-- format的单元测试
+target("test-format")
+    set_kind("binary")
+    add_files("format.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
