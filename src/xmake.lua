@@ -13,6 +13,8 @@
 
 -- base
 includes("em_base")
+-- format依赖base
+includes("em_format")
 -- test 依赖base
 includes("em_test")
 -- util依赖base
