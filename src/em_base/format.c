@@ -146,6 +146,7 @@ static void fmt_buf_put_u32_dec(char *buf, usize buf_size, usize *pos, u32 value
     }
 }
 
+#if FMT_MODE != FMT_MODE_MINIMAL
 static void fmt_buf_put_u32_width(char *buf, usize buf_size, usize *pos, u32 value, u32 min_width, char pad_char)
 {
     char tmp[FMT_U32_TMP_BUF_SIZE];
@@ -212,6 +213,33 @@ static void fmt_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
 {
     fmt_buf_put_i32_width(buf, buf_size, pos, value, 0U, ' ');
 }
+#else
+static void fmt_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
+{
+    bool negative = false;
+    u32 abs_value;
+    char tmp[FMT_U32_TMP_BUF_SIZE];
+    usize digits_len;
+    usize i;
+
+    if (value < 0) {
+        negative = true;
+        abs_value = (u32)(-(value + 1)) + 1U;
+    }
+    else {
+        abs_value = (u32)value;
+    }
+
+    if (negative) {
+        safe_buf_putc(buf, buf_size, pos, '-');
+    }
+
+    digits_len = u32_to_str_safe(tmp, sizeof(tmp), abs_value);
+    for (i = 0U; i < digits_len; i++) {
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
+    }
+}
+#endif
 
 static void fmt_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 value, u32 precision)
 {
@@ -300,6 +328,10 @@ usize f32_to_str(char *buf, f32 val, u32 decimal_num)
     u32 i;
     usize int_len;
 
+#if FMT_MODE == FMT_MODE_MINIMAL
+    decimal_num = 3U;
+#endif
+
     if (buf == NULL) {
         return 0U;
     }
@@ -348,6 +380,10 @@ usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
     char int_buf[FMT_U32_TMP_BUF_SIZE];
     usize int_len;
     usize i;
+
+#if FMT_MODE == FMT_MODE_MINIMAL
+    decimal_num = 3U;
+#endif
 
     if (buf == NULL || buf_len == 0U) {
         return 0U;
@@ -521,6 +557,49 @@ static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_lis
             continue;
         }
 
+#if FMT_MODE == FMT_MODE_MINIMAL
+        switch (*fmt) {
+        case 'd': {
+            i32 value = (i32)va_arg(args, int);
+            fmt_buf_put_i32(buf, buf_size, &pos, value);
+            break;
+        }
+        case 'u': {
+            u32 value = (u32)va_arg(args, unsigned int);
+            fmt_buf_put_u32_dec(buf, buf_size, &pos, value);
+            break;
+        }
+        case 'x': {
+            u32 value = (u32)va_arg(args, unsigned int);
+            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, false);
+            break;
+        }
+        case 'X': {
+            u32 value = (u32)va_arg(args, unsigned int);
+            fmt_buf_put_u32_base(buf, buf_size, &pos, value, 16U, true);
+            break;
+        }
+        case 's': {
+            const char *value = va_arg(args, const char *);
+            fmt_buf_puts(buf, buf_size, &pos, value);
+            break;
+        }
+        case 'f': {
+            f64 value = (f64)va_arg(args, double);
+            fmt_buf_put_f64_trunc(buf, buf_size, &pos, value, 3U);
+            break;
+        }
+        case '\0':
+            fmt--;
+            break;
+        default:
+            safe_buf_putc(buf, buf_size, &pos, '%');
+            if (*fmt != '\0') {
+                safe_buf_putc(buf, buf_size, &pos, *fmt);
+            }
+            break;
+        }
+#else
         bool zero_pad = false;
         u32 width = 0U;
         u32 precision = 6U;
@@ -600,6 +679,7 @@ static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_lis
             }
             break;
         }
+#endif
 
         if (*fmt != '\0') {
             fmt++;
@@ -771,16 +851,26 @@ TEST_CASE(test_f32_to_str_basic)
     usize len;
 
     len = f32_to_str(buf, 3.14159f, 2U);
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_U32(5U, (u32)len);
+    TEST_EXPECT_EQ_STR("3.141", buf);
+#else
     TEST_EXPECT_EQ_U32(4U, (u32)len);
     TEST_EXPECT_EQ_STR("3.14", buf);
+#endif
 
     len = f32_to_str(buf, -0.5f, 3U);
     TEST_EXPECT_EQ_U32(6U, (u32)len);
     TEST_EXPECT_EQ_STR("-0.500", buf);
 
     len = f32_to_str(buf, 42.9f, 0U);
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_U32(6U, (u32)len);
+    TEST_EXPECT_EQ_STR("42.900", buf);
+#else
     TEST_EXPECT_EQ_U32(2U, (u32)len);
     TEST_EXPECT_EQ_STR("42", buf);
+#endif
 
 #if FMT_MODE == FMT_MODE_NORMAL
     len = f32_to_str(buf, 4294967295.0f, 2U);
@@ -825,16 +915,26 @@ TEST_CASE(test_f64_to_str_basic)
     usize len;
 
     len = f64_to_str(buf, 3.14159265358979, 6U);
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_U32(5U, (u32)len);
+    TEST_EXPECT_EQ_STR("3.141", buf);
+#else
     TEST_EXPECT_EQ_U32(8U, (u32)len);
     TEST_EXPECT_EQ_STR("3.141592", buf);
+#endif
 
     len = f64_to_str(buf, -0.125, 3U);
     TEST_EXPECT_EQ_U32(6U, (u32)len);
     TEST_EXPECT_EQ_STR("-0.125", buf);
 
     len = f64_to_str(buf, 1.0, 4U);
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_U32(5U, (u32)len);
+    TEST_EXPECT_EQ_STR("1.000", buf);
+#else
     TEST_EXPECT_EQ_U32(6U, (u32)len);
     TEST_EXPECT_EQ_STR("1.0000", buf);
+#endif
 
 #if FMT_MODE == FMT_MODE_NORMAL
     len = f64_to_str(buf, 4294967295.0, 3U);
@@ -889,6 +989,36 @@ TEST_CASE(test_fmt_mode_simple_f64_degrade_to_f32)
 }
 #endif
 
+#if FMT_MODE == FMT_MODE_MINIMAL
+TEST_CASE(test_fmt_mode_minimal_fixed_float3)
+{
+    char buf[64];
+
+    (void)f32_to_str(buf, 1.9999f, 8U);
+    TEST_EXPECT_EQ_STR("1.999", buf);
+
+    (void)f64_to_str(buf, 1.23456789, 9U);
+    TEST_EXPECT_EQ_STR("1.234", buf);
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%f", 2.7182818);
+    TEST_EXPECT_EQ_STR("2.718", buf);
+}
+
+TEST_CASE(test_fmt_mode_minimal_no_width_precision)
+{
+    char buf[64];
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%02d", 7);
+    TEST_EXPECT_EQ_STR("%02d", buf);
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%.2f", 3.14159);
+    TEST_EXPECT_EQ_STR("%.2f", buf);
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%03u", 9U);
+    TEST_EXPECT_EQ_STR("%03u", buf);
+}
+#endif
+
 #if FMT_MODE == FMT_MODE_NORMAL
 TEST_CASE(test_fmt_mode_normal_f64_precision_path)
 {
@@ -909,7 +1039,11 @@ TEST_CASE(test_fmt_sprintf_core)
 
     len = fmt_sprintf(buf, "%d %u %x %X %s %.2f %%", -12, 42U, 0x2aU, 0x2aU, "ok", 3.14159);
     TEST_EXPECT_EQ_I32(22, len);
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_STR("-12 42 2a 2A ok %.2f %", buf);
+#else
     TEST_EXPECT_EQ_STR("-12 42 2a 2A ok 3.14 %", buf);
+#endif
 
     len = fmt_sprintf(buf, "%s", NULL);
     TEST_EXPECT_EQ_I32(6, len);
@@ -964,11 +1098,19 @@ TEST_CASE(test_fmt_padding_and_unknown_spec)
 {
     char buf[96];
 
+#if FMT_MODE == FMT_MODE_MINIMAL
+    TEST_EXPECT_EQ_I32(14, test_fmt_vsnprintf_call(buf, sizeof(buf), "%02d %03d %02u", 7, -7, 3U));
+    TEST_EXPECT_EQ_STR("%02d %03d %02u", buf);
+
+    TEST_EXPECT_EQ_I32(4, test_fmt_vsnprintf_call(buf, sizeof(buf), "%.2q"));
+    TEST_EXPECT_EQ_STR("%.2q", buf);
+#else
     TEST_EXPECT_EQ_I32(9, test_fmt_vsnprintf_call(buf, sizeof(buf), "%02d %03d %02u", 7, -7, 3U));
     TEST_EXPECT_EQ_STR("07 -07 03", buf);
 
     TEST_EXPECT_EQ_I32(3, test_fmt_vsnprintf_call(buf, sizeof(buf), "%.2q"));
     TEST_EXPECT_EQ_STR("%.q", buf);
+#endif
 
     TEST_EXPECT_EQ_I32(3, test_fmt_vsnprintf_call(buf, sizeof(buf), "abc%"));
     TEST_EXPECT_EQ_STR("abc", buf);

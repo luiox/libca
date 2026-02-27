@@ -16,6 +16,7 @@
 
 #define FMT_MODE_SIMPLE 0
 #define FMT_MODE_NORMAL 1
+#define FMT_MODE_MINIMAL 2
 
 #ifndef FMT_MODE
 #define FMT_MODE FMT_MODE_SIMPLE
@@ -41,6 +42,13 @@
  *   - %f 路径按 f32 精度处理（包括传入 double）
  *   - f64_to_str/f64_to_str_safe 在该模式下退化为 f32 路径，可能损失精度
  *   - 不额外处理复杂归一化与边界补偿
+ *
+ * - FMT_MODE_MINIMAL：
+ *   - 极致体积优先（在 SIMPLE 基础上进一步裁剪）
+ *   - 不支持宽度与精度控制（如 %0Nd、%.Nf）
+ *   - %f 固定输出 3 位小数（截断）
+ *   - f64_to_str/f64_to_str_safe 退化为 f32 路径
+ *   - 更高的精度损失与行为简化风险
  *
  * - FMT_MODE_NORMAL：
  *   - 精度与健壮性优先
