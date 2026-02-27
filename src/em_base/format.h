@@ -14,12 +14,41 @@
 #include "datatype.h"
 #include <stdarg.h>
 
-#define FMT_MODE_SIMPLE 0
-#define FMT_MODE_NORMAL 1
-#define FMT_MODE_MINIMAL 2
+// 启用浮点支持（默认0，若需要则定义为1）
+#ifndef FMT_ENABLE_FLOAT
+#define FMT_ENABLE_FLOAT 0
+#endif
 
-#ifndef FMT_MODE
-#define FMT_MODE FMT_MODE_SIMPLE
+// 启用宽度/精度支持（默认0，若需要则定义为1），即 %.Nf 和 %0Nd
+#ifndef FMT_ENABLE_WIDTH_PRECISION
+#define FMT_ENABLE_WIDTH_PRECISION 0
+#endif
+
+// 启用十六进制支持（默认0，若需要则定义为1），即 %x 和 %X
+#ifndef FMT_ENABLE_HEX
+#define FMT_ENABLE_HEX 0
+#endif
+
+// 固定N位小数的截断
+#define FMT_FLOAT_MODE_FIXED 0
+// 允许控制小数位的截断
+#define FMT_FLOAT_MODE_SIMPLE 1
+// 标准舍入
+#define FMT_FLOAT_MODE_NORMAL 2
+
+// 若启用浮点，还可选择浮点处理模式
+#ifndef FMT_FLOAT_MODE
+#define FMT_FLOAT_MODE FMT_FLOAT_MODE_FIXED
+#endif
+
+// 当浮点启用且模式为 FIXED 时，固定小数位数
+#ifndef FMT_FIXED_DECIMALS
+#define FMT_FIXED_DECIMALS 3U
+#endif
+
+// 默认精度（当未启用宽度精度时，浮点输出使用的默认小数位数）
+#ifndef FMT_DEFAULT_PRECISION
+#define FMT_DEFAULT_PRECISION 3U
 #endif
 
 #ifndef FMT_U32_TMP_BUF_SIZE
@@ -35,25 +64,16 @@
 #endif
 
 /**
- * @brief 格式化浮点模式说明
+ * @brief 格式化特性开关说明
  *
- * - FMT_MODE_SIMPLE（默认）：
- *   - 代码体积优先，浮点按截断策略直接处理
- *   - %f 路径按 f32 精度处理（包括传入 double）
- *   - f64_to_str/f64_to_str_safe 在该模式下退化为 f32 路径，可能损失精度
- *   - 不额外处理复杂归一化与边界补偿
+ * - FMT_ENABLE_FLOAT=0 时，%f 视为不支持格式符，按 "%f" 原样风格输出
+ * - FMT_ENABLE_WIDTH_PRECISION=0 时，不解析宽度/精度（如 %02d、%.2f）
+ * - FMT_ENABLE_HEX=0 时，%x/%X 视为不支持格式符
  *
- * - FMT_MODE_MINIMAL：
- *   - 极致体积优先（在 SIMPLE 基础上进一步裁剪）
- *   - 不支持宽度与精度控制（如 %0Nd、%.Nf）
- *   - %f 固定输出 3 位小数（截断）
- *   - f64_to_str/f64_to_str_safe 退化为 f32 路径
- *   - 更高的精度损失与行为简化风险
- *
- * - FMT_MODE_NORMAL：
- *   - 精度与健壮性优先
- *   - %f 路径按 f64 处理
- *   - 启用更完整的小数归一化与边界防护逻辑
+ * 浮点模式（仅在 FMT_ENABLE_FLOAT=1 时有效）：
+ * - FMT_FLOAT_MODE_FIXED：固定 FMT_FIXED_DECIMALS 位小数（截断）
+ * - FMT_FLOAT_MODE_SIMPLE：按请求/默认精度截断
+ * - FMT_FLOAT_MODE_NORMAL：按请求/默认精度舍入
  */
 
 /**
@@ -115,7 +135,6 @@ usize f32_to_str_safe(char* buf, usize buf_len, f32 val, u32 decimal_num);
  * @brief 将 f64 转为定点十进制字符串（截断小数，不做边界检查）
  *
  * 调用方需保证 @p buf 空间足够，本函数会写入结尾 '\0'。
- * 在 FMT_MODE_SIMPLE 下该接口退化为 f32 路径（会丢失精度）。
  *
  * @param buf 输出缓冲区（不可为 NULL）
  * @param val 待转换浮点值
@@ -129,7 +148,6 @@ usize f64_to_str(char* buf, f64 val, u32 decimal_num);
  *
  * 最多写入 @p buf_len - 1 个字符，并保证输出以 '\0' 结尾。
  * 若发生截断，返回值为实际写入字符数（不包含 '\0'）。
- * 在 FMT_MODE_SIMPLE 下该接口退化为 f32 路径（会丢失精度）。
  *
  * @param buf 输出缓冲区
  * @param buf_len 输出缓冲区总长度（字节）
@@ -142,12 +160,14 @@ usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num);
 /**
  * @brief 轻量级格式化（va_list 版本）
  *
- * 支持的格式：%d %u %f %x %X %s %%
- * 额外支持：%.Nf 与 %0Nd
+ * 基础支持格式：%d %u %s %%
  *
- * %f 在不同模式下行为：
- * - FMT_MODE_SIMPLE：按 f32 精度处理
- * - FMT_MODE_NORMAL：按 f64 精度处理
+ * 可选支持（由宏决定）：
+ * - %f: 受 FMT_ENABLE_FLOAT 控制
+ * - %x/%X: 受 FMT_ENABLE_HEX 控制
+ * - %.Nf / %0Nd: 受 FMT_ENABLE_WIDTH_PRECISION 控制
+ *
+ * 不支持的格式符按标准库常见习惯处理：输出 '%' + 该字符。
  *
  * @param buf 输出缓冲区
  * @param buf_size 输出缓冲区总长度（字节）
