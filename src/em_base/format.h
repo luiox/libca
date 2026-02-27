@@ -108,4 +108,4 @@ i32 fmt_snprintf(char* buf, usize buf_size, const char* fmt, ...);
  */
 i32 fmt_sprintf(char* buf, const char* fmt, ...);
 
-#endif // !FORMAT_H
+#endif // !LIBCA_EM_BASE_FORMAT_H
