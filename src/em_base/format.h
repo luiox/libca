@@ -14,6 +14,13 @@
 #include "datatype.h"
 #include <stdarg.h>
 
+#define FMT_MODE_SIMPLE 0
+#define FMT_MODE_NORMAL 1
+
+#ifndef FMT_MODE
+#define FMT_MODE FMT_MODE_SIMPLE
+#endif
+
 #ifndef FMT_U32_TMP_BUF_SIZE
 #define FMT_U32_TMP_BUF_SIZE 16U
 #endif
@@ -25,6 +32,21 @@
 #ifndef FMT_F64_TO_STR_TMP_BUF_SIZE
 #define FMT_F64_TO_STR_TMP_BUF_SIZE 48U
 #endif
+
+/**
+ * @brief 格式化浮点模式说明
+ *
+ * - FMT_MODE_SIMPLE（默认）：
+ *   - 代码体积优先，浮点按截断策略直接处理
+ *   - %f 路径按 f32 精度处理（包括传入 double）
+ *   - f64_to_str/f64_to_str_safe 在该模式下退化为 f32 路径，可能损失精度
+ *   - 不额外处理复杂归一化与边界补偿
+ *
+ * - FMT_MODE_NORMAL：
+ *   - 精度与健壮性优先
+ *   - %f 路径按 f64 处理
+ *   - 启用更完整的小数归一化与边界防护逻辑
+ */
 
 /**
  * @brief 将 u32 转为十进制字符串（不做边界检查）
@@ -85,6 +107,7 @@ usize f32_to_str_safe(char* buf, usize buf_len, f32 val, u32 decimal_num);
  * @brief 将 f64 转为定点十进制字符串（截断小数，不做边界检查）
  *
  * 调用方需保证 @p buf 空间足够，本函数会写入结尾 '\0'。
+ * 在 FMT_MODE_SIMPLE 下该接口退化为 f32 路径（会丢失精度）。
  *
  * @param buf 输出缓冲区（不可为 NULL）
  * @param val 待转换浮点值
@@ -98,6 +121,7 @@ usize f64_to_str(char* buf, f64 val, u32 decimal_num);
  *
  * 最多写入 @p buf_len - 1 个字符，并保证输出以 '\0' 结尾。
  * 若发生截断，返回值为实际写入字符数（不包含 '\0'）。
+ * 在 FMT_MODE_SIMPLE 下该接口退化为 f32 路径（会丢失精度）。
  *
  * @param buf 输出缓冲区
  * @param buf_len 输出缓冲区总长度（字节）
@@ -112,6 +136,10 @@ usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num);
  *
  * 支持的格式：%d %u %f %x %X %s %%
  * 额外支持：%.Nf 与 %0Nd
+ *
+ * %f 在不同模式下行为：
+ * - FMT_MODE_SIMPLE：按 f32 精度处理
+ * - FMT_MODE_NORMAL：按 f64 精度处理
  *
  * @param buf 输出缓冲区
  * @param buf_size 输出缓冲区总长度（字节）

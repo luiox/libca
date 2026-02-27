@@ -2,6 +2,7 @@
 
 #define FMT_SPRINTF_MAX ((usize)(~(usize)0))
 
+#if FMT_MODE == FMT_MODE_NORMAL
 static void normalize_fraction_f32(u32 *int_part, f32 *frac_val)
 {
     if (*frac_val < 0.0f) {
@@ -61,6 +62,20 @@ static u32 next_frac_digit_f64(f64 *frac_val)
     *frac_val = scaled - (f64)digit;
     return digit;
 }
+#else
+static u32 next_frac_digit_f32(f32 *frac_val)
+{
+    u32 digit;
+
+    *frac_val = (*frac_val) * 10.0f;
+    digit = (u32)(*frac_val);
+    if (digit > 9U) {
+        digit = 9U;
+    }
+    *frac_val = (*frac_val) - (f32)digit;
+    return digit;
+}
+#endif
 
 static void safe_buf_putc(char *buf, usize buf_len, usize *pos, char ch)
 {
@@ -201,7 +216,11 @@ static void fmt_buf_put_i32(char *buf, usize buf_size, usize *pos, i32 value)
 static void fmt_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 value, u32 precision)
 {
     char tmp[FMT_F64_TO_STR_TMP_BUF_SIZE];
+#if FMT_MODE == FMT_MODE_NORMAL
     usize len = f64_to_str_safe(tmp, sizeof(tmp), value, precision);
+#else
+    usize len = f32_to_str_safe(tmp, sizeof(tmp), (f32)value, precision);
+#endif
     usize i;
 
     for (i = 0U; i < len; i++) {
@@ -290,15 +309,17 @@ usize f32_to_str(char *buf, f32 val, u32 decimal_num)
         abs_val = -abs_val;
     }
 
+    int_part = (u32)abs_val;
+    frac_val = abs_val - (f32)int_part;
+#if FMT_MODE == FMT_MODE_NORMAL
     if (abs_val >= 4294967295.0f) {
         int_part = 4294967295U;
         frac_val = 0.0f;
     }
     else {
-        int_part = (u32)abs_val;
-        frac_val = abs_val - (f32)int_part;
         normalize_fraction_f32(&int_part, &frac_val);
     }
+#endif
 
     int_len = u32_to_str(p, int_part);
     p += int_len;
@@ -337,15 +358,17 @@ usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
         abs_val = -abs_val;
     }
 
+    int_part = (u32)abs_val;
+    frac_val = abs_val - (f32)int_part;
+#if FMT_MODE == FMT_MODE_NORMAL
     if (abs_val >= 4294967295.0f) {
         int_part = 4294967295U;
         frac_val = 0.0f;
     }
     else {
-        int_part = (u32)abs_val;
-        frac_val = abs_val - (f32)int_part;
         normalize_fraction_f32(&int_part, &frac_val);
     }
+#endif
 
     int_len = u32_to_str_safe(int_buf, sizeof(int_buf), int_part);
     for (i = 0U; i < int_len; i++) {
@@ -372,6 +395,7 @@ usize f32_to_str_safe(char *buf, usize buf_len, f32 val, u32 decimal_num)
  */
 usize f64_to_str(char *buf, f64 val, u32 decimal_num)
 {
+#if FMT_MODE == FMT_MODE_NORMAL
     char *p = buf;
     f64 abs_val = val;
     u32 int_part;
@@ -411,6 +435,9 @@ usize f64_to_str(char *buf, f64 val, u32 decimal_num)
 
     *p = '\0';
     return (usize)(p - buf);
+#else
+    return f32_to_str(buf, (f32)val, decimal_num);
+#endif
 }
 
 /**
@@ -418,6 +445,7 @@ usize f64_to_str(char *buf, f64 val, u32 decimal_num)
  */
 usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
 {
+#if FMT_MODE == FMT_MODE_NORMAL
     usize pos = 0U;
     f64 abs_val = val;
     u32 int_part;
@@ -463,6 +491,9 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
         return buf_len - 1U;
     }
     return pos;
+#else
+    return f32_to_str_safe(buf, buf_len, (f32)val, decimal_num);
+#endif
 }
 
 /**
@@ -751,9 +782,11 @@ TEST_CASE(test_f32_to_str_basic)
     TEST_EXPECT_EQ_U32(2U, (u32)len);
     TEST_EXPECT_EQ_STR("42", buf);
 
+#if FMT_MODE == FMT_MODE_NORMAL
     len = f32_to_str(buf, 4294967295.0f, 2U);
     TEST_EXPECT_EQ_U32(13U, (u32)len);
     TEST_EXPECT_EQ_STR("4294967295.00", buf);
+#endif
 
     TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str(NULL, 1.25f, 2U));
 }
@@ -803,9 +836,11 @@ TEST_CASE(test_f64_to_str_basic)
     TEST_EXPECT_EQ_U32(6U, (u32)len);
     TEST_EXPECT_EQ_STR("1.0000", buf);
 
+#if FMT_MODE == FMT_MODE_NORMAL
     len = f64_to_str(buf, 4294967295.0, 3U);
     TEST_EXPECT_EQ_U32(14U, (u32)len);
     TEST_EXPECT_EQ_STR("4294967295.000", buf);
+#endif
 
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str(NULL, 1.0, 2U));
 }
@@ -837,6 +872,35 @@ TEST_CASE(test_f64_to_str_safe)
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str_safe(NULL, 8U, 1.0, 2U));
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str_safe(buf, 0U, 1.0, 2U));
 }
+
+#if FMT_MODE == FMT_MODE_SIMPLE
+TEST_CASE(test_fmt_mode_simple_f64_degrade_to_f32)
+{
+    char buf_f64[64];
+    char buf_f32[64];
+
+    TEST_EXPECT_EQ_U32((u32)f32_to_str(buf_f32, (f32)0.1234567890123, 8U),
+                       (u32)f64_to_str(buf_f64, 0.1234567890123, 8U));
+    TEST_EXPECT_EQ_STR(buf_f32, buf_f64);
+
+    TEST_EXPECT_EQ_U32((u32)f32_to_str_safe(buf_f32, sizeof(buf_f32), (f32)-9.87654321, 6U),
+                       (u32)f64_to_str_safe(buf_f64, sizeof(buf_f64), -9.87654321, 6U));
+    TEST_EXPECT_EQ_STR(buf_f32, buf_f64);
+}
+#endif
+
+#if FMT_MODE == FMT_MODE_NORMAL
+TEST_CASE(test_fmt_mode_normal_f64_precision_path)
+{
+    char buf[64];
+
+    (void)f64_to_str(buf, 0.1234567890123, 10U);
+    TEST_EXPECT_EQ_STR("0.1234567890", buf);
+
+    (void)f64_to_str_safe(buf, sizeof(buf), -0.0000001234567, 12U);
+    TEST_EXPECT_EQ_STR("-0.000000123456", buf);
+}
+#endif
 
 TEST_CASE(test_fmt_sprintf_core)
 {

@@ -50,3 +50,15 @@ target("test-format")
     add_files("format.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
 
+target("test-format-simple")
+    set_kind("binary")
+    add_files("format.c")
+    add_defines("FMT_MODE=FMT_MODE_SIMPLE")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-format-normal")
+    set_kind("binary")
+    add_files("format.c")
+    add_defines("FMT_MODE=FMT_MODE_NORMAL")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
