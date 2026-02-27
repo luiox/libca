@@ -7,8 +7,14 @@
 // 无符号整数转字符串
 usize u32_to_str(char* buf, u32 val);
 
+// 无符号整数转字符串（安全版，带缓冲区长度）
+usize u32_to_str_safe(char* buf, usize buf_len, u32 val);
+
 // 浮点数转字符串
-void f32_to_str(char* buf, float val, u32 decimal_num);
+usize f32_to_str(char* buf, f32 val, u32 decimal_num);
+
+// 浮点数转字符串（安全版，带缓冲区长度）
+usize f32_to_str_safe(char* buf, usize buf_len, f32 val, u32 decimal_num);
 
 // 轻量格式化：支持 %d %u %f %x %X %s %% ，支持 %.Nf 与 %0Nd
 i32 fmt_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args);
