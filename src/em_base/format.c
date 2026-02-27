@@ -84,11 +84,6 @@ static void safe_buf_terminate(char *buf, usize buf_len, usize pos)
     buf[pos] = '\0';
 }
 
-static void fmt_buf_putc(char *buf, usize buf_size, usize *pos, char ch)
-{
-    safe_buf_putc(buf, buf_size, pos, ch);
-}
-
 static void fmt_buf_puts(char *buf, usize buf_size, usize *pos, const char *str)
 {
     if (str == NULL) {
@@ -96,7 +91,7 @@ static void fmt_buf_puts(char *buf, usize buf_size, usize *pos, const char *str)
     }
 
     while (*str != '\0') {
-        fmt_buf_putc(buf, buf_size, pos, *str);
+        safe_buf_putc(buf, buf_size, pos, *str);
         str++;
     }
 }
@@ -109,7 +104,7 @@ static void fmt_buf_put_u32_base(char *buf, usize buf_size, usize *pos, u32 valu
     usize i = 0U;
 
     if (value == 0U) {
-        fmt_buf_putc(buf, buf_size, pos, '0');
+        safe_buf_putc(buf, buf_size, pos, '0');
         return;
     }
 
@@ -121,7 +116,7 @@ static void fmt_buf_put_u32_base(char *buf, usize buf_size, usize *pos, u32 valu
 
     while (i > 0U) {
         i--;
-        fmt_buf_putc(buf, buf_size, pos, tmp[i]);
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
     }
 }
 
@@ -132,7 +127,7 @@ static void fmt_buf_put_u32_dec(char *buf, usize buf_size, usize *pos, u32 value
     usize i;
 
     for (i = 0U; i < len; i++) {
-        fmt_buf_putc(buf, buf_size, pos, tmp[i]);
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
     }
 }
 
@@ -145,11 +140,11 @@ static void fmt_buf_put_u32_width(char *buf, usize buf_size, usize *pos, u32 val
 
     pad_count = min_width > digits_len ? (min_width - digits_len) : 0U;
     for (i = 0U; i < pad_count; i++) {
-        fmt_buf_putc(buf, buf_size, pos, pad_char);
+        safe_buf_putc(buf, buf_size, pos, pad_char);
     }
 
     for (i = 0U; i < digits_len; i++) {
-        fmt_buf_putc(buf, buf_size, pos, tmp[i]);
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
     }
 }
 
@@ -178,23 +173,23 @@ static void fmt_buf_put_i32_width(char *buf, usize buf_size, usize *pos, i32 val
 
     if (pad_char == '0') {
         if (negative) {
-            fmt_buf_putc(buf, buf_size, pos, '-');
+            safe_buf_putc(buf, buf_size, pos, '-');
         }
         for (i = 0U; i < pad_count; i++) {
-            fmt_buf_putc(buf, buf_size, pos, '0');
+            safe_buf_putc(buf, buf_size, pos, '0');
         }
     }
     else {
         for (i = 0U; i < pad_count; i++) {
-            fmt_buf_putc(buf, buf_size, pos, pad_char);
+            safe_buf_putc(buf, buf_size, pos, pad_char);
         }
         if (negative) {
-            fmt_buf_putc(buf, buf_size, pos, '-');
+            safe_buf_putc(buf, buf_size, pos, '-');
         }
     }
 
     for (i = 0U; i < digits_len; i++) {
-        fmt_buf_putc(buf, buf_size, pos, tmp[i]);
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
     }
 }
 
@@ -210,7 +205,7 @@ static void fmt_buf_put_f64_trunc(char *buf, usize buf_size, usize *pos, f64 val
     usize i;
 
     for (i = 0U; i < len; i++) {
-        fmt_buf_putc(buf, buf_size, pos, tmp[i]);
+        safe_buf_putc(buf, buf_size, pos, tmp[i]);
     }
 }
 
@@ -473,7 +468,7 @@ usize f64_to_str_safe(char *buf, usize buf_len, f64 val, u32 decimal_num)
 /**
  * @brief 轻量格式化（va_list 版本）
  */
-i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
+static i32 fmt_vsnprintf_impl(char *buf, usize buf_size, const char *fmt, va_list args, bool fast_return)
 {
     usize pos = 0U;
 
@@ -483,14 +478,14 @@ i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 
     while (*fmt != '\0') {
         if (*fmt != '%') {
-            fmt_buf_putc(buf, buf_size, &pos, *fmt);
+            safe_buf_putc(buf, buf_size, &pos, *fmt);
             fmt++;
             continue;
         }
 
         fmt++;
         if (*fmt == '%') {
-            fmt_buf_putc(buf, buf_size, &pos, '%');
+            safe_buf_putc(buf, buf_size, &pos, '%');
             fmt++;
             continue;
         }
@@ -565,12 +560,12 @@ i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
             fmt--;
             break;
         default:
-            fmt_buf_putc(buf, buf_size, &pos, '%');
+            safe_buf_putc(buf, buf_size, &pos, '%');
             if (has_precision) {
-                fmt_buf_putc(buf, buf_size, &pos, '.');
+                safe_buf_putc(buf, buf_size, &pos, '.');
             }
             if (*fmt != '\0') {
-                fmt_buf_putc(buf, buf_size, &pos, *fmt);
+                safe_buf_putc(buf, buf_size, &pos, *fmt);
             }
             break;
         }
@@ -582,9 +577,20 @@ i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 
     safe_buf_terminate(buf, buf_size, pos);
     if (pos >= buf_size) {
-        return (i32)(buf_size - 1U);
+        if (fast_return) {
+            return (i32)(buf_size - 1U);
+        }
+        return (i32)pos;
     }
     return (i32)pos;
+}
+
+/**
+ * @brief 轻量格式化（va_list 版本）
+ */
+i32 fmt_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
+{
+    return fmt_vsnprintf_impl(buf, buf_size, fmt, args, false);
 }
 
 /**
@@ -600,7 +606,26 @@ i32 fmt_snprintf(char *buf, usize buf_size, const char *fmt, ...)
     }
 
     va_start(args, fmt);
-    len = fmt_vsnprintf(buf, buf_size, fmt, args);
+    len = fmt_vsnprintf_impl(buf, buf_size, fmt, args, false);
+    va_end(args);
+
+    return len;
+}
+
+/**
+ * @brief 轻量格式化（快速有界版本）
+ */
+i32 fmt_snprintf_fast(char *buf, usize buf_size, const char *fmt, ...)
+{
+    va_list args;
+    i32 len;
+
+    if (buf == NULL || fmt == NULL || buf_size == 0U) {
+        return 0;
+    }
+
+    va_start(args, fmt);
+    len = fmt_vsnprintf_impl(buf, buf_size, fmt, args, true);
     va_end(args);
 
     return len;
@@ -809,16 +834,38 @@ TEST_CASE(test_fmt_snprintf_basic_and_truncate)
     TEST_EXPECT_EQ_STR("ab-12", buf);
 
     len = fmt_snprintf(buf, 6U, "%s", "123456789");
-    TEST_EXPECT_EQ_I32(5, len);
+    TEST_EXPECT_EQ_I32(9, len);
     TEST_EXPECT_EQ_STR("12345", buf);
 
     len = fmt_snprintf(buf, 1U, "xyz");
-    TEST_EXPECT_EQ_I32(0, len);
+    TEST_EXPECT_EQ_I32(3, len);
     TEST_EXPECT_EQ_STR("", buf);
 
     TEST_EXPECT_EQ_I32(0, fmt_snprintf(NULL, sizeof(buf), "x"));
     TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, sizeof(buf), NULL));
     TEST_EXPECT_EQ_I32(0, fmt_snprintf(buf, 0U, "x"));
+}
+
+TEST_CASE(test_fmt_snprintf_fast_semantics)
+{
+    char buf[10];
+    i32 len;
+
+    len = fmt_snprintf_fast(buf, sizeof(buf), "%s-%u", "ab", 12U);
+    TEST_EXPECT_EQ_I32(5, len);
+    TEST_EXPECT_EQ_STR("ab-12", buf);
+
+    len = fmt_snprintf_fast(buf, 6U, "%s", "123456789");
+    TEST_EXPECT_EQ_I32(5, len);
+    TEST_EXPECT_EQ_STR("12345", buf);
+
+    len = fmt_snprintf_fast(buf, 1U, "xyz");
+    TEST_EXPECT_EQ_I32(0, len);
+    TEST_EXPECT_EQ_STR("", buf);
+
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(NULL, sizeof(buf), "x"));
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(buf, sizeof(buf), NULL));
+    TEST_EXPECT_EQ_I32(0, fmt_snprintf_fast(buf, 0U, "x"));
 }
 
 TEST_CASE(test_fmt_padding_and_unknown_spec)
@@ -841,11 +888,11 @@ TEST_CASE(test_fmt_buffer_boundary)
     i32 len;
 
     len = test_fmt_vsnprintf_call(buf, sizeof(buf), "123456789");
-    TEST_EXPECT_EQ_I32(7, len);
+    TEST_EXPECT_EQ_I32(9, len);
     TEST_EXPECT_EQ_STR("1234567", buf);
 
     len = test_fmt_vsnprintf_call(buf, 1U, "A");
-    TEST_EXPECT_EQ_I32(0, len);
+    TEST_EXPECT_EQ_I32(1, len);
     TEST_EXPECT_EQ_STR("", buf);
 }
 

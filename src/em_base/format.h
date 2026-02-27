@@ -117,7 +117,7 @@ usize f64_to_str_safe(char* buf, usize buf_len, f64 val, u32 decimal_num);
  * @param buf_size 输出缓冲区总长度（字节）
  * @param fmt 格式字符串
  * @param args 可变参数列表
- * @return 实际写入字符数（不包含 '\0'）；发生截断时返回 @p buf_size - 1；参数非法返回 0
+ * @return 标准 snprintf 语义：返回“本应写入字符数”（不包含 '\0'）；参数非法返回 0
  */
 i32 fmt_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args);
 
@@ -126,16 +126,29 @@ i32 fmt_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args);
  *
  * 最多写入 @p buf_size - 1 个字符，并保证结尾 '\0'。
  *
- * 注意：本实现与标准 snprintf 的返回值语义不同。
- * 标准 snprintf 在截断时返回“本应写入长度”，而本实现在截断时返回 @p buf_size - 1。
+ * @param buf 输出缓冲区
+ * @param buf_size 输出缓冲区总长度（字节）
+ * @param fmt 格式字符串
+ * @param ... 可变参数
+ * @return 标准 snprintf 语义：返回“本应写入字符数”（不包含 '\0'）；参数非法返回 0
+ */
+i32 fmt_snprintf(char* buf, usize buf_size, const char* fmt, ...);
+
+/**
+ * @brief 轻量级格式化（快速有界版本）
+ *
+ * 最多写入 @p buf_size - 1 个字符，并保证结尾 '\0'。
+ *
+ * 注意：该接口为非标准返回值语义，截断时返回 @p buf_size - 1，
+ * 即“实际写入字符数”（不包含 '\0'），而不是“本应写入字符数”。
  *
  * @param buf 输出缓冲区
  * @param buf_size 输出缓冲区总长度（字节）
  * @param fmt 格式字符串
  * @param ... 可变参数
- * @return 实际写入字符数（不包含 '\0'）；发生截断时返回 @p buf_size - 1；参数非法返回 0
+ * @return 实际写入字符数（不包含 '\0'）；参数非法返回 0
  */
-i32 fmt_snprintf(char* buf, usize buf_size, const char* fmt, ...);
+i32 fmt_snprintf_fast(char* buf, usize buf_size, const char* fmt, ...);
 
 /**
  * @brief 轻量级格式化（无界版本）
