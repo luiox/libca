@@ -59,7 +59,11 @@ static u32 read_checksum_from_stream(length_parser_t* self, usize offset)
     u32 checksum = 0;
     for (u8 i = 0; i < self->checksum_size; i++) {
         u8 byte = dstream_peek_u8(self->ds, offset + i);
-        checksum |= ((u32)byte << (i * 8)); // 小端读取
+        if (self->checksum_big_endian) {
+            checksum = (checksum << 8) | byte;
+        } else {
+            checksum |= ((u32)byte << (i * 8));
+        }
     }
     return checksum;
 }
@@ -76,7 +80,7 @@ static void recover_from_error(length_parser_t* self)
 void length_parser_init(length_parser_t* self, dstream_t* ds,
                         const u8* header, usize header_len,
                         u8 len_field_size, bool len_big_endian,
-                        u8 checksum_size,
+                        u8 checksum_size, bool checksum_big_endian,
                         length_parser_cksum_type_t cksum_type,
                         length_parser_cksum_func_t cksum_func,
                         u32 cksum_init_val,
@@ -94,6 +98,7 @@ void length_parser_init(length_parser_t* self, dstream_t* ds,
     self->len_field_size = len_field_size;
     self->len_big_endian = len_big_endian;
     self->checksum_size = checksum_size;
+    self->checksum_big_endian = checksum_big_endian;
     self->cksum_type = cksum_type;
     self->cksum_func = cksum_func;
     self->cksum_init_val = cksum_init_val;
@@ -403,7 +408,7 @@ TEST_CASE(length_parser_no_checksum)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     /* 帧: [len=4][data=0x01,0x02,0x03,0x04] */
@@ -428,7 +433,7 @@ TEST_CASE(length_parser_with_header)
     length_parser_t parser;
     u8 header[] = {0x55, 0xAA};
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, header, 2, 1, false, 0,
+    length_parser_init(&parser, &ds, header, 2, 1, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     /* 帧: [header][len=3][data] */
@@ -452,7 +457,7 @@ TEST_CASE(length_parser_with_checksum)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .checksum_u8 = simple_checksum_u8 };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 1,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 1, false,
                        LENGTH_PARSER_CKSUM_U8, cksum_func, 0, 256);
 
     /* 帧: [len=4][data][checksum] */
@@ -476,7 +481,7 @@ TEST_CASE(length_parser_checksum_error)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .checksum_u8 = simple_checksum_u8 };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 1,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 1, false,
                        LENGTH_PARSER_CKSUM_U8, cksum_func, 0, 256);
 
     /* 帧: 错误的校验和 */
@@ -497,7 +502,7 @@ TEST_CASE(length_parser_invalid_len)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 16); /* max=16 */
 
     /* 帧: len=100 超出 max_frame_len */
@@ -519,7 +524,7 @@ TEST_CASE(length_parser_header_mismatch)
     length_parser_t parser;
     u8 header[] = {0x55, 0xAA};
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, header, 2, 1, false, 0,
+    length_parser_init(&parser, &ds, header, 2, 1, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     /* 错误的帧头 */
@@ -540,7 +545,7 @@ TEST_CASE(length_parser_partial_data)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     usize len;
@@ -568,7 +573,7 @@ TEST_CASE(length_parser_big_endian)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 2, true, 0,  /* big_endian=true */
+    length_parser_init(&parser, &ds, NULL, 0, 2, true, 0, false,  /* len_big_endian=true */
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     /* 大端序: len = 0x0004 */
@@ -591,7 +596,7 @@ TEST_CASE(length_parser_multiple_frames)
 
     length_parser_t parser;
     length_parser_cksum_func_t cksum_func = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 1, false, 0,
+    length_parser_init(&parser, &ds, NULL, 0, 1, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum_func, 0, 256);
 
     /* 两个帧 */

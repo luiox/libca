@@ -253,6 +253,15 @@ typedef union {
 } length_parser_cksum_func_t;
 ```
 
+**配置参数：**
+| 参数 | 说明 |
+|------|------|
+| `len_field_size` | 长度字段字节数 (1/2/4) |
+| `len_big_endian` | 长度字段字节序 |
+| `checksum_size` | 校验字段字节数 (0/1/2/4) |
+| `checksum_big_endian` | 校验字段字节序 |
+| `cksum_init_val` | 校验初始值（如 CRC-16 用 0xFFFF）|
+
 **错误处理：**
 - `ERR_SYNC`：帧头不匹配，自动跳过 1 字节
 - `ERR_INVALID_LEN`：长度字段值超出 `max_frame_len`

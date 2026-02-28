@@ -1,22 +1,6 @@
 #include "delimiter_parser.h"
 #include "../em_base/debug.h"
 
-/**
- * @brief 检查字节是否匹配定界符的指定位置
- * @param delim 定界符字节数组
- * @param delim_len 定界符长度
- * @param byte 待检查字节
- * @param pos 定界符中的位置
- * @return 是否匹配
- */
-static bool match_delim_byte(const u8* delim, usize delim_len, u8 byte, usize pos)
-{
-    if (delim == NULL || delim_len == 0 || pos >= delim_len) {
-        return false;
-    }
-    return delim[pos] == byte;
-}
-
 /* 无效匹配位置标记 */
 #define DELIM_NO_MATCH ((usize)-1)
 
@@ -80,58 +64,40 @@ delimiter_parser_result_t delimiter_parser_get_frame(delimiter_parser_t* self, u
     while (true) {
         // 获取当前可用的数据长度
         usize available = dstream_used(ds);
-        usize cursor_offset = dstream_offset(ds);
 
         switch (self->state) {
         case DELIM_STATE_IDLE: {
-            // 需要匹配头部
             if (self->header != NULL && self->header_len > 0) {
-                // 检查是否有足够数据匹配头部
-                if (available < self->header_len) {
-                    // 尝试部分匹配
-                    usize match_start = self->match_len;
-                    for (usize i = match_start; i < available; i++) {
-                        u8 byte = dstream_peek_u8(ds, i);
-                        if (byte == self->header[self->match_len]) {
-                            self->match_len++;
-                            if (self->match_len == self->header_len) {
-                                // 完整匹配头部
-                                self->match_len = 0;
-                                self->current_frame_len = self->header_len;
-                                self->state = DELIM_STATE_IN_FRAME;
-                                break; // 跳出 for 循环，继续外层 while
-                            }
-                        } else {
-                            // 头部匹配失败，跳过已检查的字节
-                            usize skip_len = (self->match_len > 0) ? 1 : (i + 1);
-                            dstream_skip(ds, skip_len);
-                            self->match_len = 0;
-                            break; // 跳出 for 循环，继续外层 while
-                        }
-                    }
-                    // 如果 for 循环正常结束（未找到完整头部）且数据不足
-                    if (self->state == DELIM_STATE_IDLE) {
+                /* 统一的头部匹配逻辑：逐字节匹配，支持部分匹配 */
+                bool matched_this_round = true;
+                
+                for (usize i = self->match_len; i < self->header_len; i++) {
+                    if (i >= available) {
+                        /* 数据不足，保存当前匹配进度，等待更多数据 */
+                        matched_this_round = false;
                         return DELIMITER_PARSER_NEED_MORE;
                     }
-                } else {
-                    // 数据足够，尝试完整匹配头部
-                    bool match = true;
-                    for (usize i = 0; i < self->header_len; i++) {
-                        if (dstream_peek_u8(ds, i) != self->header[i]) {
-                            match = false;
-                            break;
-                        }
-                    }
-                    if (match) {
-                        self->current_frame_len = self->header_len;
-                        self->state = DELIM_STATE_IN_FRAME;
+                    
+                    u8 byte = dstream_peek_u8(ds, i);
+                    if (byte == self->header[self->match_len]) {
+                        self->match_len++;
                     } else {
-                        // 匹配失败，跳过一个字节继续寻找
+                        /* 匹配失败，跳过已检查的第一个字节，重置状态 */
                         dstream_skip(ds, 1);
+                        self->match_len = 0;
+                        matched_this_round = false;
+                        break;  /* 继续外层 while，重新尝试匹配 */
                     }
                 }
+                
+                if (matched_this_round && self->match_len == self->header_len) {
+                    /* 头部完整匹配 */
+                    self->match_len = 0;
+                    self->current_frame_len = self->header_len;
+                    self->state = DELIM_STATE_IN_FRAME;
+                }
             } else {
-                // 无头部，直接进入帧内
+                /* 无头部，直接进入帧内 */
                 self->current_frame_len = 0;
                 self->state = DELIM_STATE_IN_FRAME;
             }

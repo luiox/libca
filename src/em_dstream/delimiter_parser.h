@@ -1,3 +1,13 @@
+/**
+ * @file delimiter_parser.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 定界符解析器
+ * @version 0.1
+ * @date 2026-02-28
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_DSTREAM_DELIMITER_PARSER_H
 #define LIBCA_EM_DSTREAM_DELIMITER_PARSER_H
 

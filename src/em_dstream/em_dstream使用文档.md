@@ -100,7 +100,7 @@ static u8 my_checksum(const u8* data, usize len, u8 prev) {
 
 length_parser_t parser;
 length_parser_cksum_func_t cksum = { .checksum_u8 = my_checksum };
-length_parser_init(&parser, &ds, NULL, 0, 2, false, 1,
+length_parser_init(&parser, &ds, NULL, 0, 2, false, 1, false,
                    LENGTH_PARSER_CKSUM_U8, cksum, 0, 256);
 
 usize data_len;
@@ -354,22 +354,23 @@ if (delimiter_parser_get_frame(&parser, &len) == DELIMITER_PARSER_OK) {
 ```c
 /**
  * @brief 初始化长度前置解析器
- * @param self            解析器对象
- * @param ds              数据流
- * @param header          可选帧头（NULL 表示无头）
- * @param header_len      帧头长度
- * @param len_field_size  长度字段字节数 (1/2/4)
- * @param len_big_endian  长度字段字节序
- * @param checksum_size   校验字段字节数 (0/1/2/4)
- * @param cksum_type      校验类型
- * @param cksum_func      校验函数
- * @param cksum_init_val  校验初始值
- * @param max_frame_len   数据部分最大允许长度
+ * @param self              解析器对象
+ * @param ds                数据流
+ * @param header            可选帧头（NULL 表示无头）
+ * @param header_len        帧头长度
+ * @param len_field_size    长度字段字节数 (1/2/4)
+ * @param len_big_endian    长度字段字节序
+ * @param checksum_size     校验字段字节数 (0/1/2/4)
+ * @param checksum_big_endian 校验字段字节序
+ * @param cksum_type        校验类型
+ * @param cksum_func        校验函数
+ * @param cksum_init_val    校验初始值
+ * @param max_frame_len     数据部分最大允许长度
  */
 void length_parser_init(length_parser_t* self, dstream_t* ds,
                         const u8* header, usize header_len,
                         u8 len_field_size, bool len_big_endian,
-                        u8 checksum_size,
+                        u8 checksum_size, bool checksum_big_endian,
                         length_parser_cksum_type_t cksum_type,
                         length_parser_cksum_func_t cksum_func,
                         u32 cksum_init_val,
@@ -422,7 +423,7 @@ typedef union {
 /* 帧格式: [u16 len LE][data...] */
 length_parser_t parser;
 length_parser_cksum_func_t cksum = { .null_fn = NULL };
-length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+length_parser_init(&parser, &ds, NULL, 0, 2, false, 0, false,
                    LENGTH_PARSER_CKSUM_NONE, cksum, 0, 1024);
 
 usize data_len;
@@ -447,7 +448,7 @@ static u8 simple_sum(const u8* data, usize len, u8 prev) {
 length_parser_t parser;
 u8 header[] = {0x55, 0xAA};
 length_parser_cksum_func_t cksum = { .checksum_u8 = simple_sum };
-length_parser_init(&parser, &ds, header, 2, 1, false, 1,
+length_parser_init(&parser, &ds, header, 2, 1, false, 1, false,
                    LENGTH_PARSER_CKSUM_U8, cksum, 0, 256);
 
 usize data_len;
@@ -469,7 +470,7 @@ extern u16 crc16_ccitt(const void* data, usize len, u16 prev);
 
 length_parser_t parser;
 length_parser_cksum_func_t cksum = { .crc16 = crc16_ccitt };
-length_parser_init(&parser, &ds, NULL, 0, 2, true, 2,  /* 大端 */
+length_parser_init(&parser, &ds, NULL, 0, 2, true, 2, true,  /* 大端 */
                    LENGTH_PARSER_CKSUM_CRC16, cksum, 0xFFFF, 512);
 ```
 
@@ -533,7 +534,7 @@ void setup(void) {
     ds.ops = fixed_buf_get_dstream_ops();
     
     length_parser_cksum_func_t cksum = { .null_fn = NULL };
-    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0, false,
                        LENGTH_PARSER_CKSUM_NONE, cksum, 0, 256);
 }
 
@@ -574,7 +575,7 @@ if (first == 0x55) {
 }
 ```
 
-### 用例 3：错误恢复
+### 用例 4：错误恢复
 
 ```c
 length_parser_result_t ret = length_parser_get_frame(&parser, &len);

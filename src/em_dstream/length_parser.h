@@ -1,3 +1,13 @@
+/**
+ * @file length_parser.h
+ * @author canrad (1517807724@qq.com)
+ * @brief 长度前置解析器
+ * @version 0.1
+ * @date 2026-02-28
+ * 
+ * @copyright Copyright (c) 2026
+ * 
+ */
 #ifndef LIBCA_EM_DSTREAM_LENGTH_PARSER_H
 #define LIBCA_EM_DSTREAM_LENGTH_PARSER_H
 
@@ -62,6 +72,7 @@ struct length_parser {
     u8 len_field_size;              /**< 长度字段字节数 (1/2/4) */
     bool len_big_endian;            /**< 长度字段是否大端序 */
     u8 checksum_size;               /**< 校验字段字节数 (0 表示无校验) */
+    bool checksum_big_endian;       /**< 校验字段是否大端序 */
     length_parser_cksum_type_t cksum_type;  /**< 校验类型 */
     length_parser_cksum_func_t cksum_func;  /**< 校验函数 */
     u32 cksum_init_val;             /**< 校验初始值 */
@@ -78,22 +89,23 @@ struct length_parser {
 
 /**
  * @brief 初始化长度前置解析器
- * @param self            解析器对象
- * @param ds              数据流
- * @param header          可选帧头（NULL 表示无头）
- * @param header_len      帧头长度
- * @param len_field_size  长度字段字节数 (1/2/4)
- * @param len_big_endian  长度字段字节序 (true=大端, false=小端)
- * @param checksum_size   校验字段字节数 (0/1/2/4)
- * @param cksum_type      校验类型
- * @param cksum_func      校验函数（无校验时可传 NULL）
- * @param cksum_init_val  校验初始值
- * @param max_frame_len   数据部分最大允许长度
+ * @param self              解析器对象
+ * @param ds                数据流
+ * @param header            可选帧头（NULL 表示无头）
+ * @param header_len        帧头长度
+ * @param len_field_size    长度字段字节数 (1/2/4)
+ * @param len_big_endian    长度字段字节序 (true=大端, false=小端)
+ * @param checksum_size     校验字段字节数 (0/1/2/4)
+ * @param checksum_big_endian 校验字段字节序 (true=大端, false=小端)
+ * @param cksum_type        校验类型
+ * @param cksum_func        校验函数（无校验时可传 NULL）
+ * @param cksum_init_val    校验初始值
+ * @param max_frame_len     数据部分最大允许长度
  */
 void length_parser_init(length_parser_t* self, dstream_t* ds,
                         const u8* header, usize header_len,
                         u8 len_field_size, bool len_big_endian,
-                        u8 checksum_size,
+                        u8 checksum_size, bool checksum_big_endian,
                         length_parser_cksum_type_t cksum_type,
                         length_parser_cksum_func_t cksum_func,
                         u32 cksum_init_val,
