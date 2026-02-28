@@ -1,5 +1,4 @@
 #include "crypto.h"
-#include "../em_base/macro_util.h"
 #include "../em_base/debug.h"
 #include <string.h>
 
