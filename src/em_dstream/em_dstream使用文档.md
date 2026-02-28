@@ -3,6 +3,7 @@
 ## 目录
 
 - [快速开始](#快速开始)
+- [缓冲区类型](#缓冲区类型)
 - [dstream 核心接口](#dstream-核心接口)
 - [定界符解析器](#定界符解析器)
 - [长度前置解析器](#长度前置解析器)
@@ -16,62 +17,61 @@
 
 ### 5 分钟上手
 
-#### 第 1 步：实现 dstream_t 的底层缓冲区
+#### 第 1 步：选择缓冲区类型
 
+em_dstream 提供两种开箱即用的缓冲区：
+
+| 缓冲区类型 | 头文件 | 特点 | 适用场景 |
+|-----------|--------|------|----------|
+| 固定缓冲区 | `fixed_buffer.h` | 线性存储，无回绕 | 一次性 DMA、已知大小数据 |
+| 环形缓冲区 | `ring_buffer.h` | 逻辑循环，支持持续写入 | 串口接收、持续数据流 |
+
+#### 第 2 步：创建 dstream 并绑定缓冲区
+
+**使用固定缓冲区：**
 ```c
-#include "dstream.h"
+#include "fixed_buffer.h"
+#include "ds_fixed_buffer.h"
 
-/* 示例：简单的环形缓冲区实现 */
-typedef struct {
-    u8 buffer[256];
-    usize head;
-    usize tail;
-    usize capacity;
-} ring_buffer_t;
+/* 定义缓冲区 */
+static u8 raw_buffer[256];
+static fixed_buffer_t fix_buf;
+static dstream_t ds;
 
-/* 实现 dstream_ops 接口 */
-static usize ring_capacity(dstream_t* self) {
-    ring_buffer_t* rb = (ring_buffer_t*)self->buf_obj;
-    return rb->capacity;
-}
-
-static usize ring_used(dstream_t* self) {
-    ring_buffer_t* rb = (ring_buffer_t*)self->buf_obj;
-    return (rb->head - rb->tail) % rb->capacity;
-}
-
-static i32 ring_peek(dstream_t* self, usize offset, void* dest, usize len) {
-    ring_buffer_t* rb = (ring_buffer_t*)self->buf_obj;
-    /* ... 实现peek逻辑 ... */
-    return (i32)actual;
-}
-
-/* 其他接口实现... */
-
-static dstream_ops_t ring_ops = {
-    .capacity = ring_capacity,
-    .used = ring_used,
-    .peek = ring_peek,
-    .skip = ring_skip,
-    /* ... */
-};
+/* 初始化 */
+fixed_buf_init(&fix_buf, raw_buffer, sizeof(raw_buffer));
+ds.buf_obj = &fix_buf;
+ds.ops = fixed_buf_get_dstream_ops();
 ```
 
-#### 第 2 步：使用定界符解析器解析 AT 指令
+**使用环形缓冲区：**
+```c
+#include "ring_buffer.h"
+#include "ds_ring_buffer.h"
+
+/* 定义缓冲区（大小必须是 2 的幂次方） */
+static u8 raw_buffer[256];
+static ring_buffer_t ring_buf;
+static dstream_t ds;
+
+/* 初始化 */
+ring_buf_init(&ring_buf, raw_buffer, sizeof(raw_buffer));
+ds.buf_obj = &ring_buf;
+ds.ops = ring_buf_get_dstream_ops();
+```
+
+#### 第 3 步：使用定界符解析器解析 AT 指令
 
 ```c
 #include "delimiter_parser.h"
 
-ring_buffer_t uart_rx_buffer;
-dstream_t ds = { .buf_obj = &uart_rx_buffer, .ops = &ring_ops };
-
 delimiter_parser_t parser;
 delimiter_parser_init(&parser, &ds, NULL, 0, (u8*)"\r\n", 2, 128);
 
-/* 在串口中断中写入数据 */
+/* 在串口中断中写入数据（以环形缓冲区为例） */
 void USART1_IRQHandler(void) {
     u8 ch = USART_ReceiveData(USART1);
-    /* 写入环形缓冲区... */
+    ring_buf_write_u8(&ring_buf, ch);
 }
 
 /* 在主循环中解析 */
@@ -86,7 +86,7 @@ void process_frames(void) {
 }
 ```
 
-#### 第 3 步：使用长度前置解析器解析自定义协议
+#### 第 4 步：使用长度前置解析器解析自定义协议
 
 ```c
 #include "length_parser.h"
@@ -111,6 +111,91 @@ if (length_parser_get_frame(&parser, &data_len) == LENGTH_PARSER_OK) {
     length_parser_consume(&parser);
 }
 ```
+
+---
+
+## 缓冲区类型
+
+### 固定缓冲区（fixed_buffer）
+
+固定缓冲区是线性存储，数据从头部连续写入，`flush` 后可以回收已消费空间：
+
+```c
+#include "fixed_buffer.h"
+
+fixed_buffer_t buf;
+u8 storage[512];
+
+/* 初始化 */
+fixed_buf_init(&buf, storage, sizeof(storage));
+
+/* 写入数据 */
+fixed_buf_append(&buf, data, len);
+
+/* 读取数据（基于 cursor） */
+u8 byte;
+fixed_buf_read_u8(&buf, &byte);
+
+/* 回收已消费空间（将 [cursor, used) 移动到头部） */
+fixed_buf_flush(&buf);
+```
+
+**特点：**
+- 线性存储，无地址回绕
+- 支持 `flush` 回收空间
+- 适合配合 `fixed_buf_flush` 做增量解析
+
+**适用场景：**
+- 一次性的 DMA 传输
+- 已知数据大小的协议
+- 需要频繁访问任意位置的场景
+
+### 环形缓冲区（ring_buffer）
+
+环形缓冲区逻辑上循环，支持持续写入，自动处理地址回绕：
+
+```c
+#include "ring_buffer.h"
+
+ring_buffer_t buf;
+u8 storage[256];  /* 大小必须是 2 的幂次方 */
+
+/* 初始化 */
+ring_buf_init(&buf, storage, sizeof(storage));
+
+/* 写入数据 */
+ring_buf_write(&buf, data, len);
+
+/* 读取数据 */
+u8 temp[64];
+ring_buf_read(&buf, temp, sizeof(temp));
+
+/* 预览数据（不弹出） */
+ring_buf_peek(&buf, temp, sizeof(temp));
+
+/* 跳过数据 */
+ring_buf_skip(&buf, len);
+```
+
+**特点：**
+- 逻辑上循环，无需手动处理回绕
+- 大小必须是 2 的幂次方
+- 适合持续写入的场景
+
+**适用场景：**
+- 串口/网络持续接收
+- 生产者-消费者模式
+- 需要长时间运行的缓冲
+
+### 缓冲区对比
+
+| 特性 | 固定缓冲区 | 环形缓冲区 |
+|------|-----------|-----------|
+| 地址回绕 | 无 | 自动处理 |
+| 空间回收 | `flush()` | 自动 |
+| 大小限制 | 任意 | 2 的幂次方 |
+| 随机访问 | 简单 | 需计算 |
+| DMA 友好 | 是 | 需处理回绕 |
 
 ---
 
@@ -392,33 +477,89 @@ length_parser_init(&parser, &ds, NULL, 0, 2, true, 2,  /* 大端 */
 
 ## 常见用例
 
-### 用例 1：串口 DMA + 环形缓冲区
+### 用例 1：串口中断接收 + 环形缓冲区
 
 ```c
-/* 使用 DMA 接收，环形缓冲区存储 */
-ring_buffer_t dma_rx_buffer;
-dstream_t ds = { .buf_obj = &dma_rx_buffer, .ops = &ring_ops };
+#include "ring_buffer.h"
+#include "ds_ring_buffer.h"
+#include "delimiter_parser.h"
 
-delimiter_parser_t parser;
-delimiter_parser_init(&parser, &ds, NULL, 0, (u8*)"\r\n", 2, 256);
+/* 定义缓冲区和 dstream */
+static u8 raw_buf[256];
+static ring_buffer_t ring_buf;
+static dstream_t ds;
+static delimiter_parser_t parser;
 
-/* DMA 接收完成回调 */
-void DMA1_Channel5_IRQHandler(void) {
-    usize received = DMA_GetCurrDataCounter(DMA1_Channel5);
-    dma_rx_buffer.head += received;  /* 更新写指针 */
+void setup(void) {
+    ring_buf_init(&ring_buf, raw_buf, sizeof(raw_buf));
+    ds.buf_obj = &ring_buf;
+    ds.ops = ring_buf_get_dstream_ops();
+    delimiter_parser_init(&parser, &ds, NULL, 0, (u8*)"\r\n", 2, 128);
+}
+
+/* 串口中断中写入数据 */
+void USART1_IRQHandler(void) {
+    u8 ch = USART_ReceiveData(USART1);
+    ring_buf_write_u8(&ring_buf, ch);
 }
 
 /* 主循环处理 */
 void main_loop(void) {
     usize len;
     while (delimiter_parser_get_frame(&parser, &len) == DELIMITER_PARSER_OK) {
-        process_frame(&ds, len);
+        u8 frame[128];
+        dstream_peek(&ds, 0, frame, len);
+        process_frame(frame, len);
         delimiter_parser_consume(&parser);
     }
 }
 ```
 
-### 用例 2：协议自动检测
+### 用例 2：DMA 接收 + 固定缓冲区
+
+```c
+#include "fixed_buffer.h"
+#include "ds_fixed_buffer.h"
+#include "length_parser.h"
+
+static u8 raw_buf[512];
+static fixed_buffer_t fix_buf;
+static dstream_t ds;
+static length_parser_t parser;
+
+void setup(void) {
+    fixed_buf_init(&fix_buf, raw_buf, sizeof(raw_buf));
+    ds.buf_obj = &fix_buf;
+    ds.ops = fixed_buf_get_dstream_ops();
+    
+    length_parser_cksum_func_t cksum = { .null_fn = NULL };
+    length_parser_init(&parser, &ds, NULL, 0, 2, false, 0,
+                       LENGTH_PARSER_CKSUM_NONE, cksum, 0, 256);
+}
+
+/* DMA 接收完成回调 */
+void DMA1_Channel5_IRQHandler(void) {
+    usize received = DMA_GetCurrDataCounter(DMA1_Channel5);
+    /* DMA 直接写入 raw_buf，更新 used */
+    fix_buf.used = received;
+}
+
+/* 主循环处理 */
+void main_loop(void) {
+    usize data_len;
+    if (length_parser_get_frame(&parser, &data_len) == LENGTH_PARSER_OK) {
+        u8 data[256];
+        dstream_peek(&ds, 2, data, data_len);
+        process_data(data, data_len);
+        length_parser_consume(&parser);
+        
+        /* 回收已消费空间 */
+        fixed_buf_flush(&fix_buf);
+    }
+}
+```
+
+### 用例 3：协议自动检测
 
 ```c
 /* 根据 first byte 判断协议类型 */
@@ -463,6 +604,20 @@ case LENGTH_PARSER_NEED_MORE:
 ---
 
 ## 常见问题
+
+**Q: 固定缓冲区和环形缓冲区如何选择？**
+
+A: 根据使用场景选择：
+- **固定缓冲区**：适合 DMA 一次性传输、已知数据大小、需要频繁随机访问的场景
+- **环形缓冲区**：适合串口/网络持续接收、生产者-消费者模式、长时间运行的场景
+
+**Q: 为什么环形缓冲区大小必须是 2 的幂次方？**
+
+A: 环形缓冲区使用位运算（`& (size - 1)`）来处理地址回绕，效率比取模运算更高。如果不是 2 的幂次方，地址计算会出错。
+
+**Q: `fixed_buf_flush()` 是做什么的？**
+
+A: 将 `[cursor, used)` 区间的数据移动到缓冲区头部，回收已消费的空间。这在增量解析场景很有用，避免缓冲区快速耗尽。
 
 **Q: 定界符解析器没有尾部时如何判断帧结束？**
 
@@ -533,8 +688,10 @@ xmake run test-length_parser
 | 文件 | 说明 |
 |------|------|
 | `dstream.h` | 数据流核心接口 |
-| `delimiter_parser.h/c` | 定界符解析器 |
-| `length_parser.h/c` | 长度前置解析器 |
 | `ring_buffer.h/c` | 环形缓冲区实现 |
 | `fixed_buffer.h/c` | 固定缓冲区实现 |
 | `pingpong_buffer.h/c` | 乒乓缓冲区实现 |
+| `ds_ring_buffer.h/c` | 环形缓冲区 → dstream 适配器 |
+| `ds_fixed_buffer.h/c` | 固定缓冲区 → dstream 适配器 |
+| `delimiter_parser.h/c` | 定界符解析器 |
+| `length_parser.h/c` | 长度前置解析器 |
