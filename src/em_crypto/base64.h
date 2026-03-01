@@ -31,8 +31,8 @@ usize base64_encode(const u8 *input, usize input_len, char *output);
 
 /**
  * @brief 计算解码后需要的缓冲区大小
+ * @param input 编码字符串
  * @param input_len 编码字符串长度（不含null终止符）
- * @return 解码后最大可能的字节数
  */
 usize base64_decode_len(const char *input, usize input_len);
 
