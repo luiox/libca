@@ -34,6 +34,8 @@ includes("em_bus")
 includes("em_protocol")
 -- includes("em_component")
 includes("em_crypto")
+-- ota依赖base
+includes("em_ota")
 -- shell依赖base
 includes("em_shell")
 -- log依赖base
