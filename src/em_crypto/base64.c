@@ -203,9 +203,9 @@ TEST_CASE(base64_encode_all_bytes)
 TEST_CASE(base64_decode_len_test)
 {
     TEST_ASSERT_EQUAL_UINT(0, base64_decode_len("", 0));
-    TEST_ASSERT_EQUAL_UINT(1, base64_decode_len("Zg==", 4)); /* 无填充 */
+    TEST_ASSERT_EQUAL_UINT(1, base64_decode_len("Zg==", 4)); /* 2个填充 */
     TEST_ASSERT_EQUAL_UINT(2, base64_decode_len("Zm8=", 4)); /* 1个填充 */
-    TEST_ASSERT_EQUAL_UINT(3, base64_decode_len("Zm9v", 4)); /* 2个填充 */
+    TEST_ASSERT_EQUAL_UINT(3, base64_decode_len("Zm9v", 4)); /* 无填充 */
     TEST_ASSERT_EQUAL_UINT(6, base64_decode_len("Zm9vYmFy", 8));
 }
 
