@@ -353,6 +353,11 @@ static const partition_port_t mock_port = {
     .erase = mock_erase,
 };
 
+static void test_setup_port(void)
+{
+    partition_register_port(&mock_port);
+}
+
 /* 测试计数器 */
 static u32 g_callback_count;
 static u32 g_callback_last_offset;
@@ -368,6 +373,7 @@ static void test_callback(u32 offset, const u8 *data, u32 len, void *userdata)
 }
 
 TEST_CASE(partition_port_register) {
+    partition_register_port(NULL);
     TEST_ASSERT(!partition_port_is_registered());
     partition_register_port(&mock_port);
     TEST_ASSERT(partition_port_is_registered());
@@ -393,6 +399,8 @@ TEST_CASE(partition_find_test) {
 }
 
 TEST_CASE(partition_read_write_basic) {
+    test_setup_port();
+
     /* 先擦除整个模拟 Flash */
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
@@ -421,6 +429,8 @@ TEST_CASE(partition_read_write_basic) {
 }
 
 TEST_CASE(partition_readonly_check) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
@@ -440,6 +450,8 @@ TEST_CASE(partition_readonly_check) {
 }
 
 TEST_CASE(partition_out_of_range) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
@@ -460,6 +472,8 @@ TEST_CASE(partition_out_of_range) {
 }
 
 TEST_CASE(partition_erase_test) {
+    test_setup_port();
+
     /* 先写入一些数据 */
     mem_set(g_mock_flash, 0x00, MOCK_FLASH_SIZE);
 
@@ -482,6 +496,8 @@ TEST_CASE(partition_erase_test) {
 }
 
 TEST_CASE(partition_stream_basic) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
@@ -534,6 +550,8 @@ TEST_CASE(partition_stream_basic) {
 }
 
 TEST_CASE(partition_stream_callback) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
@@ -572,6 +590,8 @@ TEST_CASE(partition_stream_callback) {
 }
 
 TEST_CASE(partition_stream_size_mismatch) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
@@ -593,6 +613,8 @@ TEST_CASE(partition_stream_size_mismatch) {
 }
 
 TEST_CASE(partition_stream_exceed_size) {
+    test_setup_port();
+
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
