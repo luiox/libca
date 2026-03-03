@@ -1,0 +1,13 @@
+target("libca.em_mpool")
+	set_kind("static")
+	set_group("em")
+	add_files("fixed_allocator.c")
+	add_deps("libca.em_base", "libca.em_util")
+	add_includedirs("..", {public = true})
+
+target("test-fixed_allocator")
+	set_kind("binary")
+	set_group("test")
+	add_files("fixed_allocator.c")
+	add_rules("em_test", { test_enable = true, use_default_main = true })
+	add_deps("libca.em_base", "libca.em_util")

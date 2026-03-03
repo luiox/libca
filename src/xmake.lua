@@ -40,6 +40,8 @@ includes("em_ota")
 includes("em_shell")
 -- log依赖base
 includes("em_log")
+-- mpool依赖base
+includes("em_mpool")
 
 -- C++库
 -- includes("log")
