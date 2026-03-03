@@ -62,7 +62,7 @@ static inline slist_node_t *slist_front(const slist_node_t *head) {
 
 // 专门为slist链表封装的便捷宏
 #define slist_entry(ptr, type, member) \
-    container_of(ptr, type, member)
+    ((type *)((char *)(ptr) - offsetof(type, member)))
 
 // 在指定节点后插入 (通用操作)
 static inline void slist_insert_after(slist_node_t *node, slist_node_t *new_node) {
@@ -83,7 +83,6 @@ static inline slist_node_t *slist_remove_after(slist_node_t *node) {
 
 static inline size_t slist_len(const slist_node_t *head) {
     size_t count = 0;
-    const slist_node_t *node;
     slist_for_each(node, head) {
         count++;
     }
