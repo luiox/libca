@@ -66,6 +66,12 @@ target("test-singly_list")
     add_files("singly_list.c")
     add_deps("libca.em_base")
 
+target("test-doubly_list")
+    set_kind("binary")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_files("doubly_list.c")
+    add_deps("libca.em_base")
+
 -- mem_view 单元测试
 target("test-mem_view")
     set_kind("binary")
