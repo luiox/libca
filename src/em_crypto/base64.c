@@ -73,8 +73,7 @@ usize base64_decode(const char* input, usize input_len, u8* output)
         return 0;
     if (input_len % 4 != 0)
         return 0; /* Base64 编码长度必须是4的倍数 */
-
-    usize output_len = base64_decode_len(input, input_len);
+    
     usize j          = 0;
 
     for (usize i = 0; i < input_len; i += 4) {

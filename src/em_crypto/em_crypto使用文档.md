@@ -251,4 +251,4 @@ void xor_crypto_example(void) {
 
 ## 依赖
 
-- `em_base`（datatype.h, debug.h, macro_util.h）
+- `em_base`（datatype.h, debug.h）
