@@ -13,6 +13,8 @@
 #ifndef LIBCA_EM_BASE_MACRO_UTIL_H
 #define LIBCA_EM_BASE_MACRO_UTIL_H 
 
+// clang-format off
+
 #define CA_MAKE_STRING(a) #a
 
 /**
@@ -91,5 +93,30 @@
 #define CA_EVAL_IMPL(Func, N, ...) CA_EXPAND(Func##N(__VA_ARGS__))
 #define CA_EVAL_DISPATCH(Func, N, ...) CA_EVAL_IMPL(Func, N, __VA_ARGS__)
 #define CA_EVAL(Func, ...) CA_EVAL_DISPATCH(Func, CA_VA_NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
+
+/**
+ * @brief 给用户用的一些工具 container_of、offsetof等
+ * 
+ */
+#ifndef offsetof
+#include <stddef.h>
+#endif
+
+#ifndef container_of
+// 根据成员指针反推出结构体指针
+// GNU/Clang 下使用 typeof 做额外类型约束；其他编译器使用标准 C 版本。
+#if defined(__GNUC__) || defined(__clang__)
+#define container_of(ptr, type, member) ({                                  \
+  const typeof(((type *)0)->member) *__mptr = (ptr);                      \
+  (type *)((char *)__mptr - offsetof(type, member));                      \
+})
+#else
+#define container_of(ptr, type, member) \
+  ((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
+#endif
+
+
+// clang-format on
 
 #endif // !LIBCA_EM_BASE_MACRO_UTIL_H
