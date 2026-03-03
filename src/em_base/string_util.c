@@ -14,7 +14,7 @@ static char private_char_to_lower(char c)
 /**
  * @brief 判断字符是否为空白字符（空格、制表、换行、回车）
  */
-static bool private_char_is_space(char c)
+static inline bool private_char_is_space(char c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
