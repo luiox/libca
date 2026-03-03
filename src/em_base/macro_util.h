@@ -99,13 +99,21 @@
  * 
  */
 #ifndef offsetof
-#define offsetof(type, member) ((size_t) &(((type *)0)->member))
+#include <stddef.h>
 #endif
+
 #ifndef container_of
 // 根据成员指针反推出结构体指针
-#define container_of(ptr, type, member) ({          \
-    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-    (type *)( (char *)__mptr - offsetof(type,member) );})
+// GNU/Clang 下使用 typeof 做额外类型约束；其他编译器使用标准 C 版本。
+#if defined(__GNUC__) || defined(__clang__)
+#define container_of(ptr, type, member) ({                                  \
+  const typeof(((type *)0)->member) *__mptr = (ptr);                      \
+  (type *)((char *)__mptr - offsetof(type, member));                      \
+})
+#else
+#define container_of(ptr, type, member) \
+  ((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
 #endif
 
 

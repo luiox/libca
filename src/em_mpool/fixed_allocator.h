@@ -23,14 +23,18 @@ extern "C" {
 #define FIXED_ALLOCATOR_ERR_INVALID_ALIGN   (-2)
 #define FIXED_ALLOCATOR_ERR_NOT_ENOUGH_MEM  (-3)
 #define FIXED_ALLOCATOR_ERR_OUT_OF_POOL     (-4)
+#define FIXED_ALLOCATOR_ERR_DOUBLE_FREE     (-5)
 
 typedef struct fixed_allocator{
     void *memory;
-    usize memory_size;
+    usize total_memory_size;
+    usize usable_memory_size;
     usize block_size;
     usize block_stride;
     usize block_count;
     usize free_count;
+    u8 *alloc_bitmap;
+    usize alloc_bitmap_size;
     lifo_t free_blocks;
 }fixed_allocator_t;
 

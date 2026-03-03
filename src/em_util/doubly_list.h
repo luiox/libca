@@ -99,8 +99,8 @@ static inline dlist_node_t *dlist_pop_back(dlist_node_t *head) {
 }
 
 // 链表长度
-static inline size_t dlist_len(const dlist_node_t *head) {
-    size_t count = 0;
+static inline usize dlist_len(const dlist_node_t *head) {
+    usize count = 0;
     const dlist_node_t *node = head->next;
     while (node != head) {
         count++;
