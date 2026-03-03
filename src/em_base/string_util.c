@@ -202,11 +202,7 @@ i32 str_trim(char* str)
         return 0;
     }
 
-    i32 ret = str_ltrim(str);
-    if(ret < 0) {
-        return ret;
-    }
-
+    str_ltrim(str);
     return str_rtrim(str);
 }
 
