@@ -125,6 +125,22 @@ char* str_find_str(const char* haystack, const char* needle);
 i32 str_trim(char* str);
 
 /**
+ * @brief 去除字符串左侧空白字符（原地实现）
+ *
+ * @param str 字符串
+ * @return i32 去除后的字符串长度
+ */
+i32 str_ltrim(char* str);
+
+/**
+ * @brief 去除字符串右侧空白字符（原地实现）
+ *
+ * @param str 字符串
+ * @return i32 去除后的字符串长度
+ */
+i32 str_rtrim(char* str);
+
+/**
  * @brief 字符串转大写
  * 
  * @param str 字符串

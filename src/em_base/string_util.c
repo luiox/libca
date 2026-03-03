@@ -11,6 +11,14 @@ static char private_char_to_lower(char c)
     return c;
 }
 
+/**
+ * @brief 判断字符是否为空白字符（空格、制表、换行、回车）
+ */
+static inline bool private_char_is_space(char c)
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
 char char_to_lower(char c)
 {
     return private_char_to_lower(c);
@@ -194,21 +202,18 @@ i32 str_trim(char* str)
         return 0;
     }
 
-    usize len = str_len(str);
-    if (len == 0) {
+    str_ltrim(str);
+    return str_rtrim(str);
+}
+
+i32 str_ltrim(char* str)
+{
+    if (!str) {
         return 0;
     }
 
-    // 去除尾部
-    i32 end = (i32)len - 1;
-    while (end >= 0 && (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r')) {
-        str[end] = '\0';
-        end--;
-    }
-
-    // 去除头部
     usize start = 0;
-    while (str[start] != '\0' && (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r')) {
+    while (str[start] != '\0' && private_char_is_space(str[start])) {
         start++;
     }
 
@@ -223,6 +228,26 @@ i32 str_trim(char* str)
     }
 
     return (i32)str_len(str);
+}
+
+i32 str_rtrim(char* str)
+{
+    if (!str) {
+        return 0;
+    }
+
+    usize len = str_len(str);
+    if (len == 0) {
+        return 0;
+    }
+
+    i32 end = (i32)len - 1;
+    while (end >= 0 && private_char_is_space(str[end])) {
+        str[end] = '\0';
+        end--;
+    }
+
+    return (i32)(end + 1);
 }
 
 void str_to_upper(char* str)
@@ -513,6 +538,48 @@ TEST_CASE(test_str_trim)
     TEST_ASSERT(str_trim(s4) == 0);
     
     TEST_ASSERT(str_trim(NULL) == 0);
+}
+
+TEST_CASE(test_str_ltrim)
+{
+    char s1[] = "  hello  ";
+    TEST_ASSERT_EQUAL_INT(7, str_ltrim(s1));
+    TEST_ASSERT_EQUAL_STRING("hello  ", s1);
+
+    char s2[] = "\t\n world";
+    TEST_ASSERT_EQUAL_INT(5, str_ltrim(s2));
+    TEST_ASSERT_EQUAL_STRING("world", s2);
+
+    char s3[] = "hello";
+    TEST_ASSERT_EQUAL_INT(5, str_ltrim(s3));
+    TEST_ASSERT_EQUAL_STRING("hello", s3);
+
+    char s4[] = "   ";
+    TEST_ASSERT_EQUAL_INT(0, str_ltrim(s4));
+    TEST_ASSERT_EQUAL_STRING("", s4);
+
+    TEST_ASSERT_EQUAL_INT(0, str_ltrim(NULL));
+}
+
+TEST_CASE(test_str_rtrim)
+{
+    char s1[] = "  hello  ";
+    TEST_ASSERT_EQUAL_INT(7, str_rtrim(s1));
+    TEST_ASSERT_EQUAL_STRING("  hello", s1);
+
+    char s2[] = "world\t\n ";
+    TEST_ASSERT_EQUAL_INT(5, str_rtrim(s2));
+    TEST_ASSERT_EQUAL_STRING("world", s2);
+
+    char s3[] = "hello";
+    TEST_ASSERT_EQUAL_INT(5, str_rtrim(s3));
+    TEST_ASSERT_EQUAL_STRING("hello", s3);
+
+    char s4[] = "   ";
+    TEST_ASSERT_EQUAL_INT(0, str_rtrim(s4));
+    TEST_ASSERT_EQUAL_STRING("", s4);
+
+    TEST_ASSERT_EQUAL_INT(0, str_rtrim(NULL));
 }
 
 TEST_CASE(test_str_to_upper)
