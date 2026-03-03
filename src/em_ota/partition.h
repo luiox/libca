@@ -32,6 +32,7 @@ extern "C" {
 #define PARTITION_ERR_PORT_NOT_SET  (-8)    /* 底层端口未注册 */
 #define PARTITION_ERR_SIZE_MISMATCH (-9)    /* 流式写入大小不匹配 */
 #define PARTITION_ERR_NOT_OPEN      (-10)   /* 流未打开 */
+#define PARTITION_ERR_NOT_READABLE  (-11)   /* 分区不可读 */
 
 /* ============================================================================
  * 分区属性标志

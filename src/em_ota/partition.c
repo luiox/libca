@@ -52,11 +52,11 @@ i32 partition_read(const partition_t *part, u32 offset, u8 *buf, u32 len)
 
     /* 检查可读属性 */
     if (!(part->flags & PARTITION_FLAG_READABLE)) {
-        return PARTITION_ERR_READONLY;
+        return PARTITION_ERR_NOT_READABLE;
     }
 
     /* 检查范围 */
-    if (offset >= part->size || (offset + len) > part->size) {
+    if (offset >= part->size || len > part->size - offset) {
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
@@ -90,7 +90,7 @@ i32 partition_write(const partition_t *part, u32 offset, const u8 *data, u32 len
     }
 
     /* 检查范围 */
-    if (offset >= part->size || (offset + len) > part->size) {
+    if (offset >= part->size || len > part->size - offset) {
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
@@ -148,7 +148,7 @@ i32 partition_erase_range(const partition_t *part, u32 offset, u32 len)
     }
 
     /* 检查范围 */
-    if (offset >= part->size || (offset + len) > part->size) {
+    if (offset >= part->size || len > part->size - offset) {
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
@@ -220,12 +220,12 @@ i32 partition_stream_write(partition_stream_t *stream, const u8 *data, u32 len)
     }
 
     /* 检查是否会超出预期总大小 */
-    if (stream->written + len > stream->total_size) {
+    if (len > stream->total_size - stream->written) {
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
     /* 检查是否会超出分区大小 */
-    if (stream->current_offset + len > stream->part->size) {
+    if (len > stream->part->size - stream->current_offset) {
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
