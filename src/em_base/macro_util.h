@@ -13,6 +13,8 @@
 #ifndef LIBCA_EM_BASE_MACRO_UTIL_H
 #define LIBCA_EM_BASE_MACRO_UTIL_H 
 
+// clang-format off
+
 #define CA_MAKE_STRING(a) #a
 
 /**
@@ -91,5 +93,22 @@
 #define CA_EVAL_IMPL(Func, N, ...) CA_EXPAND(Func##N(__VA_ARGS__))
 #define CA_EVAL_DISPATCH(Func, N, ...) CA_EVAL_IMPL(Func, N, __VA_ARGS__)
 #define CA_EVAL(Func, ...) CA_EVAL_DISPATCH(Func, CA_VA_NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
+
+/**
+ * @brief 给用户用的一些工具 container_of、offsetof等
+ * 
+ */
+#ifndef offsetof
+#define offsetof(type, member) ((size_t) &(((type *)0)->member))
+#endif
+#ifndef container_of
+// 根据成员指针反推出结构体指针
+#define container_of(ptr, type, member) ({          \
+    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+    (type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
+
+// clang-format on
 
 #endif // !LIBCA_EM_BASE_MACRO_UTIL_H
