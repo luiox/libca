@@ -1,5 +1,7 @@
 ﻿#include "memory_util.h"
 
+#if USE_CUSTOM_MEMORY_UTIL_IMPL
+
 void* mem_set(void* dest, u8 val, usize size)
 {
     if (!dest) {
@@ -93,37 +95,7 @@ void* mem_find_byte(const void* buf, u8 val, usize size)
     return NULL;
 }
 
-bool mem_is_all_val(const void* buf, u8 val, usize size)
-{
-    if (!buf || size == 0) {
-        return false;
-    }
-
-    const u8* p = (const u8*)buf;
-    while (size--) {
-        if (*p++ != val) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void mem_swap(void* s1, void* s2, usize size)
-{
-    if (!s1 || !s2 || s1 == s2 || size == 0) {
-        return;
-    }
-
-    u8* p1 = (u8*)s1;
-    u8* p2 = (u8*)s2;
-
-    while (size--) {
-        u8 temp = *p1;
-        *p1++ = *p2;
-        *p2++ = temp;
-    }
-}
+#endif /* USE_CUSTOM_MEMORY_UTIL_IMPL */
 
 #if TEST_ENABLE
 #include "../em_test/test.h"

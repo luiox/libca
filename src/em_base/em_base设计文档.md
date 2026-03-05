@@ -1,7 +1,8 @@
 ---
-version: 1.0
-update: 
+version: 1.1
+update:
 2026-02-28 - 完成第一版的文档编写
+2026-03-05 - 增加 USE_CUSTOM_*_IMPL 开关说明，支持标准库内联实现
 ---
 
 ## 为什么要有 em_base？
@@ -158,10 +159,20 @@ DECLARE_HANDLER(spi);   // => void handler_spi(void);
 
 **职责**：提供安全、语义清晰的内存操作函数。
 
+**实现版本切换**：
+
+通过 `USE_CUSTOM_MEMORY_UTIL_IMPL` 宏控制实现版本：
+
+| 宏值 | 说明 | 适用场景 |
+|------|------|----------|
+| 0（默认） | 使用标准库内联实现 | 推荐，性能更优，编译器可深度优化 |
+| 1 | 使用自定义实现 | 无标准库环境的嵌入式场景 |
+
 **API 设计原则**：
 - 命名风格：`mem_xxx`，与标准库 `memxxx` 区分
 - 参数顺序：目标地址在前，源地址在后（与标准库一致）
 - 安全性：`mem_cpy` 使用 `restrict` 提示不重叠，重叠场景使用 `mem_move`
+- NULL 安全：所有函数都对 NULL 参数进行检查，避免未定义行为
 
 **函数列表**：
 
@@ -178,6 +189,7 @@ DECLARE_HANDLER(spi);   // => void handler_spi(void);
 
 **与标准库的区别**：
 - 明确的语义：`mem_cpy` 明确声明不处理重叠，强制开发者考虑数据安全
+- NULL 安全：标准库函数对 NULL 参数是未定义行为，本模块提供安全的 NULL 处理
 - 扩展功能：`mem_find_byte`、`mem_is_all_val`、`mem_swap` 是常用但标准库未提供的功能
 
 ---
@@ -185,6 +197,21 @@ DECLARE_HANDLER(spi);   // => void handler_spi(void);
 ### 5. string_util.h — 字符串操作工具
 
 **职责**：提供安全、易用的字符串操作函数。
+
+**实现版本切换**：
+
+通过 `USE_CUSTOM_STRING_UTIL_IMPL` 宏控制实现版本：
+
+| 宏值 | 说明 | 适用场景 |
+|------|------|----------|
+| 0（默认） | 使用标准库内联实现 | 推荐，性能更优 |
+| 1 | 使用自定义实现 | 无标准库环境的嵌入式场景 |
+
+**注意**：仅部分函数支持标准库内联实现，以下函数因语义差异始终使用自定义实现：
+- `str_cpy`, `str_cat`：返回值语义不同（返回长度而非指针）
+- `str_trim`, `str_ltrim`, `str_rtrim`：标准库无对应函数
+- `str_to_upper`, `str_to_lower`, `str_reverse`：标准库无对应函数
+- `str_starts_with`, `str_ends_with` 系列：标准库无对应函数
 
 **设计要点**：
 - 所有涉及缓冲区的函数都需要显式传入缓冲区大小
@@ -383,4 +410,27 @@ int main(void) {
 3. **可预测**：函数行为明确，无隐藏副作用
 4. **可移植**：跨编译器、跨平台兼容
 5. **可配置**：通过宏开关控制功能，支持裁剪
+6. **可优化**：支持标准库内联实现，性能优先
+
+---
+
+## 单元测试
+
+`memory_util` 和 `string_util` 模块提供双版本测试目标，确保两种实现版本的行为一致：
+
+| 测试目标 | 说明 |
+|----------|------|
+| `test-memory_util_std` | 测试标准库内联实现版本（默认） |
+| `test-memory_util_custom` | 测试自定义实现版本 |
+| `test-string_util_std` | 测试标准库内联实现版本（默认） |
+| `test-string_util_custom` | 测试自定义实现版本 |
+
+运行测试：
+```bash
+# 运行所有测试
+xmake run test-memory_util_std
+xmake run test-memory_util_custom
+xmake run test-string_util_std
+xmake run test-string_util_custom
+```
 

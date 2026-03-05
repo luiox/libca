@@ -32,6 +32,8 @@ char char_to_upper(char c)
     return c;
 }
 
+#if USE_CUSTOM_STRING_UTIL_IMPL
+
 usize str_len(const char* str)
 {
     if (!str) {
@@ -58,58 +60,6 @@ usize str_nlen(const char* str, usize max_len)
     return len;
 }
 
-i32 str_cpy(char* dest, const char* src, usize size)
-{
-    if (!dest || !src) {
-        return STR_ERR_NULL;
-    }
-    if (size == 0) {
-        return STR_ERR_INVALID;
-    }
-
-    usize i;
-    for (i = 0; i < size - 1 && src[i] != '\0'; i++) {
-        dest[i] = src[i];
-    }
-    dest[i] = '\0';
-
-    // 如果源字符串没拷完，说明空间不足
-    if (src[i] != '\0') {
-        return STR_ERR_SIZE;
-    }
-
-    return (i32)i;
-}
-
-i32 str_cat(char* dest, const char* src, usize dest_max_size)
-{
-    if (!dest || !src) {
-        return STR_ERR_NULL;
-    }
-    if (dest_max_size == 0) {
-        return STR_ERR_INVALID;
-    }
-
-    usize dest_len = str_nlen(dest, dest_max_size);
-    if (dest_len >= dest_max_size) {
-        return STR_ERR_SIZE; 
-    }
-
-    usize i;
-    usize remaining = dest_max_size - dest_len;
-    
-    for (i = 0; i < remaining - 1 && src[i] != '\0'; i++) {
-        dest[dest_len + i] = src[i];
-    }
-    dest[dest_len + i] = '\0';
-
-    if (src[i] != '\0') {
-        return STR_ERR_SIZE; 
-    }
-
-    return (i32)(dest_len + i);
-}
-
 i32 str_cmp(const char* s1, const char* s2, usize size)
 {
     if (s1 == s2 || size == 0) {
@@ -129,23 +79,6 @@ i32 str_cmp(const char* s1, const char* s2, usize size)
     }
 
     return 0;
-}
-
-bool str_is_equal(const char* s1, const char* s2)
-{
-    if (s1 == s2) {
-        return true;
-    }
-    if (!s1 || !s2) {
-        return false;
-    }
-
-    while (*s1 && (*s1 == *s2)) {
-        s1++;
-        s2++;
-    }
-
-    return (*s1 == *s2);
 }
 
 char* str_find_ch(const char* str, char c)
@@ -194,6 +127,79 @@ char* str_find_str(const char* haystack, const char* needle)
     }
 
     return NULL;
+}
+
+#endif /* USE_CUSTOM_STRING_UTIL_IMPL */
+
+/* ==================== 始终使用自定义实现的函数 ==================== */
+
+i32 str_cpy(char* dest, const char* src, usize size)
+{
+    if (!dest || !src) {
+        return STR_ERR_NULL;
+    }
+    if (size == 0) {
+        return STR_ERR_INVALID;
+    }
+
+    usize i;
+    for (i = 0; i < size - 1 && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    dest[i] = '\0';
+
+    // 如果源字符串没拷完，说明空间不足
+    if (src[i] != '\0') {
+        return STR_ERR_SIZE;
+    }
+
+    return (i32)i;
+}
+
+i32 str_cat(char* dest, const char* src, usize dest_max_size)
+{
+    if (!dest || !src) {
+        return STR_ERR_NULL;
+    }
+    if (dest_max_size == 0) {
+        return STR_ERR_INVALID;
+    }
+
+    usize dest_len = str_nlen(dest, dest_max_size);
+    if (dest_len >= dest_max_size) {
+        return STR_ERR_SIZE;
+    }
+
+    usize i;
+    usize remaining = dest_max_size - dest_len;
+    
+    for (i = 0; i < remaining - 1 && src[i] != '\0'; i++) {
+        dest[dest_len + i] = src[i];
+    }
+    dest[dest_len + i] = '\0';
+
+    if (src[i] != '\0') {
+        return STR_ERR_SIZE;
+    }
+
+    return (i32)(dest_len + i);
+}
+
+bool str_is_equal(const char* s1, const char* s2)
+{
+    if (s1 == s2) {
+        return true;
+    }
+    if (!s1 || !s2) {
+        return false;
+    }
+
+    while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+
+    return (*s1 == *s2);
 }
 
 i32 str_trim(char* str)
