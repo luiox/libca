@@ -32,11 +32,19 @@ target("test-macro_util")
     add_files("macro_util.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
 
--- string_util的单元测试
-target("test-string_util")
+-- string_util的单元测试（标准库版本，默认）
+target("test-string_util_std")
     set_kind("binary")
     add_files("string_util.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
+    -- USE_CUSTOM_STRING_UTIL_IMPL 默认为 0，使用标准库内联实现
+
+-- string_util的单元测试（自定义实现版本）
+target("test-string_util_custom")
+    set_kind("binary")
+    add_files("string_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_STRING_UTIL_IMPL=1")
 
 -- memory_util的单元测试（标准库版本，默认）
 target("test-memory_util_std")
