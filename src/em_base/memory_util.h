@@ -80,23 +80,6 @@ i32 mem_cmp(const void* s1, const void* s2, usize size);
  */
 void* mem_find_byte(const void* buf, u8 val, usize size);
 
-/**
- * @brief 检查内存是否全部为某个值
- * @param buf 内存缓冲区
- * @param val 要检查的字节值
- * @param size 检查长度
- * @return 如果全部匹配返回 true，否则返回 false
- */
-bool mem_is_all_val(const void* buf, u8 val, usize size);
-
-/**
- * @brief 内存交换（交换两块互不重叠的内存内容）
- * @param s1 内存块1
- * @param s2 内存块2
- * @param size 长度
- */
-void mem_swap(void* s1, void* s2, usize size);
-
 #else
 /* ==================== 标准库内联实现版本 ==================== */
 
@@ -180,6 +163,10 @@ static inline void* mem_find_byte(const void* buf, u8 val, usize size)
     return memchr(buf, (int)val, size);
 }
 
+#endif /* USE_CUSTOM_MEMORY_UTIL_IMPL */
+
+/* ==================== 始终使用自定义实现的函数（无标准库等价物） ==================== */
+
 /**
  * @brief 检查内存是否全部为某个值
  * @param buf 内存缓冲区
@@ -223,8 +210,6 @@ static inline void mem_swap(void* s1, void* s2, usize size)
         *p2++ = temp;
     }
 }
-
-#endif /* USE_CUSTOM_MEMORY_UTIL_IMPL */
 
 /**
  * @brief 内存清零
