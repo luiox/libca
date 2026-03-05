@@ -1,5 +1,7 @@
 ﻿#include "memory_util.h"
 
+#if USE_CUSTOM_MEMORY_UTIL_IMPL
+
 void* mem_set(void* dest, u8 val, usize size)
 {
     if (!dest) {
@@ -124,6 +126,8 @@ void mem_swap(void* s1, void* s2, usize size)
         *p2++ = temp;
     }
 }
+
+#endif /* USE_CUSTOM_MEMORY_UTIL_IMPL */
 
 #if TEST_ENABLE
 #include "../em_test/test.h"
