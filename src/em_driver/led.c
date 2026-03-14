@@ -1,6 +1,12 @@
 #include "led.h"
 #include "../em_base/debug.h"
 
+#if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
+
+#define LED_WRITE_PIN(gpio, pin, value) port_led_write_pin(gpio, pin, value)
+
+#elif (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
+
 static led_port_t* g_led_port = NULL;
 
 void led_bind_port(const led_port_t* port)
@@ -13,9 +19,19 @@ bool led_port_is_registered(void)
     return g_led_port != NULL;
 }
 
+#define LED_WRITE_PIN(gpio, pin, value) \
+    do { \
+        g_led_port->write_pin(self->gpio, self->pin, value);
+    } while(0)
+
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
 // 初始化led
 void led_init(led_t* self, void* gpio, u16 pin, u8 valid)
 {
+    param_check(self != NULL);
     self->gpio  = gpio;
     self->pin   = pin;
     self->valid = valid;
@@ -25,16 +41,12 @@ void led_init(led_t* self, void* gpio, u16 pin, u8 valid)
 // 开灯
 void led_on(led_t* self)
 {
-    if (!g_led_port) {
-        debug_print("[led] port not registered\n");
-        return;
-    }
-
+    param_check(self != NULL);
     if (self->valid) {
-        g_led_port->write_pin(self->gpio, self->pin, 1);
+        LED_WRITE_PIN(self->gpio, self->pin, 1);
     }
     else {
-        g_led_port->write_pin(self->gpio, self->pin, 0);
+        LED_WRITE_PIN(self->gpio, self->pin, 0);
     }
     self->state = led_state_on;
 }
@@ -42,16 +54,12 @@ void led_on(led_t* self)
 // 关灯
 void led_off(led_t* self)
 {
-    if (!g_led_port) {
-        debug_print("[led] port not registered\n");
-        return;
-    }
-
+    param_check(self != NULL);
     if (self->valid) {
-        g_led_port->write_pin(self->gpio, self->pin, 0);
+        LED_WRITE_PIN(self->gpio, self->pin, 0);
     }
     else {
-        g_led_port->write_pin(self->gpio, self->pin, 1);
+        LED_WRITE_PIN(self->gpio, self->pin, 1);
     }
     self->state = led_state_off;
 }
@@ -59,6 +67,8 @@ void led_off(led_t* self)
 // 切换灯的状态
 void led_toggle(led_t* self)
 {
+    param_check(self != NULL);
+    
     // 判断当前状态
     if (self->state == led_state_on) {
         led_off(self);
