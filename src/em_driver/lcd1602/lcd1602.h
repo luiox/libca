@@ -14,6 +14,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_LCD1602_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_LCD1602_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_LCD1602_PORT_MODE
+#define LIBCA_LCD1602_PORT_MODE LIBCA_LCD1602_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +40,12 @@ typedef struct lcd1602_port {
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
 } lcd1602_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_lcd1602.c 提供）
+ */
+extern const lcd1602_port_t g_lcd1602_port_extern;
+
 
 /**
  * @brief 绑定底层的硬件接口
