@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_MOTOR_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_MOTOR_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_MOTOR_PORT_MODE
+#define LIBCA_MOTOR_PORT_MODE LIBCA_MOTOR_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,6 +58,12 @@ typedef struct motor_port
      */
     void (*pwm_stop)(void* htim, u16 channel);
 } motor_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_motor.c 提供）
+ */
+extern const motor_port_t g_motor_port_extern;
+
 
 /**
  * @brief 绑定硬件接口
