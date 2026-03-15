@@ -25,7 +25,7 @@
 #ifndef LIBCA_EM_DRIVER_XXX_H
 #define LIBCA_EM_DRIVER_XXX_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 注入模式定义（默认隐式注入）
 #define LIBCA_XXX_PORT_MODE_EXTERN 1
@@ -88,7 +88,7 @@ void xxx_init(key_t* self)
 驱动的打印使用`em_base`下的`debug`。例如下面这样子。
 
 ```c
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static void xxx_func(i32 type)
 {
@@ -122,8 +122,8 @@ src/em_driver/
 禁止在新增代码中使用层级回溯 include（例如 `../`、`../../`）。统一使用工程根相对路径：
 
 ```c
-#include "em_base/datatype.h"
-#include "em_base/debug.h"
+#include <em_base/datatype.h>
+#include <em_base/debug.h>
 ```
 
 同模块内部优先使用本地头文件：
