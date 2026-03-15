@@ -16,6 +16,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_AT24CXX_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_AT24CXX_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_AT24CXX_PORT_MODE
+#define LIBCA_AT24CXX_PORT_MODE LIBCA_AT24CXX_PORT_MODE_EXTERN
+#endif
+
 typedef struct at24cxx_port
 {
     // i2c写函数
@@ -25,6 +34,12 @@ typedef struct at24cxx_port
     void (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                      u16 data_size, u32 timeout);
 } at24cxx_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_at24cxx.c 提供）
+ */
+extern const at24cxx_port_t g_at24cxx_port_extern;
+
 
 void at24cxx_bind_port(const at24cxx_port_t* port);
 bool at24cxx_port_is_registered(void);
