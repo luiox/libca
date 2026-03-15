@@ -22,36 +22,21 @@
 #define LIBCA_MOTOR_PORT_MODE LIBCA_MOTOR_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct motor_port {
-    void (*pwm_set_duty)(void* htim, u16 channel, u8 duty);
-    void (*pwm_start)(void* htim, u16 channel);
-    void (*pwm_stop)(void* htim, u16 channel);
-} motor_port_t;
-
 #if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_EXTERN)
+/** @brief PWM设置占空比 @param htim 定时器句柄 @param channel 通道 @param duty 占空比 */
 extern void port_motor_pwm_set_duty(void* htim, u16 channel, u8 duty);
+/** @brief 启动PWM @param htim 定时器句柄 @param channel 通道 */
 extern void port_motor_pwm_start(void* htim, u16 channel);
+/** @brief 停PWM @param htim 定时器句柄 @param channel 通道 */
 extern void port_motor_pwm_stop(void* htim, u16 channel);
 
 #elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
-
-/**
- * @brief 绑定硬件接口
- *
- * @param port 接口结构体
- */
+typedef struct motor_port {
+    void (*pwm_set_duty)(void* htim, u16 channel, u8 duty);  // PWM设置占空比
+    void (*pwm_start)(void* htim, u16 channel);               // 启动PWM
+    void (*pwm_stop)(void* htim, u16 channel);                // 停PWM
+} motor_port_t;
 void motor_bind_port(const motor_port_t* port);
-
-/**
- * @brief 检查接口是否已注册
- *
- * @return bool true 为已注册
- */
 bool motor_port_is_registered(void);
 
 #else
@@ -72,9 +57,8 @@ typedef struct motor
 /**
  * @brief Motor 错误码
  */
-#define MOTOR_OK                     0
-#define MOTOR_ERR_PORT_NOT_REGISTERED (-1)
-#define MOTOR_ERR_INVALID_PARAM       (-2)
+#define MOTOR_OK              0
+#define MOTOR_ERR_INVALID_PARAM (-1)
 
 /**
  * @brief 初始化 Motor 对象
@@ -126,9 +110,5 @@ i32 motor_stop(motor_t* self);
  * @return bool true 为运行中
  */
 bool motor_is_running(motor_t* self);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif   // !LIBCA_EM_DRIVER_MOTOR_H
