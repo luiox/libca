@@ -14,6 +14,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_BH1750_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_BH1750_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_BH1750_PORT_MODE
+#define LIBCA_BH1750_PORT_MODE LIBCA_BH1750_PORT_MODE_EXTERN
+#endif
+
 typedef struct bh1750_port
 {
     // i2c写函数
@@ -23,6 +32,12 @@ typedef struct bh1750_port
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                      u16 data_size, u32 timeout);
 } bh1750_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_bh1750.c 提供）
+ */
+extern const bh1750_port_t g_bh1750_port_extern;
+
 
 void bh1750_bind_port(const bh1750_port_t* port);
 bool bh1750_port_is_registered(void);

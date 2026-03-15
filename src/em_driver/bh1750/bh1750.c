@@ -2,9 +2,9 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_EXTERN)
-static const bh1750_port_t*  = &g_bh1750_port_extern;
+static const bh1750_port_t* g_bh1750_port = &g_bh1750_port_extern;
 #elif (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_DYNAMIC)
-static const bh1750_port_t*  = NULL;
+static const bh1750_port_t* g_bh1750_port = NULL;
 #else
 #error "Invalid BH1750 port mode"
 #endif
