@@ -22,6 +22,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_JY61P_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_JY61P_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_JY61P_PORT_MODE
+#define LIBCA_JY61P_PORT_MODE LIBCA_JY61P_PORT_MODE_EXTERN
+#endif
+
 // 如果没有修改，那么默认就是0x50
 #define JY61P_DEFAULT_ADDRESS 0x50
 
@@ -42,6 +51,12 @@ typedef struct jy61p_port
     i32 (*uart_send)(void* huart, const u8* buf, usize len);
     void (*delay_ms)(u32 ms);
 } jy61p_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_jy61p.c 提供）
+ */
+extern const jy61p_port_t g_jy61p_port_extern;
+
 
 /**
  * @brief 绑定平台相关接口

@@ -2,9 +2,9 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
-static const jy61p_port_t*  = &g_jy61p_port_extern;
+static const jy61p_port_t* g_jy61p_port = &g_jy61p_port_extern;
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
-static const jy61p_port_t*  = NULL;
+static const jy61p_port_t* g_jy61p_port = NULL;
 #else
 #error "Invalid JY61P port mode"
 #endif
