@@ -2,8 +2,9 @@
  * @file ads1115.h
  * @author canrad (1517807724@qq.com)
  * @brief ADS1115 16位ADC驱动
- * @version 0.1
+ * @version 0.2
  * @date 2026-01-23
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -26,26 +27,46 @@
 extern "C" {
 #endif
 
-/* ADS1115 错误码 */
-#define ADS1115_OK                      0
-#define ADS1115_ERR_PORT_NOT_REGISTERED (-1)
-#define ADS1115_ERR_I2C                 (-2)
-#define ADS1115_ERR_TIMEOUT             (-3)
+#if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
 
-// port
+/**
+ * @brief I2C 写操作
+ * 
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备 7 位地址
+ * @param reg_addr 寄存器地址
+ * @param data 数据缓冲区
+ * @param size 数据长度
+ * @return i32 返回 0 表示成功，非 0 表示失败
+ */
+extern i32 port_ads1115_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
+
+/**
+ * @brief I2C 读操作
+ * 
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备 7 位地址
+ * @param reg_addr 寄存器地址
+ * @param data 数据缓冲区
+ * @param size 数据长度
+ * @return i32 返回 0 表示成功，非 0 表示失败
+ */
+extern i32 port_ads1115_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
+
+/**
+ * @brief 毫秒延时
+ * 
+ * @param ms 毫秒数
+ */
+extern void port_ads1115_delay_ms(u32 ms);
+
+#elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
+
 typedef struct ads1115_port {
     i32 (*i2c_write)(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
     i32 (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
     void (*delay_ms)(u32 ms);
 } ads1115_port_t;
-
-#if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
-
-extern i32 port_ads1115_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
-extern i32 port_ads1115_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
-extern void port_ads1115_delay_ms(u32 ms);
-
-#elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 显式模式下绑定硬件接口
@@ -64,6 +85,12 @@ bool ads1115_port_is_registered(void);
 #else
 #error "Invalid ADS1115 port mode"
 #endif
+
+/* ADS1115 错误码 */
+#define ADS1115_OK                      0
+#define ADS1115_ERR_PORT_NOT_REGISTERED (-1)
+#define ADS1115_ERR_I2C                 (-2)
+#define ADS1115_ERR_TIMEOUT             (-3)
 
 /**
  * @brief 输入通道枚举
