@@ -1,7 +1,13 @@
 #include "motor.h"
 #include <em_base/debug.h>
 
-static const motor_port_t* g_motor_port = NULL;
+#if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_EXTERN)
+static const motor_port_t*  = &g_motor_port_extern;
+#elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
+static const motor_port_t*  = NULL;
+#else
+#error "Invalid MOTOR port mode"
+#endif
 
 void motor_bind_port(const motor_port_t* port)
 {
