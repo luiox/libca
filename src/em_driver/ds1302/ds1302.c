@@ -24,7 +24,13 @@
 #define DS1302_MASK_WEEK        0x07
 #define DS1302_MASK_YEAR        0xFF
 
-static const ds1302_port_t* g_port = NULL;
+#if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
+static const ds1302_port_t*  = &g_ds1302_port_extern;
+#elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
+static const ds1302_port_t*  = NULL;
+#else
+#error "Invalid DS1302 port mode"
+#endif
 
 void ds1302_bind_port(const ds1302_port_t* port) {
     param_check(port != NULL);
