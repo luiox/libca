@@ -10,7 +10,13 @@
 #define AS5600_REG_RAW_LO 0x0D
 #define AS5600_REG_AGC 0x1A
 
+#if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
+static const as5600_port_t* g_as5600_port = &g_as5600_port_extern;
+#elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
 static const as5600_port_t* g_as5600_port = NULL;
+#else
+#error "Invalid AS5600 port mode"
+#endif
 
 void as5600_bind_port(const as5600_port_t* port)
 {
