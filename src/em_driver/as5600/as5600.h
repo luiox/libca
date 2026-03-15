@@ -27,6 +27,44 @@
 extern "C" {
 #endif
 
+#if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
+
+/**
+ * @brief I2C 写操作
+ *
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备 7 位地址
+ * @param reg_addr 寄存器地址
+ * @param data 数据缓冲区
+ * @param len 数据长度
+ */
+extern void port_as5600_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
+
+/**
+ * @brief I2C 读操作
+ *
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备 7 位地址
+ * @param reg_addr 寄存器地址
+ * @param data 数据缓冲区
+ * @param len 数据长度
+ */
+extern void port_as5600_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
+
+#elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
+
+typedef struct as5600_port {
+    void (*i2c_write)(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
+    void (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
+} as5600_port_t;
+
+void as5600_bind_port(const as5600_port_t* port);
+bool as5600_port_is_registered(void);
+
+#else
+#error "Invalid AS5600 port mode"
+#endif
+
 // 错误码定义
 #define AS5600_OK                          0
 #define AS5600_ERR_PORT_NOT_REGISTERED    (-1)
@@ -35,54 +73,6 @@ extern "C" {
 #define AS5600_STATUS_MH                (1 << 3)    // 磁场过强 (Magnet High)
 #define AS5600_STATUS_ML                (1 << 4)    // 磁场过弱 (Magnet Low)
 #define AS5600_STATUS_MD                (1 << 5)    // 检测到磁铁 (Magnet Detected)
-
-// port
-typedef struct as5600_port {
-    /**
-     * @brief I2C写函数
-     * @param hi2c I2C句柄
-     * @param dev_addr 设备地址(7位)
-     * @param reg_addr 寄存器地址
-     * @param data 数据指针
-     * @param len 数据长度
-     */
-    void (*i2c_write)(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
-
-    /**
-     * @brief I2C读函数
-     * @param hi2c I2C句柄
-     * @param dev_addr 设备地址(7位)
-     * @param reg_addr 寄存器起始地址
-     * @param data 接收缓冲区
-     * @param len 数据长度
-     */
-    void (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
-} as5600_port_t;
-
-#if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
-
-/**
- * @brief 外部模式 I2C 写函数
- */
-extern void port_as5600_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
-
-/**
- * @brief 外部模式 I2C 读函数
- */
-extern void port_as5600_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
-
-#elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
-
-// 绑定port
-/**
- * @brief 显式模式下绑定硬件接口（动态注入）
- */
-void as5600_bind_port(const as5600_port_t* port);
-bool as5600_port_is_registered(void);
-
-#else
-#error "Invalid AS5600 port mode"
-#endif
 
 typedef struct as5600 {
     void* hi2c;           // I2C句柄

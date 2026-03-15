@@ -7,18 +7,18 @@
 
 CA_WEAK void port_as5600_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len)
 {
-    (void)hi2c;
-    (void)dev_addr;
-    (void)reg_addr;
-    (void)data;
-    (void)len;
+    unused_param(hi2c);
+    unused_param(dev_addr);
+    unused_param(reg_addr);
+    unused_param(data);
+    unused_param(len);
 }
 
 CA_WEAK void port_as5600_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len)
 {
-    (void)hi2c;
-    (void)dev_addr;
-    (void)reg_addr;
-    (void)data;
-    (void)len;
+    unused_param(hi2c);
+    unused_param(dev_addr);
+    unused_param(reg_addr);
+    unused_param(data);
+    unused_param(len);
 }

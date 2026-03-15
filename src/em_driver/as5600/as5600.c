@@ -10,21 +10,31 @@
 #define AS5600_REG_RAW_LO 0x0D
 #define AS5600_REG_AGC 0x1A
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
-static const as5600_port_t g_as5600_port_extern_impl = {
-    .i2c_write = port_as5600_i2c_write,
-    .i2c_read = port_as5600_i2c_read,
-};
-static const as5600_port_t* g_as5600_port = &g_as5600_port_extern_impl;
+
+#define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
+    port_as5600_i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
+#define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
+    port_as5600_i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
+
 #elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
+
 static const as5600_port_t* g_as5600_port = NULL;
+
+#define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
+    g_as5600_port->i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
+#define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
+    g_as5600_port->i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
+
 #else
 #error "Invalid AS5600 port mode"
 #endif
 
+#if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
 void as5600_bind_port(const as5600_port_t* port)
 {
-    param_check(port != NULL);
     g_as5600_port = port;
 }
 
@@ -32,6 +42,7 @@ bool as5600_port_is_registered(void)
 {
     return g_as5600_port != NULL;
 }
+#endif
 
 void as5600_init(as5600_t* self, void* hi2c)
 {
@@ -44,11 +55,10 @@ void as5600_init(as5600_t* self, void* hi2c)
 u16 as5600_read_raw_angle(as5600_t* self)
 {
     param_check(self != NULL);
-    param_check(as5600_port_is_registered());
 
     u8 buf[2] = {0};
     // AS5600支持连续读取，高位寄存器地址为0x0C，低位为0x0D
-    g_as5600_port->i2c_read(self->hi2c, AS5600_ADDR, AS5600_REG_RAW_HI, buf, 2);
+    AS5600_I2C_READ(self->hi2c, AS5600_ADDR, AS5600_REG_RAW_HI, buf, 2);
 
     u16 val = ((u16)buf[0] << 8) | (u16)buf[1];
     return val & 0x0FFF;
@@ -74,7 +84,7 @@ u8 as5600_get_status(as5600_t* self)
     param_check(self != NULL);
 
     u8 status = 0;
-    g_as5600_port->i2c_read(self->hi2c, AS5600_ADDR, AS5600_REG_STATUS, &status, 1);
+    AS5600_I2C_READ(self->hi2c, AS5600_ADDR, AS5600_REG_STATUS, &status, 1);
     return status;
 }
 
@@ -83,6 +93,6 @@ u8 as5600_get_agc(as5600_t* self)
     param_check(self != NULL);
 
     u8 agc = 0;
-    g_as5600_port->i2c_read(self->hi2c, AS5600_ADDR, AS5600_REG_AGC, &agc, 1);
+    AS5600_I2C_READ(self->hi2c, AS5600_ADDR, AS5600_REG_AGC, &agc, 1);
     return agc;
 }
