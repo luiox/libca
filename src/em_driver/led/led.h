@@ -29,6 +29,13 @@
 
 #if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
 
+/**
+ * @brief 写入gpio的电平高低
+ * 
+ * @param gpio gpio的地址
+ * @param pin gpio的引脚
+ * @param value 高低电平，1为高电平，0为低电平
+ */
 extern void port_led_write_pin(void* gpio, u16 pin, u8 value);
 
 #elif (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
