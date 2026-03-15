@@ -9,18 +9,25 @@
 #define MOTOR_PWM_STOP(htim, ch)           port_motor_pwm_stop((htim), (ch))
 
 #elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
-static const motor_port_t* g_motor_port = NULL;
-#define MOTOR_PWM_SET_DUTY(htim, ch, duty) MOTOR_PWM_SET_DUTY((htim), (ch), (duty))
-#define MOTOR_PWM_START(htim, ch)          MOTOR_PWM_START((htim), (ch))
-#define MOTOR_PWM_STOP(htim, ch)           MOTOR_PWM_STOP((htim), (ch))
+
+#define MOTOR_PWM_SET_DUTY(htim, ch, duty) g_motor_port->pwm_set_duty((htim), (ch), (duty))
+#define MOTOR_PWM_START(htim, ch)          g_motor_port->pwm_start((htim), (ch))
+#define MOTOR_PWM_STOP(htim, ch)           g_motor_port->pwm_stop((htim), (ch))
 
 #else
 #error "Invalid MOTOR port mode"
 #endif
 
 #if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
-void motor_bind_port(const motor_port_t* port) { g_motor_port = port; }
-bool motor_port_is_registered(void) { return g_motor_port != NULL; }
+static const motor_port_t* g_motor_port = NULL;
+void motor_bind_port(const motor_port_t* port) 
+{ 
+    g_motor_port = port; 
+}
+bool motor_port_is_registered(void) 
+{ 
+    return g_motor_port != NULL; 
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

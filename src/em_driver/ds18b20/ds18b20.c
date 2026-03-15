@@ -15,7 +15,7 @@ static const ds18b20_port_t* g_ds18b20_port = NULL;
 #define DS18B20_READ_PIN(gpio, pin)        g_ds18b20_port->read_pin((gpio), (pin))
 #define DS18B20_SET_OUTPUT_MODE(gpio, pin) g_ds18b20_port->set_output_mode((gpio), (pin))
 #define DS18B20_SET_INPUT_MODE(gpio, pin)  g_ds18b20_port->set_input_mode((gpio), (pin))
-#define DS18B20_DELAY_US(us)               g_ds18b20_port->DS18B20_DELAY_US(us)
+#define DS18B20_DELAY_US(us)               g_ds18b20_port->delay_us(us)
 
 #else
 #error "Invalid DS18B20 port mode"

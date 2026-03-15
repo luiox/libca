@@ -19,4 +19,4 @@
 
 - If any requirement is forgotten, stop and read this file again before continuing.
 
-- Build project, and fix the error.
+- After applying changes, build the project and run all related tests. Iteratively fix any compilation errors or test failures until the build is clean and all tests pass.
