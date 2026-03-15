@@ -37,7 +37,13 @@
 #define BMC050_ACC_SUSPEND                        0x80
 #define BMC050_ACC_LOWPOWER                       0x40
 
-static bmc050_port_t* g_bmc050_port = NULL;
+#if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
+static const bmc050_port_t*  = &g_bmc050_port_extern;
+#elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
+static const bmc050_port_t*  = NULL;
+#else
+#error "Invalid BMC050 port mode"
+#endif
 
 void bmc050_bind_port(const bmc050_port_t* port)
 {
