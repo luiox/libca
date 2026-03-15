@@ -25,10 +25,6 @@
 #define LIBCA_TOFXXF_PORT_MODE LIBCA_TOFXXF_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // 默认波特率
 #define TOFXF_BAUDRATE_DEFAULT  115200
 
@@ -61,29 +57,28 @@ extern "C" {
 
 // 错误码 (负数)
 #define TOFXF_OK                0
-#define TOFXF_ERR_PORT          -1      /* 端口未注册 */
-#define TOFXF_ERR_SEND          -2      /* 发送失败 */
-#define TOFXF_ERR_RECV          -3      /* 接收失败 */
-#define TOFXF_ERR_TIMEOUT       -4      /* 超时 */
-#define TOFXF_ERR_CRC           -5      /* CRC校验错误 */
-#define TOFXF_ERR_RESPONSE      -6      /* 响应格式错误 */
-#define TOFXF_ERR_SLAVE_ADDR    -7      /* 从机地址错误 */
-#define TOFXF_ERR_FUNC_CODE     -8      /* 功能码错误 */
-#define TOFXF_ERR_EXCEPTION     -9      /* Modbus异常响应 */
+#define TOFXF_ERR_SEND          -1      /* 发送失败 */
+#define TOFXF_ERR_RECV          -2      /* 接收失败 */
+#define TOFXF_ERR_TIMEOUT       -3      /* 超时 */
+#define TOFXF_ERR_CRC           -4      /* CRC校验错误 */
+#define TOFXF_ERR_RESPONSE      -5      /* 响应格式错误 */
+#define TOFXF_ERR_SLAVE_ADDR    -6      /* 从机地址错误 */
+#define TOFXF_ERR_FUNC_CODE     -7      /* 功能码错误 */
+#define TOFXF_ERR_EXCEPTION     -8      /* Modbus异常响应 */
 
 /* ========== Port层 ========== */
 
-typedef struct tofxxf_port {
-    i32 (*uart_send)(void* huart, const u8* data, usize len);
-    i32 (*uart_recv)(void* huart, u8* buf, usize len, u32 timeout_ms);
-} tofxxf_port_t;
-
 #if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
+/** @brief UART发送 @param huart UART句柄 @param data 数据缓冲 @param len 长度 @return 发送长度或错误码 */
 extern i32 port_tofxxf_uart_send(void* huart, const u8* data, usize len);
+/** @brief UART接收 @param huart UART句柄 @param buf 输出缓冲 @param len 长度 @param timeout_ms 超时毫秒 @return 接收长度或错误码 */
 extern i32 port_tofxxf_uart_recv(void* huart, u8* buf, usize len, u32 timeout_ms);
 
 #elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
-
+typedef struct tofxxf_port {
+    i32 (*uart_send)(void* huart, const u8* data, usize len);             // UART发送
+    i32 (*uart_recv)(void* huart, u8* buf, usize len, u32 timeout_ms);    // UART接收
+} tofxxf_port_t;
 void tofxxf_bind_port(const tofxxf_port_t* port);
 bool tofxxf_port_is_registered(void);
 
@@ -168,9 +163,5 @@ i32 tofxxf_set_auto_output(tofxxf_t* self, u16 interval_ms);
  * @return 成功返回0，失败返回错误码
  */
 i32 tofxxf_restore_default(tofxxf_t* self);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // !LIBCA_EM_DRIVER_TOFXF_H

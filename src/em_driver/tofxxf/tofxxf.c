@@ -3,28 +3,34 @@
 #include <em_util/crc.h>
 #include <string.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
-static const tofxxf_port_t g_tofxxf_port_extern_impl = {
-    .uart_send = port_tofxxf_uart_send,
-    .uart_recv = port_tofxxf_uart_recv,
-};
-static const tofxxf_port_t* g_port = &g_tofxxf_port_extern_impl;
+#define TOFXXF_UART_SEND(huart, data, len)            port_tofxxf_uart_send((huart), (data), (len))
+#define TOFXXF_UART_RECV(huart, buf, len, timeout_ms) port_tofxxf_uart_recv((huart), (buf), (len), (timeout_ms))
+
 #elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
-static const tofxxf_port_t* g_port = NULL;
+static const tofxxf_port_t* g_tofxxf_port = NULL;
+#define TOFXXF_UART_SEND(huart, data, len)            g_tofxxf_port->uart_send((huart), (data), (len))
+#define TOFXXF_UART_RECV(huart, buf, len, timeout_ms) g_tofxxf_port->uart_recv((huart), (buf), (len), (timeout_ms))
+
 #else
 #error "Invalid TOFXXF port mode"
 #endif
 
+#if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
 void tofxxf_bind_port(const tofxxf_port_t* port)
 {
-    param_check(port != NULL);
-    g_port = port;
+    g_tofxxf_port = port;
 }
 
 bool tofxxf_port_is_registered(void)
 {
-    return g_port != NULL;
+    return g_tofxxf_port != NULL;
 }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 
 void tofxxf_init(tofxxf_t* self, void* huart, u8 slave_addr)
 {
@@ -67,11 +73,9 @@ static usize build_request_frame(u8 slave_addr, u8 func,
  */
 static void uart_flush_rx(void* huart)
 {
-    if (!g_port) return;
-    
     u8 dummy;
     // 非阻塞方式读取并丢弃缓冲区中的所有数据
-    while (g_port->uart_recv(huart, &dummy, 1, 0) > 0) {
+    while (TOFXXF_UART_RECV(huart, &dummy, 1, 0) > 0) {
         // 继续清空
     }
 }
@@ -121,7 +125,6 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
 {
     param_check(self != NULL);
     param_check(out_buf != NULL);
-    param_check(g_port != NULL);
     
     // 清空接收缓冲区，避免残留数据干扰
     uart_flush_rx(self->huart);
@@ -142,7 +145,7 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
     }
     
     // 发送请求
-    if (g_port->uart_send(self->huart, req_frame, req_len) != (i32)req_len) {
+    if (TOFXXF_UART_SEND(self->huart, req_frame, req_len) != (i32)req_len) {
         debug_print("[tofxxf] send failed\n");
         return TOFXF_ERR_SEND;
     }
@@ -157,7 +160,7 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
     u8 resp_frame[256];
     
     // 接收响应
-    i32 recv_len = g_port->uart_recv(self->huart, resp_frame, resp_len, 1000);
+    i32 recv_len = TOFXXF_UART_RECV(self->huart, resp_frame, resp_len, 1000);
     if (recv_len < 0) {
         debug_print("[tofxxf] recv error\n");
         return TOFXF_ERR_RECV;
@@ -194,7 +197,6 @@ i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr,
 i32 tofxxf_write_reg(tofxxf_t* self, u16 reg_addr, u16 value)
 {
     param_check(self != NULL);
-    param_check(g_port != NULL);
     
     // 清空接收缓冲区，避免残留数据干扰
     uart_flush_rx(self->huart);
@@ -215,14 +217,14 @@ i32 tofxxf_write_reg(tofxxf_t* self, u16 reg_addr, u16 value)
     }
     
     // 发送请求
-    if (g_port->uart_send(self->huart, req_frame, req_len) != (i32)req_len) {
+    if (TOFXXF_UART_SEND(self->huart, req_frame, req_len) != (i32)req_len) {
         debug_print("[tofxxf] send failed\n");
         return TOFXF_ERR_SEND;
     }
     
     // 接收响应（写操作返回相同帧作为确认）
     u8 resp_frame[8];
-    i32 recv_len = g_port->uart_recv(self->huart, resp_frame, req_len, 1000);
+    i32 recv_len = TOFXXF_UART_RECV(self->huart, resp_frame, req_len, 1000);
     if (recv_len < 0) {
         debug_print("[tofxxf] recv error\n");
         return TOFXF_ERR_RECV;
