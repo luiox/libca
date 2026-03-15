@@ -2,9 +2,9 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
-static const at24cxx_port_t*  = &g_at24cxx_port_extern;
+static const at24cxx_port_t* g_at24cxx_port = &g_at24cxx_port_extern;
 #elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
-static const at24cxx_port_t*  = NULL;
+static const at24cxx_port_t* g_at24cxx_port = NULL;
 #else
 #error "Invalid AT24CXX port mode"
 #endif
