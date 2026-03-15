@@ -1,6 +1,12 @@
 #include "hc_sr04.h"
 
-static const hc_sr04_port_t* g_hc_sr04_port = NULL;
+#if (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_EXTERN)
+static const hc_sr04_port_t*  = &g_hc_sr04_port_extern;
+#elif (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
+static const hc_sr04_port_t*  = NULL;
+#else
+#error "Invalid HC_SR04 port mode"
+#endif
 
 void hc_sr04_bind_port(const hc_sr04_port_t* port)
 {
