@@ -1,7 +1,13 @@
 #include "lcd1602.h"
 #include <em_base/debug.h>
 
-static const lcd1602_port_t* g_port = NULL;
+#if (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_EXTERN)
+static const lcd1602_port_t*  = &g_lcd1602_port_extern;
+#elif (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_DYNAMIC)
+static const lcd1602_port_t*  = NULL;
+#else
+#error "Invalid LCD1602 port mode"
+#endif
 
 void lcd1602_bind_port(const lcd1602_port_t* port) {
     param_check(port != NULL);
