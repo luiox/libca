@@ -62,9 +62,9 @@ static const u8 RX_ADDR_PIPES[6] = {nRF24_REG_RX_ADDR_P0,
 
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
-static const nrf24_port_t*  = &g_nrf24_port_extern;
+static const nrf24_port_t* g_nrf24_port = &g_nrf24_port_extern;
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
-static const nrf24_port_t*  = NULL;
+static const nrf24_port_t* g_nrf24_port = NULL;
 #else
 #error "Invalid NRF24 port mode"
 #endif

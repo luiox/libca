@@ -15,6 +15,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_NRF24_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_NRF24_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_NRF24_PORT_MODE
+#define LIBCA_NRF24_PORT_MODE LIBCA_NRF24_PORT_MODE_EXTERN
+#endif
+
 // port
 typedef struct nrf24_port
 {
@@ -40,6 +49,12 @@ typedef struct nrf24_port
      */
     u8 (*spi_send_recv)(void* hspi, u8 data);
 } nrf24_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_nrf24.c 提供）
+ */
+extern const nrf24_port_t g_nrf24_port_extern;
+
 
 void nrf24_bind_port(const nrf24_port_t* port);
 bool nrf24_port_is_registered(void);
