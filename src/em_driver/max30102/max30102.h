@@ -25,35 +25,23 @@
 #define MAX30102_ADDR 0xAE
 #define MAX30102_BUFFER_SIZE 500
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct max30102_port {
-    // i2c写函数
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                      u16 data_size, u32 timeout);
-    // i2c读函数
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                     u16 data_size, u32 timeout);
-} max30102_port_t;
+#if (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_EXTERN)
+/** @brief I2C写寄存器 @param hi2c I2C句柄 @param dev_addr 设备地址 @param mem_addr 寄存器地址 @param mem_addr_size 地址长度 @param data 数据 @param data_size 数据长度 @param timeout 超时 @return 0=成功 */
 extern i32 port_max30102_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+/** @brief I2C读寄存器 @param hi2c I2C句柄 @param dev_addr 设备地址 @param mem_addr 寄存器地址 @param mem_addr_size 地址长度 @param data 数据 @param data_size 数据长度 @param timeout 超时 @return 0=成功 */
 extern i32 port_max30102_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
-/**
- * @brief 绑定硬件接口
- * 
- * @param port 接口结构体
- */
+#elif (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_DYNAMIC)
+typedef struct max30102_port {
+    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);  // I2C写
+    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);   // I2C读
+} max30102_port_t;
 void max30102_bind_port(const max30102_port_t* port);
-
-/**
- * @brief 检查接口是否已注册
- * 
- * @return bool 是否已注册
- */
 bool max30102_port_is_registered(void);
+
+#else
+#error "Invalid MAX30102 port mode"
+#endif
 
 typedef struct max30102_data {
     i32 heart_rate;        /**< 心率值 */
@@ -116,9 +104,5 @@ void max30102_calculate(max30102_t* self, u32* ir_buffer, u32* red_buffer, max30
  * @return bool 是否成功
  */
 bool max30102_reset(max30102_t* self);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // LIBCA_EM_DRIVER_MAX30102_H

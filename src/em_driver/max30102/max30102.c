@@ -1,5 +1,4 @@
 #include "max30102.h"
-#include <em_base/debug.h>
 
 // Register addresses
 #define REG_INTR_STATUS_1   0x00
@@ -47,45 +46,37 @@ static const u8 uch_spo2_table[184] = {
     3, 2, 1
 };
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_EXTERN)
-static const max30102_port_t g_max30102_port_extern_impl = {
-    .i2c_write = port_max30102_i2c_write,
-    .i2c_read = port_max30102_i2c_read,
-};
-static const max30102_port_t* g_port = &g_max30102_port_extern_impl;
+#define MAX30102_I2C_WRITE(hi2c, dev, reg, reg_sz, data, sz, to) port_max30102_i2c_write((hi2c), (dev), (reg), (reg_sz), (data), (sz), (to))
+#define MAX30102_I2C_READ(hi2c, dev, reg, reg_sz, data, sz, to)  port_max30102_i2c_read((hi2c), (dev), (reg), (reg_sz), (data), (sz), (to))
+
 #elif (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_DYNAMIC)
-static const max30102_port_t* g_port = NULL;
+static const max30102_port_t* g_max30102_port = NULL;
+#define MAX30102_I2C_WRITE(hi2c, dev, reg, reg_sz, data, sz, to) g_max30102_port->i2c_write((hi2c), (dev), (reg), (reg_sz), (data), (sz), (to))
+#define MAX30102_I2C_READ(hi2c, dev, reg, reg_sz, data, sz, to)  g_max30102_port->i2c_read((hi2c), (dev), (reg), (reg_sz), (data), (sz), (to))
+
 #else
 #error "Invalid MAX30102 port mode"
 #endif
 
-void max30102_bind_port(const max30102_port_t* port)
-{
-    g_port = port;
-}
+#if (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_DYNAMIC)
+void max30102_bind_port(const max30102_port_t* port) { g_max30102_port = port; }
+bool max30102_port_is_registered(void) { return g_max30102_port != NULL; }
+#endif
 
-bool max30102_port_is_registered(void)
-{
-    return g_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 static bool max30102_write_reg(max30102_t* self, u8 addr, u8 data)
 {
-    if (!g_port) {
-        debug_print("[max30102] port not registered\n");
-        return false;
-    }
-    i32 ret = g_port->i2c_write(self->hi2c, MAX30102_ADDR, addr, 1, &data, 1, 100);
+    i32 ret = MAX30102_I2C_WRITE(self->hi2c, MAX30102_ADDR, addr, 1, &data, 1, 100);
     return ret == 0;
 }
 
 static bool max30102_read_reg(max30102_t* self, u8 addr, u8* data)
 {
-    if (!g_port) {
-        debug_print("[max30102] port not registered\n");
-        return false;
-    }
-    i32 ret = g_port->i2c_read(self->hi2c, MAX30102_ADDR, addr, 1, data, 1, 100);
+    i32 ret = MAX30102_I2C_READ(self->hi2c, MAX30102_ADDR, addr, 1, data, 1, 100);
     return ret == 0;
 }
 
@@ -130,11 +121,7 @@ bool max30102_read_fifo(max30102_t* self, u32* red_led, u32* ir_led)
     if (!max30102_read_reg(self, REG_INTR_STATUS_1, &status)) return false;
     if (!max30102_read_reg(self, REG_INTR_STATUS_2, &status)) return false;
 
-    if (!g_port) {
-        return false;
-    }
-
-    i32 ret = g_port->i2c_read(self->hi2c, MAX30102_ADDR, REG_FIFO_DATA, 1, data, 6, 100);
+    i32 ret = MAX30102_I2C_READ(self->hi2c, MAX30102_ADDR, REG_FIFO_DATA, 1, data, 6, 100);
     if (ret != 0) return false;
 
     *red_led = ((u32)data[0] << 16) | ((u32)data[1] << 8) | (u32)data[2];
