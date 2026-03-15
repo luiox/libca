@@ -23,42 +23,35 @@
 #define LIBCA_LCD1602_PORT_MODE LIBCA_LCD1602_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // LCD1602 模式枚举
 typedef enum lcd1602_mode_enum {
     LCD1602_MODE_4BIT = 0,
     LCD1602_MODE_8BIT = 1,
 } lcd1602_mode_t;
 
-// port
-typedef struct lcd1602_port {
-    void (*write_pin)(void* gpio, u16 pin, u8 value);
-    void (*set_output_mode)(void* gpio, u16 pin);
-    void (*delay_us)(u32 us);
-    void (*delay_ms)(u32 ms);
-} lcd1602_port_t;
+#if (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_EXTERN)
+/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @param value 电平值 */
 extern void port_lcd1602_write_pin(void* gpio, u16 pin, u8 value);
+/** @brief 设置引脚为输出模式 @param gpio GPIO端口 @param pin 引脚编号 */
 extern void port_lcd1602_set_output_mode(void* gpio, u16 pin);
+/** @brief 微秒延时 @param us 延时时间（微秒） */
 extern void port_lcd1602_delay_us(u32 us);
+/** @brief 毫秒延时 @param ms 延时时间（毫秒） */
 extern void port_lcd1602_delay_ms(u32 ms);
 
-/**
- * @brief 绑定底层的硬件接口
- * 
- * @param port 硬件接口
- */
+#elif (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_DYNAMIC)
+typedef struct lcd1602_port {
+    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
+    void (*set_output_mode)(void* gpio, u16 pin);       // 设置输出模式
+    void (*delay_us)(u32 us);                           // 微秒延时
+    void (*delay_ms)(u32 ms);                           // 毫秒延时
+} lcd1602_port_t;
 void lcd1602_bind_port(const lcd1602_port_t* port);
-
-/**
- * @brief 检查硬件接口是否注册
- * 
- * @return true 
- * @return false 
- */
 bool lcd1602_port_is_registered(void);
+
+#else
+#error "Invalid LCD1602 port mode"
+#endif
 
 /**
  * @brief LCD1602 驱动对象
@@ -132,9 +125,5 @@ void lcd1602_write_cmd(lcd1602_t* self, u8 cmd);
  * @param data 数据
  */
 void lcd1602_write_data(lcd1602_t* self, u8 data);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // !LIBCA_EM_DRIVER_LCD1602_H
