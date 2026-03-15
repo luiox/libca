@@ -22,21 +22,62 @@
 #define LIBCA_BMC050_PORT_MODE LIBCA_BMC050_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
+
+/**
+ * @brief I2C 写操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功，其他表示失败
+ */
+extern i32 port_bmc050_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, const u8* data, u16 data_size, u32 timeout);
+
+/**
+ * @brief I2C 读操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功，其他表示失败
+ */
+extern i32 port_bmc050_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+
+/**
+ * @brief 微秒延时
+ * @param us 延时时间（微秒）
+ */
+extern void port_bmc050_delay_us(u32 us);
+
+#elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
 
 typedef struct bmc050_port {
+    // i2c写函数
     i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, const u8* data, u16 data_size, u32 timeout);
+    // i2c读函数
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+    // 微秒延时函数
     void (*delay_us)(u32 us);
 } bmc050_port_t;
-extern i32 port_bmc050_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, const u8* data, u16 data_size, u32 timeout);
-extern i32 port_bmc050_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-extern void port_bmc050_delay_us(u32 us);
 
 void bmc050_bind_port(const bmc050_port_t* port);
 bool bmc050_port_is_registered(void);
+
+#else
+#error "Invalid BMC050 port mode"
+#endif
+
+// 错误码
+#define BMC050_OK 0
+#define BMC050_ERR_I2C_FAIL (-2)
+#define BMC050_ERR_INVALID_PARAM (-3)
 
 // 量程 / 带宽 / 中断 等枚举
 typedef enum bmc050_acc_fs_enum {
@@ -183,12 +224,6 @@ typedef struct bmc050 {
     u16   dev_addr; // 设备 8-bit 地址（例如 0x36）
 } bmc050_t;
 
-// 错误码
-#define BMC050_OK 0
-#define BMC050_ERR_PORT_NOT_REGISTERED (-1)
-#define BMC050_ERR_I2C_FAIL (-2)
-#define BMC050_ERR_INVALID_PARAM (-3)
-
 /**
  * @brief 初始化 bmc050 对象
  * @param self 对象
@@ -247,9 +282,5 @@ i32 bmc050_int_pin_map(bmc050_t* self, bmc050_acc_intmap map);
  * @brief 磁力计 ID 读取
  */
 i32 bmc050_mag_get_device_id(bmc050_t* self, u8* id);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // LIBCA_EM_DRIVER_BMC050_H

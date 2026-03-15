@@ -37,39 +37,47 @@
 #define BMC050_ACC_SUSPEND                        0x80
 #define BMC050_ACC_LOWPOWER                       0x40
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
-static const bmc050_port_t g_bmc050_port_extern_impl = {
-    .i2c_write = port_bmc050_i2c_write,
-    .i2c_read = port_bmc050_i2c_read,
-    .delay_us = port_bmc050_delay_us,
-};
-static const bmc050_port_t* g_bmc050_port = &g_bmc050_port_extern_impl;
+
+#define BMC050_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmc050_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMC050_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmc050_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMC050_DELAY_US(us) port_bmc050_delay_us((us))
+
 #elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
+
 static const bmc050_port_t* g_bmc050_port = NULL;
+
+#define BMC050_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmc050_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMC050_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmc050_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMC050_DELAY_US(us) g_bmc050_port->delay_us((us))
+
 #else
 #error "Invalid BMC050 port mode"
 #endif
 
+#if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
 void bmc050_bind_port(const bmc050_port_t* port)
 {
-    g_bmc050_port = (bmc050_port_t*)port;
+    g_bmc050_port = port;
 }
 
 bool bmc050_port_is_registered(void)
 {
     return g_bmc050_port != NULL;
 }
+#endif
 
 #define I2C_TIMEOUT_DEFAULT 1000
 
 static i32 bmc050_write_reg(bmc050_t* self, u8 reg, u8 value)
 {
-    if (!g_bmc050_port) {
-        debug_print("[bmc050] port not registered");
-        return BMC050_ERR_PORT_NOT_REGISTERED;
-    }
-
-    i32 ret = g_bmc050_port->i2c_write(self->hi2c, self->dev_addr, reg, 1, &value, 1, I2C_TIMEOUT_DEFAULT);
+    i32 ret = BMC050_I2C_WRITE(self->hi2c, self->dev_addr, reg, 1, &value, 1, I2C_TIMEOUT_DEFAULT);
     if (ret != 0) {
         debug_print("[bmc050] i2c write failed, reg:0x%02x", reg);
         return BMC050_ERR_I2C_FAIL;
@@ -80,12 +88,7 @@ static i32 bmc050_write_reg(bmc050_t* self, u8 reg, u8 value)
 
 static i32 bmc050_read_reg(bmc050_t* self, u8 reg, u8* value)
 {
-    if (!g_bmc050_port) {
-        debug_print("[bmc050] port not registered");
-        return BMC050_ERR_PORT_NOT_REGISTERED;
-    }
-
-    i32 ret = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, reg, 1, value, 1, I2C_TIMEOUT_DEFAULT);
+    i32 ret = BMC050_I2C_READ(self->hi2c, self->dev_addr, reg, 1, value, 1, I2C_TIMEOUT_DEFAULT);
     if (ret != 0) {
         debug_print("[bmc050] i2c read failed, reg:0x%02x", reg);
         return BMC050_ERR_I2C_FAIL;
@@ -143,7 +146,7 @@ i32 bmc050_set_bandwidth(bmc050_t* self, bmc050_acc_bw bw)
     }
 
     u8 val = 0;
-    i32 rc = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, BMC050_REG_ACC_FILTER, 1, &val, 1, I2C_TIMEOUT_DEFAULT);
+    i32 rc = BMC050_I2C_READ(self->hi2c, self->dev_addr, BMC050_REG_ACC_FILTER, 1, &val, 1, I2C_TIMEOUT_DEFAULT);
     if (rc != 0) {
         debug_print("[bmc050] i2c read failed (filter)");
         return BMC050_ERR_I2C_FAIL;
@@ -185,7 +188,7 @@ static i32 bmc050_read_axis(bmc050_t* self, u8 reg_lsb, int16_t* out)
 {
     if (!self || !out) return BMC050_ERR_INVALID_PARAM;
     u8 buf[2] = {0};
-    i32 rc = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, reg_lsb, 1, buf, 2, I2C_TIMEOUT_DEFAULT);
+    i32 rc = BMC050_I2C_READ(self->hi2c, self->dev_addr, reg_lsb, 1, buf, 2, I2C_TIMEOUT_DEFAULT);
     if (rc != 0) {
         debug_print("[bmc050] i2c read failed (axis)");
         return BMC050_ERR_I2C_FAIL;
@@ -215,7 +218,7 @@ i32 bmc050_get_xyz(bmc050_t* self, int16_t* x, int16_t* y, int16_t* z)
     if (!self || !x || !y || !z) return BMC050_ERR_INVALID_PARAM;
 
     u8 buf[6] = {0};
-    i32 rc = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, BMC050_REG_ACC_OUT_XL, 1, buf, 6, I2C_TIMEOUT_DEFAULT);
+    i32 rc = BMC050_I2C_READ(self->hi2c, self->dev_addr, BMC050_REG_ACC_OUT_XL, 1, buf, 6, I2C_TIMEOUT_DEFAULT);
     if (rc != 0) {
         debug_print("[bmc050] i2c read failed (xyz)");
         return BMC050_ERR_I2C_FAIL;
@@ -242,7 +245,7 @@ i32 bmc050_get_irq_status(bmc050_t* self, bmc050_acc_irq* status)
     if (!self || !status) return BMC050_ERR_INVALID_PARAM;
 
     u8 buf[2] = {0};
-    i32 rc = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, BMC050_REG_ACC_STATUS_IRQL, 1, buf, 2, I2C_TIMEOUT_DEFAULT);
+    i32 rc = BMC050_I2C_READ(self->hi2c, self->dev_addr, BMC050_REG_ACC_STATUS_IRQL, 1, buf, 2, I2C_TIMEOUT_DEFAULT);
     if (rc != 0) return BMC050_ERR_I2C_FAIL;
 
     *status = (bmc050_acc_irq)((buf[0] << 8) | buf[1]);
@@ -255,7 +258,7 @@ i32 bmc050_set_irq_mode(bmc050_t* self, bmc050_acc_im mode)
 
     if (mode == BMC050_ACC_IM_RESET) {
         u8 val = 0;
-        i32 rc = g_bmc050_port->i2c_read(self->hi2c, self->dev_addr, BMC050_REG_ACC_IRQ_MODE, 1, &val, 1, I2C_TIMEOUT_DEFAULT);
+        i32 rc = BMC050_I2C_READ(self->hi2c, self->dev_addr, BMC050_REG_ACC_IRQ_MODE, 1, &val, 1, I2C_TIMEOUT_DEFAULT);
         if (rc != 0) return BMC050_ERR_I2C_FAIL;
         val |= BMC050_ACC_IM_RESET;
         return bmc050_write_reg(self, BMC050_REG_ACC_IRQ_MODE, val);
