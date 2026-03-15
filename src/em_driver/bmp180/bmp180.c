@@ -4,9 +4,9 @@
 /* --- 硬件接口绑定 --- */
 
 #if (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_EXTERN)
-static const bmp180_port_t*  = &g_bmp180_port_extern;
+static const bmp180_port_t* g_bmp180_port = &g_bmp180_port_extern;
 #elif (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_DYNAMIC)
-static const bmp180_port_t*  = NULL;
+static const bmp180_port_t* g_bmp180_port = NULL;
 #else
 #error "Invalid BMP180 port mode"
 #endif
