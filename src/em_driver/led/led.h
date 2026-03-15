@@ -8,6 +8,7 @@
  * 注意，对于显式注入模式，port是否初始化由适配层保证，否则会有空指针风险
  * @version 0.2
  * @date 2026-01-09
+ * @update 0.2 添加extern外部依赖注入模式
  * @update 0.2 版本新增隐式注入依赖模式，区分原先的动态模式
  * 
  * @copyright Copyright (c) 2026
@@ -27,25 +28,28 @@
 #define LIBCA_LED_PORT_MODE LIBCA_LED_PORT_MODE_EXTERN
 #endif
 
-#if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
+/**
+ * @brief 写引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚编号
+ * @param value 电平值（1=高，0=低）
+ */
 extern void port_led_write_pin(void* gpio, u16 pin, u8 value);
 
 #elif (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
-
-// port
-typedef struct led_port{
-    void (*write_pin)(void* gpio, u16 pin, u8 value);
-}led_port_t;
-
-// 绑定port
+typedef struct led_port {
+    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
+} led_port_t;
 void led_bind_port(const led_port_t* port);
 bool led_port_is_registered(void);
 
 #else
-
 #error "Invalid LED port mode"
-
 #endif
 
 // led灯的状态
@@ -74,6 +78,10 @@ void led_on(led_t* self);
 void led_off(led_t* self);
 // 切换灯的状态
 void led_toggle(led_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif // !LIBCA_EM_DRIVER_LED_H
