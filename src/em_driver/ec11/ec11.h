@@ -14,6 +14,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_EC11_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_EC11_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_EC11_PORT_MODE
+#define LIBCA_EC11_PORT_MODE LIBCA_EC11_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,6 +39,12 @@ typedef struct ec11_port
      */
     u8 (*read_pin)(void* gpio, u16 pin);
 } ec11_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_ec11.c 提供）
+ */
+extern const ec11_port_t g_ec11_port_extern;
+
 
 /**
  * @brief 绑定硬件接口
