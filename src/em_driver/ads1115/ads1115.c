@@ -1,7 +1,14 @@
 #include "ads1115.h"
 
+#if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
+static const ads1115_port_t* g_port = &g_ads1115_port_extern;
+#elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 static const ads1115_port_t* g_port = NULL;
+#else
+#error "Invalid ADS1115 port mode"
+#endif
 
+#if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 void ads1115_bind_port(const ads1115_port_t* port)
 {
     g_port = port;
@@ -11,6 +18,7 @@ bool ads1115_port_is_registered(void)
 {
     return g_port != NULL;
 }
+#endif
 
 /* ADS1115 寄存器地址 */
 #define ADS1115_REG_CONVERSE    0x00

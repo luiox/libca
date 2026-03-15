@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_ADS1115_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_ADS1115_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_ADS1115_PORT_MODE
+#define LIBCA_ADS1115_PORT_MODE LIBCA_ADS1115_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -57,19 +66,31 @@ typedef struct ads1115_port {
     void (*delay_ms)(u32 ms);
 } ads1115_port_t;
 
+#if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
 /**
- * @brief 绑定硬件接口
+ * @brief 外部隐式注入的 port 函数表（由 port_ads1115.c 提供）
+ */
+extern const ads1115_port_t g_ads1115_port_extern;
+
+#elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
+
+/**
+ * @brief 显式模式下绑定硬件接口
  * 
  * @param port 接口结构体
  */
 void ads1115_bind_port(const ads1115_port_t* port);
 
 /**
- * @brief 检查接口是否已注册
+ * @brief 显式模式下检查接口是否已注册
  * 
  * @return bool true 为已注册
  */
 bool ads1115_port_is_registered(void);
+
+#else
+#error "Invalid ADS1115 port mode"
+#endif
 
 /**
  * @brief 输入通道枚举
