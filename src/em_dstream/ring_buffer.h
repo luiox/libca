@@ -3,12 +3,13 @@
  * @author canrad (1517807724@qq.com)
  * @brief 一个简单的环形缓冲区实现
  *
- * @version 0.1
+ * @version 0.3
  * @date   2024.05.31
- * @update 2026-02-11
- * 
+ * @update 0.2 2026-02-11 完善代码和注释
+ * @update 0.3 2026-03-15 根据标准优化和规范代码
+ *
  * @copyright Copyright (c) 2026
- * 
+ *
  */
 #ifndef LIBCA_EM_DSTREAM_RING_BUFFER_H
 #define LIBCA_EM_DSTREAM_RING_BUFFER_H
@@ -25,11 +26,11 @@
 // 环形缓冲区结构体
 typedef struct ring_buffer
 {
-    uint8_t*       buffer;   // 缓冲区，要求是2的幂次方
-    usize           size;     // 缓冲区大小
-    usize           used;     // 已使用的大小
-    usize           read;     // 读指针的位置
-    usize           write;    // 写指针的位置
+    u8*       buffer;   // 缓冲区，要求是2的幂次方
+    usize          size;     // 缓冲区大小
+    usize          used;     // 已使用的大小
+    volatile usize read;     // 读指针的位置
+    volatile usize write;    // 写指针的位置
 } ring_buffer_t;
 
 /**
@@ -38,7 +39,7 @@ typedef struct ring_buffer
  * @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
  * @param size 缓冲区大小
  */
-void ring_buf_init(ring_buffer_t* rb, uint8_t* buffer, usize size);
+void ring_buf_init(ring_buffer_t* rb, u8* buffer, usize size);
 
 /**
  * @brief 重置环形缓冲区.
@@ -53,7 +54,7 @@ void ring_buf_reset(ring_buffer_t* rb);
  * @param size 期望写入的数据大小
  * @return position_size_t 实际写入的数据大小
  */
-usize ring_buf_write(ring_buffer_t* rb, const uint8_t* data, usize size);
+usize ring_buf_write(ring_buffer_t* rb, const u8* data, usize size);
 
 /**
  * @brief 从环形缓冲区里读数据.
@@ -62,7 +63,7 @@ usize ring_buf_write(ring_buffer_t* rb, const uint8_t* data, usize size);
  * @param size 期望读取的数据大小
  * @return position_size_t 实际读取的数据大小
  */
-usize ring_buf_read(ring_buffer_t* rb, uint8_t* buf, usize size);
+usize ring_buf_read(ring_buffer_t* rb, u8* buf, usize size);
 
 /**
  * @brief 预览环形缓冲区里的数据（不弹出）.
@@ -71,7 +72,7 @@ usize ring_buf_read(ring_buffer_t* rb, uint8_t* buf, usize size);
  * @param size 期望预览的数据大小
  * @return position_size_t 实际预览的数据大小
  */
-usize ring_buf_peek(const ring_buffer_t* rb, uint8_t* buf, usize size);
+usize ring_buf_peek(const ring_buffer_t* rb, u8* buf, usize size);
 
 /**
  * @brief 跳过（丢弃）环形缓冲区里的数据.

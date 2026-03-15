@@ -3,7 +3,6 @@
 
 #include "../em_base/datatype.h"
 #include "../em_base/debug.h"
-#include <sys/stat.h>
 
 typedef struct dstream dstream_t;
 

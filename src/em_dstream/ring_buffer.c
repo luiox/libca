@@ -7,7 +7,7 @@
  * @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
  * @param size 缓冲区大小
  */
-void ring_buf_init(ring_buffer_t* rb, uint8_t* buffer, usize size)
+void ring_buf_init(ring_buffer_t* rb, u8* buffer, usize size)
 {
     param_check(rb);
     param_check(buffer);
@@ -37,7 +37,7 @@ void ring_buf_reset(ring_buffer_t* rb)
  * @param size 期望写入的数据大小
  * @return position_size_t 实际写入的数据大小
  */
-usize ring_buf_write(ring_buffer_t* rb, const uint8_t* data, usize size)
+usize ring_buf_write(ring_buffer_t* rb, const u8* data, usize size)
 {
     param_check(rb);
     param_check(data);
@@ -63,7 +63,7 @@ usize ring_buf_write(ring_buffer_t* rb, const uint8_t* data, usize size)
  * @param size 期望读取的数据大小
  * @return position_size_t 实际读取的数据大小
  */
-usize ring_buf_read(ring_buffer_t* rb, uint8_t* buf, usize size)
+usize ring_buf_read(ring_buffer_t* rb, u8* buf, usize size)
 {
     param_check(rb);
     param_check(buf);
@@ -89,7 +89,7 @@ usize ring_buf_read(ring_buffer_t* rb, uint8_t* buf, usize size)
  * @param size 期望预览的数据大小
  * @return position_size_t 实际预览的数据大小
  */
-usize ring_buf_peek(const ring_buffer_t* rb, uint8_t* buf, usize size)
+usize ring_buf_peek(const ring_buffer_t* rb, u8* buf, usize size)
 {
     param_check(rb);
     param_check(buf);
@@ -230,10 +230,10 @@ u8 ring_buf_calculate_checksum(const ring_buffer_t* rb) {
 
 TEST_CASE(ring_buf_basic)
 {
-    uint8_t      buf[16];
+    u8      buf[16];
     ring_buffer_t rb;
-    uint8_t      data_to_write[] = {0x01, 0x02, 0x03, 0x04};
-    uint8_t      data_to_read[4] = {0};
+    u8      data_to_write[] = {0x01, 0x02, 0x03, 0x04};
+    u8      data_to_read[4] = {0};
 
     ring_buf_init(&rb, buf, 16);
 
@@ -257,11 +257,11 @@ TEST_CASE(ring_buf_basic)
 
 TEST_CASE(ring_buf_wrap_around)
 {
-    uint8_t      buf[8];
+    u8      buf[8];
     ring_buffer_t rb;
-    uint8_t      data1[] = {1, 2, 3, 4, 5, 6};
-    uint8_t      data2[] = {7, 8};
-    uint8_t      read_buf[8];
+    u8      data1[] = {1, 2, 3, 4, 5, 6};
+    u8      data2[] = {7, 8};
+    u8      read_buf[8];
 
     ring_buf_init(&rb, buf, 8);
 
