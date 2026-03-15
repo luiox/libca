@@ -40,6 +40,7 @@ typedef struct ads1115_port {
 } ads1115_port_t;
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
+
 extern i32 port_ads1115_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
 extern i32 port_ads1115_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
 extern void port_ads1115_delay_ms(u32 ms);
