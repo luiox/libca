@@ -23,33 +23,15 @@
 #define LIBCA_EC11_PORT_MODE LIBCA_EC11_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct ec11_port
-{
-    u8 (*read_pin)(void* gpio, u16 pin);
-} ec11_port_t;
-
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
+/** @brief 读引脚电平 @param gpio GPIO端口 @param pin 引脚号 @return 当前电平值 */
 extern u8 port_ec11_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
-
-/**
- * @brief 绑定硬件接口
- *
- * @param port 接口结构体
- */
+typedef struct ec11_port {
+    u8 (*read_pin)(void* gpio, u16 pin);  // 读引脚电平
+} ec11_port_t;
 void ec11_bind_port(const ec11_port_t* port);
-
-/**
- * @brief 检查接口是否已注册
- *
- * @return bool true 为已注册
- */
 bool ec11_port_is_registered(void);
 
 #else
@@ -143,9 +125,5 @@ bool ec11_is_sw_down(ec11_t* self);
  * @return ec11_rotation 上一次探测到的旋转方向
  */
 ec11_rotation ec11_get_last_rotation(ec11_t* self);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif   // !LIBCA_EM_DRIVER_EC11_H

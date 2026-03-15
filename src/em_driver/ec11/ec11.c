@@ -1,26 +1,23 @@
 #include "ec11.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
-static const ec11_port_t g_ec11_port_extern_impl = {
-    .read_pin = port_ec11_read_pin,
-};
-static const ec11_port_t* g_port = &g_ec11_port_extern_impl;
+#define EC11_READ_PIN(gpio, pin) port_ec11_read_pin((gpio), (pin))
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
-static const ec11_port_t* g_port = NULL;
+static const ec11_port_t* g_ec11_port = NULL;
+#define EC11_READ_PIN(gpio, pin) g_ec11_port->read_pin((gpio), (pin))
 #else
 #error "Invalid EC11 port mode"
 #endif
 
-void ec11_bind_port(const ec11_port_t* port)
-{
-    g_port = port;
-}
+#if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
+void ec11_bind_port(const ec11_port_t* port) { g_ec11_port = port; }
+bool ec11_port_is_registered(void) { return g_ec11_port != NULL; }
+#endif
 
-bool ec11_port_is_registered(void)
-{
-    return g_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 void ec11_init(ec11_t* self, void* clk_gpio, u16 clk_pin, void* dt_gpio, u16 dt_pin, void* sw_gpio,
                u16 sw_pin, u8 sw_when_down_state)
@@ -36,30 +33,16 @@ void ec11_init(ec11_t* self, void* clk_gpio, u16 clk_pin, void* dt_gpio, u16 dt_
     self->rotation_count = 0;
     self->last_item      = EC11_ROTATION_NONE;
 
-    if (g_port) {
-        self->last_clk_state = g_port->read_pin(self->clk_gpio, self->clk_pin);
-        self->last_dt_state  = g_port->read_pin(self->dt_gpio, self->dt_pin);
-        self->last_sw_state  = g_port->read_pin(self->sw_gpio, self->sw_pin);
-    }
-    else {
-        // 添加信息输出
-        debug_print("[ec11] warning: port not registered. Assuming idle high. Call ec11_bind_port before ec11_init for correct initial state.\n");
-        self->last_clk_state = 1;
-        self->last_dt_state  = 1;
-        self->last_sw_state  = 1;
-    }
+    self->last_clk_state = EC11_READ_PIN(self->clk_gpio, self->clk_pin);
+    self->last_dt_state  = EC11_READ_PIN(self->dt_gpio, self->dt_pin);
+    self->last_sw_state  = EC11_READ_PIN(self->sw_gpio, self->sw_pin);
 }
 
 ec11_rotation ec11_scan(ec11_t* self)
 {
-    if (!g_port) {
-        debug_print("[ec11] error: port not registered\n");
-        return EC11_ROTATION_NONE;
-    }
-
-    u8 clk_state        = g_port->read_pin(self->clk_gpio, self->clk_pin);
-    u8 dt_state         = g_port->read_pin(self->dt_gpio, self->dt_pin);
-    self->last_sw_state = g_port->read_pin(self->sw_gpio, self->sw_pin);
+    u8 clk_state        = EC11_READ_PIN(self->clk_gpio, self->clk_pin);
+    u8 dt_state         = EC11_READ_PIN(self->dt_gpio, self->dt_pin);
+    self->last_sw_state = EC11_READ_PIN(self->sw_gpio, self->sw_pin);
 
     ec11_rotation result = EC11_ROTATION_NONE;
 
