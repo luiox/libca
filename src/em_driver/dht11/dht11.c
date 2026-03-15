@@ -1,32 +1,37 @@
 #include "dht11.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_EXTERN)
-static const dht11_port_t g_dht11_port_extern_impl = {
-    .write_pin = port_dht11_write_pin,
-    .read_pin = port_dht11_read_pin,
-    .set_output_mode = port_dht11_set_output_mode,
-    .set_input_mode = port_dht11_set_input_mode,
-    .delay_us = port_dht11_delay_us,
-    .delay_ms = port_dht11_delay_ms,
-    .get_tick_us = port_dht11_get_tick_us,
-};
-static const dht11_port_t* g_dht11_port = &g_dht11_port_extern_impl;
+#define DHT11_WRITE(self, v)    port_dht11_write_pin((self)->gpio, (self)->pin, (v))
+#define DHT11_READ(self)        port_dht11_read_pin((self)->gpio, (self)->pin)
+#define DHT11_OUTPUT_MODE(self) port_dht11_set_output_mode((self)->gpio, (self)->pin)
+#define DHT11_INPUT_MODE(self)  port_dht11_set_input_mode((self)->gpio, (self)->pin)
+#define DHT11_DELAY_US(us)      port_dht11_delay_us(us)
+#define DHT11_DELAY_MS(ms)      port_dht11_delay_ms(ms)
+#define DHT11_GET_TICK_US()     port_dht11_get_tick_us()
+
 #elif (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_DYNAMIC)
 static const dht11_port_t* g_dht11_port = NULL;
+#define DHT11_WRITE(self, v)    g_dht11_port->write_pin((self)->gpio, (self)->pin, (v))
+#define DHT11_READ(self)        g_dht11_port->read_pin((self)->gpio, (self)->pin)
+#define DHT11_OUTPUT_MODE(self) g_dht11_port->set_output_mode((self)->gpio, (self)->pin)
+#define DHT11_INPUT_MODE(self)  g_dht11_port->set_input_mode((self)->gpio, (self)->pin)
+#define DHT11_DELAY_US(us)      g_dht11_port->delay_us(us)
+#define DHT11_DELAY_MS(ms)      g_dht11_port->delay_ms(ms)
+#define DHT11_GET_TICK_US()     g_dht11_port->get_tick_us()
+
 #else
 #error "Invalid DHT11 port mode"
 #endif
 
-void dht11_bind_port(const dht11_port_t* port)
-{
-    g_dht11_port = port;
-}
+#if (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_DYNAMIC)
+void dht11_bind_port(const dht11_port_t* port) { g_dht11_port = port; }
+bool dht11_port_is_registered(void) { return g_dht11_port != NULL; }
+#endif
 
-bool dht11_port_is_registered(void)
-{
-    return g_dht11_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 // 初始化驱动对象（绑定 gpio/pin）
 void dht11_init(dht11_t* self, void* gpio, u16 pin)
@@ -42,22 +47,12 @@ void dht11_init(dht11_t* self, void* gpio, u16 pin)
 #define DHT11_ACK_WAIT_US_MAX      100
 
 // 访问宏
-#define DHT11_WRITE(self, v)    g_dht11_port->write_pin((self)->gpio, (self)->pin, (v))
-#define DHT11_READ(self)        g_dht11_port->read_pin((self)->gpio, (self)->pin)
-#define DHT11_OUTPUT_MODE(self) g_dht11_port->set_output_mode((self)->gpio, (self)->pin)
-#define DHT11_INPUT_MODE(self)  g_dht11_port->set_input_mode((self)->gpio, (self)->pin)
-#define DHT11_DELAY_US(us)      g_dht11_port->delay_us(us)
-#define DHT11_DELAY_MS(ms)      g_dht11_port->delay_ms(ms)
-#define DHT11_GET_TICK_US()     g_dht11_port->get_tick_us()
-
 // 超时时间（微秒），与CPU频率无关
 #define DHT11_WAIT_TIMEOUT_US   2000  // 2ms，足够覆盖80us响应
 
 // 复位并发起一次测量
 static i32 dht11_reset_and_start(dht11_t* self)
 {
-    if (!g_dht11_port) return DHT11_ERR_PORT_NOT_REGISTERED;
-
     // 先确保输出模式并拉高2ms，让DHT11复位到空闲状态
     // 这在中断通信后很重要，可以让DHT11从任何异常状态恢复
     DHT11_OUTPUT_MODE(self);
@@ -173,7 +168,6 @@ static u8 dht11_read_byte(dht11_t* self)
 // 读取并返回 humidity(0.1%RH) / temperature(0.1C)
 i32 dht11_read(dht11_t* self, u16* humidity, i16* temperature)
 {
-    if (!g_dht11_port) return DHT11_ERR_PORT_NOT_REGISTERED;
     if (!self) return DHT11_ERR_INVALID_PARAM;
 
     u8 buf[5];
