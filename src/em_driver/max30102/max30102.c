@@ -47,7 +47,13 @@ static const u8 uch_spo2_table[184] = {
     3, 2, 1
 };
 
-static const max30102_port_t* g_port = NULL;
+#if (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_EXTERN)
+static const max30102_port_t*  = &g_max30102_port_extern;
+#elif (LIBCA_MAX30102_PORT_MODE == LIBCA_MAX30102_PORT_MODE_DYNAMIC)
+static const max30102_port_t*  = NULL;
+#else
+#error "Invalid MAX30102 port mode"
+#endif
 
 void max30102_bind_port(const max30102_port_t* port)
 {
