@@ -23,20 +23,56 @@
 #define LIBCA_BH1750_PORT_MODE LIBCA_BH1750_PORT_MODE_EXTERN
 #endif
 
+#if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_EXTERN)
+
+/**
+ * @brief I2C 写操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功，其他表示失败
+ */
+extern i32 port_bh1750_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+
+/**
+ * @brief I2C 读操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功，其他表示失败
+ */
+extern i32 port_bh1750_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+
+#elif (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_DYNAMIC)
+
 typedef struct bh1750_port
 {
     // i2c写函数
     i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                      u16 data_size, u32 timeout);
+                    u16 data_size, u32 timeout);
     // i2c读函数
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                     u16 data_size, u32 timeout);
+                   u16 data_size, u32 timeout);
 } bh1750_port_t;
-extern i32 port_bh1750_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-extern i32 port_bh1750_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
 void bh1750_bind_port(const bh1750_port_t* port);
 bool bh1750_port_is_registered(void);
+
+#else
+#error "Invalid BH1750 port mode"
+#endif
+
+// 错误码
+#define BH1750_OK 0
+#define BH1750_ERR_I2C_FAIL (-2)
 
 // address(7 bit) + read or write(1 bit)
 #define	BH1750_ADDR_WRITE	0x46
@@ -65,11 +101,6 @@ typedef struct bh1750
 } bh1750_t;
 
 void bh1750_init(bh1750_t* self);
-
-// 错误码
-#define BH1750_OK 0
-#define BH1750_ERR_PORT_NOT_REGISTERED (-1)
-#define BH1750_ERR_I2C_FAIL (-2)
 
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode);
 i32 bh1750_read_lux(bh1750_t* self, u16 *lux);

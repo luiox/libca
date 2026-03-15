@@ -1,18 +1,29 @@
 #include "bh1750.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_EXTERN)
-static const bh1750_port_t g_bh1750_port_extern_impl = {
-    .i2c_write = port_bh1750_i2c_write,
-    .i2c_read = port_bh1750_i2c_read,
-};
-static const bh1750_port_t* g_bh1750_port = &g_bh1750_port_extern_impl;
+
+#define BH1750_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bh1750_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BH1750_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bh1750_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+
 #elif (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_DYNAMIC)
+
 static const bh1750_port_t* g_bh1750_port = NULL;
+
+#define BH1750_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bh1750_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BH1750_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bh1750_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+
 #else
 #error "Invalid BH1750 port mode"
 #endif
 
+#if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_DYNAMIC)
 void bh1750_bind_port(const bh1750_port_t* port)
 {
     g_bh1750_port = port;
@@ -22,10 +33,12 @@ bool bh1750_port_is_registered(void)
 {
     return g_bh1750_port != NULL;
 }
+#endif
 
-// 辅助包装层，用宏实现，避免函数式调用开销
-#define bh1750_send_cmd(self, cmd) g_bh1750_port->i2c_write(self->hi2c, BH1750_ADDR_WRITE, 0, 0, (uint8_t*)&cmd, 1, 0xFFFF)
-#define bh1750_read_dat(self, dat) g_bh1750_port->i2c_read(self->hi2c, BH1750_ADDR_READ, 0, 0, dat, 2, 0xFFFF)
+////////////////////////////////////////////////////////////////////////////////
+
+#define bh1750_send_cmd(self, cmd) BH1750_I2C_WRITE((self)->hi2c, BH1750_ADDR_WRITE, 0, 0, (u8*)&(cmd), 1, 0xFFFF)
+#define bh1750_read_dat(self, dat) BH1750_I2C_READ((self)->hi2c, BH1750_ADDR_READ, 0, 0, (dat), 2, 0xFFFF)
 
 // 将数据转换为lux单位
 static u16 bh1750_dat2lux(uint8_t* dat)
@@ -41,11 +54,6 @@ void bh1750_init(bh1750_t* self)
 
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode)
 {
-    if (!g_bh1750_port) {
-        debug_print("[bh1750] port not registered\n");
-        return BH1750_ERR_PORT_NOT_REGISTERED;
-    }
-
     i32 ret = bh1750_send_cmd(self, mode);
     if (ret != 0) {
         debug_print("[bh1750] i2c write fail, ret:%d\n", ret);
@@ -58,11 +66,6 @@ i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode)
 i32 bh1750_read_lux(bh1750_t* self, u16 *lux)
 {
     u8 dat[2] = {0};
-
-    if (!g_bh1750_port) {
-        debug_print("[bh1750] port not registered\n");
-        return BH1750_ERR_PORT_NOT_REGISTERED;
-    }
 
     if (bh1750_read_dat(self, dat) != 0) {
         debug_print("[bh1750] i2c read fail\n");
