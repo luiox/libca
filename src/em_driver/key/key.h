@@ -14,9 +14,24 @@
 
 #include <em_base/datatype.h> 
 
+// 外部模式
+#define LIBCA_KEY_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_KEY_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_KEY_PORT_MODE
+#define LIBCA_KEY_PORT_MODE LIBCA_KEY_PORT_MODE_EXTERN
+#endif
+
 typedef struct key_port{
     u8 (*read_pin)(void* gpio, u16 pin);
 }key_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_key.c 提供）
+ */
+extern const key_port_t g_key_port_extern;
+
 
 void key_bind_port(key_port_t* port);
 bool key_port_is_registered(void);
