@@ -1,7 +1,13 @@
 #include "dht11.h"
 #include <em_base/debug.h>
 
-static const dht11_port_t* g_dht11_port = NULL;
+#if (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_EXTERN)
+static const dht11_port_t*  = &g_dht11_port_extern;
+#elif (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_DYNAMIC)
+static const dht11_port_t*  = NULL;
+#else
+#error "Invalid DHT11 port mode"
+#endif
 
 void dht11_bind_port(const dht11_port_t* port)
 {
