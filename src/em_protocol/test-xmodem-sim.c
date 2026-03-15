@@ -1,7 +1,7 @@
 #if TEST_ENABLE
 #include "xmodem.h"
-#include "../em_test/test.h"
-#include "../em_util/crc.h"
+#include <em_test/test.h>
+#include <em_util/crc.h>
 #include <string.h>
 #include <stdio.h>
 

@@ -11,8 +11,8 @@
 #ifndef LIBCA_EM_DRIVER_SIMPLE_DIGITAL_SENSOR_TEMPLATE_H
 #define LIBCA_EM_DRIVER_SIMPLE_DIGITAL_SENSOR_TEMPLATE_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/macro_util.h"
+#include <em_base/datatype.h>
+#include <em_base/macro_util.h>
 
 #define SIMPLE_DIGITAL_SENSOR_TEMPLATE_DEFINE_HEADER(sensor_name, get_value_func_name)        \
     typedef struct CA_CONNECT2(sensor_name, _port)                                               \

@@ -8,7 +8,7 @@
 #ifndef LIBCA_EM_DRIVER_DS18B20_H
 #define LIBCA_EM_DRIVER_DS18B20_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 typedef struct ds18b20_port {
     void (*write_pin)(void* gpio, u16 pin, u8 value);

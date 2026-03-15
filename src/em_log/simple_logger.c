@@ -1,5 +1,5 @@
 #include "simple_logger.h"
-#include "../em_format/format.h"
+#include <em_format/format.h>
 #include <stdarg.h>
 #include <stdio.h> // 仅用于 vsnprintf
 
@@ -89,7 +89,7 @@ void _slog_printf(const char *fmt, ...) {
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 static char g_test_buf[256];
 static usize g_test_len = 0;

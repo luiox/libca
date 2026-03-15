@@ -1,5 +1,5 @@
 #include "soft_i2c.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 static const soft_i2c_port_t* g_port = NULL;
 

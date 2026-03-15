@@ -2,7 +2,7 @@
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 typedef struct test_dlist_item {
     i32 value;

@@ -1,7 +1,7 @@
 #include "compiler_compat.h"
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include <em_test/test.h>
 #include "datatype.h"
 
 // 测试 CA_ALIGNED

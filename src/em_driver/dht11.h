@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_DHT11_H
 #define LIBCA_EM_DRIVER_DHT11_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // port
 typedef struct dht11_port {

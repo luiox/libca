@@ -1,8 +1,8 @@
 #include "log.h"
-#include "../em_dstream/ring_buffer.h"
-#include "../em_platform/async.h"
-#include "../em_platform/time_util.h"
-#include "../em_platform/cpu_adapter.h"
+#include <em_dstream/ring_buffer.h>
+#include <em_platform/async.h>
+#include <em_platform/time_util.h>
+#include <em_platform/cpu_adapter.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -253,7 +253,7 @@ const char* log_level_to_ansi_color(log_level_t level)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include <em_test/test.h>
 #include <string.h>
 #include <time.h>
 

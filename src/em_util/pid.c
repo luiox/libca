@@ -81,7 +81,7 @@ float pid_incremental_calculate(pid_incremental_t* pid, float current_value)
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(pid_position_basic)
 {

@@ -1,5 +1,5 @@
 #include "led.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 #if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
 

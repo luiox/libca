@@ -12,7 +12,7 @@
 #ifndef LIBCA_EM_DRIVER_KEY_H
 #define LIBCA_EM_DRIVER_KEY_H
 
-#include "../em_base/datatype.h" 
+#include <em_base/datatype.h> 
 
 typedef struct key_port{
     u8 (*read_pin)(void* gpio, u16 pin);

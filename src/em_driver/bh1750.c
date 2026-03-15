@@ -1,5 +1,5 @@
 #include "bh1750.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 static const bh1750_port_t* g_bh1750_port = NULL;
 

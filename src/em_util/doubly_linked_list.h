@@ -9,7 +9,7 @@
 #ifndef DOUBLY_LINKED_LIST_H
 #define DOUBLY_LINKED_LIST_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 双向链表的结点
 typedef struct doubly_linked_list_node

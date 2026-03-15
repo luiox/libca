@@ -12,7 +12,7 @@
 #ifndef LIBCA_EM_LOG_SIMPLE_LOGGER_H
 #define LIBCA_EM_LOG_SIMPLE_LOGGER_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 #ifdef __cplusplus
 extern "C" {

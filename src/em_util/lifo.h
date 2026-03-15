@@ -11,8 +11,8 @@
 #ifndef LIBCA_EM_UTIL_LIFO_H
 #define LIBCA_EM_UTIL_LIFO_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/macro_util.h"
+#include <em_base/datatype.h>
+#include <em_base/macro_util.h>
 
 #ifdef __cplusplus
 extern "C" {

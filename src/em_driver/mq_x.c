@@ -10,7 +10,7 @@
  */
 
 #include "mq_x.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 static const mqx_port_t* g_port = NULL;
 

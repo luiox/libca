@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_DHT22_H
 #define LIBCA_EM_DRIVER_DHT22_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // port 定义：抽象 GPIO 操作和延时
 typedef struct dht22_port {

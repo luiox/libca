@@ -12,7 +12,7 @@
 #ifndef LIBCA_SCOROUTINE_H
 #define LIBCA_SCOROUTINE_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 状态定义
 #define SC_STATE_START    0

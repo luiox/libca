@@ -1,5 +1,5 @@
 #include "hts221.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 // 寄存器定义
 #define HTS221_CTRL_REG1	0x20

@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_UTIL_SOFT_TIMER_H
 #define LIBCA_EM_UTIL_SOFT_TIMER_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 超时定时器
 typedef struct timeout_timer{

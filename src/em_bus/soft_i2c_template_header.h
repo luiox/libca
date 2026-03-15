@@ -28,7 +28,7 @@
  * 
  */
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 如果没有就用这个
 #ifndef USER_I2C_PREFIX_NAME

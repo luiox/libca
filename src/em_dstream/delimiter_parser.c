@@ -1,5 +1,5 @@
 #include "delimiter_parser.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 
 /* 无效匹配位置标记 */
 #define DELIM_NO_MATCH ((usize)-1)
@@ -223,7 +223,7 @@ void delimiter_parser_reset(delimiter_parser_t* self)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 /* 测试用的内存流实现 */
 typedef struct {

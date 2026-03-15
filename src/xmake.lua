@@ -1,6 +1,10 @@
 
 --------------------------------------------------------------------------------
 
+add_includedirs("$(projectdir)/src", {public = true})
+
+
+
 -- -- 嵌入式库
 -- includes("em_base")
 -- includes("em_test")

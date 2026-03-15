@@ -2,7 +2,7 @@
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 typedef struct lifo_test_item {
     i32 value;

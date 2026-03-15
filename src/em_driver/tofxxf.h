@@ -14,7 +14,7 @@
 #ifndef LIBCA_EM_DRIVER_TOFXF_H
 #define LIBCA_EM_DRIVER_TOFXF_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 默认波特率
 #define TOFXF_BAUDRATE_DEFAULT  115200

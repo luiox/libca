@@ -70,7 +70,7 @@ u32 time_get_us(void) {
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 #ifdef _WIN32
 #include <windows.h>

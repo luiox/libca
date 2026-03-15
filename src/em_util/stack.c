@@ -109,7 +109,7 @@ bool stack_full(stack_t* s)
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(stack_basic)
 {

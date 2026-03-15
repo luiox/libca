@@ -1,5 +1,5 @@
 #include "dummy.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -65,7 +65,7 @@ const file_transfer_ops_t g_dummy_ops = {
 };
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 /*
  * Unit tests for dummy protocol (moved here per code_rule.md:

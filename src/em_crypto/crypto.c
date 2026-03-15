@@ -1,5 +1,5 @@
 #include "crypto.h"
-#include "../em_base/debug.h"
+#include <em_base/debug.h>
 #include <string.h>
 
 // ---- null crypto implementation ----
@@ -131,7 +131,7 @@ i32 crypto_xor_ctx_init(crypto_xor_ctx_t* ctx, const u8* key, usize key_len)
 // ---- unit tests ----
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(crypto_null_basic) {
     crypto_null_ctx_t ctx;

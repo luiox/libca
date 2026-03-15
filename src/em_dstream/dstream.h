@@ -1,8 +1,8 @@
 #ifndef LIBCA_EM_DSTREAM_DSTREAM_H
 #define LIBCA_EM_DSTREAM_DSTREAM_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/debug.h"
+#include <em_base/datatype.h>
+#include <em_base/debug.h>
 
 typedef struct dstream dstream_t;
 

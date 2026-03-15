@@ -16,7 +16,7 @@
 #ifndef LIBCA_EM_DRIVER_LED_H
 #define LIBCA_EM_DRIVER_LED_H
 
-#include "../em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 外部模式
 #define LIBCA_LED_PORT_MODE_EXTERN 1
