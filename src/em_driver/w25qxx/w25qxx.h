@@ -22,21 +22,23 @@
 #define LIBCA_W25QXX_PORT_MODE LIBCA_W25QXX_PORT_MODE_EXTERN
 #endif
 
-typedef struct w25qxx_port {
-    void (*write_pin)(void* gpio_port, u16 pin, u8 value);
-    void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
-    void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);
-    void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
-} w25qxx_port_t;
-
 #if (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_EXTERN)
+/** @brief 写引脚电平 @param gpio_port GPIO端口 @param pin 引脚编号 @param value 电平值 */
 extern void port_w25qxx_write_pin(void* gpio_port, u16 pin, u8 value);
+/** @brief SPI发送 @param hspi SPI句柄 @param data 数据缓冲 @param size 字节数 @param timeout 超时 */
 extern void port_w25qxx_spi_transmit(void* hspi, u8* data, usize size, u32 timeout);
+/** @brief SPI接收 @param hspi SPI句柄 @param data 数据缓冲 @param size 字节数 @param timeout 超时 */
 extern void port_w25qxx_spi_receive(void* hspi, u8* data, usize size, u32 timeout);
+/** @brief SPI收发 @param hspi SPI句柄 @param tx_data 发送缓冲 @param rx_data 接收缓冲 @param size 字节数 @param timeout 超时 */
 extern void port_w25qxx_spi_transmit_receive(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
 
 #elif (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_DYNAMIC)
-
+typedef struct w25qxx_port {
+    void (*write_pin)(void* gpio_port, u16 pin, u8 value);                                                  // 写引脚电平
+    void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);                                    // SPI发送
+    void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);                                     // SPI接收
+    void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);           // SPI收发
+} w25qxx_port_t;
 void w25qxx_bind_port(const w25qxx_port_t* port);
 bool w25qxx_port_is_registered(void);
 
@@ -46,8 +48,7 @@ bool w25qxx_port_is_registered(void);
 
 // 错误码
 #define W25QXX_OK 0
-#define W25QXX_ERR_PORT_NOT_REGISTERED (-1)
-#define W25QXX_ERR_SPI_FAIL (-2)
+#define W25QXX_ERR_SPI_FAIL (-1)
 
 typedef struct w25qxx {
     void* hspi;

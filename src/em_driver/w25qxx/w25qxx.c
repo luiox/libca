@@ -1,5 +1,4 @@
 #include "w25qxx.h"
-#include <em_base/debug.h>
 
 // 指令表
 #define W25QXX_WriteEnable 0x06
@@ -33,20 +32,42 @@
 #define W25Q128 0XEF17
 #define W25Q256 0XEF18
 
-w25qxx_port_t* g_w25qxx_port = NULL;
+////////////////////////////////////////////////////////////////////////////////
+
+#if (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_EXTERN)
+#define W25QXX_WRITE_PIN(gpio_port, pin, value)              port_w25qxx_write_pin((gpio_port), (pin), (value))
+#define W25QXX_SPI_TRANSMIT(hspi, data, size, timeout)       port_w25qxx_spi_transmit((hspi), (data), (size), (timeout))
+#define W25QXX_SPI_RECEIVE(hspi, data, size, timeout)        port_w25qxx_spi_receive((hspi), (data), (size), (timeout))
+#define W25QXX_SPI_TXRX(hspi, tx_data, rx_data, size, to)    port_w25qxx_spi_transmit_receive((hspi), (tx_data), (rx_data), (size), (to))
+
+#elif (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_DYNAMIC)
+static const w25qxx_port_t* g_w25qxx_port = NULL;
+#define W25QXX_WRITE_PIN(gpio_port, pin, value)              g_w25qxx_port->write_pin((gpio_port), (pin), (value))
+#define W25QXX_SPI_TRANSMIT(hspi, data, size, timeout)       g_w25qxx_port->spi_transmit((hspi), (data), (size), (timeout))
+#define W25QXX_SPI_RECEIVE(hspi, data, size, timeout)        g_w25qxx_port->spi_receive((hspi), (data), (size), (timeout))
+#define W25QXX_SPI_TXRX(hspi, tx_data, rx_data, size, to)    g_w25qxx_port->spi_transmit_receive((hspi), (tx_data), (rx_data), (size), (to))
+
+#else
+#error "Invalid W25QXX port mode"
+#endif
+
+#if (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_DYNAMIC)
 
 void w25qxx_bind_port(const w25qxx_port_t* port)
 {
-    g_w25qxx_port = (w25qxx_port_t*)port;
+  g_w25qxx_port = port;
 }
 
 bool w25qxx_port_is_registered(void)
 {
     return g_w25qxx_port != NULL;
 }
+#endif
 
-#define W25QXX_CS_LOW() g_w25qxx_port->write_pin(self->cs_gpio, self->cs_pin, 0)
-#define W25QXX_CS_HIGH() g_w25qxx_port->write_pin(self->cs_gpio, self->cs_pin, 1)
+////////////////////////////////////////////////////////////////////////////////
+
+#define W25QXX_CS_LOW() W25QXX_WRITE_PIN(self->cs_gpio, self->cs_pin, 0)
+#define W25QXX_CS_HIGH() W25QXX_WRITE_PIN(self->cs_gpio, self->cs_pin, 1)
 
 // 使用之前需要初始化好SPI和CS引脚，这个函数负责让模块绑定SPI和CS引脚
 void w25qxx_init(w25qxx_t* self)
@@ -58,19 +79,9 @@ void w25qxx_init(w25qxx_t* self)
 int8_t w25qxx_send_byte(w25qxx_t* self, u8 byte)
 {
     u8 ret = 0;
-    if (!g_w25qxx_port) {
-        debug_print("[w25qxx] port not registered\n");
-        return -1;
-    }
-    
-    // 使用TransmitReceive实现同时收发
-    if (g_w25qxx_port->spi_transmit_receive) {
-        g_w25qxx_port->spi_transmit_receive(self->hspi, &byte, &ret, 1, 1000);
-    } else {
-        // 兼容旧版本：分开收发（不推荐）
-        g_w25qxx_port->spi_transmit(self->hspi, &byte, 1, 1000);
-        g_w25qxx_port->spi_receive(self->hspi, &ret, 1, 1000);
-    }
+
+  // 使用全双工收发
+  W25QXX_SPI_TXRX(self->hspi, &byte, &ret, 1, 1000);
     return ret;
 }
 
