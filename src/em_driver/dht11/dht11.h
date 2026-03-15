@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_DHT11_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_DHT11_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_DHT11_PORT_MODE
+#define LIBCA_DHT11_PORT_MODE LIBCA_DHT11_PORT_MODE_EXTERN
+#endif
+
 // port
 typedef struct dht11_port {
     void (*write_pin)(void* gpio, u16 pin, u8 value);
@@ -23,6 +32,12 @@ typedef struct dht11_port {
     void (*delay_ms)(u32 ms);
     u32  (*get_tick_us)(void);  // 获取微秒级时间戳（用于超时计算）
 } dht11_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_dht11.c 提供）
+ */
+extern const dht11_port_t g_dht11_port_extern;
+
 
 void dht11_bind_port(const dht11_port_t* port);
 bool dht11_port_is_registered(void);
