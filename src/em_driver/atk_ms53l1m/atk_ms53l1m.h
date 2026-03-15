@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_ATK_MS53L1M_PORT_MODE
+#define LIBCA_ATK_MS53L1M_PORT_MODE LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,6 +36,12 @@ typedef struct atk_ms53l1m_port
     void (*uart_rx_restart)(void);
     void (*delay_ms)(u32 ms);
 } atk_ms53l1m_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_atk_ms53l1m.c 提供）
+ */
+extern const atk_ms53l1m_port_t g_atk_ms53l1m_port_extern;
+
 
 /**
  * @brief       绑定port
