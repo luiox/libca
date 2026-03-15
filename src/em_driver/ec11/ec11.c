@@ -1,7 +1,13 @@
 #include "ec11.h"
 #include <em_base/debug.h>
 
-static const ec11_port_t* g_port = NULL;
+#if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
+static const ec11_port_t*  = &g_ec11_port_extern;
+#elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
+static const ec11_port_t*  = NULL;
+#else
+#error "Invalid EC11 port mode"
+#endif
 
 void ec11_bind_port(const ec11_port_t* port)
 {
