@@ -10,7 +10,7 @@
  */
 
 #include "ini.h"
-#include "em_base/string_util.h"
+#include <em_base/string_util.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -220,7 +220,7 @@ void f()
 
 #if TEST_ENABLE
 
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(ini_basic)
 {

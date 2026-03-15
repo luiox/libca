@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_FORMAT_FORMAT_H
 #define LIBCA_EM_FORMAT_FORMAT_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 #include <stdarg.h>
 
 // 启用浮点支持（默认0，若需要则定义为1）

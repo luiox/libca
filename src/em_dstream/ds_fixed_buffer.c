@@ -88,7 +88,7 @@ const dstream_ops_t* fixed_buf_get_dstream_ops(void)
 
 #if TEST_ENABLE
 
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(ds_fixed_buf_basic_ops)
 {

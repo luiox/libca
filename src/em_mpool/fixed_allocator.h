@@ -11,8 +11,8 @@
 #ifndef LIBCA_EM_MPOOL_FIXED_ALLOCATOR_H
 #define LIBCA_EM_MPOOL_FIXED_ALLOCATOR_H
 
-#include "em_base/datatype.h"
-#include "em_util/lifo.h"
+#include <em_base/datatype.h>
+#include <em_util/lifo.h>
 
 #ifdef __cplusplus
 extern "C" {

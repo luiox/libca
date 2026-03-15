@@ -1,6 +1,6 @@
 #include "partition.h"
-#include "em_base/debug.h"
-#include "em_base/string_util.h"
+#include <em_base/debug.h>
+#include <em_base/string_util.h>
 
 /* ============================================================================
  * Port 管理
@@ -293,8 +293,8 @@ u32 partition_stream_remaining(const partition_stream_t *stream)
 
 #if TEST_ENABLE
 
-#include "em_test/test.h"
-#include "em_base/memory_util.h"
+#include <em_test/test.h>
+#include <em_base/memory_util.h>
 
 /* 模拟 Flash：256KB */
 #define MOCK_FLASH_SIZE (256 * 1024)

@@ -1,5 +1,5 @@
 #include "ring_buffer.h" // header renamed semantics: still same file but new declarations
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 /**
  * @brief 初始化环形缓冲区.
@@ -226,7 +226,7 @@ u8 ring_buf_calculate_checksum(const ring_buffer_t* rb) {
 
 #if TEST_ENABLE
 
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(ring_buf_basic)
 {

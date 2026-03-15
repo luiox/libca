@@ -17,7 +17,7 @@
 #ifndef PINGPONG_BUFFER_H
 #define PINGPONG_BUFFER_H
 
-#include "em_base/datatype.h" 
+#include <em_base/datatype.h> 
 
 // 乒乓缓冲区状态定义
 #define PINGPONG_BUF_IDLE 0      // 空闲状态

@@ -1,7 +1,7 @@
 #include "fixed_allocator.h"
 
-#include "em_base/debug.h"
-#include "em_base/memory_util.h"
+#include <em_base/debug.h>
+#include <em_base/memory_util.h>
 
 /**
  * @brief 判断一个值是否为 2 的幂
@@ -277,7 +277,7 @@ usize fixed_allocator_used(const fixed_allocator_t *self)
 
 #if TEST_ENABLE
 
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(fixed_allocator_init_and_basic)
 {

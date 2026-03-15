@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DSTREAM_LENGTH_PARSER_H
 #define LIBCA_EM_DSTREAM_LENGTH_PARSER_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 #include "dstream.h"
 
 #ifdef __cplusplus
