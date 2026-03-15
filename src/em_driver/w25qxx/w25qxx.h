@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_W25QXX_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_W25QXX_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_W25QXX_PORT_MODE
+#define LIBCA_W25QXX_PORT_MODE LIBCA_W25QXX_PORT_MODE_EXTERN
+#endif
+
 typedef struct w25qxx_port {
     void (*write_pin)(void* gpio_port, u16 pin, u8 value);
     void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
@@ -25,6 +34,12 @@ typedef struct w25qxx_port {
      */
     void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
 }w25qxx_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_w25qxx.c 提供）
+ */
+extern const w25qxx_port_t g_w25qxx_port_extern;
+
 
 void w25qxx_bind_port(const w25qxx_port_t* port);
 bool w25qxx_port_is_registered(void);
