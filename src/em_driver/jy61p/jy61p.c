@@ -1,7 +1,13 @@
 #include "jy61p.h"
 #include <em_base/debug.h>
 
-static const jy61p_port_t* g_jy61p_port = NULL;
+#if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
+static const jy61p_port_t*  = &g_jy61p_port_extern;
+#elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
+static const jy61p_port_t*  = NULL;
+#else
+#error "Invalid JY61P port mode"
+#endif
 
 void jy61p_bind_port(const jy61p_port_t* port)
 {
