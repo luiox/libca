@@ -10,6 +10,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_DS18B20_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_DS18B20_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_DS18B20_PORT_MODE
+#define LIBCA_DS18B20_PORT_MODE LIBCA_DS18B20_PORT_MODE_EXTERN
+#endif
+
 typedef struct ds18b20_port {
     void (*write_pin)(void* gpio, u16 pin, u8 value);
     u8   (*read_pin)(void* gpio, u16 pin);
@@ -18,6 +27,12 @@ typedef struct ds18b20_port {
     // 注入延时函数（微秒）
     void (*delay_us)(u32 us);
 } ds18b20_port_t; 
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_ds18b20.c 提供）
+ */
+extern const ds18b20_port_t g_ds18b20_port_extern;
+
 
 void ds18b20_bind_port(const ds18b20_port_t* port);
 bool ds18b20_port_is_registered(void);
