@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_BMC050_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_BMC050_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_BMC050_PORT_MODE
+#define LIBCA_BMC050_PORT_MODE LIBCA_BMC050_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,6 +31,12 @@ typedef struct bmc050_port {
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
     void (*delay_us)(u32 us);
 } bmc050_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_bmc050.c 提供）
+ */
+extern const bmc050_port_t g_bmc050_port_extern;
+
 
 void bmc050_bind_port(const bmc050_port_t* port);
 bool bmc050_port_is_registered(void);

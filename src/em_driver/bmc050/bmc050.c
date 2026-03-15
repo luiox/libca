@@ -38,9 +38,9 @@
 #define BMC050_ACC_LOWPOWER                       0x40
 
 #if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
-static const bmc050_port_t*  = &g_bmc050_port_extern;
+static const bmc050_port_t* g_bmc050_port = &g_bmc050_port_extern;
 #elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
-static const bmc050_port_t*  = NULL;
+static const bmc050_port_t* g_bmc050_port = NULL;
 #else
 #error "Invalid BMC050 port mode"
 #endif
