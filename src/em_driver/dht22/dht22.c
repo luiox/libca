@@ -1,30 +1,34 @@
 #include "dht22.h"
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_EXTERN)
-static const dht22_port_t g_dht22_port_extern_impl = {
-    .write_pin = port_dht22_write_pin,
-    .read_pin = port_dht22_read_pin,
-    .set_output_mode = port_dht22_set_output_mode,
-    .set_input_mode = port_dht22_set_input_mode,
-    .delay_us = port_dht22_delay_us,
-    .delay_ms = port_dht22_delay_ms,
-};
-static const dht22_port_t* g_dht22_port = &g_dht22_port_extern_impl;
+#define DHT_WRITE(self, v)      port_dht22_write_pin((self)->gpio, (self)->pin, (v))
+#define DHT_READ(self)          port_dht22_read_pin((self)->gpio, (self)->pin)
+#define DHT_OUTPUT_MODE(self)   port_dht22_set_output_mode((self)->gpio, (self)->pin)
+#define DHT_INPUT_MODE(self)    port_dht22_set_input_mode((self)->gpio, (self)->pin)
+#define DHT_DELAY_US(us)        port_dht22_delay_us(us)
+#define DHT_DELAY_MS(ms)        port_dht22_delay_ms(ms)
+
 #elif (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_DYNAMIC)
 static const dht22_port_t* g_dht22_port = NULL;
+#define DHT_WRITE(self, v)      g_dht22_port->write_pin((self)->gpio, (self)->pin, (v))
+#define DHT_READ(self)          g_dht22_port->read_pin((self)->gpio, (self)->pin)
+#define DHT_OUTPUT_MODE(self)   g_dht22_port->set_output_mode((self)->gpio, (self)->pin)
+#define DHT_INPUT_MODE(self)    g_dht22_port->set_input_mode((self)->gpio, (self)->pin)
+#define DHT_DELAY_US(us)        g_dht22_port->delay_us(us)
+#define DHT_DELAY_MS(ms)        g_dht22_port->delay_ms(ms)
+
 #else
 #error "Invalid DHT22 port mode"
 #endif
 
-void dht22_bind_port(const dht22_port_t* port)
-{
-    g_dht22_port = port;
-}
+#if (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_DYNAMIC)
+void dht22_bind_port(const dht22_port_t* port) { g_dht22_port = port; }
+bool dht22_port_is_registered(void) { return g_dht22_port != NULL; }
+#endif
 
-bool dht22_port_is_registered(void)
-{
-    return g_dht22_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 // 内部缓冲和变量
 static uint16_t bits[40];
@@ -39,18 +43,9 @@ static u8 hMSB, hLSB, tMSB, tLSB, parity_rcv;
 #define DHT22_BIT_HIGH_ONE_THRESHOLD_US 16
 
 // 访问宏
-#define DHT_WRITE(self, v)      g_dht22_port->write_pin((self)->gpio, (self)->pin, (v))
-#define DHT_READ(self)          g_dht22_port->read_pin((self)->gpio, (self)->pin)
-#define DHT_OUTPUT_MODE(self)   g_dht22_port->set_output_mode((self)->gpio, (self)->pin)
-#define DHT_INPUT_MODE(self)    g_dht22_port->set_input_mode((self)->gpio, (self)->pin)
-#define DHT_DELAY_US(us)        g_dht22_port->delay_us(us)
-#define DHT_DELAY_MS(ms)        g_dht22_port->delay_ms(ms)
-
 // 读取原始 40 bit（内部函数）
 static i32 dht22_read_bits(dht22_t* self)
 {
-    if (!g_dht22_port) return DHT22_ERR_PORT_NOT_REGISTERED;
-
     u32 wait;
     u8 i;
 
@@ -143,7 +138,6 @@ static i32 dht22_decode(u16* humidity10, i16* temperature10)
 // 公共接口：读取温湿度
 i32 dht22_read(dht22_t* self, u16* humidity10, i16* temperature10)
 {
-    if (!g_dht22_port) return DHT22_ERR_PORT_NOT_REGISTERED;
     if (!self) return DHT22_ERR_INVALID_PARAM;
 
     i32 ret = dht22_read_bits(self);
