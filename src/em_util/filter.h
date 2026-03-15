@@ -1,7 +1,7 @@
 #ifndef LIBCA_EM_UTIL_FILTER_H
 #define LIBCA_EM_UTIL_FILTER_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 // ============================================
 // 二阶巴特沃斯低通滤波器

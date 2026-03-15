@@ -1,6 +1,6 @@
 #include "doubly_linked_list.h"
 #include <stdlib.h>
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 // 初始化双向链表
 void doubly_linked_list_init(doubly_linked_list_t* list)
@@ -161,7 +161,7 @@ doubly_linked_list_node_t* doubly_linked_list_prev(doubly_linked_list_node_t* no
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 TEST_CASE(doubly_linked_list_init)
 {

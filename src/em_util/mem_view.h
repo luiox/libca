@@ -13,8 +13,8 @@
 #ifndef LIBCA_EM_UTIL_MEM_VIEW_H
 #define LIBCA_EM_UTIL_MEM_VIEW_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/compiler_compat.h"
+#include "em_base/datatype.h"
+#include "em_base/compiler_compat.h"
 #include <string.h>
 
 // 定义

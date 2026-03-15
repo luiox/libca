@@ -1,8 +1,8 @@
 #include "filter.h"
-#include "../em_base/datatype.h"
-#include "../em_util/math_util.h"
-#include "../em_base/debug.h"
-#include "../em_base/memory_util.h"
+#include "em_base/datatype.h"
+#include "em_util/math_util.h"
+#include "em_base/debug.h"
+#include "em_base/memory_util.h"
 #include <math.h>
 
 // ============================================
@@ -175,7 +175,7 @@ u16 median_filter_u16_update(median_filter_u16_t* self, u16 input)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 TEST_CASE(test_butterworth2) {
     butterworth2_filter_t lpf;

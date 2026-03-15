@@ -20,7 +20,7 @@ extern "C" {
 #include <math.h>
 
 /* 依赖 em_base 头文件 */
-#include "../em_base/macro_util.h"
+#include "em_base/macro_util.h"
 
 /* ============================================================
  * 配置宏

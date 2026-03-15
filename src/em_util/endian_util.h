@@ -1,7 +1,7 @@
 #ifndef LIBCA_EM_UTIL_ENDIAN_UTIL_H
 #define LIBCA_EM_UTIL_ENDIAN_UTIL_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 // 是否是小端序
 bool is_little_endian(void);

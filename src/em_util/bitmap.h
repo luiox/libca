@@ -1,7 +1,7 @@
 #ifndef BITMAP_H
 #define BITMAP_H 
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 #define BITS_PER_BYTE  8
 #define bitmap_size(n) (((n) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)

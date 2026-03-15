@@ -11,8 +11,8 @@
 #ifndef LIBCA_EM_UTIL_SINGLY_LIST_H
 #define LIBCA_EM_UTIL_SINGLY_LIST_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/macro_util.h"
+#include "em_base/datatype.h"
+#include "em_base/macro_util.h"
 
 typedef struct slist_node {
     struct slist_node *next;
