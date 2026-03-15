@@ -1,5 +1,4 @@
 #include "nrf24.h"
-#include <string.h>
 
 // Internal commands/registers/masks (implementation detail)
 #define nRF24_CMD_RREG 0x00

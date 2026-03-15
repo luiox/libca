@@ -5,6 +5,7 @@
  * 参考文章：https://blog.csdn.net/zhe_boy_is_z/article/details/120207878
  * @version 0.1
  * @date 2026-01-22
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -21,6 +22,10 @@
 
 #ifndef LIBCA_BME280_PORT_MODE
 #define LIBCA_BME280_PORT_MODE LIBCA_BME280_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
@@ -336,5 +341,9 @@ u32 bme280_pa_to_mmhg_int(u32 pq24_8);
  * @return i32 海拔 (毫米)
  */
 i32 bme280_pa_to_alt_int(u32 pa);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIBCA_EM_DRIVER_BME280_H

@@ -4,6 +4,7 @@
  * @brief BMC050 三轴加速度 + 磁力计 驱动
  * @version 0.1
  * @date 2026-01-22
+ * @update 0.2 添加extern外部依赖注入模式
  *
  * @copyright Copyright (c) 2026
  *
@@ -20,6 +21,10 @@
 
 #ifndef LIBCA_BMC050_PORT_MODE
 #define LIBCA_BMC050_PORT_MODE LIBCA_BMC050_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
@@ -282,5 +287,9 @@ i32 bmc050_int_pin_map(bmc050_t* self, bmc050_acc_intmap map);
  * @brief 磁力计 ID 读取
  */
 i32 bmc050_mag_get_device_id(bmc050_t* self, u8* id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIBCA_EM_DRIVER_BMC050_H

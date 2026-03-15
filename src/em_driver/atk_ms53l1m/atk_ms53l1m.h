@@ -4,6 +4,7 @@
  * @brief ATK-MS53L1M模块驱动代码
  * @version 0.2
  * @date 2026-02-03
+ * @update 0.2 添加extern外部依赖注入模式
  *
  * @copyright Copyright (c) 2026
  *
@@ -20,6 +21,10 @@
 
 #ifndef LIBCA_ATK_MS53L1M_PORT_MODE
 #define LIBCA_ATK_MS53L1M_PORT_MODE LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN)
@@ -136,5 +141,9 @@ i32 atk_ms53l1m_normal_get_data(atk_ms53l1m_t* self, u16* dat);
  *              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
  */
 i32 atk_ms53l1m_modbus_get_data(atk_ms53l1m_t* self, u16* dat);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif   // !LIBCA_EM_DRIVER_ATKMS53L1M_H

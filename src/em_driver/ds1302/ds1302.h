@@ -5,6 +5,7 @@
  * 参考文章：https://blog.csdn.net/qq_43270506/article/details/104952746
  * @version 0.1
  * @date 2026-01-29
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -23,16 +24,41 @@
 #define LIBCA_DS1302_PORT_MODE LIBCA_DS1302_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
-/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚号 @param value 电平值 */
+/**
+ * @brief 写引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚号
+ * @param value 电平值
+ */
 extern void port_ds1302_write_pin(void* gpio, u16 pin, u8 value);
-/** @brief 读引脚电平 @param gpio GPIO端口 @param pin 引脚号 @return 当前电平值 */
+/**
+ * @brief 读引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚号
+ * @return 当前电平值
+ */
 extern u8 port_ds1302_read_pin(void* gpio, u16 pin);
-/** @brief 设置引脚为输出模式 @param gpio GPIO端口 @param pin 引脚号 */
+/**
+ * @brief 设置引脚为输出模式
+ * @param gpio GPIO端口
+ * @param pin 引脚号
+ */
 extern void port_ds1302_set_output_mode(void* gpio, u16 pin);
-/** @brief 设置引脚为输入模式 @param gpio GPIO端口 @param pin 引脚号 */
+/**
+ * @brief 设置引脚为输入模式
+ * @param gpio GPIO端口
+ * @param pin 引脚号
+ */
 extern void port_ds1302_set_input_mode(void* gpio, u16 pin);
-/** @brief 微秒延时 @param us 延时时间（微秒） */
+/**
+ * @brief 微秒延时
+ * @param us 延时时间（微秒）
+ */
 extern void port_ds1302_delay_us(u32 us);
 
 #elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
@@ -141,5 +167,9 @@ void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time);
  * @param time 要设置的时间数据
  */
 void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_DS1302_H

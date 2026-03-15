@@ -4,6 +4,7 @@
  * @brief 直流有刷电机驱动 (PWM调速)
  * @version 0.1
  * @date 2026-02-01
+ * @update 0.2 添加extern外部依赖注入模式
  *
  * @copyright Copyright (c) 2026
  *
@@ -22,12 +23,29 @@
 #define LIBCA_MOTOR_PORT_MODE LIBCA_MOTOR_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_EXTERN)
-/** @brief PWM设置占空比 @param htim 定时器句柄 @param channel 通道 @param duty 占空比 */
+/**
+ * @brief PWM设置占空比
+ * @param htim 定时器句柄
+ * @param channel 通道
+ * @param duty 占空比
+ */
 extern void port_motor_pwm_set_duty(void* htim, u16 channel, u8 duty);
-/** @brief 启动PWM @param htim 定时器句柄 @param channel 通道 */
+/**
+ * @brief 启动PWM
+ * @param htim 定时器句柄
+ * @param channel 通道
+ */
 extern void port_motor_pwm_start(void* htim, u16 channel);
-/** @brief 停PWM @param htim 定时器句柄 @param channel 通道 */
+/**
+ * @brief 停PWM
+ * @param htim 定时器句柄
+ * @param channel 通道
+ */
 extern void port_motor_pwm_stop(void* htim, u16 channel);
 
 #elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
@@ -110,5 +128,9 @@ i32 motor_stop(motor_t* self);
  * @return bool true 为运行中
  */
 bool motor_is_running(motor_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif   // !LIBCA_EM_DRIVER_MOTOR_H

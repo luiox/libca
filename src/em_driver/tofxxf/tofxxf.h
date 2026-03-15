@@ -8,6 +8,7 @@
  * 
  * @version 0.1
  * @date 2026-02-08
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  */
@@ -23,6 +24,10 @@
 
 #ifndef LIBCA_TOFXXF_PORT_MODE
 #define LIBCA_TOFXXF_PORT_MODE LIBCA_TOFXXF_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 // 默认波特率
@@ -69,9 +74,22 @@
 /* ========== Port层 ========== */
 
 #if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
-/** @brief UART发送 @param huart UART句柄 @param data 数据缓冲 @param len 长度 @return 发送长度或错误码 */
+/**
+ * @brief UART发送
+ * @param huart UART句柄
+ * @param data 数据缓冲
+ * @param len 长度
+ * @return 发送长度或错误码
+ */
 extern i32 port_tofxxf_uart_send(void* huart, const u8* data, usize len);
-/** @brief UART接收 @param huart UART句柄 @param buf 输出缓冲 @param len 长度 @param timeout_ms 超时毫秒 @return 接收长度或错误码 */
+/**
+ * @brief UART接收
+ * @param huart UART句柄
+ * @param buf 输出缓冲
+ * @param len 长度
+ * @param timeout_ms 超时毫秒
+ * @return 接收长度或错误码
+ */
 extern i32 port_tofxxf_uart_recv(void* huart, u8* buf, usize len, u32 timeout_ms);
 
 #elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
@@ -163,5 +181,9 @@ i32 tofxxf_set_auto_output(tofxxf_t* self, u16 interval_ms);
  * @return 成功返回0，失败返回错误码
  */
 i32 tofxxf_restore_default(tofxxf_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_TOFXF_H

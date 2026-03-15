@@ -13,6 +13,7 @@
  * @note 请保证串口波特率为 9600、8N1（8 位数据、无校验、1 位停止位）以获得兼容性。
  * @version 0.1
  * @date 2026-02-04
+ * @update 0.2 添加extern外部依赖注入模式
  *
  * @copyright Copyright (c) 2026
  *
@@ -31,6 +32,10 @@
 #define LIBCA_JY61P_PORT_MODE LIBCA_JY61P_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // 如果没有修改，那么默认就是0x50
 #define JY61P_DEFAULT_ADDRESS 0x50
 
@@ -44,12 +49,21 @@
 #define JY61P_ERR_SHORT -1    /* 数据包长度不足 */
 #define JY61P_ERR_HEADER -2   /* 帧头错误 */
 #define JY61P_ERR_TYPE -3     /* 类型不支持 */
-#define JY61P_ERR_CHECKSUM -4      /* 校验和错误 */
+#define JY61P_ERR_CHECKSUM -4 /* 校验和错误 */
 
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
-/** @brief UART发送数据 @param huart UART句柄 @param buf 发送缓冲区 @param len 数据长度 @return 0=成功 */
+/**
+ * @brief UART发送数据
+ * @param huart UART句柄
+ * @param buf 发送缓冲区
+ * @param len 数据长度
+ * @return 0=成功
+ */
 extern i32 port_jy61p_uart_send(void* huart, const u8* buf, usize len);
-/** @brief 毫秒延时 @param ms 延时时间（毫秒） */
+/**
+ * @brief 毫秒延时
+ * @param ms 延时时间（毫秒）
+ */
 extern void port_jy61p_delay_ms(u32 ms);
 
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
@@ -152,5 +166,9 @@ void jy61p_zero_xy(jy61p_t* self);
  * @param self [in] 设备实例指针，不能为空
  */
 void jy61p_zero_yaw(jy61p_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif   // !LIBCA_EM_DRIVER_JY61P_H

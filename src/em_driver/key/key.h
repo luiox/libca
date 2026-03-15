@@ -4,6 +4,7 @@
  * @brief 硬件按键的常用代码，包括按键去抖动，按键长按、短按、双击检测等
  * @version 0.1
  * @date 2025-04-12
+ * @update 0.2 添加extern外部依赖注入模式
  * update 2026-01-11 重新以OOP方式实现 
  *
  * @copyright Copyright (c) 2025
@@ -23,8 +24,17 @@
 #define LIBCA_KEY_PORT_MODE LIBCA_KEY_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
-/** @brief 读取按键引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @return 电平值 */
+/**
+ * @brief 读取按键引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚编号
+ * @return 电平值
+ */
 extern u8 port_key_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
@@ -78,5 +88,9 @@ void key_scan_all(key_t* keys, usize keys_size);
 // 按键长按最小时间，是一个阈值，如果是10ms扫描的情况下，默认200tick，
 // 此时1tick是10ms，也就是说2000ms以上的按下才算是长按
 #define KEY_MIN_LONG_TICK 200
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_KEY_H

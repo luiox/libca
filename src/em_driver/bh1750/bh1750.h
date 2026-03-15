@@ -5,6 +5,7 @@
  * 此驱动实现对BH1750的驱动支持，参考文章：https://www.cnblogs.com/jefften/p/18613437
  * @version 0.1
  * @date 2026-01-22
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -21,6 +22,10 @@
 
 #ifndef LIBCA_BH1750_PORT_MODE
 #define LIBCA_BH1750_PORT_MODE LIBCA_BH1750_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_EXTERN)
@@ -104,5 +109,9 @@ void bh1750_init(bh1750_t* self);
 
 i32 bh1750_start(bh1750_t* self, bh1750_mode_t mode);
 i32 bh1750_read_lux(bh1750_t* self, u16 *lux);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_BH1750_H

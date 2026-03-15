@@ -6,6 +6,7 @@
  * 如果有需要读写保护控制的话，后期可以加上。
  * @version 0.2
  * @date 2025-08-12
+ * @update 0.2 添加extern外部依赖注入模式
  * update 2026-01-11 适配新接口标准
  *
  * @copyright Copyright (c) 2025
@@ -23,6 +24,10 @@
 
 #ifndef LIBCA_AT24CXX_PORT_MODE
 #define LIBCA_AT24CXX_PORT_MODE LIBCA_AT24CXX_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
@@ -129,5 +134,9 @@ void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data);
  * @param u8 数据
  */
 void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif   // !LIBCA_EM_DRIVER_AT24CXX_H

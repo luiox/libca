@@ -14,6 +14,7 @@
  *   mq_135 空气质量传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-135-sensor.html
  * @version 0.1
  * @date 2026-01-23
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -30,6 +31,10 @@
 
 #ifndef LIBCA_MQ_X_PORT_MODE
 #define LIBCA_MQ_X_PORT_MODE LIBCA_MQ_X_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifndef MQ_X_ENABLE_MQ2
@@ -69,9 +74,19 @@
 #endif
 
 #if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
-/** @brief 读取ADC值 @param adc ADC句柄 @param channel 通道号 @return ADC值 */
+/**
+ * @brief 读取ADC值
+ * @param adc ADC句柄
+ * @param channel 通道号
+ * @return ADC值
+ */
 extern u16 port_mqx_read_adc(void* adc, u8 channel);
-/** @brief 读取数字引脚 @param gpio GPIO句柄 @param pin 引脚号 @return 引脚电平 */
+/**
+ * @brief 读取数字引脚
+ * @param gpio GPIO句柄
+ * @param pin 引脚号
+ * @return 引脚电平
+ */
 extern u8 port_mqx_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
@@ -171,6 +186,10 @@ typedef mqx_t mq9;
 
 #if MQ_X_ENABLE_MQ135
 typedef mqx_t mq135;
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif // !LIBCA_EM_DRIVER_MQ_X_H

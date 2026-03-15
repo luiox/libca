@@ -5,6 +5,7 @@
  * @brief LCD1602 液晶显示屏驱动 (支持4线和8线模式)
  * @version 0.1
  * @date 2026-01-29
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 
@@ -23,6 +24,10 @@
 #define LIBCA_LCD1602_PORT_MODE LIBCA_LCD1602_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // LCD1602 模式枚举
 typedef enum lcd1602_mode_enum {
     LCD1602_MODE_4BIT = 0,
@@ -30,13 +35,28 @@ typedef enum lcd1602_mode_enum {
 } lcd1602_mode_t;
 
 #if (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_EXTERN)
-/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @param value 电平值 */
+/**
+ * @brief 写引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚编号
+ * @param value 电平值
+ */
 extern void port_lcd1602_write_pin(void* gpio, u16 pin, u8 value);
-/** @brief 设置引脚为输出模式 @param gpio GPIO端口 @param pin 引脚编号 */
+/**
+ * @brief 设置引脚为输出模式
+ * @param gpio GPIO端口
+ * @param pin 引脚编号
+ */
 extern void port_lcd1602_set_output_mode(void* gpio, u16 pin);
-/** @brief 微秒延时 @param us 延时时间（微秒） */
+/**
+ * @brief 微秒延时
+ * @param us 延时时间（微秒）
+ */
 extern void port_lcd1602_delay_us(u32 us);
-/** @brief 毫秒延时 @param ms 延时时间（毫秒） */
+/**
+ * @brief 毫秒延时
+ * @param ms 延时时间（毫秒）
+ */
 extern void port_lcd1602_delay_ms(u32 ms);
 
 #elif (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_DYNAMIC)
@@ -125,5 +145,9 @@ void lcd1602_write_cmd(lcd1602_t* self, u8 cmd);
  * @param data 数据
  */
 void lcd1602_write_data(lcd1602_t* self, u8 data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_LCD1602_H

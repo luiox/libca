@@ -5,6 +5,7 @@
  * 数据手册：https://item.szlcsc.com/datasheet/AS5600-ASOT/511984.html
  * @version 0.1
  * @date 2026-01-30
+ * @update 0.2 添加extern外部依赖注入模式
  * 
  * @copyright Copyright (c) 2026
  * 

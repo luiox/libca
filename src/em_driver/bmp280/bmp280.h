@@ -4,6 +4,7 @@
  * @brief BMP280 气压计传感器驱动
  * @version 0.1
  * @date 2026-01-22
+ * @update 0.2 添加extern外部依赖注入模式
  */
 
 #ifndef LIBCA_EM_DRIVER_BMP280_H
@@ -18,6 +19,10 @@
 
 #ifndef LIBCA_BMP280_PORT_MODE
 #define LIBCA_BMP280_PORT_MODE LIBCA_BMP280_PORT_MODE_EXTERN
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
@@ -234,5 +239,9 @@ f32 bmp280_pa_to_mmhg(f32 pa);
  * @brief 帕斯卡转海拔
  */
 f32 bmp280_pa_to_alt(f32 pa);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIBCA_EM_DRIVER_BMP280_H

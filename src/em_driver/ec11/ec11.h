@@ -5,6 +5,7 @@
  * 参考文档：https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/ec11.html
  * @version 0.1
  * @date 2026-01-23
+ * @update 0.2 添加extern外部依赖注入模式
  *
  * @copyright Copyright (c) 2026
  *
@@ -23,8 +24,17 @@
 #define LIBCA_EC11_PORT_MODE LIBCA_EC11_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
-/** @brief 读引脚电平 @param gpio GPIO端口 @param pin 引脚号 @return 当前电平值 */
+/**
+ * @brief 读引脚电平
+ * @param gpio GPIO端口
+ * @param pin 引脚号
+ * @return 当前电平值
+ */
 extern u8 port_ec11_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
@@ -125,5 +135,9 @@ bool ec11_is_sw_down(ec11_t* self);
  * @return ec11_rotation 上一次探测到的旋转方向
  */
 ec11_rotation ec11_get_last_rotation(ec11_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif   // !LIBCA_EM_DRIVER_EC11_H
