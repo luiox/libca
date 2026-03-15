@@ -12,25 +12,27 @@
 #include "mq_x.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
-static const mqx_port_t g_mqx_port_extern_impl = {
-    .read_adc = port_mqx_read_adc,
-    .read_pin = port_mqx_read_pin,
-};
-static const mqx_port_t* g_port = &g_mqx_port_extern_impl;
+#define MQX_READ_ADC(adc, channel) port_mqx_read_adc((adc), (channel))
+#define MQX_READ_PIN(gpio, pin)    port_mqx_read_pin((gpio), (pin))
+
 #elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
-static const mqx_port_t* g_port = NULL;
+static const mqx_port_t* g_mqx_port = NULL;
+#define MQX_READ_ADC(adc, channel) g_mqx_port->read_adc((adc), (channel))
+#define MQX_READ_PIN(gpio, pin)    g_mqx_port->read_pin((gpio), (pin))
+
 #else
 #error "Invalid MQ_X port mode"
 #endif
 
-void mqx_bind_port(const mqx_port_t* port) {
-    g_port = port;
-}
+#if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
+void mqx_bind_port(const mqx_port_t* port) { g_mqx_port = port; }
+bool mqx_port_is_registered(void) { return g_mqx_port != NULL; }
+#endif
 
-bool mqx_port_is_registered(void) {
-    return g_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 void mqx_init(mqx_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, u8 adc_resolution, u8 samples) {
     if(adc_resolution > 0 && adc_resolution <= 16){
@@ -48,14 +50,9 @@ void mqx_init(mqx_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, 
 }
 
 u16 mqx_get_adc(mqx_t* self) {
-    if (!g_port || !g_port->read_adc) {
-        debug_print("[mqx] error: port not registered\n");
-        return 0;
-    }
-
     u32 sum = 0;
     for (u8 i = 0; i < self->samples; i++) {
-        sum += g_port->read_adc(self->adc_hdl, self->adc_ch);
+        sum += MQX_READ_ADC(self->adc_hdl, self->adc_ch);
     }
 
     return (u16)(sum / self->samples);
@@ -75,10 +72,5 @@ u8 mqx_get_percentage(mqx_t* self) {
 }
 
 u8 mqx_get_do_state(mqx_t* self) {
-    if (!g_port || !g_port->read_pin) {
-        debug_print("[mqx] error: port not registered\n");
-        return 0;
-    }
-
-    return g_port->read_pin(self->do_gpio, self->do_pin);
+    return MQX_READ_PIN(self->do_gpio, self->do_pin);
 }

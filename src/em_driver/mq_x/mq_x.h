@@ -32,10 +32,6 @@
 #define LIBCA_MQ_X_PORT_MODE LIBCA_MQ_X_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef MQ_X_ENABLE_MQ2
 #define MQ_X_ENABLE_MQ2 0
 #endif
@@ -72,30 +68,18 @@ extern "C" {
 #define MQ_X_ENABLE_MQ135 0
 #endif
 
-// port
-typedef struct mqx_port {
-    u16 (*read_adc)(void* adc, u8 channel);
-    u8 (*read_pin)(void* gpio, u16 pin);
-} mqx_port_t;
-
 #if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
+/** @brief 读取ADC值 @param adc ADC句柄 @param channel 通道号 @return ADC值 */
 extern u16 port_mqx_read_adc(void* adc, u8 channel);
+/** @brief 读取数字引脚 @param gpio GPIO句柄 @param pin 引脚号 @return 引脚电平 */
 extern u8 port_mqx_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
-
-/**
- * @brief 绑定硬件接口
- * 
- * @param port 接口结构体
- */
+typedef struct mqx_port {
+    u16 (*read_adc)(void* adc, u8 channel);  // 读取ADC值
+    u8  (*read_pin)(void* gpio, u16 pin);    // 读取数字引脚
+} mqx_port_t;
 void mqx_bind_port(const mqx_port_t* port);
-
-/**
- * @brief 检查接口是否已注册
- * 
- * @return bool true 为已注册
- */
 bool mqx_port_is_registered(void);
 
 #else
@@ -187,10 +171,6 @@ typedef mqx_t mq9;
 
 #if MQ_X_ENABLE_MQ135
 typedef mqx_t mq135;
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif // !LIBCA_EM_DRIVER_MQ_X_H
