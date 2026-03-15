@@ -94,6 +94,11 @@ typedef struct mqx_port {
 } mqx_port_t;
 
 /**
+ * @brief 外部隐式注入的 port 函数表（由 port_mq_x.c 提供）
+ */
+extern const mqx_port_t g_mqx_port_extern;
+
+/**
  * @brief 绑定硬件接口
  * 
  * @param port 接口结构体

@@ -12,7 +12,13 @@
 #include "mq_x.h"
 #include <em_base/debug.h>
 
+#if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
+static const mqx_port_t* g_port = &g_mqx_port_extern;
+#elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
 static const mqx_port_t* g_port = NULL;
+#else
+#error "Invalid MQ_X port mode"
+#endif
 
 void mqx_bind_port(const mqx_port_t* port) {
     g_port = port;

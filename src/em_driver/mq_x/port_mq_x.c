@@ -4,4 +4,4 @@
 /**
  * @brief 外部隐式注入的 port 函数表，适配层可提供强符号覆盖此定义
  */
-CA_WEAK const mq_x_port_t g_mq_x_port_extern = {0};
+CA_WEAK const mqx_port_t g_mqx_port_extern = {0};
