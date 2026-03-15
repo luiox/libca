@@ -38,7 +38,12 @@
 #define BMC050_ACC_LOWPOWER                       0x40
 
 #if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
-static const bmc050_port_t* g_bmc050_port = &g_bmc050_port_extern;
+static const bmc050_port_t g_bmc050_port_extern_impl = {
+    .i2c_write = port_bmc050_i2c_write,
+    .i2c_read = port_bmc050_i2c_read,
+    .delay_us = port_bmc050_delay_us,
+};
+static const bmc050_port_t* g_bmc050_port = &g_bmc050_port_extern_impl;
 #elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
 static const bmc050_port_t* g_bmc050_port = NULL;
 #else

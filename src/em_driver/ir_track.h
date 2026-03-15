@@ -34,16 +34,20 @@ typedef struct ir_track_port
 	u8 (*read_pin)(void* gpio, u16 pin);
 } ir_track_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_ir_track.c 提供）
- */
-extern const ir_track_port_t g_ir_track_port_extern;
+#if (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_EXTERN)
+extern u8 port_ir_track_read_pin(void* gpio, u16 pin);
+
+#elif (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 显式模式下绑定硬件接口（动态注入）
  */
 void ir_track_bind_port(const ir_track_port_t* port);
 bool ir_track_port_is_registered(void);
+
+#else
+#error "Invalid IR_TRACK port mode"
+#endif
 
 typedef struct ir_track
 {

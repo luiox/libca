@@ -51,12 +51,8 @@ typedef struct jy61p_port
     i32 (*uart_send)(void* huart, const u8* buf, usize len);
     void (*delay_ms)(u32 ms);
 } jy61p_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_jy61p.c 提供）
- */
-extern const jy61p_port_t g_jy61p_port_extern;
-
+extern i32 port_jy61p_uart_send(void* huart, const u8* buf, usize len);
+extern void port_jy61p_delay_ms(u32 ms);
 
 /**
  * @brief 绑定平台相关接口

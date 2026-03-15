@@ -11,7 +11,11 @@
 #define AS5600_REG_AGC 0x1A
 
 #if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
-static const as5600_port_t* g_as5600_port = &g_as5600_port_extern;
+static const as5600_port_t g_as5600_port_extern_impl = {
+    .i2c_write = port_as5600_i2c_write,
+    .i2c_read = port_as5600_i2c_read,
+};
+static const as5600_port_t* g_as5600_port = &g_as5600_port_extern_impl;
 #elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
 static const as5600_port_t* g_as5600_port = NULL;
 #else

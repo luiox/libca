@@ -25,7 +25,14 @@
 #define DS1302_MASK_YEAR        0xFF
 
 #if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
-static const ds1302_port_t* g_port = &g_ds1302_port_extern;
+static const ds1302_port_t g_ds1302_port_extern_impl = {
+    .write_pin = port_ds1302_write_pin,
+    .read_pin = port_ds1302_read_pin,
+    .set_output_mode = port_ds1302_set_output_mode,
+    .set_input_mode = port_ds1302_set_input_mode,
+    .delay_us = port_ds1302_delay_us,
+};
+static const ds1302_port_t* g_port = &g_ds1302_port_extern_impl;
 #elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
 static const ds1302_port_t* g_port = NULL;
 #else

@@ -1,7 +1,14 @@
 #include "ds18b20.h"
 
 #if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_EXTERN)
-static const ds18b20_port_t* g_ds18b20_port = &g_ds18b20_port_extern;
+static const ds18b20_port_t g_ds18b20_port_extern_impl = {
+    .write_pin = port_ds18b20_write_pin,
+    .read_pin = port_ds18b20_read_pin,
+    .set_output_mode = port_ds18b20_set_output_mode,
+    .set_input_mode = port_ds18b20_set_input_mode,
+    .delay_us = port_ds18b20_delay_us,
+};
+static const ds18b20_port_t* g_ds18b20_port = &g_ds18b20_port_extern_impl;
 #elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
 static const ds18b20_port_t* g_ds18b20_port = NULL;
 #else

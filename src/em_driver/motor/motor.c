@@ -2,7 +2,12 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_EXTERN)
-static const motor_port_t* g_motor_port = &g_motor_port_extern;
+static const motor_port_t g_motor_port_extern_impl = {
+    .pwm_set_duty = port_motor_pwm_set_duty,
+    .pwm_start = port_motor_pwm_start,
+    .pwm_stop = port_motor_pwm_stop,
+};
+static const motor_port_t* g_motor_port = &g_motor_port_extern_impl;
 #elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
 static const motor_port_t* g_motor_port = NULL;
 #else

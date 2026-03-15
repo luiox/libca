@@ -34,43 +34,15 @@ extern "C" {
 
 // port
 typedef struct ads1115_port {
-    /**
-     * @brief I2C 写操作
-     * 
-     * @param hi2c I2C 句柄
-     * @param dev_addr 设备 7 位地址
-     * @param reg_addr 寄存器地址
-     * @param data 数据缓冲区
-     * @param size 数据长度
-     * @return i32 返回 0 表示成功，非 0 表示失败
-     */
     i32 (*i2c_write)(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
-
-    /**
-     * @brief I2C 读操作
-     * 
-     * @param hi2c I2C 句柄
-     * @param dev_addr 设备 7 位地址
-     * @param reg_addr 寄存器地址
-     * @param data 数据缓冲区
-     * @param size 数据长度
-     * @return i32 返回 0 表示成功，非 0 表示失败
-     */
     i32 (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
-
-    /**
-     * @brief 毫秒延时
-     * 
-     * @param ms 毫秒数
-     */
     void (*delay_ms)(u32 ms);
 } ads1115_port_t;
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_ads1115.c 提供）
- */
-extern const ads1115_port_t g_ads1115_port_extern;
+extern i32 port_ads1115_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
+extern i32 port_ads1115_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
+extern void port_ads1115_delay_ms(u32 ms);
 
 #elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 

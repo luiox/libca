@@ -28,12 +28,9 @@ typedef struct hts221_port {
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
     void (*delay_us)(u32 us);
 } hts221_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_hts221.c 提供）
- */
-extern const hts221_port_t g_hts221_port_extern;
-
+extern i32 port_hts221_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern i32 port_hts221_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern void port_hts221_delay_us(u32 us);
 
 void hts221_bind_port(const hts221_port_t* port);
 bool hts221_port_is_registered(void);

@@ -26,23 +26,23 @@ typedef struct w25qxx_port {
     void (*write_pin)(void* gpio_port, u16 pin, u8 value);
     void (*spi_transmit)(void* hspi, u8* data, usize size, u32 timeout);
     void (*spi_receive)(void* hspi, u8* data, usize size, u32 timeout);
-    /**
-     * @brief SPI同时发送和接收（全双工）
-     * @note 推荐使用此函数，与spi_transmit/spi_receive二选一
-     *       如果实现了此函数，驱动会优先使用它进行SPI通信
-     *       如果为NULL，则使用分开的transmit和receive
-     */
     void (*spi_transmit_receive)(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
-}w25qxx_port_t;
+} w25qxx_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_w25qxx.c 提供）
- */
-extern const w25qxx_port_t g_w25qxx_port_extern;
+#if (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_EXTERN)
+extern void port_w25qxx_write_pin(void* gpio_port, u16 pin, u8 value);
+extern void port_w25qxx_spi_transmit(void* hspi, u8* data, usize size, u32 timeout);
+extern void port_w25qxx_spi_receive(void* hspi, u8* data, usize size, u32 timeout);
+extern void port_w25qxx_spi_transmit_receive(void* hspi, u8* tx_data, u8* rx_data, usize size, u32 timeout);
 
+#elif (LIBCA_W25QXX_PORT_MODE == LIBCA_W25QXX_PORT_MODE_DYNAMIC)
 
 void w25qxx_bind_port(const w25qxx_port_t* port);
 bool w25qxx_port_is_registered(void);
+
+#else
+#error "Invalid W25QXX port mode"
+#endif
 
 // 错误码
 #define W25QXX_OK 0

@@ -2,7 +2,10 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
-static const ec11_port_t* g_port = &g_ec11_port_extern;
+static const ec11_port_t g_ec11_port_extern_impl = {
+    .read_pin = port_ec11_read_pin,
+};
+static const ec11_port_t* g_port = &g_ec11_port_extern_impl;
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
 static const ec11_port_t* g_port = NULL;
 #else

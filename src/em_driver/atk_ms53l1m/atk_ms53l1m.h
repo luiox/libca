@@ -36,12 +36,12 @@ typedef struct atk_ms53l1m_port
     void (*uart_rx_restart)(void);
     void (*delay_ms)(u32 ms);
 } atk_ms53l1m_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_atk_ms53l1m.c 提供）
- */
-extern const atk_ms53l1m_port_t g_atk_ms53l1m_port_extern;
-
+extern void port_atk_ms53l1m_uart_init(u32 baudrate);
+extern void port_atk_ms53l1m_uart_send(u8* buf, u16 len);
+extern u8* port_atk_ms53l1m_uart_rx_get_frame(void);
+extern u16 port_atk_ms53l1m_uart_rx_get_frame_len(void);
+extern void port_atk_ms53l1m_uart_rx_restart(void);
+extern void port_atk_ms53l1m_delay_ms(u32 ms);
 
 /**
  * @brief       绑定port

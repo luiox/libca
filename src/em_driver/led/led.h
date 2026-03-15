@@ -45,12 +45,6 @@ typedef struct led_port{
     void (*write_pin)(void* gpio, u16 pin, u8 value);
 }led_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_led.c 提供）
- */
-extern const led_port_t g_led_port_extern;
-
-
 // 绑定port
 void led_bind_port(const led_port_t* port);
 bool led_port_is_registered(void);

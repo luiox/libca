@@ -2,7 +2,16 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_EXTERN)
-static const dht11_port_t* g_dht11_port = &g_dht11_port_extern;
+static const dht11_port_t g_dht11_port_extern_impl = {
+    .write_pin = port_dht11_write_pin,
+    .read_pin = port_dht11_read_pin,
+    .set_output_mode = port_dht11_set_output_mode,
+    .set_input_mode = port_dht11_set_input_mode,
+    .delay_us = port_dht11_delay_us,
+    .delay_ms = port_dht11_delay_ms,
+    .get_tick_us = port_dht11_get_tick_us,
+};
+static const dht11_port_t* g_dht11_port = &g_dht11_port_extern_impl;
 #elif (LIBCA_DHT11_PORT_MODE == LIBCA_DHT11_PORT_MODE_DYNAMIC)
 static const dht11_port_t* g_dht11_port = NULL;
 #else

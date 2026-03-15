@@ -62,7 +62,16 @@ static const u8 RX_ADDR_PIPES[6] = {nRF24_REG_RX_ADDR_P0,
 
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
-static const nrf24_port_t* g_nrf24_port = &g_nrf24_port_extern;
+static const nrf24_port_t g_nrf24_port_extern_impl = {
+    .write_pin = port_nrf24_write_pin,
+    .read_pin = port_nrf24_read_pin,
+    .set_output_mode = port_nrf24_set_output_mode,
+    .set_input_mode = port_nrf24_set_input_mode,
+    .delay_us = port_nrf24_delay_us,
+    .delay_ms = port_nrf24_delay_ms,
+    .spi_send_recv = port_nrf24_spi_send_recv,
+};
+static const nrf24_port_t* g_nrf24_port = &g_nrf24_port_extern_impl;
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
 static const nrf24_port_t* g_nrf24_port = NULL;
 #else

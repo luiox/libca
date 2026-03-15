@@ -2,7 +2,11 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_EXTERN)
-static const illume_port_t* g_port = &g_illume_port_extern;
+static const illume_port_t g_illume_port_extern_impl = {
+    .read_adc = port_illume_read_adc,
+    .read_pin = port_illume_read_pin,
+};
+static const illume_port_t* g_port = &g_illume_port_extern_impl;
 #elif (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_DYNAMIC)
 static const illume_port_t* g_port = NULL;
 #else

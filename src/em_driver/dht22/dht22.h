@@ -31,12 +31,12 @@ typedef struct dht22_port {
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
 } dht22_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_dht22.c 提供）
- */
-extern const dht22_port_t g_dht22_port_extern;
-
+extern void port_dht22_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_dht22_read_pin(void* gpio, u16 pin);
+extern void port_dht22_set_output_mode(void* gpio, u16 pin);
+extern void port_dht22_set_input_mode(void* gpio, u16 pin);
+extern void port_dht22_delay_us(u32 us);
+extern void port_dht22_delay_ms(u32 ms);
 
 void dht22_bind_port(const dht22_port_t* port);
 bool dht22_port_is_registered(void);

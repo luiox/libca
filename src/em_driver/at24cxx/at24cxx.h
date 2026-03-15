@@ -34,12 +34,8 @@ typedef struct at24cxx_port
     void (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                      u16 data_size, u32 timeout);
 } at24cxx_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_at24cxx.c 提供）
- */
-extern const at24cxx_port_t g_at24cxx_port_extern;
-
+extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern void port_at24cxx_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
 void at24cxx_bind_port(const at24cxx_port_t* port);
 bool at24cxx_port_is_registered(void);

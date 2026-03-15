@@ -26,44 +26,19 @@
 extern "C" {
 #endif
 
-/**
- * @brief Motor port 层接口
- *
- * 用于抽象不同平台的PWM控制接口
- */
-typedef struct motor_port
-{
-    /**
-     * @brief 设置PWM占空比
-     *
-     * @param htim PWM定时器句柄（平台相关）
-     * @param channel PWM通道（某些平台有多个通道）
-     * @param duty 占空比 (0-100)
-     */
+// port
+typedef struct motor_port {
     void (*pwm_set_duty)(void* htim, u16 channel, u8 duty);
-
-    /**
-     * @brief 启动PWM输出
-     *
-     * @param htim PWM定时器句柄
-     * @param channel PWM通道
-     */
     void (*pwm_start)(void* htim, u16 channel);
-
-    /**
-     * @brief 停止PWM输出
-     *
-     * @param htim PWM定时器句柄
-     * @param channel PWM通道
-     */
     void (*pwm_stop)(void* htim, u16 channel);
 } motor_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_motor.c 提供）
- */
-extern const motor_port_t g_motor_port_extern;
+#if (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_EXTERN)
+extern void port_motor_pwm_set_duty(void* htim, u16 channel, u8 duty);
+extern void port_motor_pwm_start(void* htim, u16 channel);
+extern void port_motor_pwm_stop(void* htim, u16 channel);
 
+#elif (LIBCA_MOTOR_PORT_MODE == LIBCA_MOTOR_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 绑定硬件接口
@@ -78,6 +53,10 @@ void motor_bind_port(const motor_port_t* port);
  * @return bool true 为已注册
  */
 bool motor_port_is_registered(void);
+
+#else
+#error "Invalid MOTOR port mode"
+#endif
 
 /**
  * @brief Motor 对象结构体

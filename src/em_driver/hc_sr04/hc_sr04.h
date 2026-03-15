@@ -37,12 +37,15 @@ typedef struct hc_sr04_port {
     void (*mutex_pend)(void);
     void (*mutex_post)(void);
 } hc_sr04_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_hc_sr04.c 提供）
- */
-extern const hc_sr04_port_t g_hc_sr04_port_extern;
-
+extern void port_hc_sr04_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_hc_sr04_read_pin(void* gpio, u16 pin);
+extern void port_hc_sr04_delay_us(u32 us);
+extern void port_hc_sr04_tim_set_counter(void* tim, u32 val);
+extern void port_hc_sr04_tim_start(void* tim);
+extern void port_hc_sr04_tim_stop(void* tim);
+extern u32 port_hc_sr04_tim_get_counter(void* tim);
+extern void port_hc_sr04_mutex_pend(void);
+extern void port_hc_sr04_mutex_post(void);
 
 void hc_sr04_bind_port(const hc_sr04_port_t* port);
 bool hc_sr04_port_is_registered(void);

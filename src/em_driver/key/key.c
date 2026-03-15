@@ -2,7 +2,10 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
-static const key_port_t* g_key_port = &g_key_port_extern;
+static const key_port_t g_key_port_extern_impl = {
+    .read_pin = port_key_read_pin,
+};
+static const key_port_t* g_key_port = &g_key_port_extern_impl;
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
 static const key_port_t* g_key_port = NULL;
 #else

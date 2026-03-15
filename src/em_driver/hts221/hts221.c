@@ -14,7 +14,12 @@
 #define HTS221_TEMP_OUT_H	0x2B
 
 #if (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_EXTERN)
-static const hts221_port_t* g_hts221_port = &g_hts221_port_extern;
+static const hts221_port_t g_hts221_port_extern_impl = {
+    .i2c_write = port_hts221_i2c_write,
+    .i2c_read = port_hts221_i2c_read,
+    .delay_us = port_hts221_delay_us,
+};
+static const hts221_port_t* g_hts221_port = &g_hts221_port_extern_impl;
 #elif (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_DYNAMIC)
 static const hts221_port_t* g_hts221_port = NULL;
 #else

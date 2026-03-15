@@ -31,12 +31,9 @@ typedef struct sgp30_port
                     u16 data_size, u32 timeout);
     void (*delay_ms)(u32 ms);
 } sgp30_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_sgp30.c 提供）
- */
-extern const sgp30_port_t g_sgp30_port_extern;
-
+extern i32 port_sgp30_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern i32 port_sgp30_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern void port_sgp30_delay_ms(u32 ms);
 
 void sgp30_bind_port(const sgp30_port_t* port);
 bool sgp30_port_is_registered(void);

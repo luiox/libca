@@ -4,7 +4,11 @@
 #include <string.h>
 
 #if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
-static const tofxxf_port_t* g_port = &g_tofxxf_port_extern;
+static const tofxxf_port_t g_tofxxf_port_extern_impl = {
+    .uart_send = port_tofxxf_uart_send,
+    .uart_recv = port_tofxxf_uart_recv,
+};
+static const tofxxf_port_t* g_port = &g_tofxxf_port_extern_impl;
 #elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
 static const tofxxf_port_t* g_port = NULL;
 #else

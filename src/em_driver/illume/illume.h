@@ -29,30 +29,15 @@ extern "C" {
 
 // port
 typedef struct illume_port {
-    /**
-     * @brief 读取 ADC 原始值
-     * 
-     * @param adc ADC 句柄
-     * @param channel 通道
-     * @return u16 ADC 原始值
-     */
     u16 (*read_adc)(void* adc, u8 channel);
-
-    /**
-     * @brief 读取 IO 引脚电平
-     * 
-     * @param gpio GPIO 句柄
-     * @param pin 引脚编号
-     * @return u8 电平状态
-     */
     u8 (*read_pin)(void* gpio, u16 pin);
 } illume_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_illume.c 提供）
- */
-extern const illume_port_t g_illume_port_extern;
+#if (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_EXTERN)
+extern u16 port_illume_read_adc(void* adc, u8 channel);
+extern u8 port_illume_read_pin(void* gpio, u16 pin);
 
+#elif (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 绑定硬件接口
@@ -67,6 +52,10 @@ void illume_bind_port(const illume_port_t* port);
  * @return bool true 为已注册
  */
 bool illume_port_is_registered(void);
+
+#else
+#error "Invalid ILLUME port mode"
+#endif
 
 /**
  * @brief Illume 对象结构体

@@ -27,12 +27,11 @@ typedef struct ds18b20_port {
     // 注入延时函数（微秒）
     void (*delay_us)(u32 us);
 } ds18b20_port_t; 
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_ds18b20.c 提供）
- */
-extern const ds18b20_port_t g_ds18b20_port_extern;
-
+extern void port_ds18b20_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_ds18b20_read_pin(void* gpio, u16 pin);
+extern void port_ds18b20_set_output_mode(void* gpio, u16 pin);
+extern void port_ds18b20_set_input_mode(void* gpio, u16 pin);
+extern void port_ds18b20_delay_us(u32 us);
 
 void ds18b20_bind_port(const ds18b20_port_t* port);
 bool ds18b20_port_is_registered(void);

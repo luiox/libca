@@ -2,7 +2,11 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
-static const jy61p_port_t* g_jy61p_port = &g_jy61p_port_extern;
+static const jy61p_port_t g_jy61p_port_extern_impl = {
+    .uart_send = port_jy61p_uart_send,
+    .delay_ms = port_jy61p_delay_ms,
+};
+static const jy61p_port_t* g_jy61p_port = &g_jy61p_port_extern_impl;
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
 static const jy61p_port_t* g_jy61p_port = NULL;
 #else

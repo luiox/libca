@@ -24,33 +24,23 @@
 extern "C" {
 #endif
 
-/* --- 配置选项 --- */
-
-/**
- * @brief 补偿计算模式
- * 1: 使用 64 位整数计算 (默认, 精度较高)
- * 2: 使用浮点数计算 (精度最高, 建议有 FPU 时使用)
- */
-#ifndef BMP280_CALC_MODE
-#define BMP280_CALC_MODE 2
-#endif
-
-/* --- 硬件接口 (Port Binding) --- */
-
-/**
- * @brief BMP280 软件端口绑定
- */
+// port
 typedef struct bmp280_port {
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                    u32 timeout);
+    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                     u32 timeout);
     void (*delay_ms)(u32 ms);
 } bmp280_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_bmp280.c 提供）
- */
-extern const bmp280_port_t g_bmp280_port_extern;
+#if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
+extern i32 port_bmp280_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                                u32 timeout);
+extern i32 port_bmp280_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
+                                 u16 data_size, u32 timeout);
+extern void port_bmp280_delay_ms(u32 ms);
 
+#elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 绑定硬件端口
@@ -61,6 +51,10 @@ void bmp280_bind_port(const bmp280_port_t* port);
  * @brief 检查硬件端口是否已注册
  */
 bool bmp280_port_is_registered(void);
+
+#else
+#error "Invalid BMP280 port mode"
+#endif
 
 /* --- 寄存器定义 --- */
 

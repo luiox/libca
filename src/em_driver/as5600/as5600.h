@@ -47,7 +47,7 @@ typedef struct as5600_port {
      * @param len 数据长度
      */
     void (*i2c_write)(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
-    
+
     /**
      * @brief I2C读函数
      * @param hi2c I2C句柄
@@ -59,15 +59,30 @@ typedef struct as5600_port {
     void (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
 } as5600_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_as5600.c 提供）
- */
-extern const as5600_port_t g_as5600_port_extern;
+#if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
 
+/**
+ * @brief 外部模式 I2C 写函数
+ */
+extern void port_as5600_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 len);
+
+/**
+ * @brief 外部模式 I2C 读函数
+ */
+extern void port_as5600_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
+
+#elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
 
 // 绑定port
+/**
+ * @brief 显式模式下绑定硬件接口（动态注入）
+ */
 void as5600_bind_port(const as5600_port_t* port);
 bool as5600_port_is_registered(void);
+
+#else
+#error "Invalid AS5600 port mode"
+#endif
 
 typedef struct as5600 {
     void* hi2c;           // I2C句柄

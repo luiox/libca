@@ -13,7 +13,11 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
-static const mqx_port_t* g_port = &g_mqx_port_extern;
+static const mqx_port_t g_mqx_port_extern_impl = {
+    .read_adc = port_mqx_read_adc,
+    .read_pin = port_mqx_read_pin,
+};
+static const mqx_port_t* g_port = &g_mqx_port_extern_impl;
 #elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
 static const mqx_port_t* g_port = NULL;
 #else

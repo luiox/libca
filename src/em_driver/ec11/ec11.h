@@ -30,21 +30,13 @@ extern "C" {
 // port
 typedef struct ec11_port
 {
-    /**
-     * @brief 读取引脚电平
-     *
-     * @param gpio GPIO 句柄
-     * @param pin 引脚编号
-     * @return u8 0 为低电平，1 为高电平
-     */
     u8 (*read_pin)(void* gpio, u16 pin);
 } ec11_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_ec11.c 提供）
- */
-extern const ec11_port_t g_ec11_port_extern;
+#if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
+extern u8 port_ec11_read_pin(void* gpio, u16 pin);
 
+#elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 绑定硬件接口
@@ -59,6 +51,10 @@ void ec11_bind_port(const ec11_port_t* port);
  * @return bool true 为已注册
  */
 bool ec11_port_is_registered(void);
+
+#else
+#error "Invalid EC11 port mode"
+#endif
 
 /**
  * @brief 旋转方向枚举

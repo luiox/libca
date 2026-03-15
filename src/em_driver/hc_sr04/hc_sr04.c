@@ -1,7 +1,18 @@
 #include "hc_sr04.h"
 
 #if (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_EXTERN)
-static const hc_sr04_port_t* g_hc_sr04_port = &g_hc_sr04_port_extern;
+static const hc_sr04_port_t g_hc_sr04_port_extern_impl = {
+    .write_pin = port_hc_sr04_write_pin,
+    .read_pin = port_hc_sr04_read_pin,
+    .delay_us = port_hc_sr04_delay_us,
+    .tim_set_counter = port_hc_sr04_tim_set_counter,
+    .tim_start = port_hc_sr04_tim_start,
+    .tim_stop = port_hc_sr04_tim_stop,
+    .tim_get_counter = port_hc_sr04_tim_get_counter,
+    .mutex_pend = port_hc_sr04_mutex_pend,
+    .mutex_post = port_hc_sr04_mutex_post,
+};
+static const hc_sr04_port_t* g_hc_sr04_port = &g_hc_sr04_port_extern_impl;
 #elif (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
 static const hc_sr04_port_t* g_hc_sr04_port = NULL;
 #else

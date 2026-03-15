@@ -32,12 +32,13 @@ typedef struct dht11_port {
     void (*delay_ms)(u32 ms);
     u32  (*get_tick_us)(void);  // 获取微秒级时间戳（用于超时计算）
 } dht11_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_dht11.c 提供）
- */
-extern const dht11_port_t g_dht11_port_extern;
-
+extern void port_dht11_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_dht11_read_pin(void* gpio, u16 pin);
+extern void port_dht11_set_output_mode(void* gpio, u16 pin);
+extern void port_dht11_set_input_mode(void* gpio, u16 pin);
+extern void port_dht11_delay_us(u32 us);
+extern void port_dht11_delay_ms(u32 ms);
+extern u32 port_dht11_get_tick_us(void);
 
 void dht11_bind_port(const dht11_port_t* port);
 bool dht11_port_is_registered(void);

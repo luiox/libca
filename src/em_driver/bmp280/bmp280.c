@@ -11,7 +11,12 @@
 
 /* --- 静态内部变量 --- */
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
-static const bmp280_port_t* g_bmp280_port = &g_bmp280_port_extern;
+static const bmp280_port_t g_bmp280_port_extern_impl = {
+    .i2c_read = port_bmp280_i2c_read,
+    .i2c_write = port_bmp280_i2c_write,
+    .delay_ms = port_bmp280_delay_ms,
+};
+static const bmp280_port_t* g_bmp280_port = &g_bmp280_port_extern_impl;
 #elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
 static const bmp280_port_t* g_bmp280_port = NULL;
 #else

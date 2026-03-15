@@ -2,7 +2,11 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
-static const at24cxx_port_t* g_at24cxx_port = &g_at24cxx_port_extern;
+static const at24cxx_port_t g_at24cxx_port_extern_impl = {
+    .i2c_write = port_at24cxx_i2c_write,
+    .i2c_read = port_at24cxx_i2c_read,
+};
+static const at24cxx_port_t* g_at24cxx_port = &g_at24cxx_port_extern_impl;
 #elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
 static const at24cxx_port_t* g_at24cxx_port = NULL;
 #else

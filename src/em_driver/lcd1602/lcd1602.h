@@ -40,12 +40,10 @@ typedef struct lcd1602_port {
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
 } lcd1602_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_lcd1602.c 提供）
- */
-extern const lcd1602_port_t g_lcd1602_port_extern;
-
+extern void port_lcd1602_write_pin(void* gpio, u16 pin, u8 value);
+extern void port_lcd1602_set_output_mode(void* gpio, u16 pin);
+extern void port_lcd1602_delay_us(u32 us);
+extern void port_lcd1602_delay_ms(u32 ms);
 
 /**
  * @brief 绑定底层的硬件接口

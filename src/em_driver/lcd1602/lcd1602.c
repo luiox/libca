@@ -2,7 +2,13 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_EXTERN)
-static const lcd1602_port_t* g_port = &g_lcd1602_port_extern;
+static const lcd1602_port_t g_lcd1602_port_extern_impl = {
+    .write_pin = port_lcd1602_write_pin,
+    .set_output_mode = port_lcd1602_set_output_mode,
+    .delay_us = port_lcd1602_delay_us,
+    .delay_ms = port_lcd1602_delay_ms,
+};
+static const lcd1602_port_t* g_port = &g_lcd1602_port_extern_impl;
 #elif (LIBCA_LCD1602_PORT_MODE == LIBCA_LCD1602_PORT_MODE_DYNAMIC)
 static const lcd1602_port_t* g_port = NULL;
 #else

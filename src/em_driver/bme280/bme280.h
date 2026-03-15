@@ -27,66 +27,24 @@
 extern "C" {
 #endif
 
-/* --- 编译配置宏 --- */
-
-/**
- * @brief 使用浮点数公式进行补偿计算
- * @details 0: 使用整数公式 (精度按 BME280_USE_INT64 决定), 1: 使用浮点数公式 (默认)
- */
-#ifndef BME280_USE_FLOAT
-#define BME280_USE_FLOAT 1
-#endif
-
-/**
- * @brief 压力计算是否使用 64 位整数
- * @details 0: 使用 32 位整数 (速度快), 1: 使用 64 位整数 (精度高)
- * @note 仅在 BME280_USE_FLOAT 为 0 时有效
- */
-#ifndef BME280_USE_INT64
-#define BME280_USE_INT64 1
-#endif
-
-/**
- * @brief BME280 硬件接口定义
- */
+// port
 typedef struct bme280_port {
-    /**
-     * @brief I2C 写函数
-     * @param hi2c I2C 句柄
-     * @param dev_addr 设备地址
-     * @param mem_addr 寄存器地址
-     * @param mem_addr_size 寄存器地址大小 (通常为 1)
-     * @param data 数据缓冲区
-     * @param data_size 数据长度
-     * @param timeout 超时时间 (ms)
-     * @return i32 0 表示成功, 非 0 表示失败
-     */
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-
-    /**
-     * @brief I2C 读函数
-     * @param hi2c I2C 句柄
-     * @param dev_addr 设备地址
-     * @param mem_addr 寄存器地址
-     * @param mem_addr_size 寄存器地址大小 (通常为 1)
-     * @param data 数据缓冲区
-     * @param data_size 数据长度
-     * @param timeout 超时时间 (ms)
-     * @return i32 0 表示成功, 非 0 表示失败
-     */
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-
-    /**
-     * @brief 毫秒级延时函数
-     */
+    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                     u32 timeout);
+    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                    u32 timeout);
     void (*delay_ms)(u32 ms);
 } bme280_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_bme280.c 提供）
- */
-extern const bme280_port_t g_bme280_port_extern;
+#if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
 
+extern i32 port_bme280_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                                 u32 timeout);
+extern i32 port_bme280_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                                u32 timeout);
+extern void port_bme280_delay_ms(u32 ms);
+
+#elif (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
 
 /**
  * @brief 绑定硬件接口
@@ -99,6 +57,10 @@ void bme280_bind_port(const bme280_port_t* port);
  * @return true 已注册, false 未注册
  */
 bool bme280_port_is_registered(void);
+
+#else
+#error "Invalid BME280 port mode"
+#endif
 
 /**
  * @brief BME280 校准参数

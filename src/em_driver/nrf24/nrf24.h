@@ -33,31 +33,26 @@ typedef struct nrf24_port
     void (*set_input_mode)(void* gpio, u16 pin);
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
-    /**
-     * SPI 发送/接收原语。
-     *
-     * 参数：
-     *  - hspi: 平台提供的不透明 SPI 句柄（使用 void*，避免依赖具体 HAL 类型）
-     *  - data: 要通过 MOSI 发送的字节
-     *
-     * 返回值：本次全双工传输期间从 MISO 接收的字节。
-     *
-     * 要求/注意：
-     *  - 必须执行一次阻塞的 8 位全双工传输并返回接收到的字节。
-     *  - 本函数不得管理 CSN/CE 引脚；CSN/CE 由驱动通过独立端口函数控制。
-     *  - 若 SPI 在多任务/中断环境中共享，实现应保证线程安全或由调用方做好保护。
-     */
     u8 (*spi_send_recv)(void* hspi, u8 data);
 } nrf24_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_nrf24.c 提供）
- */
-extern const nrf24_port_t g_nrf24_port_extern;
+#if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
+extern void port_nrf24_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_nrf24_read_pin(void* gpio, u16 pin);
+extern void port_nrf24_set_output_mode(void* gpio, u16 pin);
+extern void port_nrf24_set_input_mode(void* gpio, u16 pin);
+extern void port_nrf24_delay_us(u32 us);
+extern void port_nrf24_delay_ms(u32 ms);
+extern u8 port_nrf24_spi_send_recv(void* hspi, u8 data);
 
+#elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
 
 void nrf24_bind_port(const nrf24_port_t* port);
 bool nrf24_port_is_registered(void);
+
+#else
+#error "Invalid NRF24 port mode"
+#endif
 
 // nRF24L01 data rate
 typedef enum

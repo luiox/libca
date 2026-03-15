@@ -1,7 +1,15 @@
 #include "dht22.h"
 
 #if (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_EXTERN)
-static const dht22_port_t* g_dht22_port = &g_dht22_port_extern;
+static const dht22_port_t g_dht22_port_extern_impl = {
+    .write_pin = port_dht22_write_pin,
+    .read_pin = port_dht22_read_pin,
+    .set_output_mode = port_dht22_set_output_mode,
+    .set_input_mode = port_dht22_set_input_mode,
+    .delay_us = port_dht22_delay_us,
+    .delay_ms = port_dht22_delay_ms,
+};
+static const dht22_port_t* g_dht22_port = &g_dht22_port_extern_impl;
 #elif (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_DYNAMIC)
 static const dht22_port_t* g_dht22_port = NULL;
 #else

@@ -1,7 +1,10 @@
 #include "ir_track.h"
 
 #if (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_EXTERN)
-static const ir_track_port_t* g_ir_track_port = &g_ir_track_port_extern;
+static const ir_track_port_t g_ir_track_port_extern_impl = {
+	.read_pin = port_ir_track_read_pin,
+};
+static const ir_track_port_t* g_ir_track_port = &g_ir_track_port_extern_impl;
 #elif (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_DYNAMIC)
 static const ir_track_port_t* g_ir_track_port = NULL;
 #else

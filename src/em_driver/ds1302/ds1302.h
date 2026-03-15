@@ -35,12 +35,11 @@ typedef struct ds1302_port {
     void (*set_input_mode)(void* gpio, u16 pin);
     void (*delay_us)(u32 us);
 } ds1302_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_ds1302.c 提供）
- */
-extern const ds1302_port_t g_ds1302_port_extern;
-
+extern void port_ds1302_write_pin(void* gpio, u16 pin, u8 value);
+extern u8 port_ds1302_read_pin(void* gpio, u16 pin);
+extern void port_ds1302_set_output_mode(void* gpio, u16 pin);
+extern void port_ds1302_set_input_mode(void* gpio, u16 pin);
+extern void port_ds1302_delay_us(u32 us);
 
 /**
  * @brief 绑定底层的硬件接口

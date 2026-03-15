@@ -2,7 +2,12 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_EXTERN)
-static const sgp30_port_t* g_sgp30_port = &g_sgp30_port_extern;
+static const sgp30_port_t g_sgp30_port_extern_impl = {
+    .i2c_write = port_sgp30_i2c_write,
+    .i2c_read = port_sgp30_i2c_read,
+    .delay_ms = port_sgp30_delay_ms,
+};
+static const sgp30_port_t* g_sgp30_port = &g_sgp30_port_extern_impl;
 #elif (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_DYNAMIC)
 static const sgp30_port_t* g_sgp30_port = NULL;
 #else

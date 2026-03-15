@@ -4,7 +4,12 @@
 /* --- 硬件接口绑定 --- */
 
 #if (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_EXTERN)
-static const bmp180_port_t* g_bmp180_port = &g_bmp180_port_extern;
+static const bmp180_port_t g_bmp180_port_extern_impl = {
+    .i2c_write = port_bmp180_i2c_write,
+    .i2c_read = port_bmp180_i2c_read,
+    .delay_ms = port_bmp180_delay_ms,
+};
+static const bmp180_port_t* g_bmp180_port = &g_bmp180_port_extern_impl;
 #elif (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_DYNAMIC)
 static const bmp180_port_t* g_bmp180_port = NULL;
 #else

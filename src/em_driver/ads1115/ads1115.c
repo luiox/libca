@@ -1,7 +1,12 @@
 #include "ads1115.h"
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
-static const ads1115_port_t* g_port = &g_ads1115_port_extern;
+static const ads1115_port_t g_ads1115_port_extern_impl = {
+    .i2c_write = port_ads1115_i2c_write,
+    .i2c_read = port_ads1115_i2c_read,
+    .delay_ms = port_ads1115_delay_ms,
+};
+static const ads1115_port_t* g_port = &g_ads1115_port_extern_impl;
 #elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 static const ads1115_port_t* g_port = NULL;
 #else

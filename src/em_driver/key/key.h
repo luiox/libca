@@ -26,12 +26,7 @@
 typedef struct key_port{
     u8 (*read_pin)(void* gpio, u16 pin);
 }key_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_key.c 提供）
- */
-extern const key_port_t g_key_port_extern;
-
+extern u8 port_key_read_pin(void* gpio, u16 pin);
 
 void key_bind_port(key_port_t* port);
 bool key_port_is_registered(void);

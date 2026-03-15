@@ -25,6 +25,10 @@
 #define LIBCA_TOFXXF_PORT_MODE LIBCA_TOFXXF_PORT_MODE_EXTERN
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // 默认波特率
 #define TOFXF_BAUDRATE_DEFAULT  115200
 
@@ -70,34 +74,22 @@
 /* ========== Port层 ========== */
 
 typedef struct tofxxf_port {
-    /**
-     * @brief 发送数据到串口
-     * @param huart 串口句柄
-     * @param data 数据缓冲区
-     * @param len 数据长度
-     * @return 成功返回发送字节数，失败返回负值
-     */
     i32 (*uart_send)(void* huart, const u8* data, usize len);
-    
-    /**
-     * @brief 从串口接收数据（阻塞模式）
-     * @param huart 串口句柄
-     * @param buf 接收缓冲区
-     * @param len 期望接收长度
-     * @param timeout_ms 超时时间（毫秒）
-     * @return 成功返回接收字节数，失败返回负值
-     */
     i32 (*uart_recv)(void* huart, u8* buf, usize len, u32 timeout_ms);
 } tofxxf_port_t;
 
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_tofxxf.c 提供）
- */
-extern const tofxxf_port_t g_tofxxf_port_extern;
+#if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
+extern i32 port_tofxxf_uart_send(void* huart, const u8* data, usize len);
+extern i32 port_tofxxf_uart_recv(void* huart, u8* buf, usize len, u32 timeout_ms);
 
+#elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
 
 void tofxxf_bind_port(const tofxxf_port_t* port);
 bool tofxxf_port_is_registered(void);
+
+#else
+#error "Invalid TOFXXF port mode"
+#endif
 
 /* ========== 驱动层 ========== */
 
@@ -176,5 +168,9 @@ i32 tofxxf_set_auto_output(tofxxf_t* self, u16 interval_ms);
  * @return 成功返回0，失败返回错误码
  */
 i32 tofxxf_restore_default(tofxxf_t* self);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // !LIBCA_EM_DRIVER_TOFXF_H

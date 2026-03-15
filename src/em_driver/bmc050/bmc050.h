@@ -31,12 +31,9 @@ typedef struct bmc050_port {
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
     void (*delay_us)(u32 us);
 } bmc050_port_t;
-
-/**
- * @brief 外部隐式注入的 port 函数表（由 port_bmc050.c 提供）
- */
-extern const bmc050_port_t g_bmc050_port_extern;
-
+extern i32 port_bmc050_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, const u8* data, u16 data_size, u32 timeout);
+extern i32 port_bmc050_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+extern void port_bmc050_delay_us(u32 us);
 
 void bmc050_bind_port(const bmc050_port_t* port);
 bool bmc050_port_is_registered(void);
