@@ -1,5 +1,5 @@
 #include "bme280.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const bme280_port_t* g_bme280_port = NULL;
 

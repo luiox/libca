@@ -1,5 +1,5 @@
 #include "ds1302.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 // 寄存器地址定义
 #define DS1302_REG_SECOND       0x80

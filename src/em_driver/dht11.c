@@ -1,5 +1,5 @@
 #include "dht11.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const dht11_port_t* g_dht11_port = NULL;
 

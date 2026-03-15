@@ -13,7 +13,7 @@
 #ifndef LIBCA_EM_LOG_LOG_H
 #define LIBCA_EM_LOG_LOG_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 #include <stdarg.h>
 
 #ifdef __cplusplus

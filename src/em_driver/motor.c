@@ -1,5 +1,5 @@
 #include "motor.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const motor_port_t* g_motor_port = NULL;
 

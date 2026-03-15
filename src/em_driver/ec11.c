@@ -1,5 +1,5 @@
 #include "ec11.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const ec11_port_t* g_port = NULL;
 

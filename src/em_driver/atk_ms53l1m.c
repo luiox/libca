@@ -1,5 +1,5 @@
 #include "atk_ms53l1m.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 #include <string.h>
 
 #define ATK_MS53L1M_MASTER_FRAME_HEAD 0x51 /* 主机请求帧头 */

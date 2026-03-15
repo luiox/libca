@@ -1,5 +1,5 @@
 #include "sgp30.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const sgp30_port_t* g_sgp30_port = NULL;
 

@@ -1,5 +1,5 @@
 #include "lcd1602.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const lcd1602_port_t* g_port = NULL;
 

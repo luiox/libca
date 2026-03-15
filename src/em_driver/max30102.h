@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_MAX30102_H
 #define LIBCA_EM_DRIVER_MAX30102_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 #define MAX30102_ADDR 0xAE
 #define MAX30102_BUFFER_SIZE 500

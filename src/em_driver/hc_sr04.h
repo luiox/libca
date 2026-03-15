@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_HC_SR04_H
 #define LIBCA_EM_DRIVER_HC_SR04_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 typedef struct hc_sr04_port {
     /* GPIO 操作 */

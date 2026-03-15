@@ -20,7 +20,7 @@
 #ifndef LIBCA_EM_DRIVER_JY61P_H
 #define LIBCA_EM_DRIVER_JY61P_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 如果没有修改，那么默认就是0x50
 #define JY61P_DEFAULT_ADDRESS 0x50

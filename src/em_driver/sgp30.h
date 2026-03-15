@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_SGP30_H
 #define LIBCA_EM_DRIVER_SGP30_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // port
 typedef struct sgp30_port

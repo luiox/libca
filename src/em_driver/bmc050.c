@@ -1,5 +1,5 @@
 #include "bmc050.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 // Internal register and bit definitions (hidden from public header)
 #define BMC050_REG_ACC_WHO_AM_I                   0x00

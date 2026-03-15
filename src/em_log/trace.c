@@ -1,9 +1,9 @@
 #include "trace.h"
 #include "log.h"
-#include "em_dstream/ring_buffer.h"
+#include <em_dstream/ring_buffer.h>
 #include "async.h"
 #include "soft_timer.h"
-#include "em_arch/cpu_adapter.h"
+#include <em_arch/cpu_adapter.h>
 #include <stdio.h>
 #include <string.h>
 

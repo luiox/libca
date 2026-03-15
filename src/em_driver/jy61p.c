@@ -1,5 +1,5 @@
 #include "jy61p.h"
-#include "em_base/debug.h"
+#include <em_base/debug.h>
 
 static const jy61p_port_t* g_jy61p_port = NULL;
 
