@@ -3,7 +3,13 @@
 #include <em_util/crc.h>
 #include <string.h>
 
-static const tofxxf_port_t* g_port = NULL;
+#if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
+static const tofxxf_port_t*  = &g_tofxxf_port_extern;
+#elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
+static const tofxxf_port_t*  = NULL;
+#else
+#error "Invalid TOFXXF port mode"
+#endif
 
 void tofxxf_bind_port(const tofxxf_port_t* port)
 {
