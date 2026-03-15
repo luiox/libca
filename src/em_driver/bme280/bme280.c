@@ -2,9 +2,9 @@
 #include <em_base/debug.h>
 
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
-static const bme280_port_t*  = &g_bme280_port_extern;
+static const bme280_port_t* g_bme280_port = &g_bme280_port_extern;
 #elif (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
-static const bme280_port_t*  = NULL;
+static const bme280_port_t* g_bme280_port = NULL;
 #else
 #error "Invalid BME280 port mode"
 #endif

@@ -14,6 +14,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_BME280_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_BME280_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_BME280_PORT_MODE
+#define LIBCA_BME280_PORT_MODE LIBCA_BME280_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -72,6 +81,12 @@ typedef struct bme280_port {
      */
     void (*delay_ms)(u32 ms);
 } bme280_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_bme280.c 提供）
+ */
+extern const bme280_port_t g_bme280_port_extern;
+
 
 /**
  * @brief 绑定硬件接口
