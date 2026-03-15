@@ -12,7 +12,7 @@
 #ifndef LIBCA_EM_DRIVER_BH1750_H
 #define LIBCA_EM_DRIVER_BH1750_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 typedef struct bh1750_port
 {

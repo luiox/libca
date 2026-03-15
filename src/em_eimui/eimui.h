@@ -12,7 +12,7 @@
 #ifndef LIBCA_EM_EIMUI_H
 #define LIBCA_EM_EIMUI_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 // page不能大于255个
 typedef u8 page_t;

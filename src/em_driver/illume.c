@@ -1,5 +1,5 @@
 #include "illume.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 static const illume_port_t* g_port = NULL;
 

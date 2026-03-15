@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_DRIVER_BMC050_H
 #define LIBCA_EM_DRIVER_BMC050_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 #ifdef __cplusplus
 extern "C" {

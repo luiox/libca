@@ -2,7 +2,7 @@
 #ifndef TIMEUTIL_H
 #define TIMEUTIL_H
 
-#include "../em_base/datatype.h"   
+#include "em_base/datatype.h"   
 
 // // 时间戳类型，单位微秒，开机后，一般来说基于SysTick或其他时基
 // #if HAS_INT64

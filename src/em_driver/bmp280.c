@@ -7,7 +7,7 @@
  */
 
 #include "bmp280.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 /* --- 静态内部变量 --- */
 static const bmp280_port_t* g_bmp280_port = NULL;

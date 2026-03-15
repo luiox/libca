@@ -1,6 +1,6 @@
 #include "tofxxf.h"
-#include "../em_base/debug.h"
-#include "../em_util/crc.h"
+#include "em_base/debug.h"
+#include "em_util/crc.h"
 #include <string.h>
 
 static const tofxxf_port_t* g_port = NULL;

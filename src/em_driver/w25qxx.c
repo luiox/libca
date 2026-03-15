@@ -1,5 +1,5 @@
 #include "w25qxx.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 // 指令表
 #define W25QXX_WriteEnable 0x06

@@ -67,7 +67,7 @@ void async_poll(async_t *self) {
 /*                                 Unit Tests                                 */
 /* -------------------------------------------------------------------------- */
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 static int g_test_counter = 0;
 

@@ -1,5 +1,5 @@
 #include "max30102.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 // Register addresses
 #define REG_INTR_STATUS_1   0x00

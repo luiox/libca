@@ -1,5 +1,5 @@
 #include "as5600.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 // AS5600 I2C 7位地址
 #define AS5600_ADDR 0x36

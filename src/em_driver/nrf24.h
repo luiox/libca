@@ -13,7 +13,7 @@
 #ifndef LIBCA_EM_DRIVER_NRF24_H
 #define LIBCA_EM_DRIVER_NRF24_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 // port
 typedef struct nrf24_port

@@ -12,7 +12,7 @@
 #ifndef VHIL_H
 #define VHIL_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 typedef enum
 {

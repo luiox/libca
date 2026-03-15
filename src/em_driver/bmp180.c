@@ -1,5 +1,5 @@
 #include "bmp180.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 /* --- 硬件接口绑定 --- */
 

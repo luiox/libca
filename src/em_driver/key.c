@@ -1,5 +1,5 @@
 #include "key.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 static key_port_t* g_key_port = NULL;
 

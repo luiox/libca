@@ -1,4 +1,4 @@
-#include "../../cpu_adapter.h"
+#include "em_platform/cpu_adapter.h"
 
 #if USE_CUSTOM_CPU_ADAPTER
 

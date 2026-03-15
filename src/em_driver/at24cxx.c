@@ -1,5 +1,5 @@
 #include "at24cxx.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 static const at24cxx_port_t* g_at24cxx_port = NULL;
 
