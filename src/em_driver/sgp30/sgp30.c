@@ -1,7 +1,13 @@
 #include "sgp30.h"
 #include <em_base/debug.h>
 
-static const sgp30_port_t* g_sgp30_port = NULL;
+#if (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_EXTERN)
+static const sgp30_port_t*  = &g_sgp30_port_extern;
+#elif (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_DYNAMIC)
+static const sgp30_port_t*  = NULL;
+#else
+#error "Invalid SGP30 port mode"
+#endif
 
 void sgp30_bind_port(const sgp30_port_t* port)
 {
