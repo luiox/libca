@@ -1,19 +1,24 @@
 #include "sgp30.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_EXTERN)
-static const sgp30_port_t g_sgp30_port_extern_impl = {
-    .i2c_write = port_sgp30_i2c_write,
-    .i2c_read = port_sgp30_i2c_read,
-    .delay_ms = port_sgp30_delay_ms,
-};
-static const sgp30_port_t* g_sgp30_port = &g_sgp30_port_extern_impl;
+#define SGP30_PORT_I2C_WRITE(hi2c, dev, mem, memsz, data, len, to) port_sgp30_i2c_write((hi2c), (dev), (mem), (memsz), (data), (len), (to))
+#define SGP30_PORT_I2C_READ(hi2c, dev, mem, memsz, data, len, to)  port_sgp30_i2c_read((hi2c), (dev), (mem), (memsz), (data), (len), (to))
+#define SGP30_PORT_DELAY_MS(ms)                                     port_sgp30_delay_ms(ms)
+
 #elif (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_DYNAMIC)
 static const sgp30_port_t* g_sgp30_port = NULL;
+#define SGP30_PORT_I2C_WRITE(hi2c, dev, mem, memsz, data, len, to) g_sgp30_port->i2c_write((hi2c), (dev), (mem), (memsz), (data), (len), (to))
+#define SGP30_PORT_I2C_READ(hi2c, dev, mem, memsz, data, len, to)  g_sgp30_port->i2c_read((hi2c), (dev), (mem), (memsz), (data), (len), (to))
+#define SGP30_PORT_DELAY_MS(ms)                                     g_sgp30_port->delay_ms(ms)
+
 #else
 #error "Invalid SGP30 port mode"
 #endif
 
+#if (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_DYNAMIC)
 void sgp30_bind_port(const sgp30_port_t* port)
 {
     g_sgp30_port = port;
@@ -23,6 +28,9 @@ bool sgp30_port_is_registered(void)
 {
     return g_sgp30_port != NULL;
 }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 
 // 内部常量（实现细节，仅在 .c 中定义）
 #define SGP30_ADDR 0x58
@@ -34,14 +42,10 @@ bool sgp30_port_is_registered(void)
 
 // 简化宏
 #define SGP30_I2C_WRITE(self, buf, len) \
-    g_sgp30_port->i2c_write((self)->hi2c, SGP30_ADDR_WRITE, 0, 0, (u8*)(buf), (u16)(len), 0xFFFF)
+    SGP30_PORT_I2C_WRITE((self)->hi2c, SGP30_ADDR_WRITE, 0, 0, (u8*)(buf), (u16)(len), 0xFFFF)
 #define SGP30_I2C_READ(self, buf, len) \
-    g_sgp30_port->i2c_read((self)->hi2c, SGP30_ADDR_READ, 0, 0, (u8*)(buf), (u16)(len), 0xFFFF)
-#define SGP30_DELAY_MS(ms)                          \
-    do {                                            \
-        if (g_sgp30_port && g_sgp30_port->delay_ms) \
-            g_sgp30_port->delay_ms(ms);             \
-    } while (0)
+    SGP30_PORT_I2C_READ((self)->hi2c, SGP30_ADDR_READ, 0, 0, (u8*)(buf), (u16)(len), 0xFFFF)
+#define SGP30_DELAY_MS(ms) SGP30_PORT_DELAY_MS(ms)
 
 /**
  * @brief	向SGP30发送一条指令(16bit)
@@ -53,11 +57,6 @@ static i32 sgp30_send_cmd(sgp30_t* self, u16 cmd)
     u8 cmd_buffer[2];
     cmd_buffer[0] = (u8)(cmd >> 8);
     cmd_buffer[1] = (u8)(cmd & 0xFF);
-
-    if (!g_sgp30_port) {
-        debug_print("[sgp30] port not registered\n");
-        return SGP30_ERR_PORT_NOT_REGISTERED;
-    }
 
     if (SGP30_I2C_WRITE(self, cmd_buffer, 2) != 0) {
         debug_print("[sgp30] send_cmd: i2c write fail\n");
@@ -86,11 +85,6 @@ static i32 sgp30_soft_reset(sgp30_t* self)
 void sgp30_init(sgp30_t* self, void* hi2c)
 {
     self->hi2c = hi2c;
-
-    if (!g_sgp30_port) {
-        debug_print("[sgp30] init: port not registered\n");
-        return;
-    }
 
     i32 ret = sgp30_soft_reset(self);
     if (ret != SGP30_OK) {
@@ -154,8 +148,6 @@ static uint8_t CheckCrc8(uint8_t* const message, uint8_t initial_value)
  */
 i32 sgp30_read(sgp30_t* self, sgp30_data_t* out)
 {
-    if (!g_sgp30_port)
-        return SGP30_ERR_PORT_NOT_REGISTERED;
     if (!self || !out)
         return SGP30_ERR_I2C_FAIL;
 

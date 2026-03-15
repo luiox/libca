@@ -22,21 +22,26 @@
 #define LIBCA_SGP30_PORT_MODE LIBCA_SGP30_PORT_MODE_EXTERN
 #endif
 
-// port
-typedef struct sgp30_port
-{
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                     u16 data_size, u32 timeout);
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
-                    u16 data_size, u32 timeout);
-    void (*delay_ms)(u32 ms);
-} sgp30_port_t;
+#if (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_EXTERN)
+/** @brief I2C写接口 @param hi2c I2C句柄 @param dev_addr 设备地址 @param mem_addr 寄存器地址 @param mem_addr_size 地址长度 @param data 数据缓冲 @param data_size 长度 @param timeout 超时 @return 0=成功 */
 extern i32 port_sgp30_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+/** @brief I2C读接口 @param hi2c I2C句柄 @param dev_addr 设备地址 @param mem_addr 寄存器地址 @param mem_addr_size 地址长度 @param data 数据缓冲 @param data_size 长度 @param timeout 超时 @return 0=成功 */
 extern i32 port_sgp30_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+/** @brief 毫秒延时 @param ms 延时时间 */
 extern void port_sgp30_delay_ms(u32 ms);
 
+#elif (LIBCA_SGP30_PORT_MODE == LIBCA_SGP30_PORT_MODE_DYNAMIC)
+typedef struct sgp30_port {
+    i32  (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);  // I2C写
+    i32  (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);   // I2C读
+    void (*delay_ms)(u32 ms);                                                                                              // 毫秒延时
+} sgp30_port_t;
 void sgp30_bind_port(const sgp30_port_t* port);
 bool sgp30_port_is_registered(void);
+
+#else
+#error "Invalid SGP30 port mode"
+#endif
 
 // 测量数据结构
 typedef struct sgp30_data_st
@@ -53,9 +58,8 @@ typedef struct sgp30
 
 // 错误码
 #define SGP30_OK 0
-#define SGP30_ERR_PORT_NOT_REGISTERED (-1)
-#define SGP30_ERR_I2C_FAIL (-2)
-#define SGP30_ERR_CRC_FAIL (-3)
+#define SGP30_ERR_I2C_FAIL (-1)
+#define SGP30_ERR_CRC_FAIL (-2)
 
 // 初始化与读取
 void sgp30_init(sgp30_t* self, void* hi2c);
