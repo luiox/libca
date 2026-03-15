@@ -1,45 +1,41 @@
 #include "hts221.h"
 #include <em_base/debug.h>
 
-// 寄存器定义
-#define HTS221_CTRL_REG1	0x20
-#define HTS221_CTRL_REG2	0x21
-#define HTS221_CTRL_REG3	0x22
-
-#define HTS221_STATUS_REG	0x27
-
-#define HTS221_HUMIDITY_OUT_L	0x28
-#define HTS221_HUMIDITY_OUT_H	0x29
-#define HTS221_TEMP_OUT_L	0x2A
-#define HTS221_TEMP_OUT_H	0x2B
+////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_EXTERN)
-static const hts221_port_t g_hts221_port_extern_impl = {
-    .i2c_write = port_hts221_i2c_write,
-    .i2c_read = port_hts221_i2c_read,
-    .delay_us = port_hts221_delay_us,
-};
-static const hts221_port_t* g_hts221_port = &g_hts221_port_extern_impl;
+#define HTS221_I2C_WRITE(self, reg, buf, len)  port_hts221_i2c_write((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF)
+#define HTS221_I2C_READ(self, reg, buf, len)   port_hts221_i2c_read((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF)
+#define HTS221_DELAY_US(us)                    port_hts221_delay_us(us)
+
 #elif (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_DYNAMIC)
 static const hts221_port_t* g_hts221_port = NULL;
+#define HTS221_I2C_WRITE(self, reg, buf, len)  g_hts221_port->i2c_write((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF)
+#define HTS221_I2C_READ(self, reg, buf, len)   g_hts221_port->i2c_read((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF)
+#define HTS221_DELAY_US(us)                    g_hts221_port->delay_us(us)
+
 #else
 #error "Invalid HTS221 port mode"
 #endif
 
-void hts221_bind_port(const hts221_port_t* port)
-{
-    g_hts221_port = port;
-}
+#if (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_DYNAMIC)
+void hts221_bind_port(const hts221_port_t* port) { g_hts221_port = port; }
+bool hts221_port_is_registered(void) { return g_hts221_port != NULL; }
+#endif
 
-bool hts221_port_is_registered(void)
-{
-    return g_hts221_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
-// 简化宏（使用 mem_addr_size = 1）
-#define HTS221_I2C_WRITE(self, reg, buf, len) (g_hts221_port->i2c_write((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF))
-#define HTS221_I2C_READ(self, reg, buf, len)  (g_hts221_port->i2c_read((self)->hi2c, (self)->dev_addr, (reg), 1, (u8*)(buf), (u16)(len), 0xFFFF))
-#define HTS221_DELAY_US(us)                    do{ if (g_hts221_port && g_hts221_port->delay_us) g_hts221_port->delay_us((us)); }while(0)
+// 寄存器定义
+#define HTS221_CTRL_REG1        0x20
+#define HTS221_CTRL_REG2        0x21
+#define HTS221_CTRL_REG3        0x22
+
+#define HTS221_STATUS_REG       0x27
+
+#define HTS221_HUMIDITY_OUT_L   0x28
+#define HTS221_HUMIDITY_OUT_H   0x29
+#define HTS221_TEMP_OUT_L       0x2A
+#define HTS221_TEMP_OUT_H       0x2B
 
 // 启动一次转换（one-shot）
 static i32 hts221_start_once(hts221_t* self)
@@ -61,11 +57,6 @@ void hts221_init(hts221_t* self, void* hi2c, u16 dev_addr)
 {
     self->hi2c = hi2c;
     self->dev_addr = dev_addr;
-
-    if (!g_hts221_port) {
-        debug_print("[hts221] init: port not registered\n");
-        return;
-    }
 
     u8 cmd;
 
@@ -97,10 +88,6 @@ void hts221_init(hts221_t* self, void* hi2c, u16 dev_addr)
 // 读取经过校准并换算后的温度（单位：0.1°C）
 i32 hts221_read_temperature(hts221_t* self, int16_t* temperature10)
 {
-    if (!g_hts221_port) {
-        debug_print("[hts221] read_temperature: port not registered\n");
-        return HTS221_ERR_PORT_NOT_REGISTERED;
-    }
     if (!self || !temperature10) return HTS221_ERR_INVALID_PARAM;
 
     u8 T0_degC_x8, T1_degC_x8, tmp;
@@ -161,10 +148,6 @@ i32 hts221_read_temperature(hts221_t* self, int16_t* temperature10)
 // 读取湿度（单位：0.1%RH）
 i32 hts221_read_humidity(hts221_t* self, int16_t* humidity10)
 {
-    if (!g_hts221_port) {
-        debug_print("[hts221] read_humidity: port not registered\n");
-        return HTS221_ERR_PORT_NOT_REGISTERED;
-    }
     if (!self || !humidity10) return HTS221_ERR_INVALID_PARAM;
 
     u8 buf[2];
