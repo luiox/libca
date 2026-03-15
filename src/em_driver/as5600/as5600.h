@@ -14,6 +14,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_AS5600_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_AS5600_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_AS5600_PORT_MODE
+#define LIBCA_AS5600_PORT_MODE LIBCA_AS5600_PORT_MODE_EXTERN
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,6 +58,12 @@ typedef struct as5600_port {
      */
     void (*i2c_read)(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 len);
 } as5600_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_as5600.c 提供）
+ */
+extern const as5600_port_t g_as5600_port_extern;
+
 
 // 绑定port
 void as5600_bind_port(const as5600_port_t* port);
