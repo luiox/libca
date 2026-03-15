@@ -1,26 +1,24 @@
 #include "key.h"
-#include <em_base/debug.h>
+
+////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
-static const key_port_t g_key_port_extern_impl = {
-    .read_pin = port_key_read_pin,
-};
-static const key_port_t* g_key_port = &g_key_port_extern_impl;
+#define KEY_READ_PIN(gpio, pin) port_key_read_pin((gpio), (pin))
+
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
 static const key_port_t* g_key_port = NULL;
+#define KEY_READ_PIN(gpio, pin) g_key_port->read_pin((gpio), (pin))
+
 #else
 #error "Invalid KEY port mode"
 #endif
 
-void key_bind_port(key_port_t* port)
-{
-    g_key_port = port;
-}
+#if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
+void key_bind_port(const key_port_t* port) { g_key_port = port; }
+bool key_port_is_registered(void) { return g_key_port != NULL; }
+#endif
 
-bool key_port_is_registered(void)
-{
-    return g_key_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 void key_init(key_t* self)
 {
@@ -39,13 +37,8 @@ void key_init(key_t* self)
 
 void key_scan_all(key_t* keys, usize keys_size)
 {
-    if (!g_key_port) {
-        debug_print("[key] port not registered\n");
-        return;
-    }
-
     for (u32 i = 0; i < keys_size; i++) {
-        keys[i].key_state = g_key_port->read_pin(keys[i].gpio, keys[i].pin);
+        keys[i].key_state = KEY_READ_PIN(keys[i].gpio, keys[i].pin);
     }
     for (u32 i = 0; i < keys_size; i++) {
         // 按键状态判断

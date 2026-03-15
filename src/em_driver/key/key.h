@@ -23,13 +23,20 @@
 #define LIBCA_KEY_PORT_MODE LIBCA_KEY_PORT_MODE_EXTERN
 #endif
 
-typedef struct key_port{
-    u8 (*read_pin)(void* gpio, u16 pin);
-}key_port_t;
+#if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
+/** @brief 读取按键引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @return 电平值 */
 extern u8 port_key_read_pin(void* gpio, u16 pin);
 
-void key_bind_port(key_port_t* port);
+#elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
+typedef struct key_port {
+    u8 (*read_pin)(void* gpio, u16 pin);  // 读取引脚电平
+} key_port_t;
+void key_bind_port(const key_port_t* port);
 bool key_port_is_registered(void);
+
+#else
+#error "Invalid KEY port mode"
+#endif
 
 #define KEY_STATE_PRESS 1
 #define KEY_STATE_RELEASE 0
