@@ -1,7 +1,7 @@
 #ifndef LIBCA_EM_UTIL_BITS_UTIL_H
 #define LIBCA_EM_UTIL_BITS_UTIL_H
 
-#include "em_base/datatype.h"
+#include <em_base/datatype.h>
 
 // 对于需要精准控制高低位的情况下使用下面的宏
 // 其中bits是一个整数类型的变量，一般是u8、u16、u32等

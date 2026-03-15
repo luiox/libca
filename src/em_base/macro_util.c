@@ -78,7 +78,7 @@
 #endif
 
 #if TEST_ENABLE
-#include "em_test/test.h"
+#include <em_test/test.h>
 #include <string.h>
 
 TEST_CASE(test_macro_util_basic) {

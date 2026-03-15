@@ -1,7 +1,7 @@
 #include "datatype.h"
 
 #if TEST_ENABLE
-#include "em_test/test.h"
+#include <em_test/test.h>
 #include <limits.h>
 
 TEST_CASE(test_datatype_sizes) {

@@ -11,8 +11,8 @@
 #ifndef LIBCA_EM_UTIL_DOUBLY_LIST_H
 #define LIBCA_EM_UTIL_DOUBLY_LIST_H
 
-#include "em_base/datatype.h"
-#include "em_base/macro_util.h"
+#include <em_base/datatype.h>
+#include <em_base/macro_util.h>
 
 typedef struct dlist_node{
     struct dlist_node *prev;

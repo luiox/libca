@@ -391,7 +391,7 @@ bool str_ends_with_i(const char* str, const char* suffix)
 }
 
 #if TEST_ENABLE
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(test_char_to_lower)
 {

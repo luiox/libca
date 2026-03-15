@@ -98,7 +98,7 @@ void* mem_find_byte(const void* buf, u8 val, usize size)
 #endif /* USE_CUSTOM_MEMORY_UTIL_IMPL */
 
 #if TEST_ENABLE
-#include "em_test/test.h"
+#include <em_test/test.h>
 
 TEST_CASE(test_mem_set)
 {

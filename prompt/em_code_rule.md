@@ -36,7 +36,11 @@ extern "C" {
 - 使用oop设计的代码：函数命名以`类名_行为`的方式命名，其他则以`动词_名词`的方式组织
 - 对于源文件内私有函数（仅在当前.c文件使用且不在头文件声明），必须加static修饰
 - 头文件保护：禁止使用`#pragma once`。头文件保护的宏以`项目名_路径_文件名_H`的方式定义
-- 头文件包含：C语言标准库头文件以`#include <stdio.h>`的方式包含，而内部则以`#include "file.h"`的方式包含
+- 头文件包含：
+  - C语言标准库头文件必须使用尖括号形式，例如`#include <stdio.h>`
+  - 对于`em_xxx`模块之间的依赖（跨模块），必须使用“外疏”写法：`#include <em_xxx/yyy.h>`
+  - 对于同一模块内部头文件（模块内依赖），必须使用“内亲”写法：`#include "yyy.h"`或相对路径（如`#include "../yyy.h"`）
+  - 禁止把跨模块头文件写成`#include "em_xxx/yyy.h"`
 
 【代码风格】
 - 缩进：仅使用4空格，禁止使用tab。
@@ -57,14 +61,14 @@ extern "C" {
 【单元测试规范】
 - 对于每个模块的单元测试，应该写在对应的源文件的最下面，并且仅在`TEST_ENABLE`下编译，不影响发布构建
 - 所有测试代码应该是由`#if TEST_ENABLE ... #endif`包裹
-- 单元测试的框架是基于`../em_test/test.h`，创建测试目标以后，使用`add_rules("em_test", { test_enable = true, use_default_main = true })`即可自动注入main函数
+- 单元测试的框架是基于`<em_test/test.h>`，创建测试目标以后，使用`add_rules("em_test", { test_enable = true, use_default_main = true })`即可自动注入main函数
 - 应该可以在windows、linux上进行mock和单元测试确保逻辑没有错误；mock需使用`em_test`提供的替身能力
 - 样例
   ```c
   /* ... 模块代码实现 ... */
 
   #if TEST_ENABLE
-  #include "../em_test/test.h"
+  #include <em_test/test.h>
 
   TEST_CASE(module_feature_name) {
       // Setup
