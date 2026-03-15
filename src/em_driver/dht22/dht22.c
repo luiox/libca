@@ -1,6 +1,12 @@
 #include "dht22.h"
 
-static const dht22_port_t* g_dht22_port = NULL;
+#if (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_EXTERN)
+static const dht22_port_t*  = &g_dht22_port_extern;
+#elif (LIBCA_DHT22_PORT_MODE == LIBCA_DHT22_PORT_MODE_DYNAMIC)
+static const dht22_port_t*  = NULL;
+#else
+#error "Invalid DHT22 port mode"
+#endif
 
 void dht22_bind_port(const dht22_port_t* port)
 {
