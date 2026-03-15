@@ -14,9 +14,9 @@
 #define HTS221_TEMP_OUT_H	0x2B
 
 #if (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_EXTERN)
-static const hts221_port_t*  = &g_hts221_port_extern;
+static const hts221_port_t* g_hts221_port = &g_hts221_port_extern;
 #elif (LIBCA_HTS221_PORT_MODE == LIBCA_HTS221_PORT_MODE_DYNAMIC)
-static const hts221_port_t*  = NULL;
+static const hts221_port_t* g_hts221_port = NULL;
 #else
 #error "Invalid HTS221 port mode"
 #endif
