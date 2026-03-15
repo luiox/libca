@@ -1,39 +1,38 @@
 #include "ds18b20.h"
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_EXTERN)
-static const ds18b20_port_t g_ds18b20_port_extern_impl = {
-    .write_pin = port_ds18b20_write_pin,
-    .read_pin = port_ds18b20_read_pin,
-    .set_output_mode = port_ds18b20_set_output_mode,
-    .set_input_mode = port_ds18b20_set_input_mode,
-    .delay_us = port_ds18b20_delay_us,
-};
-static const ds18b20_port_t* g_ds18b20_port = &g_ds18b20_port_extern_impl;
+#define DS18B20_WRITE_PIN(gpio, pin, v)    port_ds18b20_write_pin((gpio), (pin), (v))
+#define DS18B20_READ_PIN(gpio, pin)        port_ds18b20_read_pin((gpio), (pin))
+#define DS18B20_SET_OUTPUT_MODE(gpio, pin) port_ds18b20_set_output_mode((gpio), (pin))
+#define DS18B20_SET_INPUT_MODE(gpio, pin)  port_ds18b20_set_input_mode((gpio), (pin))
+#define DS18B20_DELAY_US(us)               port_ds18b20_delay_us(us)
+
 #elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
 static const ds18b20_port_t* g_ds18b20_port = NULL;
+#define DS18B20_WRITE_PIN(gpio, pin, v)    g_ds18b20_port->write_pin((gpio), (pin), (v))
+#define DS18B20_READ_PIN(gpio, pin)        g_ds18b20_port->read_pin((gpio), (pin))
+#define DS18B20_SET_OUTPUT_MODE(gpio, pin) g_ds18b20_port->set_output_mode((gpio), (pin))
+#define DS18B20_SET_INPUT_MODE(gpio, pin)  g_ds18b20_port->set_input_mode((gpio), (pin))
+#define DS18B20_DELAY_US(us)               g_ds18b20_port->DS18B20_DELAY_US(us)
+
 #else
 #error "Invalid DS18B20 port mode"
 #endif
 
-#ifndef delay_us
-#define delay_us(us) g_ds18b20_port->delay_us(us)
+#if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
+void ds18b20_bind_port(const ds18b20_port_t* port) { g_ds18b20_port = port; }
+bool ds18b20_port_is_registered(void) { return g_ds18b20_port != NULL; }
 #endif
 
-void ds18b20_bind_port(const ds18b20_port_t* port)
-{
-    g_ds18b20_port = port;
-}
-
-bool ds18b20_port_is_registered(void)
-{
-    return g_ds18b20_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 // 简化访问宏
-#define DS_OUT(self, n)       g_ds18b20_port->write_pin((self)->gpio, (self)->pin, (n))
-#define DS_IN(self)           g_ds18b20_port->read_pin((self)->gpio, (self)->pin)
-#define DS_OUTPUT_MODE(self)  g_ds18b20_port->set_output_mode((self)->gpio, (self)->pin)
-#define DS_INPUT_MODE(self)   g_ds18b20_port->set_input_mode((self)->gpio, (self)->pin)
+#define DS_OUT(self, n)       DS18B20_WRITE_PIN((self)->gpio, (self)->pin, (n))
+#define DS_IN(self)           DS18B20_READ_PIN((self)->gpio, (self)->pin)
+#define DS_OUTPUT_MODE(self)  DS18B20_SET_OUTPUT_MODE((self)->gpio, (self)->pin)
+#define DS_INPUT_MODE(self)   DS18B20_SET_INPUT_MODE((self)->gpio, (self)->pin)
 
 void ds18b20_init(ds18b20_t* self, void* gpio, u16 pin)
 {
@@ -47,11 +46,11 @@ static void ds18b20_send_reset_single(ds18b20_t* self)
 
     // 复位脉冲 480~960 us
     DS_OUT(self, 0);
-    delay_us(750);
+    DS18B20_DELAY_US(750);
 
     // 释放（拉高）15~60 us
     DS_OUT(self, 1);
-    delay_us(15);
+    DS18B20_DELAY_US(15);
 }
 
 static i32 ds18b20_check_ready_single(ds18b20_t* self)
@@ -61,7 +60,7 @@ static i32 ds18b20_check_ready_single(ds18b20_t* self)
     // 等待存在脉冲（presence pulse，60~240 us）
     DS_INPUT_MODE(self);
     while (DS_IN(self) && cnt < 240) {
-        delay_us(1);
+        DS18B20_DELAY_US(1);
         cnt++;
     }
 
@@ -73,7 +72,7 @@ static i32 ds18b20_check_ready_single(ds18b20_t* self)
     cnt = 0;
     DS_INPUT_MODE(self);
     while ((!DS_IN(self)) && cnt < 240) {
-        delay_us(1);
+        DS18B20_DELAY_US(1);
         cnt++;
     }
 
@@ -90,10 +89,6 @@ static i32 ds18b20_check_ready_single(ds18b20_t* self)
  */
 i32 ds18b20_check_device(ds18b20_t* self)
 {
-    if (!g_ds18b20_port) {
-        return DS18B20_ERR_PORT_NOT_REGISTERED;
-    }
-
     ds18b20_send_reset_single(self);
     return ds18b20_check_ready_single(self);
 }
@@ -106,14 +101,14 @@ static uint8_t ds18b20_write_byte(ds18b20_t* self, uint8_t cmd)
         DS_OUTPUT_MODE(self);
         // 起始时隙
         DS_OUT(self, 0);
-        delay_us(2);
+        DS18B20_DELAY_US(2);
         // 写入比特位
         DS_OUT(self, cmd & 0x01);
-        delay_us(60);
+        DS18B20_DELAY_US(60);
         // 释放总线（拉高）
         DS_OUT(self, 1);
         cmd >>= 1;
-        delay_us(2);
+        DS18B20_DELAY_US(2);
     }
 
     return 0;
@@ -127,18 +122,18 @@ static uint8_t ds18b20_read_byte(ds18b20_t* self)
         DS_OUTPUT_MODE(self);
         // 发起读时隙
         DS_OUT(self, 0);
-        delay_us(2);
+        DS18B20_DELAY_US(2);
         DS_OUT(self, 1);
 
         DS_INPUT_MODE(self);
-        delay_us(10);
+        DS18B20_DELAY_US(10);
 
         data >>= 1;
         if (DS_IN(self)) {
             data |= 0x80;
         }
 
-        delay_us(60);
+        DS18B20_DELAY_US(60);
         // 读时隙结束后把总线释放为高电平
         DS_OUT(self, 1);
     }
@@ -155,10 +150,6 @@ i32 ds18b20_read_temperature(ds18b20_t* self, u16* temp)
 {
     u8 temp_L, temp_H;
     i32 ret;
-
-    if (!g_ds18b20_port) {
-        return DS18B20_ERR_PORT_NOT_REGISTERED;
-    }
 
     ret = ds18b20_check_device(self);
     if (ret != DS18B20_OK) {
