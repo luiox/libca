@@ -1,28 +1,27 @@
 #include "jy61p.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
-static const jy61p_port_t g_jy61p_port_extern_impl = {
-    .uart_send = port_jy61p_uart_send,
-    .delay_ms = port_jy61p_delay_ms,
-};
-static const jy61p_port_t* g_jy61p_port = &g_jy61p_port_extern_impl;
+#define JY61P_UART_SEND(huart, buf, len) port_jy61p_uart_send((huart), (buf), (len))
+#define JY61P_DELAY_MS(ms)               port_jy61p_delay_ms(ms)
+
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
 static const jy61p_port_t* g_jy61p_port = NULL;
+#define JY61P_UART_SEND(huart, buf, len) g_jy61p_port->uart_send((huart), (buf), (len))
+#define JY61P_DELAY_MS(ms)               g_jy61p_port->delay_ms(ms)
+
 #else
 #error "Invalid JY61P port mode"
 #endif
 
-void jy61p_bind_port(const jy61p_port_t* port)
-{
-    param_check(port != NULL);
-    g_jy61p_port = port;
-}
+#if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
+void jy61p_bind_port(const jy61p_port_t* port) { g_jy61p_port = port; }
+bool jy61p_port_is_registered(void) { return g_jy61p_port != NULL; }
+#endif
 
-bool jy61p_port_is_registered(void)
-{
-    return g_jy61p_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 void jy61p_init(jy61p_t* jy61p, void* huart)
 {
@@ -191,15 +190,13 @@ static const u8 JY61P_SAVE_CMD[5]  = {0xFF, 0xAA, 0x00, 0x00, 0x00};   // 保存
 static const u8 JY61P_ACC_CMD[5]   = {0xFF, 0xAA, 0x01, 0x01, 0x00};   // 加速度校准
 static const u8 JY61P_XY0_CMD[5]   = {0xFF, 0xAA, 0x01, 0x08, 0x00};   // XY轴归零
 static const u8 JY61P_Z0_CMD[5]    = {0xFF, 0xAA, 0x01, 0x04, 0x00};   // Z轴归零
-#define jy61p_send_cmd(cmd, len) g_jy61p_port->uart_send(self->huart, (const u8*)cmd, (len))
-#define jy61p_delay_ms(ms) g_jy61p_port->delay_ms(ms)
+#define jy61p_send_cmd(cmd, len) JY61P_UART_SEND(self->huart, (const u8*)(cmd), (len))
+#define jy61p_delay_ms(ms)       JY61P_DELAY_MS(ms)
 
 // 校准加速度器
 void jy61p_acc_calibration(jy61p_t* self)
 {
-    /* 参数校验（契约式）：self 与平台 port 必须已准备好 */
     param_check(self != NULL);
-    param_check(g_jy61p_port != NULL);
 
     // 发送解锁
     jy61p_send_cmd(JY61P_ULOCK_CMD, sizeof(JY61P_ULOCK_CMD));
@@ -216,9 +213,7 @@ void jy61p_acc_calibration(jy61p_t* self)
 // xy轴置零
 void jy61p_zero_xy(jy61p_t* self)
 {
-    /* 参数校验（契约式）：self 与平台 port 必须已准备好 */
     param_check(self != NULL);
-    param_check(g_jy61p_port != NULL);
 
     // 发送解锁
     jy61p_send_cmd(JY61P_ULOCK_CMD, sizeof(JY61P_ULOCK_CMD));
@@ -235,9 +230,7 @@ void jy61p_zero_xy(jy61p_t* self)
 // z轴置零
 void jy61p_zero_yaw(jy61p_t* self)
 {
-    /* 参数校验（契约式）：self 与平台 port 必须已准备好 */
     param_check(self != NULL);
-    param_check(g_jy61p_port != NULL);
 
     // 参考：https://blog.csdn.net/m0_52011717/article/details/138538530
     // 发送解锁

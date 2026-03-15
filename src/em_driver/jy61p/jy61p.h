@@ -46,30 +46,23 @@
 #define JY61P_ERR_TYPE -3     /* 类型不支持 */
 #define JY61P_ERR_CHECKSUM -4      /* 校验和错误 */
 
-typedef struct jy61p_port
-{
-    i32 (*uart_send)(void* huart, const u8* buf, usize len);
-    void (*delay_ms)(u32 ms);
-} jy61p_port_t;
+#if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
+/** @brief UART发送数据 @param huart UART句柄 @param buf 发送缓冲区 @param len 数据长度 @return 0=成功 */
 extern i32 port_jy61p_uart_send(void* huart, const u8* buf, usize len);
+/** @brief 毫秒延时 @param ms 延时时间（毫秒） */
 extern void port_jy61p_delay_ms(u32 ms);
 
-/**
- * @brief 绑定平台相关接口
- *
- * 将平台相关的串口发送函数与延时函数绑定到驱动，驱动调用这些函数与平台无关。
- *
- * @param port [in] 平台回调集合，不能为空
- */
+#elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
+typedef struct jy61p_port {
+    i32  (*uart_send)(void* huart, const u8* buf, usize len);  // UART发送
+    void (*delay_ms)(u32 ms);                                   // 毫秒延时
+} jy61p_port_t;
 void jy61p_bind_port(const jy61p_port_t* port);
-
-/**
- * @brief 检查平台接口是否已注册
- *
- * @return true 已注册
- * @return false 未注册
- */
 bool jy61p_port_is_registered(void);
+
+#else
+#error "Invalid JY61P port mode"
+#endif
 
 typedef struct jy61p_frame
 {
