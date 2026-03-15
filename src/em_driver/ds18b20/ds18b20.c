@@ -1,6 +1,12 @@
 #include "ds18b20.h"
 
-static const ds18b20_port_t* g_ds18b20_port = NULL;
+#if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_EXTERN)
+static const ds18b20_port_t*  = &g_ds18b20_port_extern;
+#elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
+static const ds18b20_port_t*  = NULL;
+#else
+#error "Invalid DS18B20 port mode"
+#endif
 
 #ifndef delay_us
 #define delay_us(us) g_ds18b20_port->delay_us(us)
