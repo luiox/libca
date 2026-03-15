@@ -1,7 +1,13 @@
 #include "illume.h"
 #include <em_base/debug.h>
 
-static const illume_port_t* g_port = NULL;
+#if (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_EXTERN)
+static const illume_port_t*  = &g_illume_port_extern;
+#elif (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_DYNAMIC)
+static const illume_port_t*  = NULL;
+#else
+#error "Invalid ILLUME port mode"
+#endif
 
 void illume_bind_port(const illume_port_t* port) {
     g_port = port;
