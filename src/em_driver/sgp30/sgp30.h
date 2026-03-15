@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_SGP30_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_SGP30_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_SGP30_PORT_MODE
+#define LIBCA_SGP30_PORT_MODE LIBCA_SGP30_PORT_MODE_EXTERN
+#endif
+
 // port
 typedef struct sgp30_port
 {
@@ -22,6 +31,12 @@ typedef struct sgp30_port
                     u16 data_size, u32 timeout);
     void (*delay_ms)(u32 ms);
 } sgp30_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_sgp30.c 提供）
+ */
+extern const sgp30_port_t g_sgp30_port_extern;
+
 
 void sgp30_bind_port(const sgp30_port_t* port);
 bool sgp30_port_is_registered(void);
