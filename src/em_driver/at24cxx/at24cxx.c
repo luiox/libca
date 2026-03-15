@@ -1,18 +1,29 @@
 #include "at24cxx.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
-static const at24cxx_port_t g_at24cxx_port_extern_impl = {
-    .i2c_write = port_at24cxx_i2c_write,
-    .i2c_read = port_at24cxx_i2c_read,
-};
-static const at24cxx_port_t* g_at24cxx_port = &g_at24cxx_port_extern_impl;
+
+#define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_at24cxx_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_at24cxx_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+
 #elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
+
 static const at24cxx_port_t* g_at24cxx_port = NULL;
+
+#define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_at24cxx_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_at24cxx_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+
 #else
 #error "Invalid AT24CXX port mode"
 #endif
 
+#if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
 void at24cxx_bind_port(const at24cxx_port_t* port)
 {
     g_at24cxx_port = port;
@@ -22,6 +33,7 @@ bool at24cxx_port_is_registered(void)
 {
     return g_at24cxx_port != NULL;
 }
+#endif
 
 #define I2C_READ 1
 #define I2C_WRITE 0
@@ -161,46 +173,41 @@ void at24cxx_init(at24cxx_t* self, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, voi
 
 void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data)
 {
-    if (!g_at24cxx_port) {
-        debug_print("[at24cxx] port not registered\n");
-        return;
-    }
-
     switch (self->type) {
     case AT24C02:
     case AT24C32:
     case AT24C64:
-        g_at24cxx_port->i2c_write(self->hi2c,
-                                  self->dev_addr_base | I2C_WRITE,
-                                  addr,
-                                  I2C_MEM_ADDR_SIZE_8BIT,
-                                  &data,
-                                  1,
-                                  1000);
+        AT24CXX_I2C_WRITE(self->hi2c,
+                          self->dev_addr_base | I2C_WRITE,
+                          addr,
+                          I2C_MEM_ADDR_SIZE_8BIT,
+                          &data,
+                          1,
+                          1000);
         break;
     case AT24C256:
-        g_at24cxx_port->i2c_write(self->hi2c,
-                                  self->dev_addr_base | I2C_WRITE,
-                                  addr,
-                                  I2C_MEM_ADDR_SIZE_16BIT,
-                                  &data,
-                                  1,
-                                  1000);
+        AT24CXX_I2C_WRITE(self->hi2c,
+                          self->dev_addr_base | I2C_WRITE,
+                          addr,
+                          I2C_MEM_ADDR_SIZE_16BIT,
+                          &data,
+                          1,
+                          1000);
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
-        g_at24cxx_port->i2c_write(self->hi2c,
-                                  self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_WRITE,
-                                  addr,
-                                  I2C_MEM_ADDR_SIZE_8BIT,
-                                  &data,
-                                  1,
-                                  1000);
+        AT24CXX_I2C_WRITE(self->hi2c,
+                          self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_WRITE,
+                          addr,
+                          I2C_MEM_ADDR_SIZE_8BIT,
+                          &data,
+                          1,
+                          1000);
 
         break;
     case AT24C08:
         // 1010 a2 p1 p0 rw
-        g_at24cxx_port->i2c_write(
+        AT24CXX_I2C_WRITE(
             self->hi2c,
             self->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
             addr,
@@ -211,14 +218,14 @@ void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data)
         break;
     case AT24C16:
         // 1010 p2 p1 p0 rw
-        g_at24cxx_port->i2c_write(self->hi2c,
-                                  self->dev_addr_base | ((addr & 0x0400) >> 7) |
-                                      ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
-                                  addr,
-                                  I2C_MEM_ADDR_SIZE_8BIT,
-                                  &data,
-                                  1,
-                                  1000);
+        AT24CXX_I2C_WRITE(self->hi2c,
+                          self->dev_addr_base | ((addr & 0x0400) >> 7) |
+                              ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
+                          addr,
+                          I2C_MEM_ADDR_SIZE_8BIT,
+                          &data,
+                          1,
+                          1000);
         break;
     default: debug_print("[at24cxx] error: unsupport type, type:%d\n", self->type); break;
     }
@@ -226,36 +233,31 @@ void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data)
 
 void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data)
 {
-    if (!g_at24cxx_port) {
-        debug_print("[at24cxx] port not registered\n");
-        return;
-    }
-
     switch (self->type) {
     case AT24C02:
     case AT24C32:
     case AT24C64:
-        g_at24cxx_port->i2c_read(
+        AT24CXX_I2C_READ(
             self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_8BIT, data, 1, 1000);
         break;
     case AT24C256:
-        g_at24cxx_port->i2c_read(
+        AT24CXX_I2C_READ(
             self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_16BIT, data, 1, 1000);
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
-        g_at24cxx_port->i2c_read(self->hi2c,
-                                 self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_READ,
-                                 addr,
-                                 I2C_MEM_ADDR_SIZE_8BIT,
-                                 data,
-                                 1,
-                                 1000);
+        AT24CXX_I2C_READ(self->hi2c,
+                         self->dev_addr_base | ((addr & 0x0100) >> 7) | I2C_READ,
+                         addr,
+                         I2C_MEM_ADDR_SIZE_8BIT,
+                         data,
+                         1,
+                         1000);
 
         break;
     case AT24C08:
         // 1010 a2 p1 p0 rw
-        g_at24cxx_port->i2c_read(
+        AT24CXX_I2C_READ(
             self->hi2c,
             self->dev_addr_base | ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
             addr,
@@ -266,14 +268,14 @@ void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data)
         break;
     case AT24C16:
         // 1010 p2 p1 p0 rw
-        g_at24cxx_port->i2c_read(self->hi2c,
-                                 self->dev_addr_base | ((addr & 0x0400) >> 7) |
-                                     ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
-                                 addr,
-                                 I2C_MEM_ADDR_SIZE_8BIT,
-                                 data,
-                                 1,
-                                 1000);
+        AT24CXX_I2C_READ(self->hi2c,
+                         self->dev_addr_base | ((addr & 0x0400) >> 7) |
+                             ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
+                         addr,
+                         I2C_MEM_ADDR_SIZE_8BIT,
+                         data,
+                         1,
+                         1000);
         break;
     default: debug_print("[at24cxx] error: unsupport type, type:%d\n", self->type); break;
     }

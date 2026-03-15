@@ -25,6 +25,36 @@
 #define LIBCA_AT24CXX_PORT_MODE LIBCA_AT24CXX_PORT_MODE_EXTERN
 #endif
 
+#if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
+
+/**
+ * @brief I2C 写操作
+ *
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ */
+extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+
+/**
+ * @brief I2C 读操作
+ *
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ */
+extern void port_at24cxx_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+
+#elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
+
 typedef struct at24cxx_port
 {
     // i2c写函数
@@ -34,11 +64,13 @@ typedef struct at24cxx_port
     void (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                      u16 data_size, u32 timeout);
 } at24cxx_port_t;
-extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-extern void port_at24cxx_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
 void at24cxx_bind_port(const at24cxx_port_t* port);
 bool at24cxx_port_is_registered(void);
+
+#else
+#error "Invalid AT24CXX port mode"
+#endif
 
 typedef enum
 {
