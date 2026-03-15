@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_CRYPTO_BASE64_H
 #define LIBCA_EM_CRYPTO_BASE64_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 /**
  * @brief 计算编码后需要的缓冲区大小

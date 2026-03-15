@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_CRYPTO_CRYPTO_H
 #define LIBCA_EM_CRYPTO_CRYPTO_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 typedef struct crypto_ops {
     void (*init)(void* context);

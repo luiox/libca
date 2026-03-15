@@ -2,7 +2,7 @@
 #define LIBCA_EM_PROTOCOL_DUMMY_H
 
 #include "file_transfer.h"
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 typedef struct dummy {
     transport_t* io;

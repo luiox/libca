@@ -1,8 +1,8 @@
 #include "ymodem.h"
-#include "../em_base/memory_util.h"
-#include "../em_base/debug.h"
-#include "../em_util/crc.h"
-#include "../em_util/soft_timer.h"
+#include "em_base/memory_util.h"
+#include "em_base/debug.h"
+#include "em_util/crc.h"
+#include "em_util/soft_timer.h"
 
 // YModem 控制字符
 #define YMODEM_SOH 0x01

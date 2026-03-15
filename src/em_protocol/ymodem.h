@@ -12,7 +12,7 @@
 #define LIBCA_EM_PROTOCOL_YMODEM_H
 
 #include "file_transfer.h"
-#include "../em_util/soft_timer.h"
+#include "em_util/soft_timer.h"
 
 #ifdef __cplusplus
 extern "C" {

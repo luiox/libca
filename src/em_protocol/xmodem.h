@@ -12,7 +12,7 @@
 #define LIBCA_EM_PROTOCOL_XMODEM_H
 
 #include "file_transfer.h"
-#include "../em_util/soft_timer.h"
+#include "em_util/soft_timer.h"
 
 #define XMODEM_OK                 0
 #define XMODEM_ERR_RB_TOO_SMALL   1

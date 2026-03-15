@@ -14,7 +14,7 @@
 #ifndef LIBCA_EM_DSTREAM_RING_BUFFER_H
 #define LIBCA_EM_DSTREAM_RING_BUFFER_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 // position_size_t 已弃用，直接使用 usize 类型
 // typedef usize position_size_t;

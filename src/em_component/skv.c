@@ -1,5 +1,5 @@
 #include "skv.h"
-#include "../em_util/crc.h"
+#include "em_util/crc.h"
 #include <string.h>
 
 static skv_port_t* g_skv_port = NULL;

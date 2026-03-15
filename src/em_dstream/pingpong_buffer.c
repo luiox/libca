@@ -116,7 +116,7 @@ u8 pingpong_buf_is_writing(pingpong_buffer_t* pingpong_buf)
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 #define TEST_BUFFER_SIZE 256
 static u8 test_buffer1[TEST_BUFFER_SIZE];

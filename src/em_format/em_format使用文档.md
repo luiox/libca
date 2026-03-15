@@ -16,7 +16,7 @@
 ### 1) 仅基础格式（默认，最省体积）
 
 ```c
-#include "../em_format/format.h"
+#include "em_format/format.h"
 
 char buf[64];
 fmt_snprintf(buf, sizeof(buf), "id=%u name=%s", 7U, "mcu");

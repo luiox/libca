@@ -1,5 +1,5 @@
 #include "fixed_buffer.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 #include <string.h>
 
 void fixed_buf_init(fixed_buffer_t* self, u8* data, usize capacity)
@@ -167,7 +167,7 @@ i32 fixed_buf_write(fixed_buffer_t* self, const u8* data, usize size)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 TEST_CASE(fixed_buf_test_init)
 {

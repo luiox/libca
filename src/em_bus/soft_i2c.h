@@ -15,7 +15,7 @@
 #ifndef LIBCA_EM_BUS_SOFT_I2C_H
 #define LIBCA_EM_BUS_SOFT_I2C_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 
 typedef struct {
     // 设置gpio模式

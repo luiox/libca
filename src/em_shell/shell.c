@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "../em_base/string_util.h"
-#include "../em_base/debug.h"
+#include "em_base/string_util.h"
+#include "em_base/debug.h"
 
 /* ========== 前置声明 ========== */
 static i32 shell_help(i32 argc, char *argv[]);
@@ -367,7 +367,7 @@ void shell_hexdump(shell_t *shell, u32 addr, const u8 *data, u32 len)
 /* ========== 单元测试 ========== */
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 /* 模拟端口结构 */
 typedef struct {

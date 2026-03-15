@@ -14,8 +14,8 @@
 #ifndef LIBCA_EM_DSTREAM_FIXED_BUFFER_H
 #define LIBCA_EM_DSTREAM_FIXED_BUFFER_H
 
-#include "../em_base/datatype.h"
-#include "../em_base/debug.h"
+#include "em_base/datatype.h"
+#include "em_base/debug.h"
 
 #ifdef __cplusplus
 extern "C" {

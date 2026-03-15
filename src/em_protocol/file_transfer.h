@@ -11,7 +11,7 @@
 #ifndef LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 #define LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 
-#include "../em_base/datatype.h"
+#include "em_base/datatype.h"
 #include "transport.h"
 
 /*

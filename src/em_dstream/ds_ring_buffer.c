@@ -161,7 +161,7 @@ const dstream_ops_t* ring_buf_get_dstream_ops(void)
 
 #if TEST_ENABLE
 
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 TEST_CASE(ds_ring_buf_basic_ops)
 {

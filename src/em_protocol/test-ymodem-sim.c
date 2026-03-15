@@ -1,9 +1,9 @@
 #if TEST_ENABLE
 #include "ymodem.h"
-#include "../em_test/test.h"
-#include "../em_util/crc.h"
-#include "../em_base/memory_util.h"
-#include "../em_base/debug.h"
+#include "em_test/test.h"
+#include "em_util/crc.h"
+#include "em_base/memory_util.h"
+#include "em_base/debug.h"
 #include <string.h>
 #include <stdio.h>
 

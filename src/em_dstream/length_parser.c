@@ -1,5 +1,5 @@
 #include "length_parser.h"
-#include "../em_base/debug.h"
+#include "em_base/debug.h"
 
 /**
  * @brief 从流中读取长度字段（支持部分读取）
@@ -268,7 +268,7 @@ void length_parser_reset(length_parser_t* self)
 }
 
 #if TEST_ENABLE
-#include "../em_test/test.h"
+#include "em_test/test.h"
 
 /* 使用 delimiter_parser.c 中定义的 mem_stream 实现 */
 typedef struct {
