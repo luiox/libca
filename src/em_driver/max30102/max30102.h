@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_MAX30102_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_MAX30102_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_MAX30102_PORT_MODE
+#define LIBCA_MAX30102_PORT_MODE LIBCA_MAX30102_PORT_MODE_EXTERN
+#endif
+
 #define MAX30102_ADDR 0xAE
 #define MAX30102_BUFFER_SIZE 500
 
@@ -29,6 +38,12 @@ typedef struct max30102_port {
     i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                      u16 data_size, u32 timeout);
 } max30102_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_max30102.c 提供）
+ */
+extern const max30102_port_t g_max30102_port_extern;
+
 
 /**
  * @brief 绑定硬件接口
