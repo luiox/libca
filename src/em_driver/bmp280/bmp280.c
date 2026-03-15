@@ -10,7 +10,13 @@
 #include <em_base/debug.h>
 
 /* --- 静态内部变量 --- */
-static const bmp280_port_t* g_bmp280_port = NULL;
+#if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
+static const bmp280_port_t*  = &g_bmp280_port_extern;
+#elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
+static const bmp280_port_t*  = NULL;
+#else
+#error "Invalid BMP280 port mode"
+#endif
 
 /* --- 私有辅助函数 --- */
 
