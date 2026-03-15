@@ -11,9 +11,9 @@
 
 /* --- 静态内部变量 --- */
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
-static const bmp280_port_t*  = &g_bmp280_port_extern;
+static const bmp280_port_t* g_bmp280_port = &g_bmp280_port_extern;
 #elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
-static const bmp280_port_t*  = NULL;
+static const bmp280_port_t* g_bmp280_port = NULL;
 #else
 #error "Invalid BMP280 port mode"
 #endif
