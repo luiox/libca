@@ -1,21 +1,31 @@
 #include "bmp180.h"
 #include <em_base/debug.h>
 
-/* --- 硬件接口绑定 --- */
+////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_EXTERN)
-static const bmp180_port_t g_bmp180_port_extern_impl = {
-    .i2c_write = port_bmp180_i2c_write,
-    .i2c_read = port_bmp180_i2c_read,
-    .delay_ms = port_bmp180_delay_ms,
-};
-static const bmp180_port_t* g_bmp180_port = &g_bmp180_port_extern_impl;
+
+#define BMP180_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmp180_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP180_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmp180_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP180_DELAY_MS(ms) port_bmp180_delay_ms((ms))
+
 #elif (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_DYNAMIC)
+
 static const bmp180_port_t* g_bmp180_port = NULL;
+
+#define BMP180_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmp180_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP180_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmp180_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP180_DELAY_MS(ms) g_bmp180_port->delay_ms((ms))
+
 #else
 #error "Invalid BMP180 port mode"
 #endif
 
+#if (LIBCA_BMP180_PORT_MODE == LIBCA_BMP180_PORT_MODE_DYNAMIC)
 void bmp180_bind_port(const bmp180_port_t* port) {
     g_bmp180_port = port;
 }
@@ -23,6 +33,7 @@ void bmp180_bind_port(const bmp180_port_t* port) {
 bool bmp180_port_is_registered(void) {
     return g_bmp180_port != NULL;
 }
+#endif
 
 /* --- 内部寄存器定义 --- */
 
@@ -41,13 +52,11 @@ bool bmp180_port_is_registered(void) {
 /* --- 私有辅助函数 --- */
 
 static i32 bmp180_write_reg(bmp180_t* self, u8 reg, u8 val) {
-    if (!g_bmp180_port) return BMP180_ERR_PORT_NOT_REGISTERED;
-    return g_bmp180_port->i2c_write(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
+    return BMP180_I2C_WRITE(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
 }
 
 static i32 bmp180_read_regs(bmp180_t* self, u8 reg, u8* data, u16 len) {
-    if (!g_bmp180_port) return BMP180_ERR_PORT_NOT_REGISTERED;
-    return g_bmp180_port->i2c_read(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
+    return BMP180_I2C_READ(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
 }
 
 static i32 bmp180_read_reg(bmp180_t* self, u8 reg, u8* val) {
@@ -91,7 +100,6 @@ static i32 bmp180_calc_pressure(bmp180_t* self, u32 up, bmp180_oss_t oss) {
 
 i32 bmp180_init(bmp180_t* self, void* hi2c, u16 dev_addr) {
     if (!self) return BMP180_ERR_INVALID_PARAM;
-    if (!g_bmp180_port) return BMP180_ERR_PORT_NOT_REGISTERED;
 
     self->hi2c = hi2c;
     self->dev_addr = dev_addr;
@@ -134,7 +142,7 @@ i32 bmp180_reset(bmp180_t* self) {
 
 i32 bmp180_read_raw_temp(bmp180_t* self, u16* ut) {
     if (bmp180_write_reg(self, BMP180_REG_CTRL, BMP180_CMD_TEMP) != 0) return BMP180_ERR_I2C_FAIL;
-    g_bmp180_port->delay_ms(5); // Wait 4.5ms
+    BMP180_DELAY_MS(5); // Wait 4.5ms
     u8 buf[2];
     if (bmp180_read_regs(self, BMP180_REG_DATA, buf, 2) != 0) return BMP180_ERR_I2C_FAIL;
     if (ut) *ut = (u16)((buf[0] << 8) | buf[1]);
@@ -149,7 +157,7 @@ i32 bmp180_read_raw_press(bmp180_t* self, bmp180_oss_t oss, u32* up) {
     if (oss == BMP180_OSS_STANDARD) wait_ms = 8;
     else if (oss == BMP180_OSS_HIGH_RES) wait_ms = 14;
     else if (oss == BMP180_OSS_ULTRA_RES) wait_ms = 26;
-    g_bmp180_port->delay_ms(wait_ms);
+    BMP180_DELAY_MS(wait_ms);
 
     u8 buf[3];
     if (bmp180_read_regs(self, BMP180_REG_DATA, buf, 3) != 0) return BMP180_ERR_I2C_FAIL;
