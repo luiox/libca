@@ -1,7 +1,13 @@
 #include "at24cxx.h"
 #include <em_base/debug.h>
 
-static const at24cxx_port_t* g_at24cxx_port = NULL;
+#if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
+static const at24cxx_port_t*  = &g_at24cxx_port_extern;
+#elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
+static const at24cxx_port_t*  = NULL;
+#else
+#error "Invalid AT24CXX port mode"
+#endif
 
 void at24cxx_bind_port(const at24cxx_port_t* port)
 {
