@@ -20,41 +20,67 @@
 #define LIBCA_BMP280_PORT_MODE LIBCA_BMP280_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct bmp280_port {
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
-                    u32 timeout);
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
-                     u32 timeout);
-    void (*delay_ms)(u32 ms);
-} bmp280_port_t;
-
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
+
+/**
+ * @brief I2C 读操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功
+ */
 extern i32 port_bmp280_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
                                 u32 timeout);
+
+/**
+ * @brief I2C 写操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功
+ */
 extern i32 port_bmp280_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                                  u16 data_size, u32 timeout);
+
+/**
+ * @brief 毫秒延时
+ * @param ms 延时时间（ms）
+ */
 extern void port_bmp280_delay_ms(u32 ms);
 
 #elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
 
-/**
- * @brief 绑定硬件端口
- */
-void bmp280_bind_port(const bmp280_port_t* port);
+typedef struct bmp280_port {
+    // i2c读函数
+    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                    u32 timeout);
+    // i2c写函数
+    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                     u32 timeout);
+    // 毫秒延时函数
+    void (*delay_ms)(u32 ms);
+} bmp280_port_t;
 
-/**
- * @brief 检查硬件端口是否已注册
- */
+void bmp280_bind_port(const bmp280_port_t* port);
 bool bmp280_port_is_registered(void);
 
 #else
 #error "Invalid BMP280 port mode"
 #endif
+
+/* --- 错误码 --- */
+#define BMP280_OK                          0
+#define BMP280_ERR_I2C_FAIL               (-2)
+#define BMP280_ERR_DEVICE_NOT_FOUND       (-3)
+#define BMP280_ERR_INVALID_PARAM          (-4)
 
 /* --- 寄存器定义 --- */
 
@@ -147,13 +173,6 @@ typedef enum {
     BMP280_STBY_4000MS = 0x07
 } bmp280_standby_t;
 
-/* --- 错误码 --- */
-#define BMP280_OK                          0
-#define BMP280_ERR_PORT_NOT_REGISTERED    (-1)
-#define BMP280_ERR_I2C_FAIL               (-2)
-#define BMP280_ERR_DEVICE_NOT_FOUND       (-3)
-#define BMP280_ERR_INVALID_PARAM          (-4)
-
 /* --- 接口函数 --- */
 
 /**
@@ -215,9 +234,5 @@ f32 bmp280_pa_to_mmhg(f32 pa);
  * @brief 帕斯卡转海拔
  */
 f32 bmp280_pa_to_alt(f32 pa);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // LIBCA_EM_DRIVER_BMP280_H

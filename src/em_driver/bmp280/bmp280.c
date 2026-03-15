@@ -9,30 +9,48 @@
 #include "bmp280.h"
 #include <em_base/debug.h>
 
-/* --- 静态内部变量 --- */
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
-static const bmp280_port_t g_bmp280_port_extern_impl = {
-    .i2c_read = port_bmp280_i2c_read,
-    .i2c_write = port_bmp280_i2c_write,
-    .delay_ms = port_bmp280_delay_ms,
-};
-static const bmp280_port_t* g_bmp280_port = &g_bmp280_port_extern_impl;
+
+#define BMP280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmp280_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bmp280_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP280_DELAY_MS(ms) port_bmp280_delay_ms((ms))
+
 #elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
+
 static const bmp280_port_t* g_bmp280_port = NULL;
+
+#define BMP280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmp280_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bmp280_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BMP280_DELAY_MS(ms) g_bmp280_port->delay_ms((ms))
+
 #else
 #error "Invalid BMP280 port mode"
+#endif
+
+#if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
+void bmp280_bind_port(const bmp280_port_t* port) {
+    g_bmp280_port = port;
+}
+
+bool bmp280_port_is_registered(void) {
+    return g_bmp280_port != NULL;
+}
 #endif
 
 /* --- 私有辅助函数 --- */
 
 static i32 bmp280_write_reg(bmp280_t* self, u8 reg, u8 val) {
-    if (!g_bmp280_port) return BMP280_ERR_PORT_NOT_REGISTERED;
-    return g_bmp280_port->i2c_write(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
+    return BMP280_I2C_WRITE(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
 }
 
 static i32 bmp280_read_regs(bmp280_t* self, u8 reg, u8* data, u16 len) {
-    if (!g_bmp280_port) return BMP280_ERR_PORT_NOT_REGISTERED;
-    return g_bmp280_port->i2c_read(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
+    return BMP280_I2C_READ(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
 }
 
 static i32 bmp280_read_reg(bmp280_t* self, u8 reg, u8* val) {
@@ -102,17 +120,8 @@ static f32 bmp280_compensate_P(bmp280_t* self, i32 up) {
 
 /* --- 公共接口实现 --- */
 
-void bmp280_bind_port(const bmp280_port_t* port) {
-    g_bmp280_port = port;
-}
-
-bool bmp280_port_is_registered(void) {
-    return g_bmp280_port != NULL;
-}
-
 i32 bmp280_init(bmp280_t* self, void* hi2c, u16 dev_addr) {
     if (!self) return BMP280_ERR_INVALID_PARAM;
-    if (!g_bmp280_port) return BMP280_ERR_PORT_NOT_REGISTERED;
 
     self->hi2c = hi2c;
     self->dev_addr = dev_addr;
@@ -152,7 +161,7 @@ i32 bmp280_check(bmp280_t* self) {
 
 i32 bmp280_reset(bmp280_t* self) {
     i32 res = bmp280_write_reg(self, BMP280_REG_RESET, BMP280_SOFT_RESET_VAL);
-    if (res == BMP280_OK && g_bmp280_port) g_bmp280_port->delay_ms(10);
+    if (res == BMP280_OK) BMP280_DELAY_MS(10);
     return res;
 }
 
