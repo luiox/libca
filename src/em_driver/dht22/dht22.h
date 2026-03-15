@@ -13,6 +13,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_DHT22_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_DHT22_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_DHT22_PORT_MODE
+#define LIBCA_DHT22_PORT_MODE LIBCA_DHT22_PORT_MODE_EXTERN
+#endif
+
 // port 定义：抽象 GPIO 操作和延时
 typedef struct dht22_port {
     void (*write_pin)(void* gpio, u16 pin, u8 value);
@@ -22,6 +31,12 @@ typedef struct dht22_port {
     void (*delay_us)(u32 us);
     void (*delay_ms)(u32 ms);
 } dht22_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_dht22.c 提供）
+ */
+extern const dht22_port_t g_dht22_port_extern;
+
 
 void dht22_bind_port(const dht22_port_t* port);
 bool dht22_port_is_registered(void);
