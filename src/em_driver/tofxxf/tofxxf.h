@@ -16,6 +16,15 @@
 
 #include <em_base/datatype.h>
 
+// 外部模式
+#define LIBCA_TOFXXF_PORT_MODE_EXTERN 1
+// 动态模式
+#define LIBCA_TOFXXF_PORT_MODE_DYNAMIC 2
+
+#ifndef LIBCA_TOFXXF_PORT_MODE
+#define LIBCA_TOFXXF_PORT_MODE LIBCA_TOFXXF_PORT_MODE_EXTERN
+#endif
+
 // 默认波特率
 #define TOFXF_BAUDRATE_DEFAULT  115200
 
@@ -80,6 +89,12 @@ typedef struct tofxxf_port {
      */
     i32 (*uart_recv)(void* huart, u8* buf, usize len, u32 timeout_ms);
 } tofxxf_port_t;
+
+/**
+ * @brief 外部隐式注入的 port 函数表（由 port_tofxxf.c 提供）
+ */
+extern const tofxxf_port_t g_tofxxf_port_extern;
+
 
 void tofxxf_bind_port(const tofxxf_port_t* port);
 bool tofxxf_port_is_registered(void);
