@@ -1,20 +1,28 @@
 #include "hc_sr04.h"
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_EXTERN)
-static const hc_sr04_port_t g_hc_sr04_port_extern_impl = {
-    .write_pin = port_hc_sr04_write_pin,
-    .read_pin = port_hc_sr04_read_pin,
-    .delay_us = port_hc_sr04_delay_us,
-    .tim_set_counter = port_hc_sr04_tim_set_counter,
-    .tim_start = port_hc_sr04_tim_start,
-    .tim_stop = port_hc_sr04_tim_stop,
-    .tim_get_counter = port_hc_sr04_tim_get_counter,
-    .mutex_pend = port_hc_sr04_mutex_pend,
-    .mutex_post = port_hc_sr04_mutex_post,
-};
-static const hc_sr04_port_t* g_hc_sr04_port = &g_hc_sr04_port_extern_impl;
+#define HC_WRITE_PIN(self, v)   port_hc_sr04_write_pin((self)->trig_port, (self)->trig_pin, (v))
+#define HC_READ_PIN(self)       port_hc_sr04_read_pin((self)->echo_port, (self)->echo_pin)
+#define HC_DELAY_US(us)         port_hc_sr04_delay_us(us)
+#define HC_TIM_SET(self, v)     port_hc_sr04_tim_set_counter((self)->tim, (v))
+#define HC_TIM_START(self)      port_hc_sr04_tim_start((self)->tim)
+#define HC_TIM_STOP(self)       port_hc_sr04_tim_stop((self)->tim)
+#define HC_TIM_GET(self)        port_hc_sr04_tim_get_counter((self)->tim)
+#define HC_MUTEX_PEND()         port_hc_sr04_mutex_pend()
+#define HC_MUTEX_POST()         port_hc_sr04_mutex_post()
 #elif (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
 static const hc_sr04_port_t* g_hc_sr04_port = NULL;
+#define HC_WRITE_PIN(self, v)   g_hc_sr04_port->write_pin((self)->trig_port, (self)->trig_pin, (v))
+#define HC_READ_PIN(self)       g_hc_sr04_port->read_pin((self)->echo_port, (self)->echo_pin)
+#define HC_DELAY_US(us)         g_hc_sr04_port->delay_us(us)
+#define HC_TIM_SET(self, v)     g_hc_sr04_port->tim_set_counter((self)->tim, (v))
+#define HC_TIM_START(self)      g_hc_sr04_port->tim_start((self)->tim)
+#define HC_TIM_STOP(self)       g_hc_sr04_port->tim_stop((self)->tim)
+#define HC_TIM_GET(self)        g_hc_sr04_port->tim_get_counter((self)->tim)
+#define HC_MUTEX_PEND()         do { if (g_hc_sr04_port->mutex_pend) g_hc_sr04_port->mutex_pend(); } while(0)
+#define HC_MUTEX_POST()         do { if (g_hc_sr04_port->mutex_post) g_hc_sr04_port->mutex_post(); } while(0)
 #else
 #error "Invalid HC_SR04 port mode"
 #endif
@@ -66,9 +74,6 @@ static void hc_sr04_start_trig(hc_sr04_t* self)
  */
 i32 hc_sr04_measure(hc_sr04_t* self)
 {
-    if (!g_hc_sr04_port) {
-        return HC_SR04_ERR_PORT_NOT_REGISTERED;
-    }
     if (!self) {
         return HC_SR04_ERR_INVALID_PARAM;
     }
@@ -95,29 +100,15 @@ i32 hc_sr04_measure(hc_sr04_t* self)
         t--;
     }
 
-    // 启动计时
-    HC_TIM_START(self);
 
-    // 等待 echo 下降（带超时）
-    t = timeout_us;
-    while (HC_READ_PIN(self) == 1) {
-        if (t == 0) {
-            HC_TIM_STOP(self);
-            HC_MUTEX_POST();
-            return HC_SR04_ERR_TIMEOUT;
-        }
-        HC_DELAY_US(1);
-        t--;
-    }
+    #if (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
+    void hc_sr04_bind_port(const hc_sr04_port_t* port) { g_hc_sr04_port = port; }
+    bool hc_sr04_port_is_registered(void) { return g_hc_sr04_port != NULL; }
+    #endif
 
-    // 停止计时并读取计数（单位：us）
-    HC_TIM_STOP(self);
-    u32 tick_us = HC_TIM_GET(self);
+    ////////////////////////////////////////////////////////////////////////////////
 
-    // 计算距离（cm）: distance = (time_s * sound_speed / 2) * 100
-    self->distance = ((double)tick_us / 1000000.0) * 340.0 / 2.0 * 100.0;
-
-    HC_MUTEX_POST();
+    void hc_sr04_init
 
     return HC_SR04_OK;
 }
