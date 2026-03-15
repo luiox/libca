@@ -1,6 +1,34 @@
 #include "ds1302.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
+#if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
+#define DS1302_WRITE_PIN(gpio, pin, v)    port_ds1302_write_pin((gpio), (pin), (v))
+#define DS1302_READ_PIN(gpio, pin)        port_ds1302_read_pin((gpio), (pin))
+#define DS1302_SET_OUTPUT_MODE(gpio, pin) port_ds1302_set_output_mode((gpio), (pin))
+#define DS1302_SET_INPUT_MODE(gpio, pin)  port_ds1302_set_input_mode((gpio), (pin))
+#define DS1302_DELAY_US(us)               port_ds1302_delay_us(us)
+
+#elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
+static const ds1302_port_t* g_ds1302_port = NULL;
+#define DS1302_WRITE_PIN(gpio, pin, v)    g_ds1302_port->write_pin((gpio), (pin), (v))
+#define DS1302_READ_PIN(gpio, pin)        g_ds1302_port->read_pin((gpio), (pin))
+#define DS1302_SET_OUTPUT_MODE(gpio, pin) g_ds1302_port->set_output_mode((gpio), (pin))
+#define DS1302_SET_INPUT_MODE(gpio, pin)  g_ds1302_port->set_input_mode((gpio), (pin))
+#define DS1302_DELAY_US(us)               g_ds1302_port->delay_us(us)
+
+#else
+#error "Invalid DS1302 port mode"
+#endif
+
+#if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
+void ds1302_bind_port(const ds1302_port_t* port) { g_ds1302_port = port; }
+bool ds1302_port_is_registered(void) { return g_ds1302_port != NULL; }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+
 // 寄存器地址定义
 #define DS1302_REG_SECOND       0x80
 #define DS1302_REG_MINUTE       0x82
@@ -23,30 +51,6 @@
 #define DS1302_MASK_MONTH       0x1F
 #define DS1302_MASK_WEEK        0x07
 #define DS1302_MASK_YEAR        0xFF
-
-#if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
-static const ds1302_port_t g_ds1302_port_extern_impl = {
-    .write_pin = port_ds1302_write_pin,
-    .read_pin = port_ds1302_read_pin,
-    .set_output_mode = port_ds1302_set_output_mode,
-    .set_input_mode = port_ds1302_set_input_mode,
-    .delay_us = port_ds1302_delay_us,
-};
-static const ds1302_port_t* g_port = &g_ds1302_port_extern_impl;
-#elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
-static const ds1302_port_t* g_port = NULL;
-#else
-#error "Invalid DS1302 port mode"
-#endif
-
-void ds1302_bind_port(const ds1302_port_t* port) {
-    param_check(port != NULL);
-    g_port = port;
-}
-
-bool ds1302_port_is_registered(void) {
-    return g_port != NULL;
-}
 
 /**
  * @brief BCD码转十进制数
@@ -73,18 +77,13 @@ static inline u8 dec_to_bcd(u8 dec) {
 void ds1302_init(ds1302_t* self) {
     param_check(self != NULL);
 
-    if (!ds1302_port_is_registered()) {
-        debug_print("[ds1302] error: port not registered\n");
-        return;
-    }
-
     // 初始化时，确认为输出模式并拉低
-    g_port->set_output_mode(self->ce_port, self->ce_pin);
-    g_port->set_output_mode(self->sclk_port, self->sclk_pin);
-    g_port->set_output_mode(self->data_port, self->data_pin);
+    DS1302_SET_OUTPUT_MODE(self->ce_port, self->ce_pin);
+    DS1302_SET_OUTPUT_MODE(self->sclk_port, self->sclk_pin);
+    DS1302_SET_OUTPUT_MODE(self->data_port, self->data_pin);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
     
     // 关闭写保护
     ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x00);
@@ -93,13 +92,13 @@ void ds1302_init(ds1302_t* self) {
 void ds1302_write_byte(ds1302_t* self, u8 data) {
     param_check(self != NULL);
 
-    g_port->set_output_mode(self->data_port, self->data_pin);
+    DS1302_SET_OUTPUT_MODE(self->data_port, self->data_pin);
     for (u8 i = 0; i < 8; i++) {
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-        g_port->write_pin(self->data_port, self->data_pin, (data >> i) & 0x01);
-        g_port->delay_us(1);
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 1);
-        g_port->delay_us(1);
+        DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+        DS1302_WRITE_PIN(self->data_port, self->data_pin, (data >> i) & 0x01);
+        DS1302_DELAY_US(1);
+        DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 1);
+        DS1302_DELAY_US(1);
     }
 }
 
@@ -112,13 +111,13 @@ void ds1302_write_byte(ds1302_t* self, u8 data) {
 static u8 ds1302_read_byte(ds1302_t* self) {
     param_check(self != NULL);
     u8 data = 0;
-    g_port->set_input_mode(self->data_port, self->data_pin);
+    DS1302_SET_INPUT_MODE(self->data_port, self->data_pin);
     for (u8 i = 0; i < 8; i++) {
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-        g_port->delay_us(1);
-        g_port->write_pin(self->sclk_port, self->sclk_pin, 1);
-        g_port->delay_us(1);
-        if (g_port->read_pin(self->data_port, self->data_pin)) {
+        DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+        DS1302_DELAY_US(1);
+        DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 1);
+        DS1302_DELAY_US(1);
+        if (DS1302_READ_PIN(self->data_port, self->data_pin)) {
             data |= (1 << i);
         }
     }
@@ -128,34 +127,34 @@ static u8 ds1302_read_byte(ds1302_t* self) {
 void ds1302_write_reg(ds1302_t* self, u8 address, u8 data) {
     param_check(self != NULL);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-    g_port->delay_us(1);
-    g_port->write_pin(self->ce_port, self->ce_pin, 1);
-    g_port->delay_us(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+    DS1302_DELAY_US(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 1);
+    DS1302_DELAY_US(1);
 
     ds1302_write_byte(self, address); // 确保第0位为0表示写
     ds1302_write_byte(self, data);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
 }
 
 u8 ds1302_read_reg(ds1302_t* self, u8 address) {
     param_check(self != NULL);
     u8 data = 0;
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-    g_port->delay_us(1);
-    g_port->write_pin(self->ce_port, self->ce_pin, 1);
-    g_port->delay_us(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+    DS1302_DELAY_US(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 1);
+    DS1302_DELAY_US(1);
 
     ds1302_write_byte(self, address | 0x01); // 确保第0位为1表示读
     data = ds1302_read_byte(self);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
 
     return data;
 }
@@ -192,11 +191,11 @@ void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time) {
     param_check(self != NULL);
     param_check(time != NULL);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-    g_port->delay_us(1);
-    g_port->write_pin(self->ce_port, self->ce_pin, 1);
-    g_port->delay_us(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+    DS1302_DELAY_US(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 1);
+    DS1302_DELAY_US(1);
 
     ds1302_write_byte(self, DS1302_CMD_BURST_READ);
 
@@ -211,8 +210,8 @@ void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time) {
     // 突发模式读8个字节，最后一个是控制寄存器，忽略
     (void)ds1302_read_byte(self);
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
 }
 
 void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time) {
@@ -221,11 +220,11 @@ void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time) {
 
     ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x00); // 关闭写保护
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
-    g_port->delay_us(1);
-    g_port->write_pin(self->ce_port, self->ce_pin, 1);
-    g_port->delay_us(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
+    DS1302_DELAY_US(1);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 1);
+    DS1302_DELAY_US(1);
 
     ds1302_write_byte(self, DS1302_CMD_BURST_WRITE);
 
@@ -238,8 +237,8 @@ void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time) {
     ds1302_write_byte(self, dec_to_bcd((u8)(time->year % 100)));
     ds1302_write_byte(self, 0x00); // 控制寄存器
 
-    g_port->write_pin(self->ce_port, self->ce_pin, 0);
-    g_port->write_pin(self->sclk_port, self->sclk_pin, 0);
+    DS1302_WRITE_PIN(self->ce_port, self->ce_pin, 0);
+    DS1302_WRITE_PIN(self->sclk_port, self->sclk_pin, 0);
 
     ds1302_write_reg(self, DS1302_REG_WRITE_PROTECT, 0x80); // 开启写保护
 }

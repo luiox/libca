@@ -1,37 +1,33 @@
 #include "ds1302.h"
 #include <em_base/compiler_compat.h>
 
-/**
- * @brief 外部隐式注入的弱符号接口实现
- */
-
 CA_WEAK void port_ds1302_write_pin(void* gpio, u16 pin, u8 value)
 {
-    (void)gpio;
-    (void)pin;
-    (void)value;
+    unused_param(gpio);
+    unused_param(pin);
+    unused_param(value);
 }
 
 CA_WEAK u8 port_ds1302_read_pin(void* gpio, u16 pin)
 {
-    (void)gpio;
-    (void)pin;
+    unused_param(gpio);
+    unused_param(pin);
     return 0;
 }
 
 CA_WEAK void port_ds1302_set_output_mode(void* gpio, u16 pin)
 {
-    (void)gpio;
-    (void)pin;
+    unused_param(gpio);
+    unused_param(pin);
 }
 
 CA_WEAK void port_ds1302_set_input_mode(void* gpio, u16 pin)
 {
-    (void)gpio;
-    (void)pin;
+    unused_param(gpio);
+    unused_param(pin);
 }
 
 CA_WEAK void port_ds1302_delay_us(u32 us)
 {
-    (void)us;
+    unused_param(us);
 }

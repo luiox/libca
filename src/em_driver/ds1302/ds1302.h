@@ -23,38 +23,32 @@
 #define LIBCA_DS1302_PORT_MODE LIBCA_DS1302_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct ds1302_port {
-    void (*write_pin)(void* gpio, u16 pin, u8 value);
-    u8 (*read_pin)(void* gpio, u16 pin);
-    void (*set_output_mode)(void* gpio, u16 pin);
-    void (*set_input_mode)(void* gpio, u16 pin);
-    void (*delay_us)(u32 us);
-} ds1302_port_t;
+#if (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_EXTERN)
+/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚号 @param value 电平值 */
 extern void port_ds1302_write_pin(void* gpio, u16 pin, u8 value);
+/** @brief 读引脚电平 @param gpio GPIO端口 @param pin 引脚号 @return 当前电平值 */
 extern u8 port_ds1302_read_pin(void* gpio, u16 pin);
+/** @brief 设置引脚为输出模式 @param gpio GPIO端口 @param pin 引脚号 */
 extern void port_ds1302_set_output_mode(void* gpio, u16 pin);
+/** @brief 设置引脚为输入模式 @param gpio GPIO端口 @param pin 引脚号 */
 extern void port_ds1302_set_input_mode(void* gpio, u16 pin);
+/** @brief 微秒延时 @param us 延时时间（微秒） */
 extern void port_ds1302_delay_us(u32 us);
 
-/**
- * @brief 绑定底层的硬件接口
- * 
- * @param port 硬件接口
- */
+#elif (LIBCA_DS1302_PORT_MODE == LIBCA_DS1302_PORT_MODE_DYNAMIC)
+typedef struct ds1302_port {
+    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
+    u8   (*read_pin)(void* gpio, u16 pin);              // 读引脚电平
+    void (*set_output_mode)(void* gpio, u16 pin);       // 设置输出模式
+    void (*set_input_mode)(void* gpio, u16 pin);        // 设置输入模式
+    void (*delay_us)(u32 us);                           // 微秒延时
+} ds1302_port_t;
 void ds1302_bind_port(const ds1302_port_t* port);
-
-/**
- * @brief 检查硬件接口是否注册
- * 
- * @return true 
- * @return false 
- */
 bool ds1302_port_is_registered(void);
+
+#else
+#error "Invalid DS1302 port mode"
+#endif
 
 /**
  * @brief 时间数据结构体
@@ -147,9 +141,5 @@ void ds1302_get_time_fast(ds1302_t* self, ds1302_time_t* time);
  * @param time 要设置的时间数据
  */
 void ds1302_set_time_fast(ds1302_t* self, const ds1302_time_t* time);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // !LIBCA_EM_DRIVER_DS1302_H
