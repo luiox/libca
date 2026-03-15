@@ -28,32 +28,18 @@
 #endif
 
 #if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
-
-/**
- * @brief 写入gpio的电平高低
- * 
- * @param gpio gpio的地址
- * @param pin gpio的引脚
- * @param value 高低电平，1为高电平，0为低电平
- */
+/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @param value 电平值（1=高，0=低） */
 extern void port_led_write_pin(void* gpio, u16 pin, u8 value);
 
 #elif (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
-
-// port
-typedef struct led_port{
-    void (*write_pin)(void* gpio, u16 pin, u8 value);
-}led_port_t;
-
-// 绑定port
+typedef struct led_port {
+    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
+} led_port_t;
 void led_bind_port(const led_port_t* port);
 bool led_port_is_registered(void);
 
 #else
-
 #error "Invalid LED port mode"
-
-#endif
 
 // led灯的状态
 typedef enum led_state_enum
