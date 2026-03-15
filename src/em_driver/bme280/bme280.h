@@ -23,44 +23,67 @@
 #define LIBCA_BME280_PORT_MODE LIBCA_BME280_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// port
-typedef struct bme280_port {
-    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
-                     u32 timeout);
-    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
-                    u32 timeout);
-    void (*delay_ms)(u32 ms);
-} bme280_port_t;
-
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
 
+/**
+ * @brief I2C 写操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功
+ */
 extern i32 port_bme280_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
                                  u32 timeout);
+
+/**
+ * @brief I2C 读操作
+ * @param hi2c I2C 句柄
+ * @param dev_addr 设备地址
+ * @param mem_addr 内存地址
+ * @param mem_addr_size 地址字节数
+ * @param data 数据缓冲区
+ * @param data_size 数据长度
+ * @param timeout 超时（ms）
+ * @return 0 表示成功
+ */
 extern i32 port_bme280_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
                                 u32 timeout);
+
+/**
+ * @brief 毫秒延时
+ * @param ms 延时时间（ms）
+ */
 extern void port_bme280_delay_ms(u32 ms);
 
 #elif (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
 
-/**
- * @brief 绑定硬件接口
- * @param port 接口结构体指针
- */
-void bme280_bind_port(const bme280_port_t* port);
+typedef struct bme280_port {
+    // i2c写函数
+    i32 (*i2c_write)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                     u32 timeout);
+    // i2c读函数
+    i32 (*i2c_read)(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
+                    u32 timeout);
+    // 毫秒延时函数
+    void (*delay_ms)(u32 ms);
+} bme280_port_t;
 
-/**
- * @brief 检查硬件接口是否已注册
- * @return true 已注册, false 未注册
- */
+void bme280_bind_port(const bme280_port_t* port);
 bool bme280_port_is_registered(void);
 
 #else
 #error "Invalid BME280 port mode"
 #endif
+
+// 错误码
+#define BME280_OK                          0
+#define BME280_ERR_I2C_FAIL               (-2)
+#define BME280_ERR_DEVICE_NOT_FOUND       (-3)
+#define BME280_ERR_INVALID_PARAM          (-4)
 
 /**
  * @brief BME280 校准参数
@@ -95,13 +118,6 @@ typedef struct bme280 {
     bme280_calibration_t calib;  // 校准数据
     i32 t_fine;                  // 用于压力和湿度计算的中间温度值
 } bme280_t;
-
-// 错误码
-#define BME280_OK                          0
-#define BME280_ERR_PORT_NOT_REGISTERED    (-1)
-#define BME280_ERR_I2C_FAIL               (-2)
-#define BME280_ERR_DEVICE_NOT_FOUND       (-3)
-#define BME280_ERR_INVALID_PARAM          (-4)
 
 /**
  * @brief BME280 工作模式
@@ -320,9 +336,5 @@ u32 bme280_pa_to_mmhg_int(u32 pq24_8);
  * @return i32 海拔 (毫米)
  */
 i32 bme280_pa_to_alt_int(u32 pa);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // LIBCA_EM_DRIVER_BME280_H

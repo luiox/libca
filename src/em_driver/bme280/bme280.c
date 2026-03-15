@@ -1,19 +1,31 @@
 #include "bme280.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
-static const bme280_port_t g_bme280_port_extern_impl = {
-    .i2c_write = port_bme280_i2c_write,
-    .i2c_read = port_bme280_i2c_read,
-    .delay_ms = port_bme280_delay_ms,
-};
-static const bme280_port_t* g_bme280_port = &g_bme280_port_extern_impl;
+
+#define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bme280_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    port_bme280_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BME280_DELAY_MS(ms) port_bme280_delay_ms((ms))
+
 #elif (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
+
 static const bme280_port_t* g_bme280_port = NULL;
+
+#define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bme280_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+    g_bme280_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#define BME280_DELAY_MS(ms) g_bme280_port->delay_ms((ms))
+
 #else
 #error "Invalid BME280 port mode"
 #endif
 
+#if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
 void bme280_bind_port(const bme280_port_t* port)
 {
     g_bme280_port = port;
@@ -23,6 +35,7 @@ bool bme280_port_is_registered(void)
 {
     return g_bme280_port != NULL;
 }
+#endif
 
 /* --- 内部寄存器定义 --- */
 #define BME280_CHIP_ID 0x60
@@ -46,17 +59,13 @@ bool bme280_port_is_registered(void)
 /* --- 私有辅助函数 --- */
 static i32 bme280_write_reg(bme280_t* self, u8 reg, u8 val)
 {
-    if (!g_bme280_port)
-        return BME280_ERR_PORT_NOT_REGISTERED;
-    return g_bme280_port->i2c_write(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
+    return BME280_I2C_WRITE(self->hi2c, self->dev_addr, reg, 1, &val, 1, 100);
 }
 
 /* 私有辅助函数: 读多个寄存器 */
 static i32 bme280_read_regs(bme280_t* self, u8 reg, u8* data, u16 len)
 {
-    if (!g_bme280_port)
-        return BME280_ERR_PORT_NOT_REGISTERED;
-    return g_bme280_port->i2c_read(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
+    return BME280_I2C_READ(self->hi2c, self->dev_addr, reg, 1, data, len, 100);
 }
 
 /* 私有辅助函数: 读单个寄存器 */
@@ -205,8 +214,6 @@ i32 bme280_init(bme280_t* self, void* hi2c, u16 dev_addr)
 {
     if (!self)
         return BME280_ERR_INVALID_PARAM;
-    if (!g_bme280_port)
-        return BME280_ERR_PORT_NOT_REGISTERED;
 
     self->hi2c     = hi2c;
     self->dev_addr = dev_addr;
@@ -216,7 +223,7 @@ i32 bme280_init(bme280_t* self, void* hi2c, u16 dev_addr)
         return res;
 
     bme280_reset(self);
-    g_bme280_port->delay_ms(10);
+    BME280_DELAY_MS(10);
 
     /* 读取校准参数 T1-P9 (24 字节) */
     if (bme280_read_regs(self, BME280_REG_CALIB00, (u8*)&self->calib.dig_T1, 24) != 0)
