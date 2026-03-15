@@ -24,29 +24,32 @@
 #define LIBCA_NRF24_PORT_MODE LIBCA_NRF24_PORT_MODE_EXTERN
 #endif
 
-// port
-typedef struct nrf24_port
-{
-    void (*write_pin)(void* gpio, u16 pin, u8 value);
-    u8 (*read_pin)(void* gpio, u16 pin);
-    void (*set_output_mode)(void* gpio, u16 pin);
-    void (*set_input_mode)(void* gpio, u16 pin);
-    void (*delay_us)(u32 us);
-    void (*delay_ms)(u32 ms);
-    u8 (*spi_send_recv)(void* hspi, u8 data);
-} nrf24_port_t;
-
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
+/** @brief 写引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @param value 电平值 */
 extern void port_nrf24_write_pin(void* gpio, u16 pin, u8 value);
+/** @brief 读引脚电平 @param gpio GPIO端口 @param pin 引脚编号 @return 引脚电平 */
 extern u8 port_nrf24_read_pin(void* gpio, u16 pin);
+/** @brief 设置引脚为输出模式 @param gpio GPIO端口 @param pin 引脚编号 */
 extern void port_nrf24_set_output_mode(void* gpio, u16 pin);
+/** @brief 设置引脚为输入模式 @param gpio GPIO端口 @param pin 引脚编号 */
 extern void port_nrf24_set_input_mode(void* gpio, u16 pin);
+/** @brief 微秒延时 @param us 延时时间（微秒） */
 extern void port_nrf24_delay_us(u32 us);
+/** @brief 毫秒延时 @param ms 延时时间（毫秒） */
 extern void port_nrf24_delay_ms(u32 ms);
+/** @brief SPI收发一个字节 @param hspi SPI句柄 @param data 发送字节 @return 接收字节 */
 extern u8 port_nrf24_spi_send_recv(void* hspi, u8 data);
 
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
-
+typedef struct nrf24_port {
+    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
+    u8   (*read_pin)(void* gpio, u16 pin);             // 读引脚电平
+    void (*set_output_mode)(void* gpio, u16 pin);      // 设置输出模式
+    void (*set_input_mode)(void* gpio, u16 pin);       // 设置输入模式
+    void (*delay_us)(u32 us);                          // 微秒延时
+    void (*delay_ms)(u32 ms);                          // 毫秒延时
+    u8   (*spi_send_recv)(void* hspi, u8 data);        // SPI收发
+} nrf24_port_t;
 void nrf24_bind_port(const nrf24_port_t* port);
 bool nrf24_port_is_registered(void);
 

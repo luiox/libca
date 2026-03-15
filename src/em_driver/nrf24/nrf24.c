@@ -60,24 +60,32 @@ static const u8 RX_ADDR_PIPES[6] = {nRF24_REG_RX_ADDR_P0,
                                     nRF24_REG_RX_ADDR_P4,
                                     nRF24_REG_RX_ADDR_P5};
 
+////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
-static const nrf24_port_t g_nrf24_port_extern_impl = {
-    .write_pin = port_nrf24_write_pin,
-    .read_pin = port_nrf24_read_pin,
-    .set_output_mode = port_nrf24_set_output_mode,
-    .set_input_mode = port_nrf24_set_input_mode,
-    .delay_us = port_nrf24_delay_us,
-    .delay_ms = port_nrf24_delay_ms,
-    .spi_send_recv = port_nrf24_spi_send_recv,
-};
-static const nrf24_port_t* g_nrf24_port = &g_nrf24_port_extern_impl;
+#define NRF24_WRITE_PIN(gpio, pin, value)    port_nrf24_write_pin((gpio), (pin), (value))
+#define NRF24_READ_PIN(gpio, pin)            port_nrf24_read_pin((gpio), (pin))
+#define NRF24_SET_OUTPUT_MODE(gpio, pin)     port_nrf24_set_output_mode((gpio), (pin))
+#define NRF24_SET_INPUT_MODE(gpio, pin)      port_nrf24_set_input_mode((gpio), (pin))
+#define NRF24_DELAY_US(us)                   port_nrf24_delay_us(us)
+#define NRF24_DELAY_MS(ms)                   port_nrf24_delay_ms(ms)
+#define NRF24_SPI_SEND_RECV(hspi, data)      port_nrf24_spi_send_recv((hspi), (data))
+
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
 static const nrf24_port_t* g_nrf24_port = NULL;
+#define NRF24_WRITE_PIN(gpio, pin, value)    g_nrf24_port->write_pin((gpio), (pin), (value))
+#define NRF24_READ_PIN(gpio, pin)            g_nrf24_port->read_pin((gpio), (pin))
+#define NRF24_SET_OUTPUT_MODE(gpio, pin)     g_nrf24_port->set_output_mode((gpio), (pin))
+#define NRF24_SET_INPUT_MODE(gpio, pin)      g_nrf24_port->set_input_mode((gpio), (pin))
+#define NRF24_DELAY_US(us)                   g_nrf24_port->delay_us(us)
+#define NRF24_DELAY_MS(ms)                   g_nrf24_port->delay_ms(ms)
+#define NRF24_SPI_SEND_RECV(hspi, data)      g_nrf24_port->spi_send_recv((hspi), (data))
+
 #else
 #error "Invalid NRF24 port mode"
 #endif
 
+#if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
 void nrf24_bind_port(const nrf24_port_t* port)
 {
     g_nrf24_port = port;
@@ -87,6 +95,9 @@ bool nrf24_port_is_registered(void)
 {
     return g_nrf24_port != NULL;
 }
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
 
 // Initialize driver object (bind gpio/pins/spi)
 void nrf24_init(nrf24_t* self, void* gpio, u16 csn_pin, u16 ce_pin, void* spi, u16 irq_pin)
@@ -99,15 +110,13 @@ void nrf24_init(nrf24_t* self, void* gpio, u16 csn_pin, u16 ce_pin, void* spi, u
     self->irq_pin = irq_pin;
     self->spi     = spi;
 
-    if (!g_nrf24_port)
-        return;   // port must be registered
 
-    g_nrf24_port->set_output_mode(self->gpio, self->csn_pin);
-    g_nrf24_port->set_output_mode(self->gpio, self->ce_pin);
-    g_nrf24_port->set_input_mode(self->gpio, self->irq_pin);
+    NRF24_SET_OUTPUT_MODE(self->gpio, self->csn_pin);
+    NRF24_SET_OUTPUT_MODE(self->gpio, self->ce_pin);
+    NRF24_SET_INPUT_MODE(self->gpio, self->irq_pin);
 
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 1);   // chip release
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);    // RX/TX disable
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 1);   // chip release
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);    // RX/TX disable
 
     nrf24_flush_rx(self);
     nrf24_flush_tx(self);
@@ -120,12 +129,12 @@ void nrf24_init(nrf24_t* self, void* gpio, u16 csn_pin, u16 ce_pin, void* spi, u
 //   value - new value
 void nrf24_write_reg(nrf24_t* self, u8 reg, u8 value)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 0);
-    g_nrf24_port->spi_send_recv(self->spi, reg);
-    g_nrf24_port->spi_send_recv(self->spi, value);
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 1);
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 0);
+    NRF24_SPI_SEND_RECV(self->spi, reg);
+    NRF24_SPI_SEND_RECV(self->spi, value);
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 1);
 }
 
 // Read nRF24L01 register
@@ -135,13 +144,13 @@ void nrf24_write_reg(nrf24_t* self, u8 reg, u8 value)
 u8 nrf24_read_reg(nrf24_t* self, u8 reg)
 {
     u8 value = 0;
-    if (!g_nrf24_port || !self)
+    if (!self)
         return value;
 
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 0);
-    g_nrf24_port->spi_send_recv(self->spi, reg & 0x1f);              // Select register to read from
-    value = g_nrf24_port->spi_send_recv(self->spi, nRF24_CMD_NOP);   // Read register value
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 1);
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 0);
+    NRF24_SPI_SEND_RECV(self->spi, reg & 0x1f);              // Select register to read from
+    value = NRF24_SPI_SEND_RECV(self->spi, nRF24_CMD_NOP);   // Read register value
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 1);
 
     return value;
 }
@@ -153,13 +162,13 @@ u8 nrf24_read_reg(nrf24_t* self, u8 reg)
 //   count - bytes count
 void nrf24_read_buf(nrf24_t* self, u8 reg, u8* pBuf, u8 count)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 0);
-    g_nrf24_port->spi_send_recv(self->spi, reg);   // Select register to read from
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 0);
+    NRF24_SPI_SEND_RECV(self->spi, reg);   // Select register to read from
     while (count--)
-        *pBuf++ = g_nrf24_port->spi_send_recv(self->spi, nRF24_CMD_NOP);
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 1);
+        *pBuf++ = NRF24_SPI_SEND_RECV(self->spi, nRF24_CMD_NOP);
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 1);
 }
 
 // Send buffer to nRF24L01
@@ -169,13 +178,13 @@ void nrf24_read_buf(nrf24_t* self, u8 reg, u8* pBuf, u8 count)
 //   count - bytes count
 void nrf24_write_buf(nrf24_t* self, u8 reg, u8* pBuf, u8 count)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 0);
-    g_nrf24_port->spi_send_recv(self->spi, reg);   // Select register
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 0);
+    NRF24_SPI_SEND_RECV(self->spi, reg);   // Select register
     while (count--)
-        g_nrf24_port->spi_send_recv(self->spi, *pBuf++);
-    g_nrf24_port->write_pin(self->gpio, self->csn_pin, 1);
+        NRF24_SPI_SEND_RECV(self->spi, *pBuf++);
+    NRF24_WRITE_PIN(self->gpio, self->csn_pin, 1);
 }
 
 // Check if nRF24L01 present (send byte sequence, read it back and compare)
@@ -184,7 +193,7 @@ void nrf24_write_buf(nrf24_t* self, u8 reg, u8* pBuf, u8 count)
 //   0 - received sequence differs from original
 u8 nrf24_check(nrf24_t* self)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return 0;
 
     u8  rxbuf[5];
@@ -236,10 +245,10 @@ void nrf24_tx_mode(nrf24_t* self, u8 RetrCnt, u8 RetrDelay, u8 RFChan,
                    nRF24_DataRate_TypeDef DataRate, nRF24_TXPower_TypeDef TXPower,
                    nRF24_CRC_TypeDef CRCS, nRF24_PWR_TypeDef Power, u8* TX_Addr, u8 TX_Addr_Width)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
 
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);
     nrf24_write_reg(self,
                     nRF24_CMD_WREG | nRF24_REG_SETUP_RETR,
                     ((RetrDelay << 4) & 0xf0) | (RetrCnt & 0x0f));   // Auto retransmit settings
@@ -280,10 +289,10 @@ void nrf24_rx_mode(nrf24_t* self, nRF24_RX_PIPE_TypeDef PIPE, nRF24_ENAA_TypeDef
                    nRF24_DataRate_TypeDef DataRate, nRF24_CRC_TypeDef CRCS, u8* RX_Addr,
                    u8 RX_Addr_Width, u8 RX_PAYLOAD, nRF24_TXPower_TypeDef TXPower)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
 
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);
     nrf24_read_reg(self, nRF24_CMD_NOP);   // Dummy read
     u8 rreg = nrf24_read_reg(self, nRF24_REG_EN_AA);
     if (PIPE_AA != nRF24_ENAA_OFF) {
@@ -316,7 +325,7 @@ void nrf24_rx_mode(nrf24_t* self, nRF24_RX_PIPE_TypeDef PIPE, nRF24_ENAA_TypeDef
                     RX_Addr_Width);   // Set static RX address for given data pipe
     nrf24_clear_irq_flags(self);
     nrf24_flush_rx(self);
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 1);   // RX mode
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 1);   // RX mode
 }
 
 // Send data packet
@@ -327,23 +336,23 @@ void nrf24_rx_mode(nrf24_t* self, nRF24_RX_PIPE_TypeDef PIPE, nRF24_ENAA_TypeDef
 //   nRF24_TX_XXX values
 nRF24_TX_PCKT_TypeDef nrf24_tx_packet(nrf24_t* self, u8* pBuf, u8 TX_PAYLOAD)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return nRF24_TX_ERROR;
     u8  status;
     u32 wait = nRF24_WAIT_TIMEOUT;
 
     // Release CE pin (in case if it still high)
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);
     // Transfer data from specified buffer to the TX FIFO
     nrf24_write_buf(self, nRF24_CMD_W_TX_PAYLOAD, pBuf, TX_PAYLOAD);
     // CE pin high => Start transmit (must hold pin at least 10us)
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 1);
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 1);
     // Wait for an IRQ from nRF24L01 (IRQ pin low when asserted)
-    while (g_nrf24_port->read_pin(self->gpio, self->irq_pin) && --wait) {}
+    while (NRF24_READ_PIN(self->gpio, self->irq_pin) && --wait) {}
     if (!wait)
         return nRF24_TX_TIMEOUT;
     // Release CE pin
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);
 
     // Read the status register
     status = nrf24_read_reg(self, nRF24_REG_STATUS);
@@ -376,7 +385,7 @@ nRF24_TX_PCKT_TypeDef nrf24_tx_packet(nrf24_t* self, u8* pBuf, u8 TX_PAYLOAD)
 //   nRF24_RX_PCKT_EMPTY - RX FIFO is empty
 nRF24_RX_PCKT_TypeDef nrf24_rx_packet(nrf24_t* self, u8* pBuf, u8 RX_PAYLOAD)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return nRF24_RX_PCKT_ERROR;
     u8                    status;
     nRF24_RX_PCKT_TypeDef result = nRF24_RX_PCKT_ERROR;
@@ -413,7 +422,7 @@ nRF24_RX_PCKT_TypeDef nrf24_rx_packet(nrf24_t* self, u8* pBuf, u8 RX_PAYLOAD)
 // Clear pending IRQ flags
 void nrf24_clear_irq_flags(nrf24_t* self)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
     u8 status = nrf24_read_reg(self, nRF24_REG_STATUS);
     nrf24_write_reg(self, nRF24_CMD_WREG | nRF24_REG_STATUS, status | 0x70);
@@ -422,9 +431,9 @@ void nrf24_clear_irq_flags(nrf24_t* self)
 // Put nRF24 in Power Down mode
 void nrf24_power_down(nrf24_t* self)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
-    g_nrf24_port->write_pin(self->gpio, self->ce_pin, 0);   // CE pin to low
+    NRF24_WRITE_PIN(self->gpio, self->ce_pin, 0);   // CE pin to low
     u8 conf = nrf24_read_reg(self, nRF24_REG_CONFIG);
     conf &= ~(1 << 1);                                                // Clear PWR_UP bit
     nrf24_write_reg(self, nRF24_CMD_WREG | nRF24_REG_CONFIG, conf);   // Go Power down mode
@@ -434,7 +443,7 @@ void nrf24_power_down(nrf24_t* self)
 // note: with external crystal it wake to Standby-I mode within 1.5ms
 void nrf24_wake(nrf24_t* self)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
     u8 conf = nrf24_read_reg(self, nRF24_REG_CONFIG) | (1 << 1);      // Set PWR_UP bit
     nrf24_write_reg(self, nRF24_CMD_WREG | nRF24_REG_CONFIG, conf);   // Wake-up
@@ -445,7 +454,7 @@ void nrf24_wake(nrf24_t* self)
 //   TXPower - RF output power (-18dBm, -12dBm, -6dBm, 0dBm)
 void nrf24_set_tx_power(nrf24_t* self, nRF24_TXPower_TypeDef TXPower)
 {
-    if (!g_nrf24_port || !self)
+    if (!self)
         return;
     u8 rf_setup = nrf24_read_reg(self, nRF24_REG_RF_SETUP);
     rf_setup &= 0xf9;   // Clear RF_PWR bits
