@@ -1,25 +1,27 @@
 #include "illume.h"
 #include <em_base/debug.h>
 
+////////////////////////////////////////////////////////////////////////////////
+
 #if (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_EXTERN)
-static const illume_port_t g_illume_port_extern_impl = {
-    .read_adc = port_illume_read_adc,
-    .read_pin = port_illume_read_pin,
-};
-static const illume_port_t* g_port = &g_illume_port_extern_impl;
+#define ILLUME_READ_ADC(adc, ch)    port_illume_read_adc((adc), (ch))
+#define ILLUME_READ_PIN(gpio, pin)  port_illume_read_pin((gpio), (pin))
+
 #elif (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_DYNAMIC)
-static const illume_port_t* g_port = NULL;
+static const illume_port_t* g_illume_port = NULL;
+#define ILLUME_READ_ADC(adc, ch)    g_illume_port->read_adc((adc), (ch))
+#define ILLUME_READ_PIN(gpio, pin)  g_illume_port->read_pin((gpio), (pin))
+
 #else
 #error "Invalid ILLUME port mode"
 #endif
 
-void illume_bind_port(const illume_port_t* port) {
-    g_port = port;
-}
+#if (LIBCA_ILLUME_PORT_MODE == LIBCA_ILLUME_PORT_MODE_DYNAMIC)
+void illume_bind_port(const illume_port_t* port) { g_illume_port = port; }
+bool illume_port_is_registered(void) { return g_illume_port != NULL; }
+#endif
 
-bool illume_port_is_registered(void) {
-    return g_port != NULL;
-}
+////////////////////////////////////////////////////////////////////////////////
 
 void illume_init(illume_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, u8 adc_resolution) {
     self->adc_hdl = adc_hdl;
@@ -42,7 +44,7 @@ u8 illume_get_percentage(illume_t* self, u8 count) {
 
     u32 sum = 0;
     for (u8 i = 0; i < count; i++) {
-        sum += g_port->read_adc(self->adc_hdl, self->adc_ch);
+        sum += ILLUME_READ_ADC(self->adc_hdl, self->adc_ch);
     }
 
     u16 avg = (u16)(sum / count);
@@ -58,5 +60,5 @@ u8 illume_get_percentage(illume_t* self, u8 count) {
 }
 
 u8 illume_get_do_state(illume_t* self) {
-    return g_port->read_pin(self->do_gpio, self->do_pin);
+    return ILLUME_READ_PIN(self->do_gpio, self->do_pin);
 }
