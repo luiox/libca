@@ -30,23 +30,43 @@ enum
     ATK_MS53L1M_FUNCODE_VERSION      = 0x10, /* 版本信息 */
 };
 
-static atk_ms53l1m_port_t g_port            = {0};
-static bool               g_port_registered = false;
+////////////////////////////////////////////////////////////////////////////////
 
-/* 绑定port */
+#if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN)
+
+#define ATK_MS53L1M_UART_INIT(baudrate)      port_atk_ms53l1m_uart_init((baudrate))
+#define ATK_MS53L1M_UART_SEND(buf, len)      port_atk_ms53l1m_uart_send((buf), (len))
+#define ATK_MS53L1M_UART_RX_GET_FRAME()      port_atk_ms53l1m_uart_rx_get_frame()
+#define ATK_MS53L1M_UART_RX_GET_FRAME_LEN()  port_atk_ms53l1m_uart_rx_get_frame_len()
+#define ATK_MS53L1M_UART_RX_RESTART()        port_atk_ms53l1m_uart_rx_restart()
+#define ATK_MS53L1M_DELAY_MS(ms)             port_atk_ms53l1m_delay_ms((ms))
+
+#elif (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
+
+static const atk_ms53l1m_port_t* g_atk_ms53l1m_port = NULL;
+
+#define ATK_MS53L1M_UART_INIT(baudrate)      g_atk_ms53l1m_port->uart_init((baudrate))
+#define ATK_MS53L1M_UART_SEND(buf, len)      g_atk_ms53l1m_port->uart_send((buf), (len))
+#define ATK_MS53L1M_UART_RX_GET_FRAME()      g_atk_ms53l1m_port->uart_rx_get_frame()
+#define ATK_MS53L1M_UART_RX_GET_FRAME_LEN()  g_atk_ms53l1m_port->uart_rx_get_frame_len()
+#define ATK_MS53L1M_UART_RX_RESTART()        g_atk_ms53l1m_port->uart_rx_restart()
+#define ATK_MS53L1M_DELAY_MS(ms)             g_atk_ms53l1m_port->delay_ms((ms))
+
+#else
+#error "Invalid ATK_MS53L1M port mode"
+#endif
+
+#if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
 void atk_ms53l1m_bind_port(const atk_ms53l1m_port_t* port)
 {
-    if (port != NULL) {
-        g_port            = *port;
-        g_port_registered = true;
-    }
+    g_atk_ms53l1m_port = port;
 }
 
-/* 检查port是否已注册 */
 bool atk_ms53l1m_port_is_registered(void)
 {
-    return g_port_registered;
+    return g_atk_ms53l1m_port != NULL;
 }
+#endif
 
 /* 计算CRC校验和 */
 static inline u16 atk_ms53l1m_crc_check_sum(u8* buf, u16 len)
@@ -77,8 +97,8 @@ static i32 atk_ms53l1m_unpack_recv_data(u16* dat)
 
     while (frame_buf == NULL) {
         /* 等待ATK-MS53L1M UART接收到一帧数据 */
-        frame_buf = g_port.uart_rx_get_frame();
-        g_port.delay_ms(1);
+        frame_buf = ATK_MS53L1M_UART_RX_GET_FRAME();
+        ATK_MS53L1M_DELAY_MS(1);
         timeout++;
         if (timeout == 1000) {
             /* 接收超时错误 */
@@ -87,7 +107,7 @@ static i32 atk_ms53l1m_unpack_recv_data(u16* dat)
     }
 
     /* 获取接收数据的长度 */
-    recv_len = g_port.uart_rx_get_frame_len();
+    recv_len = ATK_MS53L1M_UART_RX_GET_FRAME_LEN();
     if ((recv_len < ATK_MS53L1M_FRAME_LEN_MIN) || (recv_len > ATK_MS53L1M_FRAME_LEN_MAX)) {
         /* 接收帧长度异常错误 */
         return ATK_MS53L1M_ERR_FRAME;
@@ -210,8 +230,8 @@ static i32 atk_ms53l1m_read_data(atk_ms53l1m_t* self, u16 addr, u8 fun_code, u8 
     buf[7] = (u8)(check_sum >> 8);   /* CRC校验码，高8位 */
     buf[8] = (u8)(check_sum & 0xFF); /* CRC校验码，低8位 */
 
-    g_port.uart_rx_restart();                /* 准备重新开始接收新的一帧数据 */
-    g_port.uart_send(buf, 9);                /* 发送数据 */
+    ATK_MS53L1M_UART_RX_RESTART();                /* 准备重新开始接收新的一帧数据 */
+    ATK_MS53L1M_UART_SEND(buf, 9);                /* 发送数据 */
     ret = atk_ms53l1m_unpack_recv_data(dat); /* 解析应答数据 */
 
     return ret;
@@ -239,8 +259,8 @@ static i32 atk_ms53l1m_write_data(atk_ms53l1m_t* self, u16 addr, u8 fun_code, u8
     buf[8] = (u8)(check_sum >> 8);   /* CRC校验码，高8位 */
     buf[9] = (u8)(check_sum & 0xFF); /* CRC校验码，低8位 */
 
-    g_port.uart_rx_restart();                 /* 准备重新开始接收新的一帧数据 */
-    g_port.uart_send(buf, 10);                /* 发送数据 */
+    ATK_MS53L1M_UART_RX_RESTART();                 /* 准备重新开始接收新的一帧数据 */
+    ATK_MS53L1M_UART_SEND(buf, 10);                /* 发送数据 */
     ret = atk_ms53l1m_unpack_recv_data(NULL); /* 解析应答数据 */
 
     return ret;
@@ -252,22 +272,17 @@ i32 atk_ms53l1m_init(atk_ms53l1m_t* self, u32 baudrate, atk_ms53l1m_mode_t work_
     param_check(self);
     u8 i;
 
-    if (!g_port_registered) {
-        debug_print("[atkms53l1m] error: port not registered\n");
-        return ATK_MS53L1M_ERR;
-    }
-
     self->baudrate  = baudrate;
     self->work_mode = work_mode;
 
     /* ATK-MS53L1M UART初始化 */
-    g_port.uart_init(baudrate);
+    ATK_MS53L1M_UART_INIT(baudrate);
 
     /* 获取设备地址 */
     i = 0;
     while (atk_ms53l1m_read_data(self, 0xFFFF, ATK_MS53L1M_FUNCODE_IDSET, 2, &self->device_id) !=
            ATK_MS53L1M_OK) {
-        g_port.delay_ms(100);
+        ATK_MS53L1M_DELAY_MS(100);
         if (++i == 5) {
             debug_print("[atkms53l1m] error: get device id timeout\n");
             return ATK_MS53L1M_ERR;
@@ -278,7 +293,7 @@ i32 atk_ms53l1m_init(atk_ms53l1m_t* self, u32 baudrate, atk_ms53l1m_mode_t work_
     i = 0;
     while (atk_ms53l1m_write_data(self, self->device_id, ATK_MS53L1M_FUNCODE_WORKMODE, work_mode) !=
            ATK_MS53L1M_OK) {
-        g_port.delay_ms(100);
+        ATK_MS53L1M_DELAY_MS(100);
         if (++i == 5) {
             debug_print("[atkms53l1m] error: set work mode timeout\n");
             return ATK_MS53L1M_ERR;
@@ -301,14 +316,14 @@ i32 atk_ms53l1m_normal_get_data(atk_ms53l1m_t* self, u16* dat)
     char* p;
     u16   dat_tmp = 0;
 
-    g_port.uart_rx_restart();
+    ATK_MS53L1M_UART_RX_RESTART();
     while (buf == NULL) {
-        buf = g_port.uart_rx_get_frame();
+        buf = ATK_MS53L1M_UART_RX_GET_FRAME();
         if (++i == 10) {
             debug_print("[atkms53l1m] error: receive data timeout in normal mode\n");
             return ATK_MS53L1M_ERR;
         }
-        g_port.delay_ms(100);
+        ATK_MS53L1M_DELAY_MS(100);
     }
 
     p = strstr((char*)buf, "d:");

@@ -7,13 +7,13 @@
 
 CA_WEAK void port_atk_ms53l1m_uart_init(u32 baudrate)
 {
-    (void)baudrate;
+    unused_param(baudrate);
 }
 
 CA_WEAK void port_atk_ms53l1m_uart_send(u8* buf, u16 len)
 {
-    (void)buf;
-    (void)len;
+    unused_param(buf);
+    unused_param(len);
 }
 
 CA_WEAK u8* port_atk_ms53l1m_uart_rx_get_frame(void)
@@ -32,5 +32,5 @@ CA_WEAK void port_atk_ms53l1m_uart_rx_restart(void)
 
 CA_WEAK void port_atk_ms53l1m_delay_ms(u32 ms)
 {
-    (void)ms;
+    unused_param(ms);
 }

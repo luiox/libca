@@ -22,39 +22,76 @@
 #define LIBCA_ATK_MS53L1M_PORT_MODE LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN)
 
-/* port */
-typedef struct atk_ms53l1m_port
-{
-    void (*uart_init)(u32 baudrate);
-    void (*uart_send)(u8* buf, u16 len);
-    u8* (*uart_rx_get_frame)(void);
-    u16 (*uart_rx_get_frame_len)(void);
-    void (*uart_rx_restart)(void);
-    void (*delay_ms)(u32 ms);
-} atk_ms53l1m_port_t;
+/**
+ * @brief UART 初始化
+ * @param baudrate 波特率
+ */
 extern void port_atk_ms53l1m_uart_init(u32 baudrate);
+
+/**
+ * @brief UART 发送数据
+ * @param buf 数据缓冲区
+ * @param len 数据长度
+ */
 extern void port_atk_ms53l1m_uart_send(u8* buf, u16 len);
+
+/**
+ * @brief 获取 UART 接收到的一帧数据
+ * @return 帧数据指针
+ */
 extern u8* port_atk_ms53l1m_uart_rx_get_frame(void);
+
+/**
+ * @brief 获取 UART 接收帧的长度
+ * @return 帧长度
+ */
 extern u16 port_atk_ms53l1m_uart_rx_get_frame_len(void);
+
+/**
+ * @brief 重新开始 UART 接收
+ */
 extern void port_atk_ms53l1m_uart_rx_restart(void);
+
+/**
+ * @brief 毫秒延时
+ * @param ms 延时时间（ms）
+ */
 extern void port_atk_ms53l1m_delay_ms(u32 ms);
 
-/**
- * @brief       绑定port
- * @param       port: port接口
- */
-void atk_ms53l1m_bind_port(const atk_ms53l1m_port_t* port);
+#elif (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
 
-/**
- * @brief       检查port是否已注册
- * @retval      true: 已注册
- *              false: 未注册
- */
+typedef struct atk_ms53l1m_port
+{
+    // uart初始化函数
+    void (*uart_init)(u32 baudrate);
+    // uart发送函数
+    void (*uart_send)(u8* buf, u16 len);
+    // 获取uart接收帧函数
+    u8* (*uart_rx_get_frame)(void);
+    // 获取uart接收帧长度函数
+    u16 (*uart_rx_get_frame_len)(void);
+    // uart接收重启函数
+    void (*uart_rx_restart)(void);
+    // 毫秒延时函数
+    void (*delay_ms)(u32 ms);
+} atk_ms53l1m_port_t;
+
+void atk_ms53l1m_bind_port(const atk_ms53l1m_port_t* port);
 bool atk_ms53l1m_port_is_registered(void);
+
+#else
+#error "Invalid ATK_MS53L1M port mode"
+#endif
+
+/* 错误码 */
+#define ATK_MS53L1M_OK 0           /* 没有错误 */
+#define ATK_MS53L1M_ERR -1         /* 错误 */
+#define ATK_MS53L1M_ERR_TIMEOUT -2 /* 超时错误 */
+#define ATK_MS53L1M_ERR_FRAME -3   /* 帧错误 */
+#define ATK_MS53L1M_ERR_CRC -4     /* CRC校验错误 */
+#define ATK_MS53L1M_ERR_OPT -5     /* 操作错误 */
 
 /* ATK-MS53L1M工作模式 */
 typedef enum
@@ -71,14 +108,6 @@ typedef struct atk_ms53l1m
     u32                baudrate;  /* 波特率 */
     atk_ms53l1m_mode_t work_mode; /* 工作模式 */
 } atk_ms53l1m_t;
-
-/* 错误码 */
-#define ATK_MS53L1M_OK 0           /* 没有错误 */
-#define ATK_MS53L1M_ERR -1         /* 错误 */
-#define ATK_MS53L1M_ERR_TIMEOUT -2 /* 超时错误 */
-#define ATK_MS53L1M_ERR_FRAME -3   /* 帧错误 */
-#define ATK_MS53L1M_ERR_CRC -4     /* CRC校验错误 */
-#define ATK_MS53L1M_ERR_OPT -5     /* 操作错误 */
 
 /**
  * @brief       ATK-MS53L1M初始化
@@ -107,9 +136,5 @@ i32 atk_ms53l1m_normal_get_data(atk_ms53l1m_t* self, u16* dat);
  *              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
  */
 i32 atk_ms53l1m_modbus_get_data(atk_ms53l1m_t* self, u16* dat);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif   // !LIBCA_EM_DRIVER_ATKMS53L1M_H
