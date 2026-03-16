@@ -1,9 +1,51 @@
 
-// 职责：将机器人的期望速度（线速度、角速度）转换为各执行器的控制量（轮速、舵机角度），
-// 或者将传感器数据（轮速）转换为里程计。
+/**
+ * @file kin_diff.c
+ * @author canrad (1517807724@qq.com)
+ * @brief 差速底盘运动学基础实现
+ * @version 0.1
+ * @date 2026-03-16
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
 
-// 差速运动学：输入 v, w，输出左右轮速度
-void diff_drive_ik(float v, float w, float wheel_base, float *left, float *right);
+#include "kin_diff.h"
 
-// 差速里程计：输入左右轮速度，输出 v, w 及位姿更新
-void diff_drive_odometry(float left, float right, float wheel_base, float dt, pose2d_t *pose);
+#include <math.h>
+
+void diff_drive_ik(f32 v, f32 w, f32 wheel_base, f32* left, f32* right)
+{
+	if (!left || !right || wheel_base <= 0.0f) {
+		return;
+	}
+
+	*right = v + (w * wheel_base * 0.5f);
+	*left = v - (w * wheel_base * 0.5f);
+}
+
+void diff_drive_fk(f32 left, f32 right, f32 wheel_base, f32* v, f32* w)
+{
+	if (!v || !w || wheel_base <= 0.0f) {
+		return;
+	}
+
+	*v = 0.5f * (right + left);
+	*w = (right - left) / wheel_base;
+}
+
+void diff_drive_odometry(f32 left, f32 right, f32 wheel_base, f32 dt, pose2d_t* pose)
+{
+	f32 v = 0.0f;
+	f32 w = 0.0f;
+
+	if (!pose || dt <= 0.0f || wheel_base <= 0.0f) {
+		return;
+	}
+
+	diff_drive_fk(left, right, wheel_base, &v, &w);
+
+	pose->x += v * dt * cosf(pose->theta);
+	pose->y += v * dt * sinf(pose->theta);
+	pose->theta += w * dt;
+}

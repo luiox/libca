@@ -33,6 +33,8 @@ includes("em_driver")
 -- includes("em_eimui")
 -- bus依赖base
 includes("em_bus")
+-- motion依赖base
+includes("em_motion")
 -- log依赖platform
 -- includes("em_log")
 includes("em_protocol")
