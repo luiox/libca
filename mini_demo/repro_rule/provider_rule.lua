@@ -1,0 +1,5 @@
+rule("demo.inject")
+    on_load(function (target)
+        target:add("defines", "RULE_INJECT_OK")
+    end)
+rule_end()

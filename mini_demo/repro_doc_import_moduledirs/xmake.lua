@@ -1,0 +1,15 @@
+set_project("mini-demo-doc-import-moduledirs")
+set_version("0.0.1")
+set_xmakever("2.8.3")
+set_languages("c99")
+
+add_rules("mode.debug", "mode.release")
+add_moduledirs("modules")
+
+target("repro_doc_import_moduledirs")
+    set_kind("binary")
+    add_files("src/main.c")
+    on_load(function (target)
+        local mylib = import("mylib")
+        mylib.add_libs(target, "led")
+    end)

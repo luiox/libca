@@ -1,5 +1,16 @@
 -- 嵌入式驱动库
 
+-- 驱动注册表：集中管理每个 driver 的源码与模式宏。
+local em_driver_registry = {
+	["libca.em_driver.led"] = {
+		driver_dir = path.join(os.scriptdir(), "led"),
+		core_files = {"led.c"},
+		default_port_file = "port_led.c",
+		extern_define = "LIBCA_LED_PORT_MODE=1",
+		dynamic_define = "LIBCA_LED_PORT_MODE=2"
+	}
+}
+
 -- 获取 rule 配置，并校验 mode/port 的通用合法性。
 local function em_driver_get_rule_options(target, rule_name)
 	local opts = target:extraconf("rules", rule_name) or {}
@@ -34,13 +45,15 @@ local function em_driver_normalize_port_files(rule_name, port_files)
 end
 
 -- driver rule 通用注入逻辑：核心源码 + mode 宏 + extern 端口文件策略。
-local function em_driver_apply_rule(target, cfg)
-	local rule_name = cfg.rule_name
-	local driver_dir = cfg.driver_dir
-	local core_files = cfg.core_files or {}
+local function em_driver_apply_spec(target, libname, opts, mode)
+	local spec = em_driver_registry[libname]
+	if not spec then
+		raise("m_add_libs: unsupported lib '%s'", tostring(libname))
+	end
 
-	local opts, mode = em_driver_get_rule_options(target, rule_name)
-	local port_files = em_driver_normalize_port_files(rule_name, opts.port)
+	local driver_dir = spec.driver_dir
+	local core_files = spec.core_files or {}
+	local port_files = em_driver_normalize_port_files(libname, opts.port)
 
 	local src_root = path.join(driver_dir, "..", "..")
 	target:add("includedirs", src_root)
@@ -50,30 +63,51 @@ local function em_driver_apply_rule(target, cfg)
 	end
 
 	if mode == "dynamic" then
-		target:add("defines", cfg.dynamic_define)
+		target:add("defines", spec.dynamic_define)
 		return
 	end
 
-	target:add("defines", cfg.extern_define)
+	target:add("defines", spec.extern_define)
 
 	if #port_files > 0 then
 		target:add("files", port_files)
-	elseif cfg.default_port_file then
+	elseif spec.default_port_file then
 		-- extern mode without user port list: use built-in weak default port
-		target:add("files", path.join(driver_dir, cfg.default_port_file))
+		target:add("files", path.join(driver_dir, spec.default_port_file))
 	end
+end
+
+-- 对外 API：不使用 add_rules，直接向目标注入 em_driver 源码。
+local function m_add_libs(target, libname, opts)
+	if type(target) ~= "table" or type(target.add) ~= "function" then
+		raise("m_add_libs: first argument must be a target object")
+	end
+
+	if type(libname) ~= "string" or libname == "" then
+		raise("m_add_libs: second argument must be a non-empty lib name")
+	end
+
+	opts = opts or {}
+	local mode = opts.mode or "extern"
+	if mode ~= "extern" and mode ~= "dynamic" then
+		raise("m_add_libs: invalid mode '%s', expected 'extern' or 'dynamic'", tostring(mode))
+	end
+
+	if opts.port ~= nil and type(opts.port) ~= "table" then
+		raise("m_add_libs: 'port' must be a list(table), for example {\"1.c\", \"2.c\"}")
+	end
+
+	em_driver_apply_spec(target, libname, opts, mode)
 end
 
 -- LED 驱动规则示例
 rule("libca.em_driver.led")
 	on_load(function (target)
-		em_driver_apply_rule(target, {
-			rule_name = "libca.em_driver.led",
-			driver_dir = path.join(os.scriptdir(), "led"),
-			core_files = {"led.c"},
-			default_port_file = "port_led.c",
-			extern_define = "LIBCA_LED_PORT_MODE=1",
-			dynamic_define = "LIBCA_LED_PORT_MODE=2"
+		local rule_name = "libca.em_driver.led"
+		local opts, mode = em_driver_get_rule_options(target, rule_name)
+		m_add_libs(target, rule_name, {
+			mode = mode,
+			port = opts.port
 		})
 	end)
 rule_end()

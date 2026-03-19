@@ -69,3 +69,27 @@ target("mtester")
 ## 6. 默认 port 的意义
 
 默认 port_led.c 只提供 weak 空实现，主要用于编译占位，实际硬件行为由用户提供的 port 实现决定。
+
+## 7. m_add_libs 接口（不使用 add_rules）
+
+当前仓库提供了 m_add_libs(target, libname, opts) 接口，可直接向目标注入源码：
+
+```lua
+target("demo")
+  set_kind("static")
+  on_load(function (target)
+    m_add_libs(target, "libca.em_driver.led", {
+      mode = "extern",
+      port = {"src/em_driver/led/port_led.c"}
+    })
+  end)
+```
+
+说明：
+
+- 该接口用于替代 add_rules 的源码注入路径。
+- opts.port 仍是可选列表，仅在 extern 模式下生效。
+- 仓库内 demo 目标位于 src/em_driver/em_driver.lua：
+  - em_driver.demo.madd.extern
+  - em_driver.demo.madd.dynamic
+  - em_driver.demo.madd.extern.customport

@@ -1,6 +1,5 @@
 
 includes("em_driver.lua")
--- 添加子目录内的驱动 rule。
 includes("led/xmake.lua")
 
 ---------------------------------------------------

@@ -1,6 +1,2 @@
--- 仅仅用于内部测试
-target("em_driver.led.extern")
-    set_kind("static")
-    set_default("false")
-    add_rules("libca.em_driver.led", {mode = "extern"})
+-- led 目录级 xmake 入口暂不定义目标，统一放到 em_driver.lua 维护。
 
