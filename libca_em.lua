@@ -55,4 +55,4 @@ rule("libca.em_log")
     end)
 rule_end()
 
-includes("src/em_driver/xmake.lua")
+includes("src/em_driver/em_driver.lua")
