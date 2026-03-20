@@ -64,9 +64,15 @@ target("demo_led_extern")
 }
 ```
 
-建议将此结构存于 target 的 `values` 中，使用固定 key，例如：
+目标设计上，建议将此结构存于 target 的 `values` 中，使用固定 key，例如：
 
 - key: `libca.em.state`
+
+当前落地版本说明：
+
+1. 现阶段实现先采用模块内 `_states` 表按 target 名称缓存状态。
+2. 这样可以先保证接口可用与行为稳定。
+3. 后续可再切换到 target values 持久化（不改变对外 API）。
 
 读取/更新策略：
 

@@ -50,7 +50,7 @@ end)
 includes("logger.lua")
 
 includes("src")
-
+includes("demo")
 
 -- -- task("find_tests")
 -- --     set_menu {
