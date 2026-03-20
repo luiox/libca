@@ -46,6 +46,8 @@ includes("em_shell")
 includes("em_log")
 -- mpool依赖base
 includes("em_mpool")
+-- driver依赖base
+includes("em_driver")
 
 -- C++库
 -- includes("log")

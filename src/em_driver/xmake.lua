@@ -1,6 +1,7 @@
-
-includes("em_driver.lua")
-includes("led/xmake.lua")
+target("libca.em_driver")
+    set_kind("static")
+    add_deps("libca.em_base")
+    add_files(path.join(os.scriptdir(), "**.c"))
 
 ---------------------------------------------------
 -- 老式的扫描法先移除
