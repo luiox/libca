@@ -32,16 +32,53 @@ local function _validate_target(target, where)
 end
 
 local function _new_state(root)
+    local src_root = path.join(root, "src")
     return {
         root = root,
+        src_root = src_root,
+        debug = false,
         modules = {},
         options = {},
+        debug_trace = {
+            current_module = nil,
+            modules = {}
+        },
         injected = {
             files = {},
             includedirs = {},
             defines = {}
         }
     }
+end
+
+local function _debug_dump_module(state, name)
+    if not state.debug then
+        return
+    end
+
+    local trace = state.debug_trace.modules[name] or {}
+    local files = trace.files or {}
+    local includedirs = trace.includedirs or {}
+
+    print("[libca.em][debug] module: %s", tostring(name))
+
+    if #files == 0 then
+        print("  files: (none)")
+    else
+        print("  files:")
+        for _, f in ipairs(files) do
+            print("    - %s", path.relative(f, state.root))
+        end
+    end
+
+    if #includedirs == 0 then
+        print("  includedirs: (none)")
+    else
+        print("  includedirs:")
+        for _, d in ipairs(includedirs) do
+            print("    - %s", path.relative(d, state.root))
+        end
+    end
 end
 
 local function _ensure_state(target)
@@ -72,8 +109,12 @@ local function _apply_module(target, state, name, opts, registry, visited)
         raise("libca.em: module '%s' handler must define handle(target, state, opts, registry)", tostring(name))
     end
 
+    state.debug_trace.current_module = name
     handle(target, state, state.options[name], registry)
+    state.debug_trace.current_module = nil
+
     state.modules[name] = {enable = true}
+    _debug_dump_module(state, name)
 end
 
 function setup(target, opts)
@@ -85,7 +126,10 @@ function setup(target, opts)
         raise("libca.em.setup: invalid root '%s'", tostring(opts.root))
     end
 
-    _states[_target_key(target)] = _new_state(root)
+    local state = _new_state(root)
+    state.debug = opts.debug == true
+
+    _states[_target_key(target)] = state
 end
 
 function add_libs(target, name, opts, registry)
