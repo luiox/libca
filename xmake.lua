@@ -47,7 +47,7 @@ on_load(function (target)
     end
 end)
 
-includes("logger.lua")
+includes("xmake/modules/libca/tool/logger.lua")
 
 includes("src")
 includes("demo")
