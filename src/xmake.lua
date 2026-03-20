@@ -26,7 +26,7 @@ includes("em_util")
 -- dstream依赖base
 includes("em_dstream")
 -- driver依赖base
-includes("em_driver/*/*.lua")
+includes("em_driver")
 -- platform依赖base
 -- includes("em_platform")
 -- eimui依赖base
