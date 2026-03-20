@@ -1,13 +1,18 @@
--- em_base module spec
+-- em_base module handler
 
-local spec = import("libca.em_spec")
+local inject = import("libca.em_inject")
 
-function get_spec()
-    return spec.make_simple_module({
-        files = {
-            "em_base/datatype.c",
-            "em_base/debug.c",
-            "em_base/compiler_compat.c"
-        }
-    })
+function get_handler()
+    return {
+        deps = {},
+        handle = function (target, state)
+            local src_root = path.join(state.root, "src")
+            local base_dir = path.join(src_root, "em_base")
+
+            inject.add_include(target, state, src_root)
+            inject.add_file(target, state, path.join(base_dir, "datatype.c"))
+            inject.add_file(target, state, path.join(base_dir, "debug.c"))
+            inject.add_file(target, state, path.join(base_dir, "compiler_compat.c"))
+        end
+    }
 end

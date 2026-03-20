@@ -40,3 +40,45 @@ target("demo_led_dynamic")
             }
         })
     end)
+
+target("demo_led_default_port")
+    set_kind("binary")
+    add_files("app/main.c")
+    on_load(function (target)
+        local em = import("libca.em")
+        em.setup(target, {
+            root = path.join(os.scriptdir(), "..")
+        })
+
+        em.add_libs(target, "em_driver", {
+            led = {
+                mode = "extern"
+            }
+        })
+    end)
+
+target("demo_driver_manifests_check")
+    set_kind("binary")
+    add_files("app/main.c")
+    on_load(function (target)
+        local root = path.join(os.scriptdir(), "..")
+        local driver_root = path.join(root, "src", "em_driver")
+
+        for _, dir in ipairs(os.dirs(path.join(driver_root, "*"))) do
+            local driver_name = path.basename(dir)
+            local manifest = path.join(dir, driver_name .. ".lua")
+            if not os.isfile(manifest) then
+                raise("demo check: missing driver manifest %s", manifest)
+            end
+        end
+
+        local em = import("libca.em")
+        em.setup(target, {
+            root = root
+        })
+        em.add_libs(target, "em_driver", {
+            led = {
+                mode = "extern"
+            }
+        })
+    end)

@@ -12,6 +12,10 @@ xmake -P demo build demo_led_extern
 xmake -P demo run demo_led_extern
 xmake -P demo build demo_led_dynamic
 xmake -P demo run demo_led_dynamic
+xmake -P demo build demo_led_default_port
+xmake -P demo run demo_led_default_port
+xmake -P demo build demo_driver_manifests_check
+xmake -P demo run demo_driver_manifests_check
 ```
 
 ## 关键点

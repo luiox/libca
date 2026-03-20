@@ -1,9 +1,8 @@
--- libca.em_registry: module/driver registration center
+-- libca.em_registry: module handler dispatcher and optional driver overrides
 
 local _modules = {}
 local _drivers = {}
 local _module_paths = {}
-local _driver_paths = {}
 
 do
     local root = os.scriptdir()
@@ -11,54 +10,50 @@ do
         local name = path.basename(f)
         _module_paths[name] = "libca.em_modules." .. name
     end
-    for _, f in ipairs(os.files(path.join(root, "em_drivers", "*.lua"))) do
-        local name = path.basename(f)
-        _driver_paths[name] = "libca.em_drivers." .. name
+end
+
+local function _validate_module_handler(name, handler)
+    if type(handler) ~= "table" then
+        raise("libca.em: module '%s' handler must be table", tostring(name))
+    end
+
+    handler.deps = handler.deps or {}
+    local handle = handler.handle or handler.inject
+    if type(handle) ~= "function" then
+        raise("libca.em: module '%s' handler must define handle()", tostring(name))
     end
 end
 
-local function _load_spec(module_path, kind, name)
-    local mod = import(module_path)
-    if type(mod) ~= "table" or type(mod.get_spec) ~= "function" then
-        raise("libca.em: %s module '%s' must export get_spec()", kind, name)
-    end
-
-    local spec = mod.get_spec()
-    if type(spec) ~= "table" or type(spec.inject) ~= "function" then
-        raise("libca.em: %s '%s' spec.inject must be function", kind, name)
-    end
-
-    spec.deps = spec.deps or {}
-    return spec
-end
-
-function register_module(name, spec)
+function register_module(name, handler)
     if type(name) ~= "string" or name == "" then
         raise("libca.em: module name must be non-empty string")
     end
-    if type(spec) ~= "table" or type(spec.inject) ~= "function" then
-        raise("libca.em: module '%s' spec.inject must be function", tostring(name))
-    end
 
-    spec.deps = spec.deps or {}
-    _modules[name] = spec
+    _validate_module_handler(name, handler)
+    _modules[name] = handler
 end
 
-function register_driver(name, spec)
+function register_driver(name, handler)
     if type(name) ~= "string" or name == "" then
         raise("libca.em: driver name must be non-empty string")
     end
-    if type(spec) ~= "table" or type(spec.inject) ~= "function" then
-        raise("libca.em: driver '%s' spec.inject must be function", tostring(name))
+
+    if type(handler) ~= "table" then
+        raise("libca.em: driver '%s' handler must be table", tostring(name))
     end
 
-    _drivers[name] = spec
+    local handle = handler.handle or handler.inject
+    if type(handle) ~= "function" then
+        raise("libca.em: driver '%s' handler must define handle()", tostring(name))
+    end
+
+    _drivers[name] = handler
 end
 
 function get_module(name)
-    local spec = _modules[name]
-    if spec then
-        return spec
+    local handler = _modules[name]
+    if handler then
+        return handler
     end
 
     local module_path = _module_paths[name]
@@ -66,23 +61,16 @@ function get_module(name)
         return nil
     end
 
-    spec = _load_spec(module_path, "module", name)
-    register_module(name, spec)
+    local mod = import(module_path)
+    if type(mod) ~= "table" or type(mod.get_handler) ~= "function" then
+        raise("libca.em: module '%s' must export get_handler()", tostring(name))
+    end
+
+    handler = mod.get_handler()
+    register_module(name, handler)
     return _modules[name]
 end
 
 function get_driver(name)
-    local spec = _drivers[name]
-    if spec then
-        return spec
-    end
-
-    local driver_path = _driver_paths[name]
-    if not driver_path then
-        return nil
-    end
-
-    spec = _load_spec(driver_path, "driver", name)
-    register_driver(name, spec)
     return _drivers[name]
 end

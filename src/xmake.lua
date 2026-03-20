@@ -26,7 +26,7 @@ includes("em_util")
 -- dstream依赖base
 includes("em_dstream")
 -- driver依赖base
-includes("em_driver/*/*.lua")
+includes("em_driver")
 -- platform依赖base
 -- includes("em_platform")
 -- eimui依赖base
@@ -46,8 +46,6 @@ includes("em_shell")
 includes("em_log")
 -- mpool依赖base
 includes("em_mpool")
--- driver依赖base
-includes("em_driver")
 
 -- C++库
 -- includes("log")

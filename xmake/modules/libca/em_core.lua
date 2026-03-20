@@ -55,19 +55,24 @@ local function _apply_module(target, state, name, opts, registry, visited)
     end
     visited[name] = true
 
-    local module_spec = registry.get_module(name)
-    if not module_spec then
+    local module_handler = registry.get_module(name)
+    if not module_handler then
         raise("libca.em.add_libs: unsupported module '%s'", tostring(name))
     end
 
-    for _, dep_name in ipairs(module_spec.deps or {}) do
+    for _, dep_name in ipairs(module_handler.deps or {}) do
         _apply_module(target, state, dep_name, {}, registry, visited)
     end
 
     state.options[name] = state.options[name] or {}
     _deep_merge(state.options[name], opts or {})
 
-    module_spec.inject(target, state, state.options[name], registry)
+    local handle = module_handler.handle or module_handler.inject
+    if type(handle) ~= "function" then
+        raise("libca.em: module '%s' handler must define handle(target, state, opts, registry)", tostring(name))
+    end
+
+    handle(target, state, state.options[name], registry)
     state.modules[name] = {enable = true}
 end
 
