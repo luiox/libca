@@ -1,5 +1,9 @@
 # mini_demo
 
+> 状态：历史复现材料（仅用于作用域/导出机制行为对照），不作为当前推荐接入方式。
+
+> 当前推荐：统一使用 add_moduledirs + import("libca.em") + em.setup/em.add_libs。
+
 本目录用于整理并复现以下问题与需求：
 
 - 需求：把源码库封装成“一键注入当前 target”的方式。
