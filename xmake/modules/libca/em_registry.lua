@@ -1,21 +1,35 @@
 -- libca.em_registry: module/driver registration center
 
-local inject = import("libca.em_inject")
-
 local _modules = {}
 local _drivers = {}
+local _module_paths = {}
+local _driver_paths = {}
 
-local function _normalize_port_list(port)
-    if port == nil then
-        return {}
+do
+    local root = os.scriptdir()
+    for _, f in ipairs(os.files(path.join(root, "em_modules", "*.lua"))) do
+        local name = path.basename(f)
+        _module_paths[name] = "libca.em_modules." .. name
     end
-    if type(port) == "string" then
-        return {port}
+    for _, f in ipairs(os.files(path.join(root, "em_drivers", "*.lua"))) do
+        local name = path.basename(f)
+        _driver_paths[name] = "libca.em_drivers." .. name
     end
-    if type(port) ~= "table" then
-        raise("libca.em: em_driver.led.port must be list(table) or string")
+end
+
+local function _load_spec(module_path, kind, name)
+    local mod = import(module_path)
+    if type(mod) ~= "table" or type(mod.get_spec) ~= "function" then
+        raise("libca.em: %s module '%s' must export get_spec()", kind, name)
     end
-    return port
+
+    local spec = mod.get_spec()
+    if type(spec) ~= "table" or type(spec.inject) ~= "function" then
+        raise("libca.em: %s '%s' spec.inject must be function", kind, name)
+    end
+
+    spec.deps = spec.deps or {}
+    return spec
 end
 
 function register_module(name, spec)
@@ -25,6 +39,7 @@ function register_module(name, spec)
     if type(spec) ~= "table" or type(spec.inject) ~= "function" then
         raise("libca.em: module '%s' spec.inject must be function", tostring(name))
     end
+
     spec.deps = spec.deps or {}
     _modules[name] = spec
 end
@@ -36,77 +51,38 @@ function register_driver(name, spec)
     if type(spec) ~= "table" or type(spec.inject) ~= "function" then
         raise("libca.em: driver '%s' spec.inject must be function", tostring(name))
     end
+
     _drivers[name] = spec
 end
 
 function get_module(name)
+    local spec = _modules[name]
+    if spec then
+        return spec
+    end
+
+    local module_path = _module_paths[name]
+    if not module_path then
+        return nil
+    end
+
+    spec = _load_spec(module_path, "module", name)
+    register_module(name, spec)
     return _modules[name]
 end
 
 function get_driver(name)
+    local spec = _drivers[name]
+    if spec then
+        return spec
+    end
+
+    local driver_path = _driver_paths[name]
+    if not driver_path then
+        return nil
+    end
+
+    spec = _load_spec(driver_path, "driver", name)
+    register_driver(name, spec)
     return _drivers[name]
 end
-
-register_module("em_base", {
-    inject = function (target, state)
-        local src_root = path.join(state.root, "src")
-        local base_dir = path.join(src_root, "em_base")
-
-        inject.add_include(target, state, src_root)
-        inject.add_file(target, state, path.join(base_dir, "datatype.c"))
-        inject.add_file(target, state, path.join(base_dir, "debug.c"))
-        inject.add_file(target, state, path.join(base_dir, "compiler_compat.c"))
-    end
-})
-
-register_driver("led", {
-    inject = function (target, state, opts)
-        opts = opts or {}
-
-        local src_root = path.join(state.root, "src")
-        local led_dir = path.join(src_root, "em_driver", "led")
-        local mode = opts.mode or "extern"
-
-        if mode ~= "extern" and mode ~= "dynamic" then
-            raise("libca.em: em_driver.led.mode must be 'extern' or 'dynamic'")
-        end
-
-        inject.add_include(target, state, src_root)
-        inject.add_file(target, state, path.join(led_dir, "led.c"))
-
-        if mode == "dynamic" then
-            inject.add_define(target, state, "LIBCA_LED_PORT_MODE=2")
-            return
-        end
-
-        inject.add_define(target, state, "LIBCA_LED_PORT_MODE=1")
-
-        local ports = _normalize_port_list(opts.port)
-        if #ports > 0 then
-            for _, p in ipairs(ports) do
-                if type(p) ~= "string" then
-                    raise("libca.em: em_driver.led.port item must be string path")
-                end
-                inject.add_file(target, state, inject.to_abs(os.projectdir(), p))
-            end
-            return
-        end
-
-        inject.add_file(target, state, path.join(led_dir, "port_led.c"))
-    end
-})
-
-register_module("em_driver", {
-    deps = {"em_base"},
-    inject = function (target, state, opts, reg)
-        opts = opts or {}
-
-        for driver_name, driver_opts in pairs(opts) do
-            local spec = reg.get_driver(driver_name)
-            if not spec then
-                raise("libca.em: unsupported em_driver '%s'", tostring(driver_name))
-            end
-            spec.inject(target, state, driver_opts)
-        end
-    end
-})
