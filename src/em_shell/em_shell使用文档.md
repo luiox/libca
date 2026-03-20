@@ -14,6 +14,27 @@
 
 ## 快速开始
 
+### import 接入（推荐）
+
+```lua
+add_moduledirs(path.join(os.scriptdir(), "..", "xmake", "modules"))
+
+target("app")
+    set_kind("binary")
+    add_files("app/main.c")
+    on_load(function (target)
+        local em = import("libca.em")
+        em.setup(target, {root = path.join(os.scriptdir(), "..")})
+        em.add_libs(target, "em_shell")
+    end)
+```
+
+`em_shell` 会自动补齐 `em_base` 依赖，头文件可直接使用：
+
+```c
+#include <em_shell/shell.h>
+```
+
 ### 5 分钟上手
 
 #### 第 1 步：定义 I/O 端口
