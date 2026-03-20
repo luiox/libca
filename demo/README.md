@@ -1,6 +1,6 @@
 # demo
 
-该目录用于验证外部工程通过 `libca_em.lua` 接入 `em_driver` 的可行方案。
+该目录用于验证外部工程通过 `import("libca.em")` 接入源码包管理方案。
 
 ## 构建命令
 
@@ -8,15 +8,16 @@
 
 ```bash
 xmake -P demo
-xmake -P demo demo_led_extern
-xmake -P demo demo_led_dynamic
+xmake -P demo build demo_led_extern
+xmake -P demo run demo_led_extern
+xmake -P demo build demo_led_dynamic
+xmake -P demo run demo_led_dynamic
 ```
 
 ## 关键点
 
-- 只需 includes("../libca_em.lua") 一次。
-- 在当前 xmake 作用域下，include 文件中的函数不会稳定暴露到外层工程。
-- 因此外部工程推荐使用 add_rules("libca.em_driver.led", opts) 方式接入。
+- 仅需 `add_moduledirs(...)` 并在 `on_load` 使用 `import("libca.em")`。
+- 通过 `em.setup(target, {root = ...})` 初始化源码根目录。
+- 通过 `em.add_libs(target, "em_driver", opts)` 注入驱动与依赖。
 - extern 模式可通过 port 列表注入用户适配源码。
 - dynamic 模式下不注入 port 文件，由用户在代码中调用 led_bind_port()。
-- demo 中通过 app/debug_stub.c 提供最小 debug_printf 实现，只用于验证接入链路。
