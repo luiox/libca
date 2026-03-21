@@ -11,6 +11,7 @@ target("app")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {root = path.join(os.scriptdir(), "..")})
+        em.add_libs(target, "em_base")
         em.add_libs(target, "em_driver", {
             led = {
                 mode = "extern",
@@ -48,12 +49,11 @@ em.add_libs(target, "em_driver", {
 
 ## 端口规则
 
-1. 不传 `port`：用驱动默认端口。
-2. 默认端口未配置：自动扫描 `port_*.c`。
-3. 传了 `port`：只用用户传入文件，不再注入默认端口。
+1. 不传 `port`：不注入任何 port 源码。
+2. 传了 `port`：只用用户传入文件。
 
 ## 常见问题
 
-1. 重复符号（LNK2005）：通常是默认端口和自定义端口同时编译，检查是否误传了重复源文件。
+1. 重复符号（LNK2005）：通常是用户工程重复添加了 port 文件，检查是否在 `port` 参数外又手动 `add_files` 了同一文件。
 2. 找不到 manifest：检查路径是否为 `src/em_driver/<driver>/<driver>.lua`。
 3. 找不到头文件：确认 `em.setup` 的 `root` 指向 libca 根目录。

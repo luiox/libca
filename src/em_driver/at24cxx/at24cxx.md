@@ -15,6 +15,7 @@ target("app")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {root = path.join(os.scriptdir(), "..")})
+        em.add_libs(target, "em_base")
         em.add_libs(target, "em_driver", {
             at24cxx = {
                 mode = "extern"
@@ -39,10 +40,11 @@ em.add_libs(target, "em_driver", {
 })
 ```
 
-## 4. 默认 port 行为
+## 4. port 行为
 
-- 未传 `port` 时，解释器会优先使用清单中的 `default_port_src`。
-- 若清单未配置 `default_port_src`，解释器会自动扫描驱动目录中的 `port_*.c`。
+- `port` 是可选参数。
+- 未传 `port` 时，不注入任何 port 源码。
+- 传了 `port` 时，只注入用户传入的绝对路径文件。
 
 ## 5. 相关文件
 

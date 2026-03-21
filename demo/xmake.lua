@@ -158,7 +158,8 @@ target("demo_driver_manifests_check")
         em.add_libs(target, "em_base")
         em.add_libs(target, "em_driver", {
             led = {
-                mode = "extern"
+                mode = "extern",
+                port = {path.join(os.scriptdir(), "board", "port_led.c")}
             }
         })
     end)
