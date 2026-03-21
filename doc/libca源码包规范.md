@@ -24,13 +24,13 @@ target("app")
 
 其中`setup`需要指定libca的root目录，而debug选项也是必须实现的，这个是一个可选性，默认为false，为true时候需要输出调试信息。
 
-而`add_libs`是添加组件的方式，要求如果没有添加依赖的module的时候终止构建，并且打印提示，是什么module缺乏依赖的什么module的添加。module的添加顺序应该是无关的，而且重复添加源文件时候应该去重。
+而`add_libs`是添加组件的方式，必须显式添加依赖所有需要的依赖，要求如果没有添加依赖的module的时候终止构建，并且打印提示，是什么module缺乏依赖的什么module的添加。module的添加顺序应该是无关的，而且重复添加源文件时候应该去重。
 
-
+重复调用`add_libs`仅保留最后一次添加的module对应的配置。
 
 ## em_driver
 
-em_driver的使用大致如下。
+em_driver的使用大致如下。`port`是可选的，如果没有的话，那就什么都不做。
 
 ```c
 em.add_libs(target, "em_driver", {
@@ -41,34 +41,37 @@ em.add_libs(target, "em_driver", {
 })
 ```
 
-针对em_driver的各种驱动，每个驱动必须定义类似于下面这样子的内容的一个文件。这个文件通常跟驱动名字对应，例如`em_driver/<name>/<name>.lua`。
+针对em_driver的各种驱动，每个驱动必须定义类似于下面这样子的内容的一个文件。这个文件通常跟驱动名字对应，例如`em_driver/<name>/<name>.lua`。需要返回一个返回配置表的函数，这个函数的要求是参数是ctx，目前暂时不用。返回的配置表有要求。
 
 ```lua
-return {
-    -- 基本信息
-    name = "led",
-    dir = "led", -- 相对于 em_driver 的路径
+return function(ctx)
+    local config = {
+        -- 基本信息
+        name = "led",
+        dir = "led", -- 相对于 em_driver 的路径
 
-    -- 源码处理逻辑（约定）
-    src = { "led.c" },
-    
-	port_config = {
-		mode = {
-			default = "extern",
-			values = {
-				extern = "LIBCA_LED_PORT_MODE=1",
-				dynamic= "LIBCA_LED_PORT_MODE=2"
-			}
-		},
-		extra_cfg = {
-            default = "feature_a",
-            values = {
-                feature_a = "ENABLE_FEATURE_A=1",
-                feature_b = "ENABLE_FEATURE_B=1"
+        -- 源码处理逻辑（约定）
+        src = { "led.c" },
+
+        port_config = {
+            mode = {
+                default = "extern",
+                values = {
+                    extern = "LIBCA_LED_PORT_MODE=1",
+                    dynamic= "LIBCA_LED_PORT_MODE=2"
+                }
+            },
+            extra_cfg = {
+                default = "feature_a",
+                values = {
+                    feature_a = "ENABLE_FEATURE_A=1",
+                    feature_b = "ENABLE_FEATURE_B=1"
+                }
             }
         }
-	}
-}
+    }
+    return config
+end
 ```
 
 所有的driver应该都是一样的，name就是driver的名字，这个name是在这个里面作为key用。
@@ -77,5 +80,5 @@ return {
 
 其次就是源码，我们要求是`src = { "led.c" },`这样子的一个字符串列表，解释器注意检查文件是否存在，不存在要输出不存在的文件路径。
 
-然后是`port_config`，这个是一个复杂的`map`，以宏为配置，固定有的是`mode`这个key，其他都是类似的，都应该是default+values的这样子的组合，values定义了不同的选项和对应的宏定义。`extra_cfg`仅仅是作为一个例子，可以没有。
+然后是`port_config`，这个是一个复杂的`map`，以宏为配置，`mode`这个是必须的，其他都是类似的，都应该是default+values的这样子的组合，values定义了不同的选项和对应的宏定义。`extra_cfg`仅仅是作为一个例子，可以没有。
 
