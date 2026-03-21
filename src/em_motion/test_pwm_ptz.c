@@ -4,7 +4,7 @@
  */
 
 #define _USE_MATH_DEFINES
-#include "test.h"
+#include <em_test/test.h>
 #include "pwm_ptz.h"
 #include <math.h>
 
