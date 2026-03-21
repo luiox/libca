@@ -9,7 +9,10 @@
  *
  */
 
+#define _USE_MATH_DEFINES
 #include "pwm_ptz.h"
+
+#include <math.h>
 
 static f32 clamp_angle(f32 v, f32 min_v, f32 max_v)
 {
@@ -22,28 +25,26 @@ static f32 clamp_angle(f32 v, f32 min_v, f32 max_v)
     return v;
 }
 
-void pwm_ptz_init(
-    pwm_ptz_t* ptz,
-    const ptz_driver_t* drv,
-    void* drv_ctx,
-    const pwm_ptz_limits_t* limits)
+void pwm_ptz_init(pwm_ptz_t* ptz, const ptz_driver_t* drv, void* drv_ctx,
+                  const pwm_ptz_limits_t* limits)
 {
     if (!ptz) {
         return;
     }
 
-    ptz->drv = drv;
-    ptz->drv_ctx = drv_ctx;
-    ptz->target_pan = 0.0f;
+    ptz->drv         = drv;
+    ptz->drv_ctx     = drv_ctx;
+    ptz->target_pan  = 0.0f;
     ptz->target_tilt = 0.0f;
 
     if (limits) {
         ptz->limits = *limits;
-    } else {
-        ptz->limits.pan.min_angle = -3.1415926f;
-        ptz->limits.pan.max_angle = 3.1415926f;
-        ptz->limits.tilt.min_angle = -1.5707963f;
-        ptz->limits.tilt.max_angle = 1.5707963f;
+    }
+    else {
+        ptz->limits.pan.min_angle  = -(f32)M_PI;
+        ptz->limits.pan.max_angle  = (f32)M_PI;
+        ptz->limits.tilt.min_angle = -(f32)M_PI_2;
+        ptz->limits.tilt.max_angle = (f32)M_PI_2;
     }
 
     if (ptz->drv && ptz->drv->init) {
@@ -65,7 +66,7 @@ void pwm_ptz_set_target(pwm_ptz_t* ptz, f32 pan, f32 tilt)
         return;
     }
 
-    ptz->target_pan = clamp_angle(pan, ptz->limits.pan.min_angle, ptz->limits.pan.max_angle);
+    ptz->target_pan  = clamp_angle(pan, ptz->limits.pan.min_angle, ptz->limits.pan.max_angle);
     ptz->target_tilt = clamp_angle(tilt, ptz->limits.tilt.min_angle, ptz->limits.tilt.max_angle);
 
     if (ptz->drv && ptz->drv->set_angle) {

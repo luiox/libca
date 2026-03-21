@@ -9,9 +9,20 @@
  *
  */
 
+#define _USE_MATH_DEFINES
 #include "kin_omni.h"
 
 #include <math.h>
+
+static void normalize_angle(f32* angle)
+{
+    while (*angle > (f32)M_PI) {
+        *angle -= 2.0f * (f32)M_PI;
+    }
+    while (*angle < -(f32)M_PI) {
+        *angle += 2.0f * (f32)M_PI;
+    }
+}
 
 void omni3_ik(f32 vx, f32 vy, f32 wz, const omni3_param_t* p, f32 wheel_speed[3])
 {
@@ -91,10 +102,5 @@ void omni3_odometry_update(omni3_odometry_t* odo, f32 vx, f32 vy, f32 wz, f32 dt
     odo->y += vy_global * dt;
     odo->theta += wz * dt;
 
-    while (odo->theta > 3.14159265f) {
-        odo->theta -= 2.0f * 3.14159265f;
-    }
-    while (odo->theta < -3.14159265f) {
-        odo->theta += 2.0f * 3.14159265f;
-    }
+    normalize_angle(&odo->theta);
 }

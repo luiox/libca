@@ -23,7 +23,7 @@ void poly5_generate_simple(f32 start, f32 end, f32 total_time, poly5_coeff_t* co
         return;
     }
 
-    d = end - start;
+    d  = end - start;
     t2 = total_time * total_time;
     t3 = t2 * total_time;
     t4 = t3 * total_time;
@@ -39,24 +39,10 @@ void poly5_generate_simple(f32 start, f32 end, f32 total_time, poly5_coeff_t* co
 
 f32 poly5_eval_pos(const poly5_coeff_t* coeff, f32 t)
 {
-    f32 t2;
-    f32 t3;
-    f32 t4;
-    f32 t5;
-
     if (!coeff) {
         return 0.0f;
     }
 
-    t2 = t * t;
-    t3 = t2 * t;
-    t4 = t3 * t;
-    t5 = t4 * t;
-
-    return coeff->a0
-           + coeff->a1 * t
-           + coeff->a2 * t2
-           + coeff->a3 * t3
-           + coeff->a4 * t4
-           + coeff->a5 * t5;
+    return coeff->a0 +
+           t * (coeff->a1 + t * (coeff->a2 + t * (coeff->a3 + t * (coeff->a4 + t * coeff->a5))));
 }

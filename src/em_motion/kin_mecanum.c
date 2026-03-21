@@ -9,9 +9,20 @@
  *
  */
 
+#define _USE_MATH_DEFINES
 #include "kin_mecanum.h"
 
 #include <math.h>
+
+static void normalize_angle(f32* angle)
+{
+    while (*angle > (f32)M_PI) {
+        *angle -= 2.0f * (f32)M_PI;
+    }
+    while (*angle < -(f32)M_PI) {
+        *angle += 2.0f * (f32)M_PI;
+    }
+}
 
 void mecanum_ik(f32 vx, f32 vy, f32 wz, const mecanum_param_t* p, f32 wheel_speed[4])
 {
@@ -89,10 +100,5 @@ void mecanum_odometry_update(mecanum_odometry_t* odo, f32 vx, f32 vy, f32 wz, f3
     odo->y += vy_global * dt;
     odo->theta += wz * dt;
 
-    while (odo->theta > 3.14159265f) {
-        odo->theta -= 2.0f * 3.14159265f;
-    }
-    while (odo->theta < -3.14159265f) {
-        odo->theta += 2.0f * 3.14159265f;
-    }
+    normalize_angle(&odo->theta);
 }
