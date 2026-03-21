@@ -13,8 +13,6 @@
 
 #include <em_base/datatype.h>
 
-#include "ptz_interface.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,7 +20,8 @@ extern "C" {
 /**
  * @brief PTZ 驱动抽象接口
  */
-typedef struct ptz_driver_s {
+typedef struct ptz_driver_s
+{
     /**
      * @brief 初始化驱动
      *
@@ -54,28 +53,31 @@ typedef struct ptz_driver_s {
 /**
  * @brief 单轴角度范围限制
  */
-typedef struct ptz_axis_limit_s {
-	f32 min_angle;
-	f32 max_angle;
+typedef struct ptz_axis_limit_s
+{
+    f32 min_angle;
+    f32 max_angle;
 } ptz_axis_limit_t;
 
 /**
  * @brief 双轴 PTZ 限位配置
  */
-typedef struct pwm_ptz_limits_s {
-	ptz_axis_limit_t pan;
-	ptz_axis_limit_t tilt;
+typedef struct pwm_ptz_limits_s
+{
+    ptz_axis_limit_t pan;
+    ptz_axis_limit_t tilt;
 } pwm_ptz_limits_t;
 
 /**
  * @brief PWM PTZ 控制对象
  */
-typedef struct pwm_ptz_s {
-	const ptz_driver_t* drv;
-	void* drv_ctx;
-	pwm_ptz_limits_t limits;
-	f32 target_pan;
-	f32 target_tilt;
+typedef struct pwm_ptz_s
+{
+    const ptz_driver_t* drv;
+    void*               drv_ctx;
+    pwm_ptz_limits_t    limits;
+    f32                 target_pan;
+    f32                 target_tilt;
 } pwm_ptz_t;
 
 /**
@@ -86,11 +88,8 @@ typedef struct pwm_ptz_s {
  * @param drv_ctx 驱动上下文
  * @param limits 限位配置
  */
-void pwm_ptz_init(
-	pwm_ptz_t* ptz,
-	const ptz_driver_t* drv,
-	void* drv_ctx,
-	const pwm_ptz_limits_t* limits);
+void pwm_ptz_init(pwm_ptz_t* ptz, const ptz_driver_t* drv, void* drv_ctx,
+                  const pwm_ptz_limits_t* limits);
 
 /**
  * @brief 使能或失能 PTZ
@@ -113,4 +112,4 @@ void pwm_ptz_set_target(pwm_ptz_t* ptz, f32 pan, f32 tilt);
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_PWM_PTZ_H
+#endif   // !LIBCA_EM_MOTION_PWM_PTZ_H
