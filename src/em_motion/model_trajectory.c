@@ -2,8 +2,8 @@
  * @file model_trajectory.c
  * @author canrad (1517807724@qq.com)
  * @brief PTZ/执行器通用轨迹模型封装基础实现
- * @version 0.1
- * @date 2026-03-16
+ * @version 0.2
+ * @date 2026-03-21
  *
  * @copyright Copyright (c) 2026
  *
@@ -11,12 +11,8 @@
 
 #include "model_trajectory.h"
 
-void model_trajectory_init_trapezoidal(
-    model_trajectory_t* traj,
-    f32 start,
-    f32 end,
-    f32 max_vel,
-    f32 accel)
+void model_trajectory_init_trapezoidal(model_trajectory_t* traj, f32 start, f32 end, f32 max_vel,
+                                       f32 accel)
 {
     if (!traj) {
         return;
@@ -26,6 +22,16 @@ void model_trajectory_init_trapezoidal(
     trapezoidal_init(&traj->trap, start, end, max_vel, accel);
 }
 
+void model_trajectory_init_s_curve(model_trajectory_t* traj, const s_curve_config_t* cfg)
+{
+    if (!traj || !cfg) {
+        return;
+    }
+
+    traj->type = TRAJECTORY_TYPE_S_CURVE;
+    s_curve_init(&traj->s_curve, cfg);
+}
+
 f32 model_trajectory_eval(const model_trajectory_t* traj, f32 t)
 {
     if (!traj) {
@@ -33,11 +39,8 @@ f32 model_trajectory_eval(const model_trajectory_t* traj, f32 t)
     }
 
     switch (traj->type) {
-        case TRAJECTORY_TYPE_TRAPEZOIDAL:
-            return trapezoidal_update(&traj->trap, t);
-        case TRAJECTORY_TYPE_S_CURVE:
-            return trapezoidal_update(&traj->trap, t);
-        default:
-            return 0.0f;
+    case TRAJECTORY_TYPE_TRAPEZOIDAL: return trapezoidal_update(&traj->trap, t);
+    case TRAJECTORY_TYPE_S_CURVE: return s_curve_update(&traj->s_curve, t);
+    default: return 0.0f;
     }
 }
