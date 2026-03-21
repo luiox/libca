@@ -11,13 +11,15 @@ local function _target_key(target)
     return tostring(target)
 end
 
-local function _deep_merge(dst, src)
+local function _deep_copy(src)
     if type(src) ~= "table" then
-        return dst
+        return src
     end
+
+    local dst = {}
     for k, v in pairs(src) do
-        if type(v) == "table" and type(dst[k]) == "table" then
-            _deep_merge(dst[k], v)
+        if type(v) == "table" then
+            dst[k] = _deep_copy(v)
         else
             dst[k] = v
         end
@@ -85,24 +87,25 @@ local function _ensure_state(target)
     return _states[_target_key(target)]
 end
 
-local function _apply_module(target, state, name, opts, registry, visited)
-    visited = visited or {}
-    if visited[name] then
-        return
-    end
-    visited[name] = true
-
+local function _apply_module(target, state, name, opts, registry)
     local module_handler = registry.get_module(name)
     if not module_handler then
         raise("libca.em.add_libs: unsupported module '%s'", tostring(name))
     end
 
     for _, dep_name in ipairs(module_handler.deps or {}) do
-        _apply_module(target, state, dep_name, {}, registry, visited)
+        if not (state.modules[dep_name] and state.modules[dep_name].enable == true) then
+            raise(
+                "libca.em.add_libs: missing dependency (module=%s, dependency=%s, target=%s)",
+                tostring(name),
+                tostring(dep_name),
+                tostring(_target_key(target))
+            )
+        end
     end
 
-    state.options[name] = state.options[name] or {}
-    _deep_merge(state.options[name], opts or {})
+    -- Repeated add_libs(module) keeps only the latest options for that module.
+    state.options[name] = _deep_copy(opts or {})
 
     local handle = module_handler.handle or module_handler.inject
     if type(handle) ~= "function" then

@@ -16,6 +16,7 @@ target("demo_em_modules")
             root = path.join(os.scriptdir(), "..")
         })
 
+        em.add_libs(target, "em_base")
         em.add_libs(target, "em_log", {
             backend = "simple_logger"
         })

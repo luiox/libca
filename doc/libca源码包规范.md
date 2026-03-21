@@ -28,6 +28,8 @@ target("app")
 
 重复调用`add_libs`仅保留最后一次添加的module对应的配置。
 
+另外，`includedirs`的注入策略固定为仅注入`src_root`（即`<root>/src`）。这是有意为之，目的是保证用户以`<em_xxx/xxx.h>`形式统一包含头文件。
+
 ## em_driver
 
 em_driver的使用大致如下。`port`是可选的，如果没有的话，那就什么都不做。
@@ -74,6 +76,8 @@ return function(ctx)
 end
 ```
 
+这里要求这个返回的配置表是静态描述数据，不能依赖运行时扫描目录得到`src`或`port_config`。
+
 所有的driver应该都是一样的，name就是driver的名字，这个name是在这个里面作为key用。
 
 然后第二个就是dir，这个用于定位后面的driver源码的目录。这个路径，我们就要求是相对em_driver目录的就行。
@@ -81,4 +85,8 @@ end
 其次就是源码，我们要求是`src = { "led.c" },`这样子的一个字符串列表，解释器注意检查文件是否存在，不存在要输出不存在的文件路径。
 
 然后是`port_config`，这个是一个复杂的`map`，以宏为配置，`mode`这个是必须的，其他都是类似的，都应该是default+values的这样子的组合，values定义了不同的选项和对应的宏定义。`extra_cfg`仅仅是作为一个例子，可以没有。
+
+`port`是可选参数，如果用户没有传入`port`，解释器不注入任何port源文件，也不自动扫描默认port文件。
+
+错误信息格式不强制固定，但建议采用`module/dependency/target`三元组，方便日志定位。
 
