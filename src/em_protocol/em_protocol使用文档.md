@@ -11,11 +11,13 @@ target("app")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {root = path.join(os.scriptdir(), "..")})
+        em.add_libs(target, "em_base")
+        em.add_libs(target, "em_util")
         em.add_libs(target, "em_protocol")
     end)
 ```
 
-`em_protocol` 会自动补齐 `em_base` 与 `em_util`。
+`em_protocol` 依赖 `em_base` 与 `em_util`，需要显式添加。
 
 ## 头文件示例
 

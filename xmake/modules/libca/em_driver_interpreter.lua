@@ -2,80 +2,97 @@
 
 local inject = import("libca.em_inject")
 
-local function _list_to_set(items)
-    local set = {}
-    for _, item in ipairs(items or {}) do
-        set[item] = true
+local function _extract_brace_block(text, from_pos)
+    local start_pos = text:find("{", from_pos, true)
+    if not start_pos then
+        return nil
     end
-    return set
-end
 
-local function _collect_driver_sources(driver_dir)
-    local excluded_prefix = _list_to_set({"test-", "example"})
-    local result = {}
-
-    for _, f in ipairs(os.files(path.join(driver_dir, "**.c"))) do
-        local filename = path.filename(f)
-        local excluded = false
-        for prefix, _ in pairs(excluded_prefix) do
-            if filename:sub(1, #prefix) == prefix then
-                excluded = true
-                break
+    local level = 0
+    for i = start_pos, #text do
+        local ch = text:sub(i, i)
+        if ch == "{" then
+            level = level + 1
+        elseif ch == "}" then
+            level = level - 1
+            if level == 0 then
+                return text:sub(start_pos, i)
             end
         end
-        if not excluded then
-            table.insert(result, path.relative(f, driver_dir))
+    end
+    return nil
+end
+
+local function _deserialize_static_manifest(content, driver_name)
+    if not content:match("^%s*return%s+function%s*%(%s*ctx%s*%)") then
+        raise("libca.em: em_driver.%s manifest must return function(ctx)", tostring(driver_name))
+    end
+
+    local body = content:match("^%s*return%s+function%s*%(%s*ctx%s*%)%s*(.-)%s*end%s*$")
+    if type(body) ~= "string" or body == "" then
+        raise("libca.em: em_driver.%s manifest function(ctx) body invalid", tostring(driver_name))
+    end
+
+    local table_expr
+    local config_anchor = body:find("local%s+config%s*=")
+    if config_anchor then
+        table_expr = _extract_brace_block(body, config_anchor)
+    else
+        local return_anchor = body:find("return%s+")
+        if return_anchor then
+            table_expr = _extract_brace_block(body, return_anchor)
         end
     end
-    return result
+
+    if type(table_expr) ~= "string" or table_expr == "" then
+        raise("libca.em: em_driver.%s manifest function(ctx) must return static table", tostring(driver_name))
+    end
+
+    local manifest = string.deserialize(table_expr)
+    if type(manifest) ~= "table" then
+        raise("libca.em: em_driver.%s manifest function(ctx) must return table", tostring(driver_name))
+    end
+    return manifest
 end
 
 local function _load_driver_manifest(state, driver_name)
     local em_driver_root = path.join(state.root, "src", "em_driver")
-    local driver_dir = path.join(em_driver_root, driver_name)
     local manifest_path = path.join(em_driver_root, driver_name, driver_name .. ".lua")
 
     if not os.isfile(manifest_path) then
-        manifest_path = path.join(em_driver_root, driver_name .. ".lua")
+        raise("libca.em: em_driver.%s manifest not found: %s", tostring(driver_name), manifest_path)
     end
 
-    if os.isfile(manifest_path) then
-        local content = io.readfile(manifest_path)
-        if type(content) ~= "string" or content == "" then
-            raise("libca.em: em_driver.%s manifest read failed: %s", tostring(driver_name), manifest_path)
-        end
-
-        if content:sub(1, 3) == "\239\187\191" then
-            content = content:sub(4)
-        end
-
-        local expr = content:gsub("^%s*return%s+", "", 1)
-        local manifest = string.deserialize(expr)
-        if type(manifest) ~= "table" then
-            raise("libca.em: em_driver.%s manifest must return table", tostring(driver_name))
-        end
-        manifest.name = manifest.name or driver_name
-        manifest.dir = manifest.dir or driver_name
-        manifest.src = manifest.src or {}
-        manifest.default_port_src = manifest.default_port_src or {}
-        return manifest
+    local content = io.readfile(manifest_path)
+    if type(content) ~= "string" or content == "" then
+        raise("libca.em: em_driver.%s manifest read failed: %s", tostring(driver_name), manifest_path)
     end
 
-    if not os.isdir(driver_dir) then
-        raise("libca.em: em_driver.%s directory not found: %s", tostring(driver_name), driver_dir)
+    if content:sub(1, 3) == "\239\187\191" then
+        content = content:sub(4)
     end
 
-    local src_list = _collect_driver_sources(driver_dir)
-    if #src_list == 0 then
-        raise("libca.em: em_driver.%s has no source files in %s", tostring(driver_name), driver_dir)
+    local manifest = _deserialize_static_manifest(content, driver_name)
+
+    if type(manifest.name) ~= "string" or manifest.name == "" then
+        raise("libca.em: em_driver.%s manifest.name must be non-empty string", tostring(driver_name))
+    end
+    if type(manifest.dir) ~= "string" or manifest.dir == "" then
+        raise("libca.em: em_driver.%s manifest.dir must be non-empty string", tostring(driver_name))
+    end
+    if type(manifest.src) ~= "table" or #manifest.src == 0 then
+        raise("libca.em: em_driver.%s.src must be non-empty list(table)", tostring(driver_name))
     end
 
-    return {
-        name = driver_name,
-        dir = driver_name,
-        src = src_list,
-        default_port_src = {}
-    }
+    local cfg_map = manifest.port_config
+    if type(cfg_map) ~= "table" then
+        raise("libca.em: em_driver.%s.port_config must be table", tostring(driver_name))
+    end
+    if type(cfg_map.mode) ~= "table" then
+        raise("libca.em: em_driver.%s.port_config.mode must be table", tostring(driver_name))
+    end
+
+    return manifest
 end
 
 local function _ensure_file(abs_path, driver_name)
@@ -106,38 +123,8 @@ local function _inject_sources(target, state, manifest)
     end
 end
 
-local function _inject_default_ports(target, state, manifest, opts)
-    if opts.port ~= nil then
-        return
-    end
-
-    local src_root = path.join(state.root, "src")
-    local em_driver_root = path.join(src_root, "em_driver")
-    local driver_name = manifest.name
-    local driver_dir = path.join(em_driver_root, manifest.dir)
-
-    local default_ports = manifest.default_port_src or {}
-    if #default_ports == 0 then
-        for _, f in ipairs(os.files(path.join(driver_dir, "port_*.c"))) do
-            table.insert(default_ports, path.relative(f, driver_dir))
-        end
-    end
-
-    for _, rel in ipairs(default_ports) do
-        if type(rel) ~= "string" then
-            raise("libca.em: em_driver.%s.default_port_src item must be string", tostring(driver_name))
-        end
-        local abs = path.join(driver_dir, rel)
-        _ensure_file(abs, driver_name)
-        inject.add_file(target, state, abs)
-    end
-end
-
 local function _inject_port_config(target, state, manifest, opts)
     local cfg_map = manifest.port_config
-    if type(cfg_map) ~= "table" then
-        return
-    end
 
     for cfg_name, cfg in pairs(cfg_map) do
         if type(cfg) ~= "table" then
@@ -150,7 +137,13 @@ local function _inject_port_config(target, state, manifest, opts)
             raise("libca.em: em_driver.%s.port_config.%s.values must be table", tostring(manifest.name), tostring(cfg_name))
         end
 
-        local selected = opts[cfg_name] or cfg.default
+        local selected = opts[cfg_name]
+        if cfg_name == "mode" and selected == nil then
+            raise("libca.em: em_driver.%s.mode is required", tostring(manifest.name))
+        end
+        if selected == nil then
+            selected = cfg.default
+        end
         local define = cfg.values[selected]
         if type(define) ~= "string" or define == "" then
             raise("libca.em: em_driver.%s.%s invalid option '%s'", tostring(manifest.name), tostring(cfg_name), tostring(selected))
@@ -189,7 +182,6 @@ function handle_driver(target, state, driver_name, opts)
     manifest.name = manifest.name or driver_name
 
     _inject_sources(target, state, manifest)
-    _inject_default_ports(target, state, manifest, opts)
     _inject_port_config(target, state, manifest, opts)
     _inject_ports(target, state, manifest, opts)
 end

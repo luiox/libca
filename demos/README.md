@@ -12,7 +12,7 @@
 在仓库根目录执行:
 
 ```bash
-xmake f -m debug
+xmake f -P demos -m debug
 xmake build demo_em_modules
 xmake run demo_em_modules
 ```

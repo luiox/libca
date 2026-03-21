@@ -26,40 +26,55 @@
 最小示例：
 
 ```lua
-return {
-    name = "led",
-    dir = "led",
-    src = {"led.c"}
-}
+return function(ctx)
+    local _ = ctx
+    return {
+        name = "led",
+        dir = "led",
+        src = {"led.c"},
+        port_config = {
+            mode = {
+                default = "extern",
+                values = {
+                    extern = "LIBCA_LED_PORT_MODE=1",
+                    dynamic = "LIBCA_LED_PORT_MODE=2"
+                }
+            }
+        }
+    }
+end
 ```
 
 常用扩展字段：
 
 ```lua
-return {
-    name = "led",
-    dir = "led",
-    src = {"led.c"},
-    default_port_src = {"port_led.c"},
-    port_config = {
-        mode = {
-            default = "extern",
-            values = {
-                extern = "LIBCA_LED_PORT_MODE=1",
-                dynamic = "LIBCA_LED_PORT_MODE=2"
+return function(ctx)
+    local _ = ctx
+    return {
+        name = "led",
+        dir = "led",
+        src = {"led.c"},
+        port_config = {
+            mode = {
+                default = "extern",
+                values = {
+                    extern = "LIBCA_LED_PORT_MODE=1",
+                    dynamic = "LIBCA_LED_PORT_MODE=2"
+                }
             }
         }
     }
-}
+end
 ```
 
 ## 解释器规则
 
-1. manifest 查找顺序：优先目录模式，再兼容历史平铺模式。
+1. manifest 固定路径：`src/em_driver/<name>/<name>.lua`。
 2. `src` 为必填，且文件必须存在。
-3. 用户传 `port` 时，只注入用户端口文件。
-4. 用户不传 `port` 时，先注入 `default_port_src`，没有则扫描 `port_*.c`。
-5. `port_config` 中每个配置项必须有 `default` 与 `values`，解释器按用户值映射到 `add_defines`。
+3. `port_config.mode` 为必填。
+4. 用户传 `port` 时，只注入用户端口文件。
+5. 用户不传 `port` 时，不注入任何 port 源码。
+6. `port_config` 中每个配置项必须有 `default` 与 `values`，解释器按用户值映射到 `add_defines`。
 
 ## 扩展新驱动流程
 
@@ -71,5 +86,4 @@ return {
 
 ## 兼容性说明
 
-- 推荐目录 manifest：`src/em_driver/<name>/<name>.lua`。
-- 历史平铺 manifest 仍可兼容，但不建议新增使用。
+- 仅支持目录 manifest：`src/em_driver/<name>/<name>.lua`。
