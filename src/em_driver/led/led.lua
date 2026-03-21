@@ -1,22 +1,18 @@
 return {
+    -- 基本信息
     name = "led",
-    dir = "led",
-    src = {"led.c"},
+    dir = "led", -- 相对于 em_driver 的路径
 
-    port_config = {
-        mode = {
-            default = "extern",
-            values = {
-                extern = "LIBCA_LED_PORT_MODE=1",
-                dynamic = "LIBCA_LED_PORT_MODE=2"
-            }
-        },
-        extra_cfg = {
-            default = "feature_a",
-            values = {
-                feature_a = "ENABLE_FEATURE_A=1",
-                feature_b = "ENABLE_FEATURE_B=1"
-            }
-        }
-    }
+    -- 驱动源码逻辑
+    src = { "led.c" },
+    
+	port_config = {
+		mode = {
+			default = "extern",
+			values = {
+				extern = "LIBCA_LED_PORT_MODE=1",
+				dynamic= "LIBCA_LED_PORT_MODE=2"
+			}
+		}
+	}
 }
