@@ -10,13 +10,6 @@ target("libca.em_shell_static")
     add_files("shell.c")
     add_deps("libca.em_base")
 
-target("test-shell")
-    set_kind("binary")
-    set_group("test")
-    add_files("shell.c")
-    add_rules("em_test", { test_enable = true, use_default_main = true })
-    add_deps("libca.em_base")
-
 target("shell_example")
     set_kind("binary")
     set_group("example")
