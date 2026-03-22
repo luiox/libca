@@ -34,7 +34,7 @@ local function _validate_target(target, where)
 end
 
 local function _new_state(root)
-    local src_root = path.join(root, "src")
+    local src_root = path.join(root, "libca.em", "src")
     return {
         root = root,
         src_root = src_root,
