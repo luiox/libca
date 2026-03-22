@@ -18,4 +18,4 @@ includes("../src/em_shell")
 includes("../src/em_test")
 includes("../src/em_util")
 
-includes("../tests")
+includes("tests")
