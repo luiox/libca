@@ -49,9 +49,9 @@ end)
 
 includes("xmake/modules/libca/tool/logger.lua")
 
-includes("src")
-includes("tests")
-includes("demo")
+includes("libca.em")
+includes("libca.core")
+includes("libca.em/demo")
 includes("demos")
 
 -- -- task("find_tests")

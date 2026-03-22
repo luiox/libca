@@ -1,0 +1,51 @@
+local src_dir = "$(projectdir)/libca.em/src/em_base"
+
+target("test-datatype")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "datatype.c"), "test_datatype.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-debug")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "debug.c"), "test_debug.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-compiler_compat")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "compiler_compat.c"), "test_compiler_compat.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-macro_util")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "macro_util.c"), "test_macro_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-string_util_std")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "string_util.c"), "test_string_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-string_util_custom")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "string_util.c"), "test_string_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_STRING_UTIL_IMPL=1")
+
+target("test-memory_util_std")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "memory_util.c"), "test_memory_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-memory_util_custom")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "memory_util.c"), "test_memory_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_MEMORY_UTIL_IMPL=1")
