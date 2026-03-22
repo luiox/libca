@@ -1,0 +1,80 @@
+name: EM Coverage
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "libca.em/**"
+      - "xmake.lua"
+      - "libca.em/xmake.lua"
+      - ".github/workflows/em-coverage.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "libca.em/**"
+      - "xmake.lua"
+      - "libca.em/xmake.lua"
+      - ".github/workflows/em-coverage.yml"
+
+jobs:
+  coverage-em:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code (full history)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install system deps (lcov)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lcov
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: 3.0.5
+        actions-cache-folder: '.xmake-cache'
+
+    - name: Configure (em coverage mode)
+      run: xmake f -m coverage --with_core=n --with_em=y --with_demo=n -vD
+
+    - name: Build em tests
+      run: xmake build -v
+
+    - name: Run em tests
+      run: xmake test -g em/test -v
+
+    - name: Collect em coverage (lcov)
+      run: |
+        set -e
+        lcov --capture --directory . --rc lcov_branch_coverage=1 --output-file em-coverage.info || true
+        lcov --remove em-coverage.info '/usr/*' '*/third_party/*' '*/third-party/*' '*/libca.core/*' '*/build/*' --output-file em-coverage.info || true
+        lcov --list em-coverage.info || true
+
+    - name: Generate HTML report
+      run: |
+        genhtml -o em-coverage-report --show-details --legend --function-coverage --branch-coverage em-coverage.info || true
+      continue-on-error: true
+
+    - name: Upload em coverage HTML (artifact)
+      uses: actions/upload-artifact@v4
+      with:
+        name: em-coverage-report
+        path: em-coverage-report
+
+    - name: Check em coverage threshold (lines >= 60%)
+      run: |
+        pct=$(lcov --summary em-coverage.info | grep "lines" | awk '{print $2}' | sed 's/%//')
+        echo "line coverage=$pct%"
+        awk -v p="$pct" 'BEGIN{ if (p+0 < 60) exit 1 }' || (echo "Coverage below threshold (60%)" && exit 1)
+      continue-on-error: false
+
+    - name: Upload em coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./em-coverage.info
+        flags: em
+        fail_ci_if_error: false
+        verbose: true
