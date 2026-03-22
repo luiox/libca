@@ -50,6 +50,7 @@ end)
 includes("xmake/modules/libca/tool/logger.lua")
 
 includes("src")
+includes("tests")
 includes("demo")
 includes("demos")
 
