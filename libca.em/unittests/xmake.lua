@@ -1,4 +1,4 @@
-add_includedirs("$(projectdir)/src")
+add_includedirs("$(projectdir)/libca.em/src")
 
 includes("em_base")
 includes("em_component")

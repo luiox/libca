@@ -56,7 +56,7 @@ local function _deserialize_static_manifest(content, driver_name)
 end
 
 local function _load_driver_manifest(state, driver_name)
-    local em_driver_root = path.join(state.root, "src", "em_driver")
+    local em_driver_root = path.join(state.root, "libca.em", "src", "em_driver")
     local manifest_path = path.join(em_driver_root, driver_name, driver_name .. ".lua")
 
     if not os.isfile(manifest_path) then
@@ -102,7 +102,7 @@ local function _ensure_file(abs_path, driver_name)
 end
 
 local function _inject_sources(target, state, manifest)
-    local src_root = path.join(state.root, "src")
+    local src_root = path.join(state.root, "libca.em", "src")
     local em_driver_root = path.join(src_root, "em_driver")
     local driver_name = manifest.name
     local driver_dir = path.join(em_driver_root, manifest.dir)

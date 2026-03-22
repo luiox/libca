@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_shell"
+local src_dir = "$(projectdir)/libca.em/src/em_shell"
 
 target("test-shell")
     set_kind("binary")

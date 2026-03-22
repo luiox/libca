@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_dstream"
+local src_dir = "$(projectdir)/libca.em/src/em_dstream"
 
 target("test-ring_buffer")
     set_kind("binary")

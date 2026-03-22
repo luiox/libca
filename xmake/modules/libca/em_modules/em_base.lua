@@ -6,7 +6,7 @@ function get_handler()
     return {
         deps = {},
         handle = function (target, state)
-            local src_root = path.join(state.root, "src")
+            local src_root = path.join(state.root, "libca.em", "src")
             local base_dir = path.join(src_root, "em_base")
 
             inject.add_include(target, state, src_root)

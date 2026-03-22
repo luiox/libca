@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_platform"
+local src_dir = "$(projectdir)/libca.em/src/em_platform"
 
 target("test-async")
     set_kind("binary")

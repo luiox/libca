@@ -6,7 +6,7 @@ function get_handler()
     return {
         deps = {"em_base", "em_util"},
         handle = function (target, state)
-            local src_root = path.join(state.root, "src")
+            local src_root = path.join(state.root, "libca.em", "src")
             local protocol_dir = path.join(src_root, "em_protocol")
 
             inject.add_include(target, state, src_root)

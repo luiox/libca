@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_crypto"
+local src_dir = "$(projectdir)/libca.em/src/em_crypto"
 
 target("test-em_crypto")
     set_kind("binary")

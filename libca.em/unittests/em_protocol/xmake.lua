@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_protocol"
+local src_dir = "$(projectdir)/libca.em/src/em_protocol"
 
 target("test-xmodem")
     set_kind("binary")

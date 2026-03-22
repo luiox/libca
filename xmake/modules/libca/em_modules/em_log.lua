@@ -8,7 +8,7 @@ function get_handler()
         handle = function (target, state, opts)
             opts = opts or {}
 
-            local src_root = path.join(state.root, "src")
+            local src_root = path.join(state.root, "libca.em", "src")
             local log_dir = path.join(src_root, "em_log")
             local backend = opts.backend or "simple_logger"
 

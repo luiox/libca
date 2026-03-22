@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_motion"
+local src_dir = "$(projectdir)/libca.em/src/em_motion"
 
 target("test-kin_diff")
     set_kind("binary")

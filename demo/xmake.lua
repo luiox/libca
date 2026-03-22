@@ -65,7 +65,7 @@ target("demo_driver_manifests_check")
     add_files("app/main.c")
     on_load(function (target)
         local root = path.join(os.scriptdir(), "..")
-        local driver_root = path.join(root, "src", "em_driver")
+        local driver_root = path.join(root, "libca.em", "src", "em_driver")
 
         local function extract_brace_block(text, from_pos)
             local start_pos = text:find("{", from_pos, true)

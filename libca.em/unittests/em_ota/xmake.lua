@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_ota"
+local src_dir = "$(projectdir)/libca.em/src/em_ota"
 
 target("test-em_ota")
     set_kind("binary")

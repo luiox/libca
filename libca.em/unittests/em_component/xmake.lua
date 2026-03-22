@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_component"
+local src_dir = "$(projectdir)/libca.em/src/em_component"
 
 target("test-scoroutine")
     set_kind("binary")

@@ -1,4 +1,4 @@
-local src_dir = "$(projectdir)/src/em_mpool"
+local src_dir = "$(projectdir)/libca.em/src/em_mpool"
 
 target("test-fixed_allocator")
     set_kind("binary")

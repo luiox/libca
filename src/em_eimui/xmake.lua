@@ -1,1 +1,0 @@
--- test target moved to tests/em_eimui/xmake.lua
