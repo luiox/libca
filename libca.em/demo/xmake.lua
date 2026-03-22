@@ -6,7 +6,7 @@ set_languages("c99")
 add_rules("mode.debug", "mode.release")
 
 -- 模拟用户工程：只通过 import 模块接入 libca 源码包
-add_moduledirs(path.join(os.scriptdir(), "..", "xmake", "modules"))
+add_moduledirs(path.join(os.scriptdir(), "..", "..", "xmake", "modules"))
 
 target("demo_led_extern")
     set_kind("binary")
@@ -14,7 +14,7 @@ target("demo_led_extern")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {
-            root = path.join(os.scriptdir(), "..")
+            root = path.join(os.scriptdir(), "..", "..")
         })
 
         em.add_libs(target, "em_base")
@@ -32,7 +32,7 @@ target("demo_led_dynamic")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {
-            root = path.join(os.scriptdir(), "..")
+            root = path.join(os.scriptdir(), "..", "..")
         })
 
         em.add_libs(target, "em_base")
@@ -49,7 +49,7 @@ target("demo_led_no_port")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {
-            root = path.join(os.scriptdir(), "..")
+            root = path.join(os.scriptdir(), "..", "..")
         })
 
         em.add_libs(target, "em_base")
@@ -64,7 +64,7 @@ target("demo_driver_manifests_check")
     set_kind("binary")
     add_files("app/main.c")
     on_load(function (target)
-        local root = path.join(os.scriptdir(), "..")
+        local root = path.join(os.scriptdir(), "..", "..")
         local driver_root = path.join(root, "libca.em", "src", "em_driver")
 
         local function extract_brace_block(text, from_pos)
