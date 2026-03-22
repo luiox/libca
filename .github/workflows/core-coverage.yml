@@ -1,0 +1,80 @@
+name: Core Coverage
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "libca.core/**"
+      - "xmake.lua"
+      - "libca.core/xmake.lua"
+      - ".github/workflows/core-coverage.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "libca.core/**"
+      - "xmake.lua"
+      - "libca.core/xmake.lua"
+      - ".github/workflows/core-coverage.yml"
+
+jobs:
+  coverage-core:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code (full history)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install system deps (lcov)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lcov
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: 3.0.5
+        actions-cache-folder: '.xmake-cache'
+
+    - name: Configure (core coverage mode)
+      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n -vD
+
+    - name: Build core tests
+      run: xmake build test-libca.log -v
+
+    - name: Run core tests
+      run: xmake test -g core/test -v
+
+    - name: Collect core coverage (lcov)
+      run: |
+        set -e
+        lcov --capture --directory . --rc lcov_branch_coverage=1 --output-file core-coverage.info || true
+        lcov --remove core-coverage.info '/usr/*' '*/third_party/*' '*/third-party/*' '*/libca.em/*' '*/build/*' --output-file core-coverage.info || true
+        lcov --list core-coverage.info || true
+
+    - name: Generate HTML report
+      run: |
+        genhtml -o core-coverage-report --show-details --legend --function-coverage --branch-coverage core-coverage.info || true
+      continue-on-error: true
+
+    - name: Upload core coverage HTML (artifact)
+      uses: actions/upload-artifact@v4
+      with:
+        name: core-coverage-report
+        path: core-coverage-report
+
+    - name: Check core coverage threshold (lines >= 60%)
+      run: |
+        pct=$(lcov --summary core-coverage.info | grep "lines" | awk '{print $2}' | sed 's/%//')
+        echo "line coverage=$pct%"
+        awk -v p="$pct" 'BEGIN{ if (p+0 < 60) exit 1 }' || (echo "Coverage below threshold (60%)" && exit 1)
+      continue-on-error: false
+
+    - name: Upload core coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./core-coverage.info
+        flags: core
+        fail_ci_if_error: false
+        verbose: true

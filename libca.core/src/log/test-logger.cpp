@@ -1,5 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include <doctest/doctest.h>
+#include <gtest/gtest.h>
 
 #include "logger.hpp"
 #include "spdlog_backend.hpp"
@@ -34,15 +33,15 @@ std::shared_ptr<libca::SpdlogBackend> makeBackend(std::ostringstream& output)
 
 }   // namespace
 
-TEST_CASE("libca.log level conversion")
+TEST(LibcaLog, LevelConversion)
 {
-	CHECK(libca::stringToLevel("trace") == libca::Level::Trace);
-	CHECK(libca::stringToLevel("DEBUG") == libca::Level::Debug);
-	CHECK(libca::stringToLevel("unknown") == libca::Level::Off);
-	CHECK(libca::levelToString(libca::Level::Critical) == "Critical");
+	EXPECT_EQ(libca::stringToLevel("trace"), libca::Level::Trace);
+	EXPECT_EQ(libca::stringToLevel("DEBUG"), libca::Level::Debug);
+	EXPECT_EQ(libca::stringToLevel("unknown"), libca::Level::Off);
+	EXPECT_EQ(libca::levelToString(libca::Level::Critical), "Critical");
 }
 
-TEST_CASE("libca.log facade runtime filtering")
+TEST(LibcaLog, FacadeRuntimeFiltering)
 {
 	LoggerGuard guard;
 
@@ -51,7 +50,7 @@ TEST_CASE("libca.log facade runtime filtering")
 	libca::set_global_logger(backend);
 
 	auto logger = libca::get_global_logger();
-	REQUIRE(logger != nullptr);
+	ASSERT_NE(logger, nullptr);
 
 	logger->set_level(libca::Level::Warn);
 
@@ -76,6 +75,12 @@ TEST_CASE("libca.log facade runtime filtering")
 	}
 
 	const std::string logged = output.str();
-	CHECK(logged.find("info 1") == std::string::npos);
-	CHECK(logged.find("error 7") != std::string::npos);
+	EXPECT_EQ(logged.find("info 1"), std::string::npos);
+	EXPECT_NE(logged.find("error 7"), std::string::npos);
+}
+
+int main(int argc, char** argv)
+{
+	::testing::InitGoogleTest(&argc, argv);
+	return RUN_ALL_TESTS();
 }

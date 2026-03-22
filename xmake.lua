@@ -2,6 +2,24 @@ set_project("libca")
 set_version("0.0.1")
 set_xmakever("2.8.3")
 
+option("with_core")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable libca.core targets")
+option_end()
+
+option("with_em")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable libca.em targets")
+option_end()
+
+option("with_demo")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable demo targets")
+option_end()
+
 set_languages("c99")
 set_languages("cxx17")
 
@@ -49,10 +67,18 @@ end)
 
 includes("xmake/modules/libca/tool/logger.lua")
 
-includes("libca.em")
-includes("libca.core")
-includes("libca.em/demo")
-includes("demos")
+if has_config("with_em") then
+    includes("libca.em")
+end
+
+if has_config("with_core") then
+    includes("libca.core")
+end
+
+if has_config("with_demo") then
+    includes("libca.em/demo")
+    includes("demos")
+end
 
 -- -- task("find_tests")
 -- --     set_menu {

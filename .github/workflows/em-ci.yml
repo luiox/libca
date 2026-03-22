@@ -1,0 +1,44 @@
+name: EM CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "libca.em/**"
+      - "xmake.lua"
+      - "libca.em/xmake.lua"
+      - ".github/workflows/em-ci.yml"
+      - ".github/workflows/em-coverage.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "libca.em/**"
+      - "xmake.lua"
+      - "libca.em/xmake.lua"
+      - ".github/workflows/em-ci.yml"
+      - ".github/workflows/em-coverage.yml"
+
+jobs:
+  build-and-test-em:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Setup xmake
+      uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: 3.0.5
+        actions-cache-folder: '.xmake-cache'
+
+    - name: Configure em-only build
+      run: xmake f --toolchain=gcc --ccache=y --with_core=n --with_em=y --with_demo=n -y
+
+    - name: Build em tests
+      run: xmake build -v
+
+    - name: Run em tests
+      run: xmake test -g em/test -v
