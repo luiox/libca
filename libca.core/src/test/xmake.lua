@@ -2,6 +2,7 @@
 -- C++的测试库
 target("libca.test")
     set_kind("static")
+    set_group("core")
     add_files("*.cpp")
 
     add_includedirs(".", { public = true })
@@ -12,7 +13,7 @@ target("libca.test")
 -- 最小的自测试可执行文件，仅运行测试框架，测试自身是否有问题
 target("libca.self_test")
     set_kind("binary")
-
+    set_group("core")
     add_includedirs(".")
     -- 启用测试
     add_defines("TEST_ENABLE=1")

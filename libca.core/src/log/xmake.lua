@@ -4,6 +4,7 @@ add_requires("gtest")
 
 target("libca.log")
 	set_kind("static")
+	set_group("core")
 	set_languages("cxx17")
 
 	add_files("logger.cpp", "spdlog_backend.cpp")

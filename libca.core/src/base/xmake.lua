@@ -9,6 +9,7 @@
 
 target("libca.base_test")
     set_kind("binary")
+    set_group("core")
     add_files("ByteBuffer.cpp")
 
     add_files("../test/Test.cpp")
