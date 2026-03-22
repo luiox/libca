@@ -41,7 +41,7 @@ jobs:
       run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n -vD
 
     - name: Build core tests
-      run: xmake build test-libca.log -v
+      run: xmake build -v
 
     - name: Run core tests
       run: xmake test -g core/test -v

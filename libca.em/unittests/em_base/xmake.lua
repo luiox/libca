@@ -3,7 +3,7 @@ local src_dir = "$(projectdir)/libca.em/src/em_base"
 target("test-datatype")
     set_kind("binary")
     add_includedirs(src_dir, ".")
-    add_files(path.join(src_dir, "datatype.c"), "test_datatype.c")
+    add_files("test_datatype.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
 
 target("test-debug")
@@ -15,7 +15,7 @@ target("test-debug")
 target("test-compiler_compat")
     set_kind("binary")
     add_includedirs(src_dir, ".")
-    add_files(path.join(src_dir, "compiler_compat.c"), "test_compiler_compat.c")
+    add_files("test_compiler_compat.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
 
 target("test-macro_util")
