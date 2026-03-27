@@ -75,11 +75,6 @@ if has_config("with_core") then
     includes("libca.core")
 end
 
-if has_config("with_demo") then
-    includes("libca.em/demo")
-    includes("demos")
-end
-
 -- -- task("find_tests")
 -- --     set_menu {
 -- --         usage = "xmake find_tests [options]",
