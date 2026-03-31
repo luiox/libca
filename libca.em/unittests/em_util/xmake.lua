@@ -14,6 +14,13 @@ target("test-endian_util")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_deps("libca.em_base")
 
+target("test-bits_util")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(path.join(src_dir, "bits_util.c"), "test_bits_util.c")
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_deps("libca.em_base")
+
 target("test-pid")
     set_kind("binary")
     add_includedirs(src_dir, ".")
