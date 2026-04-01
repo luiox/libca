@@ -106,6 +106,7 @@
 7. [已完成] 将临时文件迁移到 `archieve/issue-81/` 并纳入 git 管理。
 8. [已完成] 使用 gh CLI 创建 PR，并按 personification 风格撰写内容。
 9. [进行中] 用户最终验收确认。
+10. [已完成] 按用户指定修复 PR review 中 `opts` 非 table 类型导致的潜在运行时错误。
 
 ## 分支与提交记录
 - 分支: `feat/issue-81-em-base-impl-switch`
@@ -116,6 +117,18 @@
 ## PR 记录
 - PR: `https://github.com/luiox/libca/pull/104`
 - base/head: `main` <- `feat/issue-81-em-base-impl-switch`
+
+## 代码审计定向修复
+- 审计来源: PR #104 review（gemini-code-assist）
+- 用户指定只处理项:
+   - `opts = opts or {}` 对非 table 输入不安全，可能触发 `opts.memory_util` 索引错误。
+- 已完成修复:
+   - `xmake/modules/libca/em_modules/em_base.lua`
+   - 将 `opts` 归一化为 `type(opts) == "table" and opts or {}`。
+   - 仅修复该项，其它 review 建议按用户要求不处理。
+- 修复后验证:
+   - `test-base_user_mode_std_std` 通过
+   - `test-base_user_mode_custom_custom` 通过
 
 ## 验收补充要求
 - 2026-04-01 用户补充：

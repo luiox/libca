@@ -28,7 +28,7 @@ function get_handler()
             local src_root = path.join(state.root, "libca.em", "src")
             local base_dir = path.join(src_root, "em_base")
 
-            opts = opts or {}
+            opts = type(opts) == "table" and opts or {}
             local memory_impl = _normalize_impl_opt("memory_util", opts.memory_util)
             local string_impl = _normalize_impl_opt("string_util", opts.string_util)
 

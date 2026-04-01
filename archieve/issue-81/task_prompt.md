@@ -31,3 +31,8 @@
 当年把这两个文件加入git并且commit的时候，我确定你已经完成任务，你应该将当前的`task_plan.md`和`task_prompt.md`文件移动进仓库的`archieve/issue-xxx`这个目录下，其中xxx为issue号，最终为`archieve/issue-xxx/task_plan.md`这样子的路径。
 然后请你使用gh cli工具开一个对应的pr，然后使用 personification skill进行撰写内容。
 ```
+
+## 2026-04-01 任务输入 005
+```
+你拉取一下pr的code review，我针对这个代码审计的部分，我只要求你改进“建议对 opts 进行更严格的类型检查。目前的 opts = opts or {} 无法处理 opts 为非 table 类型（如字符串）的情况，这会导致后续的索引操作（如 opts.memory_util）触发 Lua 运行时错误。”这个问题，其他我们都刻意为之，无需关心这个代码审计的改进提案
+```
