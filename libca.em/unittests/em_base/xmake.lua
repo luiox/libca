@@ -49,3 +49,51 @@ target("test-memory_util_custom")
     add_files(path.join(src_dir, "memory_util.c"), "test_memory_util.c")
     add_rules("em_test", { test_enable = true, use_default_main = true })
     add_defines("USE_CUSTOM_MEMORY_UTIL_IMPL=1")
+
+-- Cross-check matrix: memory_util/string_util independent configuration.
+target("test-base_impl_std_std")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(
+        path.join(src_dir, "memory_util.c"),
+        path.join(src_dir, "string_util.c"),
+        "test_memory_util.c",
+        "test_string_util.c"
+    )
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+
+target("test-base_impl_std_custom")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(
+        path.join(src_dir, "memory_util.c"),
+        path.join(src_dir, "string_util.c"),
+        "test_memory_util.c",
+        "test_string_util.c"
+    )
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_STRING_UTIL_IMPL=1")
+
+target("test-base_impl_custom_std")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(
+        path.join(src_dir, "memory_util.c"),
+        path.join(src_dir, "string_util.c"),
+        "test_memory_util.c",
+        "test_string_util.c"
+    )
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_MEMORY_UTIL_IMPL=1")
+
+target("test-base_impl_custom_custom")
+    set_kind("binary")
+    add_includedirs(src_dir, ".")
+    add_files(
+        path.join(src_dir, "memory_util.c"),
+        path.join(src_dir, "string_util.c"),
+        "test_memory_util.c",
+        "test_string_util.c"
+    )
+    add_rules("em_test", { test_enable = true, use_default_main = true })
+    add_defines("USE_CUSTOM_MEMORY_UTIL_IMPL=1", "USE_CUSTOM_STRING_UTIL_IMPL=1")
