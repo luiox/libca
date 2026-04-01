@@ -104,12 +104,18 @@
 5. [已完成] 第二笔提交与推送（用户版测试）。
 6. [进行中] 与用户交互验收确认，验收后才视为任务完成。
 7. [已完成] 将临时文件迁移到 `archieve/issue-81/` 并纳入 git 管理。
-8. [进行中] 使用 gh CLI 创建 PR，并按 personification 风格撰写内容。
+8. [已完成] 使用 gh CLI 创建 PR，并按 personification 风格撰写内容。
+9. [进行中] 用户最终验收确认。
 
 ## 分支与提交记录
 - 分支: `feat/issue-81-em-base-impl-switch`
 - 已推送提交 1: `fc8acf8`（em_base 选项切换能力、四组合矩阵测试、文档更新）
 - 已推送提交 2: `3fafcfb`（用户模式源码包接入测试，覆盖 std/std 与 custom/custom）
+- 已推送提交 3: `269f675`（归档 issue 过程文档到 `archieve/issue-81/`）
+
+## PR 记录
+- PR: `https://github.com/luiox/libca/pull/104`
+- base/head: `main` <- `feat/issue-81-em-base-impl-switch`
 
 ## 验收补充要求
 - 2026-04-01 用户补充：
