@@ -168,6 +168,14 @@ DECLARE_HANDLER(spi);   // => void handler_spi(void);
 | 0（默认） | 使用标准库内联实现 | 推荐，性能更优，编译器可深度优化 |
 | 1 | 使用自定义实现 | 无标准库环境的嵌入式场景 |
 
+在 `libca.em` 源码包接入中，可通过 `em.add_libs(target, "em_base", opts)` 的
+`opts.memory_util` 控制该宏：
+
+| `opts.memory_util` | 宏效果 |
+|--------------------|--------|
+| `std`（默认） | `USE_CUSTOM_MEMORY_UTIL_IMPL=0` |
+| `custom` | `USE_CUSTOM_MEMORY_UTIL_IMPL=1` |
+
 **API 设计原则**：
 - 命名风格：`mem_xxx`，与标准库 `memxxx` 区分
 - 参数顺序：目标地址在前，源地址在后（与标准库一致）
@@ -206,6 +214,14 @@ DECLARE_HANDLER(spi);   // => void handler_spi(void);
 |------|------|----------|
 | 0（默认） | 使用标准库内联实现 | 推荐，性能更优 |
 | 1 | 使用自定义实现 | 无标准库环境的嵌入式场景 |
+
+在 `libca.em` 源码包接入中，可通过 `em.add_libs(target, "em_base", opts)` 的
+`opts.string_util` 控制该宏：
+
+| `opts.string_util` | 宏效果 |
+|--------------------|--------|
+| `std`（默认） | `USE_CUSTOM_STRING_UTIL_IMPL=0` |
+| `custom` | `USE_CUSTOM_STRING_UTIL_IMPL=1` |
 
 **注意**：仅部分函数支持标准库内联实现，以下函数因语义差异始终使用自定义实现：
 - `str_cpy`, `str_cat`：返回值语义不同（返回长度而非指针）
