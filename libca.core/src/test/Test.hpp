@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <functional>
 #include <sstream>
+#include <cstring>
 
 // 测试框架命名空间
 namespace ca::test {
