@@ -59,7 +59,7 @@ void requireEqual(const char* file, int line, double expect, double real, double
 // C-string overloads for requireEqual (add optional message)
 inline void requireEqual(const char* file, int line, const char* expect, const char* real, const std::string& message = "")
 {
-    if (expect && real && std::strcmp(expect, real) == 0) {
+    if (expect && real && strcmp(expect, real) == 0) {
         requireTrue(file, line, true, message);
     }
     else {
@@ -95,7 +95,7 @@ void assertFalse(const char* file, int line, bool condition, const std::string& 
 // C-string overloads (compare contents, not pointers)
 inline void assertEqual(const char* file, int line, const char* expect, const char* real)
 {
-    if (expect && real && std::strcmp(expect, real) == 0) {
+    if (expect && real && strcmp(expect, real) == 0) {
         assertTrue(file, line, true);
     }
     else {
@@ -125,7 +125,7 @@ void assertEqual(const char* file, int line, double expect, double real, const s
 // C-string overloads (compare contents, not pointers)
 inline void assertEqual(const char* file, int line, const char* expect, const char* real, const std::string& message = "")
 {
-    if (expect && real && std::strcmp(expect, real) == 0) {
+    if (expect && real && strcmp(expect, real) == 0) {
         assertTrue(file, line, true, message);
     }
     else {

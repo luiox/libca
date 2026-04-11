@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cstring>
 #include <cstdio>
+#include <cmath>
 
 #ifdef _WIN32
 #    include <io.h>
