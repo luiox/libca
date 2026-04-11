@@ -38,7 +38,7 @@ jobs:
         actions-cache-folder: '.xmake-cache'
 
     - name: Configure (core coverage mode)
-      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n -vD
+      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n -y -vD
 
     - name: Build core tests
       run: xmake build -v
