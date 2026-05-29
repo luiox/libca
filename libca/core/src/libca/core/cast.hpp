@@ -42,5 +42,3 @@ auto dyn_cast(const U* ptr) -> decltype(cast<T>(ptr)) {
 }
 
 } // namespace ca::core
-
-namespace typed = ca::core;
