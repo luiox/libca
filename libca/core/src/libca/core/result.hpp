@@ -908,3 +908,8 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
     })
 
 }  // namespace ca::core
+
+// Backward compat: make ca::Result available
+namespace ca {
+    using namespace ca::core;
+}
