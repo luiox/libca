@@ -14,8 +14,8 @@
 - 禁止在 .c 文件内重复 .h 的 Doxygen 注释
 
 ## 测试约定
-- em: 测试写在源文件末尾 `#if TEST_ENABLE` 内，断言用 `TEST_EXPECT_EQ_U32` 等
-- core/crypto: Google Test，单独 `*_test.cpp` 文件
+- libca.em: 测试写在源文件末尾 `#if TEST_ENABLE` 内，断言用 `TEST_EXPECT_EQ_U32` 等
+- libca: Google Test，单独 `*_test.cpp` 文件
 
 ## Xmake 模块系统 (AI 易踩坑)
 ```lua

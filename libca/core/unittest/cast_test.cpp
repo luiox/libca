@@ -27,21 +27,21 @@ TEST(TypedCastTest, isaMatchesCorrectType) {
     Base* baseA = &a;
     Base* baseB = &b;
 
-    EXPECT_TRUE(typed::isa<DerivedA>(baseA));
-    EXPECT_FALSE(typed::isa<DerivedB>(baseA));
-    EXPECT_TRUE(typed::isa<DerivedB>(baseB));
-    EXPECT_FALSE(typed::isa<DerivedA>(baseB));
+    EXPECT_TRUE(ca::core::isa<DerivedA>(baseA));
+    EXPECT_FALSE(ca::core::isa<DerivedB>(baseA));
+    EXPECT_TRUE(ca::core::isa<DerivedB>(baseB));
+    EXPECT_FALSE(ca::core::isa<DerivedA>(baseB));
 }
 
 TEST(TypedCastTest, isaNullReturnsFalse) {
     Base* nullPtr = nullptr;
-    EXPECT_FALSE(typed::isa<DerivedA>(nullPtr));
+    EXPECT_FALSE(ca::core::isa<DerivedA>(nullPtr));
 }
 
 TEST(TypedCastTest, castPerformsStaticDowncast) {
     DerivedA a;
     Base* base = &a;
-    auto* casted = typed::cast<DerivedA>(base);
+    auto* casted = ca::core::cast<DerivedA>(base);
     ASSERT_NE(casted, nullptr);
     EXPECT_EQ(casted->aValue(), 42);
 }
@@ -51,14 +51,14 @@ TEST(TypedCastTest, dynCastReturnsNullOnMismatch) {
     DerivedB b;
     Base* baseA = &a;
 
-    auto* result = typed::dyn_cast<DerivedB>(baseA);
+    auto* result = ca::core::dyn_cast<DerivedB>(baseA);
     EXPECT_EQ(result, nullptr);
 }
 
 TEST(TypedCastTest, dynCastReturnsValidOnMatch) {
     DerivedA a;
     Base* base = &a;
-    auto* result = typed::dyn_cast<DerivedA>(base);
+    auto* result = ca::core::dyn_cast<DerivedA>(base);
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->aValue(), 42);
 }
@@ -66,14 +66,14 @@ TEST(TypedCastTest, dynCastReturnsValidOnMatch) {
 TEST(TypedCastTest, isaWithConst) {
     DerivedA a;
     const Base* base = &a;
-    EXPECT_TRUE(typed::isa<const DerivedA>(base));
-    EXPECT_TRUE(typed::isa<DerivedA>(base));
+    EXPECT_TRUE(ca::core::isa<const DerivedA>(base));
+    EXPECT_TRUE(ca::core::isa<DerivedA>(base));
 }
 
 TEST(TypedCastTest, dynCastWithConst) {
     const DerivedA a;
     const Base* base = &a;
-    auto* result = typed::dyn_cast<const DerivedA>(base);
+    auto* result = ca::core::dyn_cast<const DerivedA>(base);
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->aValue(), 42);
 }
