@@ -2,9 +2,14 @@
 
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <sstream>
 #include <iterator>
 #include <stdexcept>
+
+#ifdef _WIN32
+#include <io.h>
+#endif
 
 namespace ca { namespace fs {
 
@@ -48,7 +53,7 @@ Result<std::string, std::string> FileUtil::readAllText(const std::string& path)
     if (result.isErr()) {
         return Err(result.unwrapErr());
     }
-    auto& bytes = result.unwrap();
+    auto bytes = result.unwrap();
     return Ok(std::string(bytes.begin(), bytes.end()));
 }
 
@@ -186,6 +191,12 @@ bool FileUtil::move(const std::string& src, const std::string& dst, bool overwri
         auto dstPath = std::filesystem::path(dst);
         if (!std::filesystem::exists(srcPath)) return false;
 
+        // 防止 src == dst 时先删除源文件导致数据丢失
+        if (std::filesystem::exists(dstPath) &&
+            std::filesystem::equivalent(srcPath, dstPath)) {
+            return true;
+        }
+
         if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
         if (overwrite && std::filesystem::exists(dstPath)) std::filesystem::remove_all(dstPath);
         std::filesystem::rename(srcPath, dstPath);
@@ -204,7 +215,9 @@ bool FileUtil::remove(const std::string& path)
 bool FileUtil::removeAll(const std::string& path)
 {
     std::error_code ec;
-    return std::filesystem::remove_all(std::filesystem::path(path), ec) > 0;
+    auto p = std::filesystem::path(path);
+    if (!std::filesystem::exists(p, ec)) return true;  // 不存在视为已删除
+    return std::filesystem::remove_all(p, ec) > 0;
 }
 
 // ==================== 创建 ====================
@@ -213,8 +226,9 @@ bool FileUtil::createFile(const std::string& path)
 {
     try {
         auto p = std::filesystem::path(path);
+        if (std::filesystem::exists(p)) return false;  // 已有文件不截断
         if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
-        std::ofstream file(p, std::ios::binary);
+        std::ofstream file(p, std::ios::binary | std::ios::out);
         if (!file.is_open()) return false;
         file.close();
         return std::filesystem::exists(p);
@@ -224,18 +238,21 @@ bool FileUtil::createFile(const std::string& path)
 bool FileUtil::createDirectories(const std::string& path)
 {
     std::error_code ec;
-    return std::filesystem::create_directories(std::filesystem::path(path), ec);
+    auto p = std::filesystem::path(path);
+    if (std::filesystem::exists(p, ec)) return true;  // 已存在视为成功
+    return std::filesystem::create_directories(p, ec);
 }
 
 Result<std::string, std::string> FileUtil::createTempFile(const std::string& prefix,
                                                            const std::string& suffix)
 {
     try {
-        auto templ = std::filesystem::temp_directory_path();
-        auto basePath = std::filesystem::absolute(templ);
+        auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
+        std::random_device rd;
+        std::mt19937_64 rng(rd());
         for (int i = 0; i < 1024; ++i) {
-            auto r = std::to_string(static_cast<long long>(std::rand() ^ (static_cast<unsigned>(std::time(nullptr)) << 16)));
-            auto p = basePath / (prefix + r + suffix);
+            auto id = std::to_string(rng());
+            auto p = basePath / (prefix + id + suffix);
             if (!std::filesystem::exists(p)) {
                 std::ofstream f(p, std::ios::binary);
                 if (f.is_open()) { f.close(); return Ok(p.generic_string()); }
@@ -251,9 +268,11 @@ Result<std::string, std::string> FileUtil::createTempDirectory(const std::string
 {
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
+        std::random_device rd;
+        std::mt19937_64 rng(rd());
         for (int i = 0; i < 1024; ++i) {
-            auto r = std::to_string(static_cast<long long>(std::rand() ^ (static_cast<unsigned>(std::time(nullptr)) << 16)));
-            auto p = basePath / (prefix + r);
+            auto id = std::to_string(rng());
+            auto p = basePath / (prefix + id);
             if (std::filesystem::create_directory(p)) return Ok(p.generic_string());
         }
         return Err(std::string("failed to create temp directory after 1024 attempts"));
@@ -295,21 +314,39 @@ Result<std::string, std::string> FileUtil::backup(const std::string& path)
 bool FileUtil::isReadable(const std::string& path)
 {
     std::error_code ec;
-    auto s = std::filesystem::status(std::filesystem::path(path), ec);
+    auto p = std::filesystem::path(path);
+    if (!std::filesystem::exists(p, ec)) return false;
+
+#ifdef _WIN32
+    return ::_access(p.string().c_str(), 4) == 0;
+#else
+    auto s = std::filesystem::status(p, ec);
     if (ec) return false;
     using P = std::filesystem::perms;
     auto pm = s.permissions();
-    return (pm & P::owner_read) != P::none || (pm & P::group_read) != P::none || (pm & P::others_read) != P::none;
+    return (pm & P::owner_read) != P::none ||
+           (pm & P::group_read) != P::none ||
+           (pm & P::others_read) != P::none;
+#endif
 }
 
 bool FileUtil::isWritable(const std::string& path)
 {
     std::error_code ec;
-    auto s = std::filesystem::status(std::filesystem::path(path), ec);
+    auto p = std::filesystem::path(path);
+    if (!std::filesystem::exists(p, ec)) return false;
+
+#ifdef _WIN32
+    return ::_access(p.string().c_str(), 2) == 0;
+#else
+    auto s = std::filesystem::status(p, ec);
     if (ec) return false;
     using P = std::filesystem::perms;
     auto pm = s.permissions();
-    return (pm & P::owner_write) != P::none || (pm & P::group_write) != P::none || (pm & P::others_write) != P::none;
+    return (pm & P::owner_write) != P::none ||
+           (pm & P::group_write) != P::none ||
+           (pm & P::others_write) != P::none;
+#endif
 }
 
 }} // namespace ca::fs
