@@ -73,6 +73,7 @@ end
 
 if has_config("with_core") then
     includes("libca.core")
+    includes("libca")
 end
 
 -- -- task("find_tests")
