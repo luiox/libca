@@ -59,14 +59,17 @@ TEST(CStringTest, FromCStr) {
     EXPECT_STREQ(s.cStr(), "Hello World");
 }
 
-TEST(CStringTest, CopyMove) {
+TEST(CStringTest, Clone) {
     CString s1("Test");
-    CString s2(s1);
+    CString s2 = s1.clone();
     EXPECT_EQ(s2.length(), 4);
     EXPECT_NE(s1.data(), s2.data());
+}
 
-    CString s3(std::move(s1));
-    EXPECT_EQ(s3.length(), 4);
+TEST(CStringTest, Move) {
+    CString s1("Test");
+    CString s2(std::move(s1));
+    EXPECT_EQ(s2.length(), 4);
     EXPECT_TRUE(s1.isEmpty());
 }
 

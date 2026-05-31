@@ -4,7 +4,7 @@
 // @date 2026/05/31
 //
 
-#include <libca/str/cstring.hpp>
+#include "cstring.hpp"
 
 #include <cstring>
 
@@ -77,25 +77,11 @@ CString::CString(const char* cstr) : data_(nullptr), length_(0) {
     init(cstr, std::strlen(cstr));
 }
 
-CString::CString(const CString& other) : data_(new char[other.length_ + 1]), length_(other.length_) {
-    std::memcpy(data_, other.data_, length_ + 1);
-}
-
 CString::CString(CString&& other) noexcept : data_(other.data_), length_(other.length_) {
     other.data_ = nullptr; other.length_ = 0;
 }
 
 CString::~CString() { delete[] data_; }
-
-CString& CString::operator=(const CString& other) {
-    if (this != &other) {
-        delete[] data_;
-        length_ = other.length_;
-        data_ = new char[length_ + 1];
-        std::memcpy(data_, other.data_, length_ + 1);
-    }
-    return *this;
-}
 
 CString& CString::operator=(CString&& other) noexcept {
     if (this != &other) {
@@ -104,6 +90,15 @@ CString& CString::operator=(CString&& other) noexcept {
         other.data_ = nullptr; other.length_ = 0;
     }
     return *this;
+}
+
+CString CString::clone() const {
+    CString c;
+    delete[] c.data_;
+    c.data_ = new char[length_ + 1];
+    std::memcpy(c.data_, data_, length_ + 1);
+    c.length_ = length_;
+    return c;
 }
 
 CString CString::fromCStr(const char* cstr) { return CString(cstr); }
@@ -134,29 +129,12 @@ bool CString::operator!=(const CStringRef& other) const noexcept { return !ref()
 CStringBuilder::CStringBuilder() noexcept
     : buffer_(new char[kDefaultCapacity]), length_(0), capacity_(kDefaultCapacity) {}
 
-CStringBuilder::CStringBuilder(const CStringBuilder& other)
-    : buffer_(new char[other.capacity_]), length_(other.length_), capacity_(other.capacity_) {
-    if (length_ > 0) std::memcpy(buffer_, other.buffer_, length_);
-}
-
 CStringBuilder::CStringBuilder(CStringBuilder&& other) noexcept
     : buffer_(other.buffer_), length_(other.length_), capacity_(other.capacity_) {
     other.buffer_ = nullptr; other.length_ = 0; other.capacity_ = 0;
 }
 
 CStringBuilder::~CStringBuilder() { delete[] buffer_; }
-
-CStringBuilder& CStringBuilder::operator=(const CStringBuilder& other) {
-    if (this != &other) {
-        auto* newBuf = new char[other.capacity_];
-        if (other.length_ > 0) std::memcpy(newBuf, other.buffer_, other.length_);
-        delete[] buffer_;
-        buffer_ = newBuf;
-        length_ = other.length_;
-        capacity_ = other.capacity_;
-    }
-    return *this;
-}
 
 CStringBuilder& CStringBuilder::operator=(CStringBuilder&& other) noexcept {
     if (this != &other) {

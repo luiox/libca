@@ -4,7 +4,7 @@
 // @date 2026/05/31
 //
 
-#include <libca/str/wstring.hpp>
+#include "wstring.hpp"
 
 #include <cstring>
 #include <cwchar>
@@ -75,25 +75,11 @@ WString::WString(const wchar_t* wstr) : data_(nullptr), length_(0) {
     init(wstr, std::wcslen(wstr));
 }
 
-WString::WString(const WString& other) : data_(new wchar_t[other.length_ + 1]), length_(other.length_) {
-    std::wmemcpy(data_, other.data_, length_ + 1);
-}
-
 WString::WString(WString&& other) noexcept : data_(other.data_), length_(other.length_) {
     other.data_ = nullptr; other.length_ = 0;
 }
 
 WString::~WString() { delete[] data_; }
-
-WString& WString::operator=(const WString& other) {
-    if (this != &other) {
-        delete[] data_;
-        length_ = other.length_;
-        data_ = new wchar_t[length_ + 1];
-        std::wmemcpy(data_, other.data_, length_ + 1);
-    }
-    return *this;
-}
 
 WString& WString::operator=(WString&& other) noexcept {
     if (this != &other) {
@@ -102,6 +88,15 @@ WString& WString::operator=(WString&& other) noexcept {
         other.data_ = nullptr; other.length_ = 0;
     }
     return *this;
+}
+
+WString WString::clone() const {
+    WString w;
+    delete[] w.data_;
+    w.data_ = new wchar_t[length_ + 1];
+    std::wmemcpy(w.data_, data_, length_ + 1);
+    w.length_ = length_;
+    return w;
 }
 
 WString WString::fromWStr(const wchar_t* wstr) { return WString(wstr); }
@@ -132,29 +127,12 @@ bool WString::operator!=(const WStringRef& other) const noexcept { return !ref()
 WStringBuilder::WStringBuilder() noexcept
     : buffer_(new wchar_t[kDefaultCapacity]), length_(0), capacity_(kDefaultCapacity) {}
 
-WStringBuilder::WStringBuilder(const WStringBuilder& other)
-    : buffer_(new wchar_t[other.capacity_]), length_(other.length_), capacity_(other.capacity_) {
-    if (length_ > 0) std::wmemcpy(buffer_, other.buffer_, length_);
-}
-
 WStringBuilder::WStringBuilder(WStringBuilder&& other) noexcept
     : buffer_(other.buffer_), length_(other.length_), capacity_(other.capacity_) {
     other.buffer_ = nullptr; other.length_ = 0; other.capacity_ = 0;
 }
 
 WStringBuilder::~WStringBuilder() { delete[] buffer_; }
-
-WStringBuilder& WStringBuilder::operator=(const WStringBuilder& other) {
-    if (this != &other) {
-        auto* newBuf = new wchar_t[other.capacity_];
-        if (other.length_ > 0) std::wmemcpy(newBuf, other.buffer_, other.length_);
-        delete[] buffer_;
-        buffer_ = newBuf;
-        length_ = other.length_;
-        capacity_ = other.capacity_;
-    }
-    return *this;
-}
 
 WStringBuilder& WStringBuilder::operator=(WStringBuilder&& other) noexcept {
     if (this != &other) {

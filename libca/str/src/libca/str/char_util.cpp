@@ -9,7 +9,7 @@
 //   如需完整的 Unicode 大小写折叠，推荐使用 ICU 库。
 //
 
-#include <libca/str/char_util.hpp>
+#include "char_util.hpp"
 
 #include <cctype>
 #include <cwchar>

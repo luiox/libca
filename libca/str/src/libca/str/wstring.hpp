@@ -47,12 +47,13 @@ public:
     WString() noexcept;
     WString(const wchar_t* data, usize length);
     explicit WString(const wchar_t* wstr);
-    WString(const WString& other);
     WString(WString&& other) noexcept;
     ~WString();
 
-    WString& operator=(const WString& other);
     WString& operator=(WString&& other) noexcept;
+
+    // 显式克隆（唯一复制方式）
+    WString clone() const;
 
     static WString fromWStr(const wchar_t* wstr);
 
@@ -83,12 +84,14 @@ private:
 class WStringBuilder {
 public:
     WStringBuilder() noexcept;
-    WStringBuilder(const WStringBuilder& other);
     WStringBuilder(WStringBuilder&& other) noexcept;
     ~WStringBuilder();
 
-    WStringBuilder& operator=(const WStringBuilder& other);
     WStringBuilder& operator=(WStringBuilder&& other) noexcept;
+
+    // 拷贝 = delete
+    WStringBuilder(const WStringBuilder&) = delete;
+    WStringBuilder& operator=(const WStringBuilder&) = delete;
 
     WStringBuilder& append(const WStringRef& str);
     WStringBuilder& append(const WString& str);

@@ -61,12 +61,13 @@ public:
     CString() noexcept;
     CString(const char* data, usize length);
     explicit CString(const char* cstr);
-    CString(const CString& other);
     CString(CString&& other) noexcept;
     ~CString();
 
-    CString& operator=(const CString& other);
     CString& operator=(CString&& other) noexcept;
+
+    // 显式克隆（唯一复制方式）
+    CString clone() const;
 
     static CString fromCStr(const char* cstr);
 
@@ -103,12 +104,14 @@ private:
 class CStringBuilder {
 public:
     CStringBuilder() noexcept;
-    CStringBuilder(const CStringBuilder& other);
     CStringBuilder(CStringBuilder&& other) noexcept;
     ~CStringBuilder();
 
-    CStringBuilder& operator=(const CStringBuilder& other);
     CStringBuilder& operator=(CStringBuilder&& other) noexcept;
+
+    // 拷贝 = delete
+    CStringBuilder(const CStringBuilder&) = delete;
+    CStringBuilder& operator=(const CStringBuilder&) = delete;
 
     CStringBuilder& append(const CStringRef& str);
     CStringBuilder& append(const CString& str);

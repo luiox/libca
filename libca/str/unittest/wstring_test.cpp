@@ -33,13 +33,17 @@ TEST(WStringTest, FromWStr) {
     EXPECT_EQ(s.length(), 5);
 }
 
-TEST(WStringTest, CopyMove) {
+TEST(WStringTest, Clone) {
     WString s1(L"Test");
-    WString s2(s1);
+    WString s2 = s1.clone();
     EXPECT_EQ(s2.length(), 4);
     EXPECT_NE(s1.data(), s2.data());
-    WString s3(std::move(s1));
-    EXPECT_EQ(s3.length(), 4);
+}
+
+TEST(WStringTest, Move) {
+    WString s1(L"Test");
+    WString s2(std::move(s1));
+    EXPECT_EQ(s2.length(), 4);
 }
 
 TEST(WStringTest, Equality) {

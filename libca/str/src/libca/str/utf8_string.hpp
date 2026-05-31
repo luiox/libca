@@ -136,8 +136,8 @@ public:
     // 从 C 风格字符串构造（null-terminated）
     explicit Utf8String(const char* cstr);
 
-    // 拷贝构造
-    Utf8String(const Utf8String& other);
+    // 拷贝构造（已删除，请使用 clone()）
+    Utf8String(const Utf8String& other) = delete;
 
     // 移动构造
     Utf8String(Utf8String&& other) noexcept;
@@ -145,11 +145,14 @@ public:
     // 析构
     ~Utf8String();
 
-    // 拷贝赋值
-    Utf8String& operator=(const Utf8String& other);
+    // 拷贝赋值（已删除，请使用 clone()）
+    Utf8String& operator=(const Utf8String& other) = delete;
 
     // 移动赋值
     Utf8String& operator=(Utf8String&& other) noexcept;
+
+    // 显式克隆（唯一复制方式）
+    Utf8String clone() const;
 
     // ---- 工厂方法 ----
 

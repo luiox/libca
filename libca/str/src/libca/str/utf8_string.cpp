@@ -4,7 +4,7 @@
 // @date 2026/05/31
 //
 
-#include <libca/str/utf8_string.hpp>
+#include "utf8_string.hpp"
 
 #include <cstring>
 #include <stdexcept>
@@ -303,13 +303,6 @@ Utf8String::Utf8String(const char* cstr)
     init(reinterpret_cast<const u8*>(cstr), len);
 }
 
-Utf8String::Utf8String(const Utf8String& other)
-    : data_(new u8[other.byteLength_ + 1])
-    , byteLength_(other.byteLength_)
-    , length_(other.length_) {
-    std::memcpy(data_, other.data_, byteLength_ + 1);
-}
-
 Utf8String::Utf8String(Utf8String&& other) noexcept
     : data_(other.data_)
     , byteLength_(other.byteLength_)
@@ -324,17 +317,6 @@ Utf8String::~Utf8String() {
     data_ = nullptr;
 }
 
-Utf8String& Utf8String::operator=(const Utf8String& other) {
-    if (this != &other) {
-        delete[] data_;
-        byteLength_ = other.byteLength_;
-        length_     = other.length_;
-        data_       = new u8[byteLength_ + 1];
-        std::memcpy(data_, other.data_, byteLength_ + 1);
-    }
-    return *this;
-}
-
 Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
     if (this != &other) {
         delete[] data_;
@@ -346,6 +328,16 @@ Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
         other.length_     = 0;
     }
     return *this;
+}
+
+Utf8String Utf8String::clone() const {
+    Utf8String s;
+    delete[] s.data_;
+    s.data_ = new u8[byteLength_ + 1];
+    std::memcpy(s.data_, data_, byteLength_ + 1);
+    s.byteLength_ = byteLength_;
+    s.length_     = length_;
+    return s;
 }
 
 Utf8String Utf8String::fromCodePoint(u32 cp) {
