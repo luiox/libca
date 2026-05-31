@@ -6,6 +6,7 @@
 
 #include "utf8_string.hpp"
 #include "char_util.hpp"
+#include "utf8_util.hpp"
 
 #include <cstring>
 #include <stdexcept>

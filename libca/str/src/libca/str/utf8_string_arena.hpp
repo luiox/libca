@@ -15,8 +15,8 @@
 #ifndef LIBCA_STR_UTF8_STRING_ARENA_HPP
 #define LIBCA_STR_UTF8_STRING_ARENA_HPP
 
-#include <libca/core/datatype.hpp>
-#include <libca/str/utf8_string.hpp>
+#include "libca/core/datatype.hpp"
+#include "utf8_string.hpp"
 
 #include <cstddef>
 #include <cstring>

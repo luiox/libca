@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include <libca/str/utf8_string.hpp>
+#include "libca/str/utf8_string.hpp"
+#include "libca/str/utf8_util.hpp"
 
 #include <string>
 #include <cstring>

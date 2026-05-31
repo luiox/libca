@@ -8,8 +8,7 @@
 #ifndef LIBCA_STR_UTF8_STRING_HPP
 #define LIBCA_STR_UTF8_STRING_HPP
 
-#include <libca/core/datatype.hpp>
-#include <libca/str/utf8_util.hpp>
+#include "libca/core/datatype.hpp"
 
 #include <cstddef>
 #include <functional>

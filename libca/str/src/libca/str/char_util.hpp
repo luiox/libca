@@ -9,7 +9,7 @@
 #ifndef LIBCA_STR_CHAR_UTIL_HPP
 #define LIBCA_STR_CHAR_UTIL_HPP
 
-#include <libca/core/datatype.hpp>
+#include "libca/core/datatype.hpp"
 
 #include <cwchar>
 #include <cwctype>

@@ -13,10 +13,10 @@
 #ifndef LIBCA_STR_CONVERSION_HPP
 #define LIBCA_STR_CONVERSION_HPP
 
-#include <libca/core/datatype.hpp>
-#include <libca/str/utf8_string.hpp>
-#include <libca/str/cstring.hpp>
-#include <libca/str/wstring.hpp>
+#include "libca/core/datatype.hpp"
+#include "utf8_string.hpp"
+#include "cstring.hpp"
+#include "wstring.hpp"
 
 namespace ca::str {
 

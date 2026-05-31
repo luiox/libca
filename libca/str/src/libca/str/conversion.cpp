@@ -6,6 +6,7 @@
 
 #include "conversion.hpp"
 #include "char_util.hpp"
+#include "utf8_util.hpp"
 
 #include <cstring>
 #include <memory>

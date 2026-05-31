@@ -5,6 +5,7 @@
 //
 
 #include "utf8_string_pool.hpp"
+#include "utf8_util.hpp"
 
 namespace ca::str {
 

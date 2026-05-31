@@ -9,7 +9,7 @@
 #ifndef LIBCA_STR_WSTRING_HPP
 #define LIBCA_STR_WSTRING_HPP
 
-#include <libca/core/datatype.hpp>
+#include "libca/core/datatype.hpp"
 
 #include <cstddef>
 #include <functional>
