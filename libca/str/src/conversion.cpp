@@ -8,6 +8,7 @@
 #include <libca/str/char_util.hpp>
 
 #include <cstring>
+#include <memory>
 #include <stdexcept>
 
 namespace ca::str {
@@ -61,7 +62,7 @@ WString toWString(const Utf8StringRef& str) {
     }
 
     // 分配并填充
-    auto* buf = new wchar_t[wcCount + 1];
+    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcCount + 1]);
     pos = 0;
     usize outIdx = 0;
     while (pos < len) {
@@ -83,7 +84,7 @@ WString toWString(const Utf8StringRef& str) {
     }
     buf[wcCount] = L'\0';
 
-    return WString(buf, wcCount);  // WString 接管所有权
+    return WString(buf.get(), wcCount);
 }
 
 Utf8String toUtf8String(const WStringRef& str) {
@@ -127,7 +128,7 @@ Utf8String toUtf8String(const WStringRef& str) {
     }
 
     // 分配并编码
-    auto* buf = new u8[byteCount + 1];
+    auto buf = std::unique_ptr<u8[]>(new u8[byteCount + 1]);
     usize outPos = 0;
     for (usize i = 0; i < len; ++i) {
         u32 cp;
@@ -145,11 +146,11 @@ Utf8String toUtf8String(const WStringRef& str) {
 #else
         cp = static_cast<u32>(data[i]);
 #endif
-        outPos += utf8EncodeCodePoint(cp, buf + outPos);
+        outPos += utf8EncodeCodePoint(cp, buf.get() + outPos);
     }
     buf[byteCount] = '\0';
 
-    return Utf8String(buf, byteCount);  // 实际会拷贝...但我们有移动语义
+    return Utf8String(buf.get(), byteCount);
 }
 
 

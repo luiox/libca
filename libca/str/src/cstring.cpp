@@ -136,7 +136,7 @@ CStringBuilder::CStringBuilder() noexcept
 
 CStringBuilder::CStringBuilder(const CStringBuilder& other)
     : buffer_(new char[other.capacity_]), length_(other.length_), capacity_(other.capacity_) {
-    std::memcpy(buffer_, other.buffer_, length_);
+    if (length_ > 0) std::memcpy(buffer_, other.buffer_, length_);
 }
 
 CStringBuilder::CStringBuilder(CStringBuilder&& other) noexcept
@@ -148,10 +148,12 @@ CStringBuilder::~CStringBuilder() { delete[] buffer_; }
 
 CStringBuilder& CStringBuilder::operator=(const CStringBuilder& other) {
     if (this != &other) {
+        auto* newBuf = new char[other.capacity_];
+        if (other.length_ > 0) std::memcpy(newBuf, other.buffer_, other.length_);
         delete[] buffer_;
-        length_ = other.length_; capacity_ = other.capacity_;
-        buffer_ = new char[capacity_];
-        std::memcpy(buffer_, other.buffer_, length_);
+        buffer_ = newBuf;
+        length_ = other.length_;
+        capacity_ = other.capacity_;
     }
     return *this;
 }
@@ -170,7 +172,7 @@ void CStringBuilder::grow(usize minCapacity) {
     if (newCap < minCapacity) newCap = minCapacity;
     if (newCap < kDefaultCapacity) newCap = kDefaultCapacity;
     auto newBuf = new char[newCap];
-    std::memcpy(newBuf, buffer_, length_);
+    if (length_ > 0) std::memcpy(newBuf, buffer_, length_);
     delete[] buffer_;
     buffer_ = newBuf; capacity_ = newCap;
 }
@@ -197,7 +199,7 @@ CStringBuilder& CStringBuilder::append(char ch) { return append(&ch, 1); }
 void CStringBuilder::reserve(usize cap) {
     if (cap > capacity_) {
         auto newBuf = new char[cap];
-        std::memcpy(newBuf, buffer_, length_);
+        if (length_ > 0) std::memcpy(newBuf, buffer_, length_);
         delete[] buffer_;
         buffer_ = newBuf; capacity_ = cap;
     }

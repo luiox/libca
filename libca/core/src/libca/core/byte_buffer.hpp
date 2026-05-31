@@ -80,7 +80,7 @@ private:
 // ============================================================================
 
 inline ByteBuffer::ByteBuffer() noexcept
-    : data_(new u8[kDefaultCapacity]), size_(0), capacity_(kDefaultCapacity) {}
+    : data_(nullptr), size_(0), capacity_(0) {}
 
 inline ByteBuffer::ByteBuffer(usize capacity)
     : data_(new u8[capacity > 0 ? capacity : 1]), size_(0), capacity_(capacity > 0 ? capacity : 1) {}
@@ -94,7 +94,7 @@ inline ByteBuffer::ByteBuffer(const u8* data, usize size)
 
 inline ByteBuffer::ByteBuffer(const ByteBuffer& other)
     : data_(new u8[other.capacity_]), size_(other.size_), capacity_(other.capacity_) {
-    std::memcpy(data_, other.data_, size_);
+    if (size_ > 0) std::memcpy(data_, other.data_, size_);
 }
 
 inline ByteBuffer::ByteBuffer(ByteBuffer&& other) noexcept
@@ -106,10 +106,12 @@ inline ByteBuffer::~ByteBuffer() { delete[] data_; }
 
 inline ByteBuffer& ByteBuffer::operator=(const ByteBuffer& other) {
     if (this != &other) {
+        auto* newBuf = new u8[other.capacity_];
+        if (other.size_ > 0) std::memcpy(newBuf, other.data_, other.size_);
         delete[] data_;
-        size_ = other.size_; capacity_ = other.capacity_;
-        data_ = new u8[capacity_];
-        std::memcpy(data_, other.data_, size_);
+        data_ = newBuf;
+        size_ = other.size_;
+        capacity_ = other.capacity_;
     }
     return *this;
 }
@@ -153,7 +155,7 @@ inline bool ByteBuffer::empty() const noexcept { return size_ == 0; }
 inline void ByteBuffer::reserve(usize newCapacity) {
     if (newCapacity > capacity_) {
         auto newBuf = new u8[newCapacity];
-        std::memcpy(newBuf, data_, size_);
+        if (size_ > 0) std::memcpy(newBuf, data_, size_);
         delete[] data_;
         data_ = newBuf; capacity_ = newCapacity;
     }
@@ -227,7 +229,8 @@ inline void ByteBuffer::swap(ByteBuffer& other) noexcept {
 }
 
 inline bool ByteBuffer::equals(const ByteBuffer& other) const noexcept {
-    return size_ == other.size_ && std::memcmp(data_, other.data_, size_) == 0;
+    if (size_ != other.size_) return false;
+    return size_ == 0 || std::memcmp(data_, other.data_, size_) == 0;
 }
 
 inline bool ByteBuffer::operator==(const ByteBuffer& other) const noexcept { return equals(other); }
@@ -238,7 +241,7 @@ inline void ByteBuffer::grow(usize minCapacity) {
     if (newCap < minCapacity) newCap = minCapacity;
     if (newCap < kDefaultCapacity) newCap = kDefaultCapacity;
     auto newBuf = new u8[newCap];
-    std::memcpy(newBuf, data_, size_);
+    if (size_ > 0) std::memcpy(newBuf, data_, size_);
     delete[] data_;
     data_ = newBuf; capacity_ = newCap;
 }

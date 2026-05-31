@@ -134,7 +134,7 @@ WStringBuilder::WStringBuilder() noexcept
 
 WStringBuilder::WStringBuilder(const WStringBuilder& other)
     : buffer_(new wchar_t[other.capacity_]), length_(other.length_), capacity_(other.capacity_) {
-    std::wmemcpy(buffer_, other.buffer_, length_);
+    if (length_ > 0) std::wmemcpy(buffer_, other.buffer_, length_);
 }
 
 WStringBuilder::WStringBuilder(WStringBuilder&& other) noexcept
@@ -146,10 +146,12 @@ WStringBuilder::~WStringBuilder() { delete[] buffer_; }
 
 WStringBuilder& WStringBuilder::operator=(const WStringBuilder& other) {
     if (this != &other) {
+        auto* newBuf = new wchar_t[other.capacity_];
+        if (other.length_ > 0) std::wmemcpy(newBuf, other.buffer_, other.length_);
         delete[] buffer_;
-        length_ = other.length_; capacity_ = other.capacity_;
-        buffer_ = new wchar_t[capacity_];
-        std::wmemcpy(buffer_, other.buffer_, length_);
+        buffer_ = newBuf;
+        length_ = other.length_;
+        capacity_ = other.capacity_;
     }
     return *this;
 }
@@ -168,7 +170,7 @@ void WStringBuilder::grow(usize minCapacity) {
     if (newCap < minCapacity) newCap = minCapacity;
     if (newCap < kDefaultCapacity) newCap = kDefaultCapacity;
     auto newBuf = new wchar_t[newCap];
-    std::wmemcpy(newBuf, buffer_, length_);
+    if (length_ > 0) std::wmemcpy(newBuf, buffer_, length_);
     delete[] buffer_;
     buffer_ = newBuf; capacity_ = newCap;
 }
@@ -195,7 +197,7 @@ WStringBuilder& WStringBuilder::append(wchar_t ch) { return append(&ch, 1); }
 void WStringBuilder::reserve(usize cap) {
     if (cap > capacity_) {
         auto newBuf = new wchar_t[cap];
-        std::wmemcpy(newBuf, buffer_, length_);
+        if (length_ > 0) std::wmemcpy(newBuf, buffer_, length_);
         delete[] buffer_;
         buffer_ = newBuf; capacity_ = cap;
     }

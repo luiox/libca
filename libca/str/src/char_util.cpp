@@ -26,17 +26,24 @@ Utf8Char Utf8Char::fromRaw(const u8* bytes) noexcept {
     auto b0 = bytes[0];
     if ((b0 & 0x80) == 0)
         return Utf8Char(b0);
-    if ((b0 & 0xE0) == 0xC0)
+    if ((b0 & 0xE0) == 0xC0) {
+        // 需要至少 2 字节，检查后续字节有效性
+        if (bytes[1] == '\0') return Utf8Char(0);
         return Utf8Char(((u32)(b0 & 0x1F) << 6) | ((u32)(bytes[1] & 0x3F)));
-    if ((b0 & 0xF0) == 0xE0)
+    }
+    if ((b0 & 0xF0) == 0xE0) {
+        if (bytes[1] == '\0' || bytes[2] == '\0') return Utf8Char(0);
         return Utf8Char(((u32)(b0 & 0x0F) << 12) |
                         ((u32)(bytes[1] & 0x3F) << 6) |
                         ((u32)(bytes[2] & 0x3F)));
-    if ((b0 & 0xF8) == 0xF0)
+    }
+    if ((b0 & 0xF8) == 0xF0) {
+        if (bytes[1] == '\0' || bytes[2] == '\0' || bytes[3] == '\0') return Utf8Char(0);
         return Utf8Char(((u32)(b0 & 0x07) << 18) |
                         ((u32)(bytes[1] & 0x3F) << 12) |
                         ((u32)(bytes[2] & 0x3F) << 6) |
                         ((u32)(bytes[3] & 0x3F)));
+    }
     return Utf8Char(0);  // 非法
 }
 
