@@ -5,11 +5,10 @@ target("libca_str")
     set_group("libs")
     add_files("src/**.cpp")
     add_includedirs("src", {public = true})
-    -- 依赖 libca/core 的基础类型 (datatype.hpp)
-    add_includedirs("$(projectdir)/libca/core/src", {public = true})
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+    add_deps("libca_core")
 
 target("libca_str_unittest")
     set_kind("binary")
