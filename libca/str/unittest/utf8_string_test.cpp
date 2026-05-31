@@ -245,9 +245,9 @@ TEST(Utf8StringTest, ConstructFromCStr_Null) {
     EXPECT_TRUE(s.isEmpty());
 }
 
-TEST(Utf8StringTest, CopyConstructor) {
+TEST(Utf8StringTest, Clone) {
     Utf8String s1("Hello");
-    Utf8String s2(s1);
+    Utf8String s2 = s1.clone();
     EXPECT_EQ(s2.length(), 5);
     EXPECT_EQ(s2.byteLength(), 5);
     EXPECT_STREQ(s2.cStr(), "Hello");
@@ -264,10 +264,9 @@ TEST(Utf8StringTest, MoveConstructor) {
     EXPECT_TRUE(s1.isEmpty());   // 源被清空
 }
 
-TEST(Utf8StringTest, CopyAssignment) {
+TEST(Utf8StringTest, CloneAssignment) {
     Utf8String s1("Hello");
-    Utf8String s2;
-    s2 = s1;
+    Utf8String s2 = s1.clone();
     EXPECT_STREQ(s2.cStr(), "Hello");
     EXPECT_NE(s1.data(), s2.data());
 }
@@ -281,10 +280,9 @@ TEST(Utf8StringTest, MoveAssignment) {
     EXPECT_TRUE(s1.isEmpty());
 }
 
-TEST(Utf8StringTest, SelfAssignment) {
+TEST(Utf8StringTest, MoveSelfAssignment) {
     Utf8String s("Test");
-    // NOLINTNEXTLINE
-    s = s;
+    s = std::move(s);
     EXPECT_STREQ(s.cStr(), "Test");
 }
 

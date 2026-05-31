@@ -4,123 +4,14 @@
 // @date 2026/05/31
 //
 
-#include <libca/str/utf8_string.hpp>
+#include "utf8_string.hpp"
+#include "char_util.hpp"
 
 #include <cstring>
 #include <stdexcept>
 #include <string>
 
 namespace ca::str {
-
-// ============================================================================
-// UTF-8 编解码工具函数
-// ============================================================================
-
-usize utf8CodePointBytes(u8 firstByte) noexcept {
-    if ((firstByte & 0x80) == 0)
-        return 1;   // 0xxxxxxx
-    if ((firstByte & 0xE0) == 0xC0)
-        return 2;   // 110xxxxx
-    if ((firstByte & 0xF0) == 0xE0)
-        return 3;   // 1110xxxx
-    if ((firstByte & 0xF8) == 0xF0)
-        return 4;   // 11110xxx
-    return 0;       // 非法首字节
-}
-
-u32 utf8DecodeCodePoint(const u8* bytes) noexcept {
-    auto b0 = bytes[0];
-    if ((b0 & 0x80) == 0) {
-        return b0;
-    }
-    if ((b0 & 0xE0) == 0xC0) {
-        return ((u32)(b0 & 0x1F) << 6) |
-               ((u32)(bytes[1] & 0x3F));
-    }
-    if ((b0 & 0xF0) == 0xE0) {
-        return ((u32)(b0 & 0x0F) << 12) |
-               ((u32)(bytes[1] & 0x3F) << 6) |
-               ((u32)(bytes[2] & 0x3F));
-    }
-    if ((b0 & 0xF8) == 0xF0) {
-        return ((u32)(b0 & 0x07) << 18) |
-               ((u32)(bytes[1] & 0x3F) << 12) |
-               ((u32)(bytes[2] & 0x3F) << 6) |
-               ((u32)(bytes[3] & 0x3F));
-    }
-    return 0;  // 非法
-}
-
-usize utf8EncodeCodePoint(u32 cp, u8* out) noexcept {
-    // 排除非法码点：代理项 (U+D800~U+DFFF) 和超出范围的值
-    if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
-        return 0;
-
-    if (cp <= 0x007F) {
-        out[0] = static_cast<u8>(cp);
-        return 1;
-    }
-    if (cp <= 0x07FF) {
-        out[0] = static_cast<u8>(0xC0 | (cp >> 6));
-        out[1] = static_cast<u8>(0x80 | (cp & 0x3F));
-        return 2;
-    }
-    if (cp <= 0xFFFF) {
-        out[0] = static_cast<u8>(0xE0 | (cp >> 12));
-        out[1] = static_cast<u8>(0x80 | ((cp >> 6) & 0x3F));
-        out[2] = static_cast<u8>(0x80 | (cp & 0x3F));
-        return 3;
-    }
-    // 0x10000 ~ 0x10FFFF
-    out[0] = static_cast<u8>(0xF0 | (cp >> 18));
-    out[1] = static_cast<u8>(0x80 | ((cp >> 12) & 0x3F));
-    out[2] = static_cast<u8>(0x80 | ((cp >> 6) & 0x3F));
-    out[3] = static_cast<u8>(0x80 | (cp & 0x3F));
-    return 4;
-}
-
-usize utf8CountCodePoints(const u8* data, usize byteLength,
-                          usize* invalidPos) noexcept {
-    usize count = 0;
-    usize pos   = 0;
-
-    while (pos < byteLength) {
-        auto len = utf8CodePointBytes(data[pos]);
-        if (len == 0 || pos + len > byteLength) {
-            // 遇到非法序列
-            if (invalidPos)
-                *invalidPos = pos;
-            return 0;
-        }
-        // 检查后续字节是否都是 10xxxxxx
-        for (usize i = 1; i < len; ++i) {
-            if ((data[pos + i] & 0xC0) != 0x80) {
-                if (invalidPos)
-                    *invalidPos = pos + i;
-                return 0;
-            }
-        }
-        pos += len;
-        ++count;
-    }
-
-    return count;
-}
-
-bool utf8IsValid(const u8* data, usize byteLength) noexcept {
-    usize pos = 0;
-    while (pos < byteLength) {
-        auto len = utf8CodePointBytes(data[pos]);
-        if (len == 0 || pos + len > byteLength)
-            return false;
-        for (usize i = 1; i < len; ++i) {
-            if ((data[pos + i] & 0xC0) != 0x80)
-                return false;
-        }
-        pos += len;
-    }
-    return true;
-}
 
 
 // ============================================================================
@@ -303,13 +194,6 @@ Utf8String::Utf8String(const char* cstr)
     init(reinterpret_cast<const u8*>(cstr), len);
 }
 
-Utf8String::Utf8String(const Utf8String& other)
-    : data_(new u8[other.byteLength_ + 1])
-    , byteLength_(other.byteLength_)
-    , length_(other.length_) {
-    std::memcpy(data_, other.data_, byteLength_ + 1);
-}
-
 Utf8String::Utf8String(Utf8String&& other) noexcept
     : data_(other.data_)
     , byteLength_(other.byteLength_)
@@ -324,17 +208,6 @@ Utf8String::~Utf8String() {
     data_ = nullptr;
 }
 
-Utf8String& Utf8String::operator=(const Utf8String& other) {
-    if (this != &other) {
-        delete[] data_;
-        byteLength_ = other.byteLength_;
-        length_     = other.length_;
-        data_       = new u8[byteLength_ + 1];
-        std::memcpy(data_, other.data_, byteLength_ + 1);
-    }
-    return *this;
-}
-
 Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
     if (this != &other) {
         delete[] data_;
@@ -346,6 +219,16 @@ Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
         other.length_     = 0;
     }
     return *this;
+}
+
+Utf8String Utf8String::clone() const {
+    Utf8String s;
+    delete[] s.data_;
+    s.data_ = new u8[byteLength_ + 1];
+    std::memcpy(s.data_, data_, byteLength_ + 1);
+    s.byteLength_ = byteLength_;
+    s.length_     = length_;
+    return s;
 }
 
 Utf8String Utf8String::fromCodePoint(u32 cp) {
@@ -362,6 +245,95 @@ Utf8String Utf8String::fromCodePoint(u32 cp) {
 Utf8String Utf8String::fromUtf8(const u8* data, usize byteLength) {
     return Utf8String(data, byteLength);
 }
+
+
+// ============================================================================
+// Utf8StringBuilder
+// ============================================================================
+
+Utf8StringBuilder::Utf8StringBuilder() noexcept
+    : buffer_(new u8[kDefaultCapacity]), byteLength_(0), capacity_(kDefaultCapacity) {}
+
+Utf8StringBuilder::Utf8StringBuilder(Utf8StringBuilder&& other) noexcept
+    : buffer_(other.buffer_), byteLength_(other.byteLength_), capacity_(other.capacity_) {
+    other.buffer_ = nullptr; other.byteLength_ = 0; other.capacity_ = 0;
+}
+
+Utf8StringBuilder::~Utf8StringBuilder() { delete[] buffer_; }
+
+Utf8StringBuilder& Utf8StringBuilder::operator=(Utf8StringBuilder&& other) noexcept {
+    if (this != &other) {
+        delete[] buffer_;
+        buffer_ = other.buffer_; byteLength_ = other.byteLength_; capacity_ = other.capacity_;
+        other.buffer_ = nullptr; other.byteLength_ = 0; other.capacity_ = 0;
+    }
+    return *this;
+}
+
+void Utf8StringBuilder::grow(usize minCapacity) {
+    usize newCap = capacity_ * 2;
+    if (newCap < minCapacity) newCap = minCapacity;
+    if (newCap < kDefaultCapacity) newCap = kDefaultCapacity;
+    auto newBuf = new u8[newCap];
+    if (byteLength_ > 0) std::memcpy(newBuf, buffer_, byteLength_);
+    delete[] buffer_;
+    buffer_ = newBuf; capacity_ = newCap;
+}
+
+Utf8StringBuilder& Utf8StringBuilder::append(const Utf8StringRef& str) {
+    return append(str.data(), str.byteLength());
+}
+
+Utf8StringBuilder& Utf8StringBuilder::append(const Utf8String& str) {
+    return append(str.data(), str.byteLength());
+}
+
+Utf8StringBuilder& Utf8StringBuilder::append(const char* cstr) {
+    if (cstr == nullptr) return *this;
+    return append(reinterpret_cast<const u8*>(cstr), std::strlen(cstr));
+}
+
+Utf8StringBuilder& Utf8StringBuilder::append(const u8* data, usize byteLen) {
+    if (byteLen == 0) return *this;
+    auto needed = byteLength_ + byteLen;
+    if (needed > capacity_) grow(needed);
+    std::memcpy(buffer_ + byteLength_, data, byteLen);
+    byteLength_ = needed;
+    return *this;
+}
+
+bool Utf8StringBuilder::appendCodePoint(u32 cp) {
+    u8 buf[4];
+    auto len = utf8EncodeCodePoint(cp, buf);
+    if (len == 0) return false;
+    append(buf, len);
+    return true;
+}
+
+void Utf8StringBuilder::reserve(usize byteCapacity) {
+    if (byteCapacity > capacity_) {
+        auto newBuf = new u8[byteCapacity];
+        if (byteLength_ > 0) std::memcpy(newBuf, buffer_, byteLength_);
+        delete[] buffer_;
+        buffer_ = newBuf; capacity_ = byteCapacity;
+    }
+}
+
+usize Utf8StringBuilder::capacity() const noexcept { return capacity_; }
+usize Utf8StringBuilder::byteLength() const noexcept { return byteLength_; }
+bool Utf8StringBuilder::isEmpty() const noexcept { return byteLength_ == 0; }
+void Utf8StringBuilder::clear() noexcept { byteLength_ = 0; }
+
+Utf8String Utf8StringBuilder::build() const {
+    return Utf8String(buffer_, byteLength_);
+}
+
+Utf8String Utf8StringBuilder::buildSafe() const noexcept {
+    if (!utf8IsValid(buffer_, byteLength_))
+        return Utf8String();
+    return Utf8String(buffer_, byteLength_);
+}
+
 
 usize Utf8String::length() const noexcept {
     return length_;
@@ -445,6 +417,131 @@ bool Utf8String::operator!=(const Utf8StringRef& other) const noexcept {
 
 
 // ============================================================================
+// Utf8StringRef — 新增操作
+// ============================================================================
+
+bool Utf8StringRef::startsWith(const Utf8StringRef& prefix) const noexcept {
+    if (prefix.byteLength_ > byteLength_) return false;
+    return std::memcmp(data_, prefix.data_, prefix.byteLength_) == 0;
+}
+
+bool Utf8StringRef::endsWith(const Utf8StringRef& suffix) const noexcept {
+    if (suffix.byteLength_ > byteLength_) return false;
+    return std::memcmp(data_ + byteLength_ - suffix.byteLength_,
+                       suffix.data_, suffix.byteLength_) == 0;
+}
+
+Utf8StringRef Utf8StringRef::trimStart() const noexcept {
+    usize pos = 0;
+    while (pos < byteLength_) {
+        auto ch = Utf8Char::fromRaw(data_ + pos);
+        if (!ch.isSpace()) break;
+        pos += utf8CodePointBytes(data_[pos]);
+    }
+    return slice(pos, byteLength_);
+}
+
+Utf8StringRef Utf8StringRef::trimEnd() const noexcept {
+    usize pos = byteLength_;
+    while (pos > 0) {
+        usize prev = pos - 1;
+        while (prev > 0 && (data_[prev] & 0xC0) == 0x80)
+            --prev;
+        auto ch = Utf8Char::fromRaw(data_ + prev);
+        if (!ch.isSpace()) break;
+        pos = prev;
+    }
+    return slice(0, pos);
+}
+
+Utf8StringRef Utf8StringRef::trim() const noexcept {
+    auto r = trimStart();
+    return r.trimEnd();
+}
+
+std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) const {
+    std::vector<Utf8StringRef> result;
+    if (isEmpty()) return result;
+    if (delimiter.isEmpty()) { result.push_back(*this); return result; }
+
+    usize start = 0;
+    while (start <= byteLength_) {
+        usize remain = byteLength_ - start;
+        usize found = usize(-1);
+        // 查找分隔符
+        for (usize i = start; i + delimiter.byteLength_ <= byteLength_; ) {
+            if (std::memcmp(data_ + i, delimiter.data_, delimiter.byteLength_) == 0) {
+                found = i;
+                break;
+            }
+            i += utf8CodePointBytes(data_[i]);
+        }
+        if (found == usize(-1)) {
+            // 未找到，剩余整个作为最后一段
+            auto ref = slice(start, byteLength_);
+            result.push_back(ref);
+            break;
+        }
+        auto ref = slice(start, found);
+        result.push_back(ref);
+        start = found + delimiter.byteLength_;
+    }
+    return result;
+}
+
+Utf8String Utf8StringRef::toLower() const {
+    Utf8StringBuilder b;
+    usize pos = 0;
+    while (pos < byteLength_) {
+        auto ch = Utf8Char::fromRaw(data_ + pos);
+        b.appendCodePoint(ch.toLower().codePoint());
+        pos += utf8CodePointBytes(data_[pos]);
+    }
+    return b.build();
+}
+
+Utf8String Utf8StringRef::toUpper() const {
+    Utf8StringBuilder b;
+    usize pos = 0;
+    while (pos < byteLength_) {
+        auto ch = Utf8Char::fromRaw(data_ + pos);
+        b.appendCodePoint(ch.toUpper().codePoint());
+        pos += utf8CodePointBytes(data_[pos]);
+    }
+    return b.build();
+}
+
+Utf8String Utf8StringRef::replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const {
+    if (from.isEmpty()) return Utf8String(data_, byteLength_);
+    auto parts = split(from);
+    // 用 to 连接各部分
+    Utf8StringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(to);
+        b.append(parts[i]);
+    }
+    return b.build();
+}
+
+
+// ============================================================================
+// Utf8String — 新增操作（委托给 ref）
+// ============================================================================
+
+bool Utf8String::startsWith(const Utf8StringRef& prefix) const noexcept { return ref().startsWith(prefix); }
+bool Utf8String::endsWith(const Utf8StringRef& suffix) const noexcept   { return ref().endsWith(suffix); }
+Utf8StringRef Utf8String::trim() const noexcept       { return ref().trim(); }
+Utf8StringRef Utf8String::trimStart() const noexcept   { return ref().trimStart(); }
+Utf8StringRef Utf8String::trimEnd() const noexcept     { return ref().trimEnd(); }
+std::vector<Utf8StringRef> Utf8String::split(const Utf8StringRef& d) const { return ref().split(d); }
+Utf8String Utf8String::toLower() const    { return ref().toLower(); }
+Utf8String Utf8String::toUpper() const    { return ref().toUpper(); }
+Utf8String Utf8String::replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const {
+    return ref().replaceAll(from, to);
+}
+
+
+// ============================================================================
 // 非成员比较运算符
 // ============================================================================
 
@@ -454,6 +551,26 @@ bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
 
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
+}
+
+
+// ============================================================================
+// 自由函数
+// ============================================================================
+
+std::vector<Utf8StringRef> split(const Utf8StringRef& str,
+                                 const Utf8StringRef& delimiter) {
+    return str.split(delimiter);
+}
+
+Utf8String join(const std::vector<Utf8StringRef>& parts,
+                const Utf8StringRef& separator) {
+    Utf8StringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(separator);
+        b.append(parts[i]);
+    }
+    return b.build();
 }
 
 }  // namespace ca::str
