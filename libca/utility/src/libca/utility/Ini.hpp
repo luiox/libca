@@ -5,8 +5,8 @@
 #include <string>
 #include <map>
 #include <any>
-#include "../base/Result.hpp"
-#include "../base/Wrapper.hpp"
+#include "libca/core/result.hpp"
+#include "libca/core/Wrapper.hpp"
 
 namespace ca {
 
