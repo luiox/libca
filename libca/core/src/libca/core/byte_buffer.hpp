@@ -1,9 +1,10 @@
 //
-// @brief 简单可变的字节缓冲区 (ByteBuffer)
+// @brief Java-style 游标字节缓冲区 (ByteBuffer)
 // @author Canrad
 // @date 2026/05/31
-// @note 基于 u8 类型存储，替代 std::vector<std::byte> / std::string 作为缓冲区
-//       命名空间 ca::core，header-only
+// @note 参考 java.nio.ByteBuffer 的 position/limit/capacity 游标模型，
+//       基于 u8 类型存储。拆分为 .hpp 声明 + .cpp 实现。
+//       命名空间 ca::core
 //
 
 #ifndef LIBCA_CORE_BYTE_BUFFER_HPP
@@ -17,8 +18,21 @@
 
 namespace ca::core {
 
+/// 字节序枚举
+enum class ByteOrder {
+    BigEndian,
+    LittleEndian
+};
+
+/// 游标字节缓冲区
 class ByteBuffer {
 public:
+    // ── 工厂方法 ──
+    static ByteBuffer allocate(usize capacity);
+    static ByteBuffer wrap(u8* data, usize size);
+    static ByteBuffer copyOf(const u8* data, usize size);
+
+    // ── 构造/析构/赋值 ──
     ByteBuffer() noexcept;
     explicit ByteBuffer(usize capacity);
     ByteBuffer(const u8* data, usize size);
@@ -29,222 +43,159 @@ public:
     ByteBuffer& operator=(const ByteBuffer& other);
     ByteBuffer& operator=(ByteBuffer&& other) noexcept;
 
-    static ByteBuffer fromData(const u8* data, usize size);
-    static ByteBuffer withCapacity(usize capacity);
+    // ── 游标控制 ──
+    usize position() const noexcept;
+    void position(usize newPosition);
+    usize limit() const noexcept;
+    void limit(usize newLimit);
+    usize capacity() const noexcept;
+    usize remaining() const noexcept;
+    bool   hasRemaining() const noexcept;
 
+    void flip();
+    void rewind();
+    void clear() noexcept;
+    void compact();
+
+    void mark();
+    void reset();
+
+    // ── 字节序 ──
+    ByteOrder order() const noexcept;
+    void order(ByteOrder order) noexcept;
+
+    // ── 相对读写 (position 自动前进) ──
+    u8 get();
+    void put(u8 b);
+    void get(u8* dst, usize length);
+    void put(const u8* src, usize length);
+    void put(const ByteBuffer& src);
+
+    // ── 绝对读写 (不改变 position) ──
+    u8 get(usize index) const;
+    void put(usize index, u8 b);
+    void get(usize index, u8* dst, usize length) const;
+    void put(usize index, const u8* src, usize length);
+
+    // ── 类型化读写 — 相对 ──
+    u16 getU16();
+    void putU16(u16 value);
+    u32 getU32();
+    void putU32(u32 value);
+    u64 getU64();
+    void putU64(u64 value);
+    i16 getI16();
+    void putI16(i16 value);
+    i32 getI32();
+    void putI32(i32 value);
+    i64 getI64();
+    void putI64(i64 value);
+    f32 getF32();
+    void putF32(f32 value);
+    f64 getF64();
+    void putF64(f64 value);
+
+    // ── 类型化读写 — 绝对 ──
+    u16 getU16(usize index) const;
+    void putU16(usize index, u16 value);
+    u32 getU32(usize index) const;
+    void putU32(usize index, u32 value);
+    u64 getU64(usize index) const;
+    void putU64(usize index, u64 value);
+    i16 getI16(usize index) const;
+    void putI16(usize index, i16 value);
+    i32 getI32(usize index) const;
+    void putI32(usize index, i32 value);
+    i64 getI64(usize index) const;
+    void putI64(usize index, i64 value);
+    f32 getF32(usize index) const;
+    void putF32(usize index, f32 value);
+    f64 getF64(usize index) const;
+    void putF64(usize index, f64 value);
+
+    // ── 视图 ──
+    ByteBuffer slice() const;
+    ByteBuffer duplicate() const;
+
+    // ── 原始指针 ──
     const u8* data() const noexcept;
     u8* data() noexcept;
 
-    u8 operator[](usize index) const noexcept;
+    // ── 索引访问 ──
+    u8  operator[](usize index) const noexcept;
     u8& operator[](usize index) noexcept;
-    u8 at(usize index) const;
+    u8  at(usize index) const;
     u8& at(usize index);
-    u8 front() const;
+    u8  front() const;
     u8& front();
-    u8 back() const;
+    u8  back() const;
     u8& back();
 
-    usize size() const noexcept;
-    usize capacity() const noexcept;
-    bool empty() const noexcept;
+    // ── 大小状态 ──
+    usize size() const noexcept;   // 返回 limit
+    bool   empty() const noexcept; // remaining() == 0
 
+    // ── 容量管理 ──
     void reserve(usize newCapacity);
-    void resize(usize newSize);
     void shrinkToFit();
-    void clear() noexcept;
 
-    void pushBack(u8 byte);
-    void popBack();
+    // ── 替换/追加 ──
+    void assign(const u8* data, usize size);
     void append(const u8* data, usize size);
     void append(const ByteBuffer& other);
-    void insert(usize pos, const u8* data, usize size);
-    void erase(usize pos, usize count = 1);
-    void assign(const u8* data, usize size);
-    void swap(ByteBuffer& other) noexcept;
 
+    // ── 交换/比较 ──
+    void swap(ByteBuffer& other) noexcept;
     bool equals(const ByteBuffer& other) const noexcept;
     bool operator==(const ByteBuffer& other) const noexcept;
     bool operator!=(const ByteBuffer& other) const noexcept;
 
+    // ── 兼容别名 ──
+    static ByteBuffer fromData(const u8* data, usize size) { return copyOf(data, size); }
+    static ByteBuffer withCapacity(usize capacity) { return allocate(capacity); }
+
 private:
-    u8*   data_;
-    usize size_;
-    usize capacity_;
+    u8*       data_{nullptr};
+    usize     capacity_{0};
+    usize     position_{0};
+    usize     limit_{0};
+    usize     mark_{0};
+    ByteOrder order_{ByteOrder::BigEndian};
+    bool      owns_{true};
+    bool      markValid_{false};
     static constexpr usize kDefaultCapacity = 32;
+
     void grow(usize minCapacity);
+    void ensureWritable(usize needed);
 };
 
 
 // ============================================================================
-// 内联实现
+// 内联实现（仅极简 getter / trivial 操作）
 // ============================================================================
 
-inline ByteBuffer::ByteBuffer() noexcept
-    : data_(nullptr), size_(0), capacity_(0) {}
+inline ByteOrder ByteBuffer::order() const noexcept { return order_; }
+inline void ByteBuffer::order(ByteOrder order) noexcept { order_ = order; }
 
-inline ByteBuffer::ByteBuffer(usize capacity)
-    : data_(new u8[capacity > 0 ? capacity : 1]), size_(0), capacity_(capacity > 0 ? capacity : 1) {}
+inline usize ByteBuffer::position() const noexcept { return position_; }
+inline usize ByteBuffer::limit() const noexcept { return limit_; }
+inline usize ByteBuffer::capacity() const noexcept { return capacity_; }
+inline usize ByteBuffer::remaining() const noexcept { return limit_ - position_; }
+inline bool   ByteBuffer::hasRemaining() const noexcept { return position_ < limit_; }
 
-inline ByteBuffer::ByteBuffer(const u8* data, usize size)
-    : data_(new u8[size > 0 ? size : kDefaultCapacity])
-    , size_(size)
-    , capacity_(size > 0 ? size : kDefaultCapacity) {
-    if (size > 0) std::memcpy(data_, data, size);
-}
-
-inline ByteBuffer::ByteBuffer(const ByteBuffer& other)
-    : data_(new u8[other.capacity_]), size_(other.size_), capacity_(other.capacity_) {
-    if (size_ > 0) std::memcpy(data_, other.data_, size_);
-}
-
-inline ByteBuffer::ByteBuffer(ByteBuffer&& other) noexcept
-    : data_(other.data_), size_(other.size_), capacity_(other.capacity_) {
-    other.data_ = nullptr; other.size_ = 0; other.capacity_ = 0;
-}
-
-inline ByteBuffer::~ByteBuffer() { delete[] data_; }
-
-inline ByteBuffer& ByteBuffer::operator=(const ByteBuffer& other) {
-    if (this != &other) {
-        auto* newBuf = new u8[other.capacity_];
-        if (other.size_ > 0) std::memcpy(newBuf, other.data_, other.size_);
-        delete[] data_;
-        data_ = newBuf;
-        size_ = other.size_;
-        capacity_ = other.capacity_;
-    }
-    return *this;
-}
-
-inline ByteBuffer& ByteBuffer::operator=(ByteBuffer&& other) noexcept {
-    if (this != &other) {
-        delete[] data_;
-        data_ = other.data_; size_ = other.size_; capacity_ = other.capacity_;
-        other.data_ = nullptr; other.size_ = 0; other.capacity_ = 0;
-    }
-    return *this;
-}
-
-inline ByteBuffer ByteBuffer::fromData(const u8* data, usize size) { return ByteBuffer(data, size); }
-inline ByteBuffer ByteBuffer::withCapacity(usize capacity) { return ByteBuffer(capacity); }
+inline usize ByteBuffer::size() const noexcept { return limit_; }
+inline bool   ByteBuffer::empty() const noexcept { return position_ >= limit_; }
 
 inline const u8* ByteBuffer::data() const noexcept { return data_; }
 inline u8* ByteBuffer::data() noexcept { return data_; }
+
 inline u8 ByteBuffer::operator[](usize index) const noexcept { return data_[index]; }
 inline u8& ByteBuffer::operator[](usize index) noexcept { return data_[index]; }
 
-inline u8 ByteBuffer::at(usize index) const {
-    if (index >= size_) throw std::out_of_range("ByteBuffer::at");
-    return data_[index];
-}
-
-inline u8& ByteBuffer::at(usize index) {
-    if (index >= size_) throw std::out_of_range("ByteBuffer::at");
-    return data_[index];
-}
-
 inline u8 ByteBuffer::front() const { return data_[0]; }
 inline u8& ByteBuffer::front() { return data_[0]; }
-inline u8 ByteBuffer::back() const { return data_[size_ - 1]; }
-inline u8& ByteBuffer::back() { return data_[size_ - 1]; }
-
-inline usize ByteBuffer::size() const noexcept { return size_; }
-inline usize ByteBuffer::capacity() const noexcept { return capacity_; }
-inline bool ByteBuffer::empty() const noexcept { return size_ == 0; }
-
-inline void ByteBuffer::reserve(usize newCapacity) {
-    if (newCapacity > capacity_) {
-        auto newBuf = new u8[newCapacity];
-        if (size_ > 0) std::memcpy(newBuf, data_, size_);
-        delete[] data_;
-        data_ = newBuf; capacity_ = newCapacity;
-    }
-}
-
-inline void ByteBuffer::resize(usize newSize) {
-    if (newSize > capacity_) {
-        usize newCap = capacity_ * 2;
-        if (newCap < newSize) newCap = newSize;
-        reserve(newCap);
-    }
-    if (newSize > size_) std::memset(data_ + size_, 0, newSize - size_);
-    size_ = newSize;
-}
-
-inline void ByteBuffer::shrinkToFit() {
-    if (size_ < capacity_) {
-        auto newBuf = new u8[size_ > 0 ? size_ : 1];
-        if (size_ > 0) std::memcpy(newBuf, data_, size_);
-        delete[] data_;
-        data_ = newBuf; capacity_ = size_ > 0 ? size_ : 1;
-    }
-}
-
-inline void ByteBuffer::clear() noexcept { size_ = 0; }
-
-inline void ByteBuffer::pushBack(u8 byte) {
-    if (size_ >= capacity_) grow(size_ + 1);
-    data_[size_++] = byte;
-}
-
-inline void ByteBuffer::popBack() { if (size_ > 0) --size_; }
-
-inline void ByteBuffer::append(const u8* data, usize len) {
-    if (len == 0) return;
-    auto needed = size_ + len;
-    if (needed > capacity_) grow(needed);
-    std::memcpy(data_ + size_, data, len);
-    size_ = needed;
-}
-
-inline void ByteBuffer::append(const ByteBuffer& other) { append(other.data_, other.size_); }
-
-inline void ByteBuffer::insert(usize pos, const u8* data, usize len) {
-    if (pos > size_ || len == 0) return;
-    auto needed = size_ + len;
-    if (needed > capacity_) grow(needed);
-    std::memmove(data_ + pos + len, data_ + pos, size_ - pos);
-    std::memcpy(data_ + pos, data, len);
-    size_ = needed;
-}
-
-inline void ByteBuffer::erase(usize pos, usize count) {
-    if (pos >= size_ || count == 0) return;
-    if (pos + count > size_) count = size_ - pos;
-    std::memmove(data_ + pos, data_ + pos + count, size_ - pos - count);
-    size_ -= count;
-}
-
-inline void ByteBuffer::assign(const u8* data, usize size) {
-    if (size > capacity_) reserve(size);
-    std::memcpy(data_, data, size);
-    size_ = size;
-}
-
-inline void ByteBuffer::swap(ByteBuffer& other) noexcept {
-    using std::swap;
-    swap(data_, other.data_);
-    swap(size_, other.size_);
-    swap(capacity_, other.capacity_);
-}
-
-inline bool ByteBuffer::equals(const ByteBuffer& other) const noexcept {
-    if (size_ != other.size_) return false;
-    return size_ == 0 || std::memcmp(data_, other.data_, size_) == 0;
-}
-
-inline bool ByteBuffer::operator==(const ByteBuffer& other) const noexcept { return equals(other); }
-inline bool ByteBuffer::operator!=(const ByteBuffer& other) const noexcept { return !equals(other); }
-
-inline void ByteBuffer::grow(usize minCapacity) {
-    usize newCap = capacity_ * 2;
-    if (newCap < minCapacity) newCap = minCapacity;
-    if (newCap < kDefaultCapacity) newCap = kDefaultCapacity;
-    auto newBuf = new u8[newCap];
-    if (size_ > 0) std::memcpy(newBuf, data_, size_);
-    delete[] data_;
-    data_ = newBuf; capacity_ = newCap;
-}
+inline u8 ByteBuffer::back() const { return data_[limit_ - 1]; }
+inline u8& ByteBuffer::back() { return data_[limit_ - 1]; }
 
 }  // namespace ca::core
 
