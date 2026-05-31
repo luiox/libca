@@ -11,5 +11,9 @@
 #define LIBCA_STR_STR_HPP
 
 #include "utf8_string.hpp"
+#include "cstring.hpp"
+#include "wstring.hpp"
+#include "char_util.hpp"
+#include "conversion.hpp"
 
 #endif  // LIBCA_STR_STR_HPP
