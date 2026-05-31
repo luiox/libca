@@ -17,7 +17,6 @@ target("libca_str_unittest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
-    add_includedirs("$(projectdir)/libca/core/src")
     add_deps("libca_str")
     set_rundir("$(projectdir)")
     if is_plat("windows") then
