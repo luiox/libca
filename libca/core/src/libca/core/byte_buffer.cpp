@@ -658,7 +658,9 @@ void ByteBuffer::shrinkToFit() {
 // ============================================================================
 
 void ByteBuffer::assign(const u8* data, usize size) {
-    ensureWritable(size);
+    if (size > capacity_) {
+        reserve(size);
+    }
     std::memcpy(data_, data, size);
     position_ = size;
     limit_ = capacity_;  // keep limit at capacity for write mode
