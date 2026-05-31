@@ -34,6 +34,13 @@ Utf8StringRef::Utf8StringRef(const Utf8String& str) noexcept
     , byteLength_(str.byteLength())
     , length_(str.length()) {}
 
+Utf8StringRef Utf8StringRef::fromCStr(const char* cstr) noexcept {
+    if (cstr == nullptr) return Utf8StringRef();
+    auto len  = std::strlen(cstr);
+    auto data = reinterpret_cast<const u8*>(cstr);
+    return Utf8StringRef(data, len, utf8CountCodePoints(data, len));
+}
+
 usize Utf8StringRef::length() const noexcept {
     return length_;
 }
@@ -329,7 +336,7 @@ Utf8String Utf8StringBuilder::build() const {
     return Utf8String(buffer_, byteLength_);
 }
 
-Utf8String Utf8StringBuilder::buildSafe() const noexcept {
+Utf8String Utf8StringBuilder::buildOrEmpty() const noexcept {
     if (!utf8IsValid(buffer_, byteLength_))
         return Utf8String();
     return Utf8String(buffer_, byteLength_);
@@ -526,6 +533,70 @@ Utf8String Utf8StringRef::replaceAll(const Utf8StringRef& from, const Utf8String
 
 
 // ============================================================================
+// Utf8StringRef — 查找
+// ============================================================================
+
+usize Utf8StringRef::indexOf(const Utf8StringRef& needle) const noexcept {
+    return indexOf(needle, 0);
+}
+
+usize Utf8StringRef::indexOf(const Utf8StringRef& needle, usize startCp) const noexcept {
+    if (needle.isEmpty() || needle.byteLength_ > byteLength_)
+        return npos;
+
+    usize pos = 0;
+    for (usize i = 0; i < startCp && pos < byteLength_; ++i) {
+        pos += utf8CodePointBytes(data_[pos]);
+    }
+
+    usize cpIdx = startCp;
+    while (pos + needle.byteLength_ <= byteLength_) {
+        if (std::memcmp(data_ + pos, needle.data_, needle.byteLength_) == 0)
+            return cpIdx;
+        pos += utf8CodePointBytes(data_[pos]);
+        ++cpIdx;
+    }
+    return npos;
+}
+
+usize Utf8StringRef::indexOf(u32 codePoint) const noexcept {
+    return indexOf(codePoint, 0);
+}
+
+usize Utf8StringRef::indexOf(u32 codePoint, usize startCp) const noexcept {
+    usize pos = 0;
+    for (usize i = 0; i < startCp && pos < byteLength_; ++i) {
+        pos += utf8CodePointBytes(data_[pos]);
+    }
+    usize cpIdx = startCp;
+    while (pos < byteLength_) {
+        if (utf8DecodeCodePoint(data_ + pos) == codePoint)
+            return cpIdx;
+        pos += utf8CodePointBytes(data_[pos]);
+        ++cpIdx;
+    }
+    return npos;
+}
+
+bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept {
+    return indexOf(needle) != npos;
+}
+
+
+// ============================================================================
+// Utf8StringRef — 迭代器
+// ============================================================================
+
+Utf8Iterator Utf8StringRef::begin() const noexcept {
+    return Utf8Iterator(data_, data_ + byteLength_);
+}
+
+Utf8Iterator Utf8StringRef::end() const noexcept {
+    return Utf8Iterator(data_ + byteLength_, data_ + byteLength_);
+}
+
+
+// ============================================================================
 // Utf8String — 新增操作（委托给 ref）
 // ============================================================================
 
@@ -539,6 +610,34 @@ Utf8String Utf8String::toLower() const    { return ref().toLower(); }
 Utf8String Utf8String::toUpper() const    { return ref().toUpper(); }
 Utf8String Utf8String::replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const {
     return ref().replaceAll(from, to);
+}
+
+usize Utf8String::indexOf(const Utf8StringRef& needle) const noexcept {
+    return ref().indexOf(needle);
+}
+
+usize Utf8String::indexOf(const Utf8StringRef& needle, usize startCp) const noexcept {
+    return ref().indexOf(needle, startCp);
+}
+
+usize Utf8String::indexOf(u32 codePoint) const noexcept {
+    return ref().indexOf(codePoint);
+}
+
+usize Utf8String::indexOf(u32 codePoint, usize startCp) const noexcept {
+    return ref().indexOf(codePoint, startCp);
+}
+
+bool Utf8String::contains(const Utf8StringRef& needle) const noexcept {
+    return ref().contains(needle);
+}
+
+Utf8Iterator Utf8String::begin() const noexcept {
+    return ref().begin();
+}
+
+Utf8Iterator Utf8String::end() const noexcept {
+    return ref().end();
 }
 
 
@@ -572,6 +671,24 @@ Utf8String join(const std::vector<Utf8StringRef>& parts,
         b.append(parts[i]);
     }
     return b.build();
+}
+
+
+// ============================================================================
+// 流输出
+// ============================================================================
+
+std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s) {
+    if (s.data()) {
+        os.write(reinterpret_cast<const char*>(s.data()),
+                 static_cast<std::streamsize>(s.byteLength()));
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Utf8String& s) {
+    os << s.ref();
+    return os;
 }
 
 }  // namespace ca::str
