@@ -139,6 +139,16 @@ TEST(Utf8StringRefTest, ConstructFromData) {
     EXPECT_EQ(ref.data(), data);
 }
 
+TEST(Utf8StringRefTest, LiteralSuffixRef) {
+    using namespace ca::str::literals;
+
+    auto ref = "tesst"_utf8_ref;
+    EXPECT_EQ(ref.length(), 5);
+    EXPECT_EQ(ref.byteLength(), 5);
+    EXPECT_EQ(ref.codePointAt(0), 0x74);
+    EXPECT_EQ(ref.codePointAt(4), 0x74);
+}
+
 TEST(Utf8StringRefTest, ByteAt) {
     u8 data[] = {0x41, 0xE4, 0xB8, 0xAD};
     Utf8StringRef ref(data, 4, 2);
