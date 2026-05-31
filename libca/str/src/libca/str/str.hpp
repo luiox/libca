@@ -16,6 +16,7 @@
 #include "wstring.hpp"
 #include "char_util.hpp"
 #include "conversion.hpp"
+#include "string_util.hpp"
 #include "utf8_string_arena.hpp"
 #include "utf8_string_pool.hpp"
 
