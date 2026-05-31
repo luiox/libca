@@ -10,6 +10,8 @@
 
 #include "libca/core/datatype.hpp"
 
+#include "utf8_util.hpp"
+
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -298,6 +300,15 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 // ============================================================================
 // 自由函数
 // ============================================================================
+
+namespace literals {
+
+inline Utf8StringRef operator""_utf8_ref(const char* str, usize len) noexcept {
+    return Utf8StringRef(reinterpret_cast<const u8*>(str), len,
+                         utf8CountCodePoints(reinterpret_cast<const u8*>(str), len));
+}
+
+}  // namespace literals
 
 /// 按分隔符拆分为视图列表
 std::vector<Utf8StringRef> split(const Utf8StringRef& str,

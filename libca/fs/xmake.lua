@@ -6,7 +6,6 @@ target("libca_fs")
     add_files("src/libca/fs/*.cpp")
     add_headerfiles("src/libca/fs/*.hpp")
     add_includedirs("src", {public = true})
-    add_includedirs("$(projectdir)/libca.core/src", {public = true})
     add_deps("libca_core")
 
     if is_plat("windows") then
