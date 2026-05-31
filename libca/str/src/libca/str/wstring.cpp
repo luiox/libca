@@ -6,8 +6,8 @@
 
 #include "wstring.hpp"
 
-#include <cstring>
 #include <cwchar>
+#include <cwctype>
 
 namespace ca::str {
 
@@ -121,6 +121,125 @@ bool WString::operator!=(const WStringRef& other) const noexcept { return !ref()
 
 
 // ============================================================================
+// WStringRef — 新增操作
+// ============================================================================
+
+bool WStringRef::startsWith(const WStringRef& prefix) const noexcept {
+    if (prefix.length_ > length_) return false;
+    return std::wmemcmp(data_, prefix.data_, prefix.length_) == 0;
+}
+
+bool WStringRef::endsWith(const WStringRef& suffix) const noexcept {
+    if (suffix.length_ > length_) return false;
+    return std::wmemcmp(data_ + length_ - suffix.length_, suffix.data_, suffix.length_) == 0;
+}
+
+WStringRef WStringRef::trimStart() const noexcept {
+    usize i = 0;
+    while (i < length_ && iswspace(static_cast<wint_t>(data_[i]))) ++i;
+    return slice(i, length_);
+}
+
+WStringRef WStringRef::trimEnd() const noexcept {
+    usize i = length_;
+    while (i > 0 && iswspace(static_cast<wint_t>(data_[i - 1]))) --i;
+    return slice(0, i);
+}
+
+WStringRef WStringRef::trim() const noexcept {
+    auto r = trimStart();
+    return r.trimEnd();
+}
+
+std::vector<WStringRef> WStringRef::split(const WStringRef& delimiter) const {
+    std::vector<WStringRef> result;
+    if (isEmpty()) return result;
+    if (delimiter.isEmpty()) { result.push_back(*this); return result; }
+
+    usize start = 0;
+    while (true) {
+        usize found = length_;
+        for (usize i = start; i + delimiter.length_ <= length_; ++i) {
+            if (std::wmemcmp(data_ + i, delimiter.data_, delimiter.length_) == 0) {
+                found = i;
+                break;
+            }
+        }
+        result.push_back(WStringRef(data_ + start, found - start));
+        if (found == length_) break;
+        start = found + delimiter.length_;
+    }
+    return result;
+}
+
+WString WStringRef::toLower() const {
+    WStringBuilder b;
+    for (usize i = 0; i < length_; ++i)
+        b.append(static_cast<wchar_t>(towlower(static_cast<wint_t>(data_[i]))));
+    return b.build();
+}
+
+WString WStringRef::toUpper() const {
+    WStringBuilder b;
+    for (usize i = 0; i < length_; ++i)
+        b.append(static_cast<wchar_t>(towupper(static_cast<wint_t>(data_[i]))));
+    return b.build();
+}
+
+WString WStringRef::replaceAll(const WStringRef& from, const WStringRef& to) const {
+    if (from.isEmpty()) return WString(data_, length_);
+    auto parts = split(from);
+    WStringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(to);
+        b.append(parts[i]);
+    }
+    return b.build();
+}
+
+
+// ============================================================================
+// WString — 新增操作（委托给 ref）
+// ============================================================================
+
+bool WString::startsWith(const WStringRef& prefix) const noexcept { return ref().startsWith(prefix); }
+bool WString::endsWith(const WStringRef& suffix) const noexcept   { return ref().endsWith(suffix); }
+WStringRef WString::trim() const noexcept       { return ref().trim(); }
+WStringRef WString::trimStart() const noexcept   { return ref().trimStart(); }
+WStringRef WString::trimEnd() const noexcept     { return ref().trimEnd(); }
+std::vector<WStringRef> WString::split(const WStringRef& d) const { return ref().split(d); }
+WString WString::toLower() const    { return ref().toLower(); }
+WString WString::toUpper() const    { return ref().toUpper(); }
+WString WString::replaceAll(const WStringRef& from, const WStringRef& to) const { return ref().replaceAll(from, to); }
+
+
+// ============================================================================
+// 非成员比较运算符 + 自由函数
+// ============================================================================
+
+bool operator==(const WStringRef& lhs, const WString& rhs) noexcept {
+    return lhs.equals(rhs.ref());
+}
+
+bool operator!=(const WStringRef& lhs, const WString& rhs) noexcept {
+    return !lhs.equals(rhs.ref());
+}
+
+std::vector<WStringRef> split(const WStringRef& str, const WStringRef& delimiter) {
+    return str.split(delimiter);
+}
+
+WString join(const std::vector<WStringRef>& parts, const WStringRef& separator) {
+    WStringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(separator);
+        b.append(parts[i]);
+    }
+    return b.build();
+}
+
+
+// ============================================================================
 // WStringBuilder
 // ============================================================================
 
@@ -186,14 +305,6 @@ usize WStringBuilder::length() const noexcept { return length_; }
 bool WStringBuilder::isEmpty() const noexcept { return length_ == 0; }
 void WStringBuilder::clear() noexcept { length_ = 0; }
 WString WStringBuilder::build() const { return WString(buffer_, length_); }
-
-
-// ============================================================================
-// 非成员比较运算符
-// ============================================================================
-
-bool operator==(const WStringRef& lhs, const WString& rhs) noexcept { return lhs.equals(rhs.ref()); }
-bool operator!=(const WStringRef& lhs, const WString& rhs) noexcept { return !lhs.equals(rhs.ref()); }
 
 }  // namespace ca::str
 

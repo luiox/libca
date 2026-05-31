@@ -13,6 +13,8 @@
 
 #include <cstddef>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace ca::str {
 
@@ -41,6 +43,26 @@ public:
     CStringRef slice(usize start, usize end) const;
     CString substr(usize start, usize count) const;
 
+    // ---- 前缀/后缀 ----
+    bool startsWith(const CStringRef& prefix) const noexcept;
+    bool endsWith(const CStringRef& suffix) const noexcept;
+
+    // ---- 修剪 ----
+    CStringRef trim() const noexcept;
+    CStringRef trimStart() const noexcept;
+    CStringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+    std::vector<CStringRef> split(const CStringRef& delimiter) const;
+
+    // ---- 大小写转换 ----
+    CString toLower() const;
+    CString toUpper() const;
+
+    // ---- 替换 ----
+    CString replaceAll(const CStringRef& from, const CStringRef& to) const;
+
+    // ---- 比较 ----
     int compare(const CStringRef& other) const noexcept;
     bool equals(const CStringRef& other) const noexcept;
     bool operator==(const CStringRef& other) const noexcept;
@@ -66,9 +88,7 @@ public:
 
     CString& operator=(CString&& other) noexcept;
 
-    // 显式克隆（唯一复制方式）
     CString clone() const;
-
     static CString fromCStr(const char* cstr);
 
     usize length() const noexcept;
@@ -80,6 +100,32 @@ public:
     CStringRef ref() const noexcept;
     CStringRef slice(usize start, usize end) const;
     CString substr(usize start, usize count) const;
+
+    // ---- 前缀/后缀 ----
+
+    bool startsWith(const CStringRef& prefix) const noexcept;
+    bool endsWith(const CStringRef& suffix) const noexcept;
+
+    // ---- 修剪 ----
+
+    CStringRef trim() const noexcept;
+    CStringRef trimStart() const noexcept;
+    CStringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+
+    std::vector<CStringRef> split(const CStringRef& delimiter) const;
+
+    // ---- 大小写转换 ----
+
+    CString toLower() const;
+    CString toUpper() const;
+
+    // ---- 替换 ----
+
+    CString replaceAll(const CStringRef& from, const CStringRef& to) const;
+
+    // ---- 比较 ----
 
     int compare(const CStringRef& other) const noexcept;
     int compare(const CString& other) const noexcept;
@@ -143,6 +189,9 @@ private:
 
 bool operator==(const CStringRef& lhs, const CString& rhs) noexcept;
 bool operator!=(const CStringRef& lhs, const CString& rhs) noexcept;
+
+std::vector<CStringRef> split(const CStringRef& str, const CStringRef& delimiter);
+CString join(const std::vector<CStringRef>& parts, const CStringRef& separator);
 
 }  // namespace ca::str
 

@@ -9,35 +9,14 @@
 #define LIBCA_STR_UTF8_STRING_HPP
 
 #include <libca/core/datatype.hpp>
+#include <libca/str/utf8_util.hpp>
 
 #include <cstddef>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace ca::str {
-
-// ============================================================================
-// UTF-8 编解码工具函数
-// ============================================================================
-
-// 根据 UTF-8 首字节返回该码点的字节数（1~4），非法首字节返回 0
-usize utf8CodePointBytes(u8 firstByte) noexcept;
-
-// 从 UTF-8 字节序列解码出一个码点值
-// bytes 必须指向合法的 UTF-8 序列首字节
-u32 utf8DecodeCodePoint(const u8* bytes) noexcept;
-
-// 将码点编码为 UTF-8 字节序列写入 out，返回写入的字节数
-// 若 cp 超出合法范围 (U+110000 以上) 或为代理项 (U+D800~U+DFFF) 则返回 0
-usize utf8EncodeCodePoint(u32 cp, u8* out) noexcept;
-
-// 统计 UTF-8 字节序列中的码点个数
-// 若遇到非法序列立即返回 0，并通过 invalidPos 输出非法位置
-usize utf8CountCodePoints(const u8* data, usize byteLength,
-                          usize* invalidPos = nullptr) noexcept;
-
-// 检查字节序列是否为合法 UTF-8
-bool utf8IsValid(const u8* data, usize byteLength) noexcept;
-
 
 // ============================================================================
 // 前向声明
@@ -98,6 +77,30 @@ public:
 
     // 按码点取子串：从第 cpStart 个码点开始，取 cpCount 个码点
     Utf8String substr(usize cpStart, usize cpCount) const;
+
+    // ---- 前缀/后缀检查（字节级，O(n)）----
+
+    bool startsWith(const Utf8StringRef& prefix) const noexcept;
+    bool endsWith(const Utf8StringRef& suffix) const noexcept;
+
+    // ---- 修剪（返回视图，不分配） ----
+
+    Utf8StringRef trim() const noexcept;
+    Utf8StringRef trimStart() const noexcept;
+    Utf8StringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+
+    std::vector<Utf8StringRef> split(const Utf8StringRef& delimiter) const;
+
+    // ---- 大小写转换（返回 Utf8String，分配） ----
+
+    Utf8String toLower() const;
+    Utf8String toUpper() const;
+
+    // ---- 替换 ----
+
+    Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
 
     // ---- 比较 ----
 
@@ -203,13 +206,35 @@ public:
     // 按码点取子串：从第 cpStart 个码点开始，取 cpCount 个码点
     Utf8String substr(usize cpStart, usize cpCount) const;
 
+    // ---- 前缀/后缀 ----
+
+    bool startsWith(const Utf8StringRef& prefix) const noexcept;
+    bool endsWith(const Utf8StringRef& suffix) const noexcept;
+
+    // ---- 修剪 ----
+
+    Utf8StringRef trim() const noexcept;
+    Utf8StringRef trimStart() const noexcept;
+    Utf8StringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+
+    std::vector<Utf8StringRef> split(const Utf8StringRef& delimiter) const;
+
+    // ---- 大小写转换 ----
+
+    Utf8String toLower() const;
+    Utf8String toUpper() const;
+
+    // ---- 替换 ----
+
+    Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
+
     // ---- 比较 ----
 
     int compare(const Utf8StringRef& other) const noexcept;
     int compare(const Utf8String& other) const noexcept;
-
     bool equals(const Utf8StringRef& other) const noexcept;
-
     bool operator==(const Utf8String& other) const noexcept;
     bool operator==(const Utf8StringRef& other) const noexcept;
     bool operator!=(const Utf8String& other) const noexcept;
@@ -226,11 +251,62 @@ private:
 
 
 // ============================================================================
+// Utf8StringBuilder — 用于构建 Utf8String 的可变构建器
+// ============================================================================
+
+class Utf8StringBuilder {
+public:
+    Utf8StringBuilder() noexcept;
+    Utf8StringBuilder(Utf8StringBuilder&& other) noexcept;
+    ~Utf8StringBuilder();
+
+    Utf8StringBuilder& operator=(Utf8StringBuilder&& other) noexcept;
+
+    Utf8StringBuilder(const Utf8StringBuilder&) = delete;
+    Utf8StringBuilder& operator=(const Utf8StringBuilder&) = delete;
+
+    Utf8StringBuilder& append(const Utf8StringRef& str);
+    Utf8StringBuilder& append(const Utf8String& str);
+    Utf8StringBuilder& append(const char* cstr);
+    Utf8StringBuilder& append(const u8* data, usize byteLength);
+    bool appendCodePoint(u32 cp);
+
+    void reserve(usize byteCapacity);
+    usize capacity() const noexcept;
+    usize byteLength() const noexcept;
+    bool isEmpty() const noexcept;
+    void clear() noexcept;
+
+    Utf8String build() const;
+    Utf8String buildSafe() const noexcept;
+
+private:
+    u8*   buffer_;
+    usize byteLength_;
+    usize capacity_;
+    static constexpr usize kDefaultCapacity = 64;
+    void grow(usize minCapacity);
+};
+
+
+// ============================================================================
 // 非成员比较运算符（对称比较）
 // ============================================================================
 
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+
+// ============================================================================
+// 自由函数
+// ============================================================================
+
+/// 按分隔符拆分为视图列表
+std::vector<Utf8StringRef> split(const Utf8StringRef& str,
+                                 const Utf8StringRef& delimiter);
+
+/// 用分隔符连接多个字符串
+Utf8String join(const std::vector<Utf8StringRef>& parts,
+                const Utf8StringRef& separator);
 
 }  // namespace ca::str
 

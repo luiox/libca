@@ -6,6 +6,7 @@
 
 #include "cstring.hpp"
 
+#include <cctype>
 #include <cstring>
 
 namespace ca::str {
@@ -123,6 +124,125 @@ bool CString::operator!=(const CStringRef& other) const noexcept { return !ref()
 
 
 // ============================================================================
+// CStringRef — 新增操作
+// ============================================================================
+
+bool CStringRef::startsWith(const CStringRef& prefix) const noexcept {
+    if (prefix.length_ > length_) return false;
+    return std::memcmp(data_, prefix.data_, prefix.length_) == 0;
+}
+
+bool CStringRef::endsWith(const CStringRef& suffix) const noexcept {
+    if (suffix.length_ > length_) return false;
+    return std::memcmp(data_ + length_ - suffix.length_, suffix.data_, suffix.length_) == 0;
+}
+
+CStringRef CStringRef::trimStart() const noexcept {
+    usize i = 0;
+    while (i < length_ && std::isspace(static_cast<unsigned char>(data_[i]))) ++i;
+    return slice(i, length_);
+}
+
+CStringRef CStringRef::trimEnd() const noexcept {
+    usize i = length_;
+    while (i > 0 && std::isspace(static_cast<unsigned char>(data_[i - 1]))) --i;
+    return slice(0, i);
+}
+
+CStringRef CStringRef::trim() const noexcept {
+    auto r = trimStart();
+    return r.trimEnd();
+}
+
+std::vector<CStringRef> CStringRef::split(const CStringRef& delimiter) const {
+    std::vector<CStringRef> result;
+    if (isEmpty()) return result;
+    if (delimiter.isEmpty()) { result.push_back(*this); return result; }
+
+    usize start = 0;
+    while (true) {
+        usize found = length_;
+        for (usize i = start; i + delimiter.length_ <= length_; ++i) {
+            if (std::memcmp(data_ + i, delimiter.data_, delimiter.length_) == 0) {
+                found = i;
+                break;
+            }
+        }
+        result.push_back(CStringRef(data_ + start, found - start));
+        if (found == length_) break;
+        start = found + delimiter.length_;
+    }
+    return result;
+}
+
+CString CStringRef::toLower() const {
+    CStringBuilder b;
+    for (usize i = 0; i < length_; ++i)
+        b.append(static_cast<char>(std::tolower(static_cast<unsigned char>(data_[i]))));
+    return b.build();
+}
+
+CString CStringRef::toUpper() const {
+    CStringBuilder b;
+    for (usize i = 0; i < length_; ++i)
+        b.append(static_cast<char>(std::toupper(static_cast<unsigned char>(data_[i]))));
+    return b.build();
+}
+
+CString CStringRef::replaceAll(const CStringRef& from, const CStringRef& to) const {
+    if (from.isEmpty()) return CString(data_, length_);
+    auto parts = split(from);
+    CStringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(to);
+        b.append(parts[i]);
+    }
+    return b.build();
+}
+
+
+// ============================================================================
+// CString — 新增操作（委托给 ref）
+// ============================================================================
+
+bool CString::startsWith(const CStringRef& prefix) const noexcept { return ref().startsWith(prefix); }
+bool CString::endsWith(const CStringRef& suffix) const noexcept   { return ref().endsWith(suffix); }
+CStringRef CString::trim() const noexcept       { return ref().trim(); }
+CStringRef CString::trimStart() const noexcept   { return ref().trimStart(); }
+CStringRef CString::trimEnd() const noexcept     { return ref().trimEnd(); }
+std::vector<CStringRef> CString::split(const CStringRef& d) const { return ref().split(d); }
+CString CString::toLower() const    { return ref().toLower(); }
+CString CString::toUpper() const    { return ref().toUpper(); }
+CString CString::replaceAll(const CStringRef& from, const CStringRef& to) const { return ref().replaceAll(from, to); }
+
+
+// ============================================================================
+// 非成员比较运算符 + 自由函数
+// ============================================================================
+
+bool operator==(const CStringRef& lhs, const CString& rhs) noexcept {
+    return lhs.equals(rhs.ref());
+}
+
+bool operator!=(const CStringRef& lhs, const CString& rhs) noexcept {
+    return !lhs.equals(rhs.ref());
+}
+
+std::vector<CStringRef> split(const CStringRef& str, const CStringRef& delimiter) {
+    return str.split(delimiter);
+}
+
+CString join(const std::vector<CStringRef>& parts, const CStringRef& separator) {
+    CStringBuilder b;
+    for (usize i = 0; i < parts.size(); ++i) {
+        if (i > 0) b.append(separator);
+        b.append(parts[i]);
+    }
+    return b.build();
+}
+
+
+// ============================================================================
 // CStringBuilder
 // ============================================================================
 
@@ -188,14 +308,6 @@ usize CStringBuilder::length() const noexcept { return length_; }
 bool CStringBuilder::isEmpty() const noexcept { return length_ == 0; }
 void CStringBuilder::clear() noexcept { length_ = 0; }
 CString CStringBuilder::build() const { return CString(buffer_, length_); }
-
-
-// ============================================================================
-// 非成员比较运算符
-// ============================================================================
-
-bool operator==(const CStringRef& lhs, const CString& rhs) noexcept { return lhs.equals(rhs.ref()); }
-bool operator!=(const CStringRef& lhs, const CString& rhs) noexcept { return !lhs.equals(rhs.ref()); }
 
 }  // namespace ca::str
 

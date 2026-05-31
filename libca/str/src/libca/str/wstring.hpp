@@ -13,6 +13,8 @@
 
 #include <cstddef>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace ca::str {
 
@@ -31,6 +33,27 @@ public:
 
     WStringRef slice(usize start, usize end) const;
     WString substr(usize start, usize count) const;
+
+    // ---- 前缀/后缀 ----
+    bool startsWith(const WStringRef& prefix) const noexcept;
+    bool endsWith(const WStringRef& suffix) const noexcept;
+
+    // ---- 修剪 ----
+    WStringRef trim() const noexcept;
+    WStringRef trimStart() const noexcept;
+    WStringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+    std::vector<WStringRef> split(const WStringRef& delimiter) const;
+
+    // ---- 大小写转换 ----
+    WString toLower() const;
+    WString toUpper() const;
+
+    // ---- 替换 ----
+    WString replaceAll(const WStringRef& from, const WStringRef& to) const;
+
+    // ---- 比较 ----
 
     int compare(const WStringRef& other) const noexcept;
     bool equals(const WStringRef& other) const noexcept;
@@ -52,9 +75,7 @@ public:
 
     WString& operator=(WString&& other) noexcept;
 
-    // 显式克隆（唯一复制方式）
     WString clone() const;
-
     static WString fromWStr(const wchar_t* wstr);
 
     usize length() const noexcept;
@@ -66,6 +87,32 @@ public:
     WStringRef ref() const noexcept;
     WStringRef slice(usize start, usize end) const;
     WString substr(usize start, usize count) const;
+
+    // ---- 前缀/后缀 ----
+
+    bool startsWith(const WStringRef& prefix) const noexcept;
+    bool endsWith(const WStringRef& suffix) const noexcept;
+
+    // ---- 修剪 ----
+
+    WStringRef trim() const noexcept;
+    WStringRef trimStart() const noexcept;
+    WStringRef trimEnd() const noexcept;
+
+    // ---- 拆分 ----
+
+    std::vector<WStringRef> split(const WStringRef& delimiter) const;
+
+    // ---- 大小写转换 ----
+
+    WString toLower() const;
+    WString toUpper() const;
+
+    // ---- 替换 ----
+
+    WString replaceAll(const WStringRef& from, const WStringRef& to) const;
+
+    // ---- 比较 ----
 
     int compare(const WStringRef& other) const noexcept;
     int compare(const WString& other) const noexcept;
@@ -117,6 +164,9 @@ private:
 
 bool operator==(const WStringRef& lhs, const WString& rhs) noexcept;
 bool operator!=(const WStringRef& lhs, const WString& rhs) noexcept;
+
+std::vector<WStringRef> split(const WStringRef& str, const WStringRef& delimiter);
+WString join(const std::vector<WStringRef>& parts, const WStringRef& separator);
 
 }  // namespace ca::str
 
