@@ -351,13 +351,13 @@ public:
     }
 
     Utf8Iterator& operator++() noexcept {
-        pos_ += utf8CodePointBytes(*pos_);
+        pos_ += utf8CodePointBytesSafe(*pos_);
         return *this;
     }
 
     Utf8Iterator operator++(int) noexcept {
         Utf8Iterator tmp = *this;
-        pos_ += utf8CodePointBytes(*pos_);
+        pos_ += utf8CodePointBytesSafe(*pos_);
         return tmp;
     }
 

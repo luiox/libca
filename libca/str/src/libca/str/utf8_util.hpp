@@ -15,6 +15,12 @@ namespace ca::str {
 // 根据 UTF-8 首字节返回码点字节数（1~4），非法返回 0
 usize utf8CodePointBytes(u8 firstByte) noexcept;
 
+// 安全的码点字节数：至少返回 1，避免非法字节导致死循环
+inline usize utf8CodePointBytesSafe(u8 firstByte) noexcept {
+    auto n = utf8CodePointBytes(firstByte);
+    return n > 0 ? n : 1;
+}
+
 // 从 UTF-8 序列解码出一个码点
 u32 utf8DecodeCodePoint(const u8* bytes) noexcept;
 

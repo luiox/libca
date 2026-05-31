@@ -65,7 +65,7 @@ u32 Utf8StringRef::codePointAt(usize index) const {
     usize pos  = 0;
     usize cpIdx = 0;
     while (cpIdx < index && pos < byteLength_) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++cpIdx;
     }
     if (pos >= byteLength_)
@@ -84,7 +84,7 @@ Utf8StringRef Utf8StringRef::slice(usize byteStart, usize byteEnd) const {
     usize pos    = byteStart;
     usize cpCnt  = 0;
     while (pos < byteEnd) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++cpCnt;
     }
 
@@ -98,7 +98,7 @@ Utf8StringRef Utf8StringRef::sliceByCp(usize cpStart, usize cpCount) const {
     // 扫描到 cpStart
     usize pos = 0;
     for (usize i = 0; i < cpStart; ++i) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
 
     usize startPos = pos;
@@ -106,7 +106,7 @@ Utf8StringRef Utf8StringRef::sliceByCp(usize cpStart, usize cpCount) const {
     // 扫描 cpCount 个码点
     usize actualCount = 0;
     for (usize i = 0; i < cpCount && pos < byteLength_; ++i) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++actualCount;
     }
 
@@ -371,7 +371,7 @@ u32 Utf8String::codePointAt(usize index) const {
     usize pos   = 0;
     usize cpIdx = 0;
     while (cpIdx < index && pos < byteLength_) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++cpIdx;
     }
     if (pos >= byteLength_)
@@ -444,7 +444,7 @@ Utf8StringRef Utf8StringRef::trimStart() const noexcept {
     while (pos < byteLength_) {
         auto ch = Utf8Char::fromRaw(data_ + pos);
         if (!ch.isSpace()) break;
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
     return slice(pos, byteLength_);
 }
@@ -482,7 +482,7 @@ std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) 
                 found = i;
                 break;
             }
-            i += utf8CodePointBytes(data_[i]);
+            i += utf8CodePointBytesSafe(data_[i]);
         }
         if (found == usize(-1)) {
             // 未找到，剩余整个作为最后一段
@@ -503,7 +503,7 @@ Utf8String Utf8StringRef::toLower() const {
     while (pos < byteLength_) {
         auto ch = Utf8Char::fromRaw(data_ + pos);
         b.appendCodePoint(ch.toLower().codePoint());
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
     return b.build();
 }
@@ -514,7 +514,7 @@ Utf8String Utf8StringRef::toUpper() const {
     while (pos < byteLength_) {
         auto ch = Utf8Char::fromRaw(data_ + pos);
         b.appendCodePoint(ch.toUpper().codePoint());
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
     return b.build();
 }
@@ -546,14 +546,14 @@ usize Utf8StringRef::indexOf(const Utf8StringRef& needle, usize startCp) const n
 
     usize pos = 0;
     for (usize i = 0; i < startCp && pos < byteLength_; ++i) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
 
     usize cpIdx = startCp;
     while (pos + needle.byteLength_ <= byteLength_) {
         if (std::memcmp(data_ + pos, needle.data_, needle.byteLength_) == 0)
             return cpIdx;
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++cpIdx;
     }
     return npos;
@@ -566,13 +566,13 @@ usize Utf8StringRef::indexOf(u32 codePoint) const noexcept {
 usize Utf8StringRef::indexOf(u32 codePoint, usize startCp) const noexcept {
     usize pos = 0;
     for (usize i = 0; i < startCp && pos < byteLength_; ++i) {
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
     }
     usize cpIdx = startCp;
     while (pos < byteLength_) {
         if (utf8DecodeCodePoint(data_ + pos) == codePoint)
             return cpIdx;
-        pos += utf8CodePointBytes(data_[pos]);
+        pos += utf8CodePointBytesSafe(data_[pos]);
         ++cpIdx;
     }
     return npos;
