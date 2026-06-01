@@ -64,6 +64,13 @@ public:
 
     // ==================== 判断 ====================
     static bool isNumeric(const std::string& input);
+
+    // ==================== 前缀/后缀/包含 ====================
+    static bool startsWith(const std::string& input, const std::string& prefix);
+    static bool endsWith(const std::string& input, const std::string& suffix);
+    static bool contains(const std::string& input, const std::string& substr);
+
+    
 };
 
 } // namespace ca::str

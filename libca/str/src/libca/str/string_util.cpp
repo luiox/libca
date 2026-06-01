@@ -250,4 +250,20 @@ bool StringUtil::isNumeric(const std::string& input) {
     return true;
 }
 
+// ==================== 前缀/后缀/包含 ====================
+
+bool StringUtil::startsWith(const std::string& input, const std::string& prefix) {
+    if (input.length() < prefix.length()) return false;
+    return input.compare(0, prefix.length(), prefix) == 0;
+}
+
+bool StringUtil::endsWith(const std::string& input, const std::string& suffix) {
+    if (input.length() < suffix.length()) return false;
+    return input.compare(input.length() - suffix.length(), suffix.length(), suffix) == 0;
+}
+
+bool StringUtil::contains(const std::string& input, const std::string& substr) {
+    return input.find(substr) != std::string::npos;
+}
+
 } // namespace ca::str

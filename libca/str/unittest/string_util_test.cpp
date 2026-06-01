@@ -148,3 +148,34 @@ TEST(StringUtilTest, isNumeric) {
     EXPECT_FALSE(StringUtil::isNumeric("12a3"));
     EXPECT_FALSE(StringUtil::isNumeric(""));
 }
+
+// ============================================================
+// 前缀/后缀/包含
+// ============================================================
+
+TEST(StringUtilTest, startsWith) {
+    EXPECT_TRUE(StringUtil::startsWith("hello world", "hello"));
+    EXPECT_TRUE(StringUtil::startsWith("hello", "hello"));
+    EXPECT_FALSE(StringUtil::startsWith("hello world", "world"));
+    EXPECT_FALSE(StringUtil::startsWith("hel", "hello"));
+    EXPECT_FALSE(StringUtil::startsWith("", "hello"));
+    EXPECT_TRUE(StringUtil::startsWith("hello", ""));
+}
+
+TEST(StringUtilTest, endsWith) {
+    EXPECT_TRUE(StringUtil::endsWith("hello world", "world"));
+    EXPECT_TRUE(StringUtil::endsWith("hello", "hello"));
+    EXPECT_FALSE(StringUtil::endsWith("hello world", "hello"));
+    EXPECT_FALSE(StringUtil::endsWith("hel", "hello"));
+    EXPECT_FALSE(StringUtil::endsWith("", "hello"));
+    EXPECT_TRUE(StringUtil::endsWith("hello", ""));
+}
+
+TEST(StringUtilTest, contains) {
+    EXPECT_TRUE(StringUtil::contains("hello world", "lo wo"));
+    EXPECT_TRUE(StringUtil::contains("hello world", "hello"));
+    EXPECT_TRUE(StringUtil::contains("hello world", "world"));
+    EXPECT_FALSE(StringUtil::contains("hello world", "xyz"));
+    EXPECT_TRUE(StringUtil::contains("hello", ""));
+    EXPECT_FALSE(StringUtil::contains("", "hello"));
+}
