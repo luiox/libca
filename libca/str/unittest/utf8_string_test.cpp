@@ -2,6 +2,7 @@
 #include "libca/str/utf8_string.hpp"
 #include "libca/str/utf8_util.hpp"
 
+#include <sstream>
 #include <string>
 #include <cstring>
 
@@ -467,6 +468,225 @@ TEST(Utf8StringTest, LargeString) {
     EXPECT_EQ(s.byteLength(), 3000);
     EXPECT_EQ(s.codePointAt(0), 0x4E2D);
     EXPECT_EQ(s.codePointAt(999), 0x4E2D);
+}
+
+// ============================================================================
+// Utf8Iterator 测试
+// ============================================================================
+
+TEST(Utf8IteratorTest, RangeForLoop) {
+    Utf8String s("A中😀");
+    u32 expected[] = {0x41, 0x4E2D, 0x1F600};
+    usize idx = 0;
+    for (u32 cp : s) {
+        EXPECT_EQ(cp, expected[idx]);
+        ++idx;
+    }
+    EXPECT_EQ(idx, 3);
+}
+
+TEST(Utf8IteratorTest, EmptyString) {
+    Utf8String empty;
+    usize count = 0;
+    for (u32 cp : empty) {
+        (void)cp;
+        ++count;
+    }
+    EXPECT_EQ(count, 0);
+}
+
+TEST(Utf8IteratorTest, RefRangeForLoop) {
+    u8 data[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
+    Utf8StringRef ref(data, 8, 3);
+    u32 expected[] = {0x41, 0x4E2D, 0x1F600};
+    usize idx = 0;
+    for (u32 cp : ref) {
+        EXPECT_EQ(cp, expected[idx]);
+        ++idx;
+    }
+    EXPECT_EQ(idx, 3);
+}
+
+TEST(Utf8IteratorTest, IteratorComparison) {
+    Utf8String s("ABC");
+    auto it = s.begin();
+    auto end = s.end();
+    EXPECT_NE(it, end);
+    EXPECT_EQ(*it, 0x41);
+    ++it;
+    EXPECT_EQ(*it, 0x42);
+    ++it;
+    EXPECT_EQ(*it, 0x43);
+    ++it;
+    EXPECT_EQ(it, end);
+}
+
+TEST(Utf8IteratorTest, BytePtr) {
+    Utf8String s("AB");
+    auto it = s.begin();
+    EXPECT_NE(it.bytePtr(), nullptr);
+    EXPECT_EQ(*it.bytePtr(), 0x41);
+}
+
+TEST(Utf8IteratorTest, UnicodeMixedWithBuilder) {
+    // for-range 配合 Utf8StringBuilder 使用
+    Utf8String s("Hello世界");
+    Utf8StringBuilder b;
+    for (u32 cp : s) {
+        b.appendCodePoint(cp);
+    }
+    auto rebuilt = b.build();
+    EXPECT_EQ(rebuilt, s);
+}
+
+// ============================================================================
+// indexOf / contains 测试
+// ============================================================================
+
+TEST(Utf8StringRefTest, IndexOfSubstring) {
+    using namespace ca::str::literals;
+    auto ref = "Hello世界"_utf8_ref;
+    EXPECT_EQ(ref.indexOf("世界"_utf8_ref), 5);
+    EXPECT_EQ(ref.indexOf("Hello"_utf8_ref), 0);
+    EXPECT_EQ(ref.indexOf("foo"_utf8_ref), Utf8StringRef::npos);
+}
+
+TEST(Utf8StringRefTest, IndexOfWithStart) {
+    using namespace ca::str::literals;
+    auto ref = "aaabaa"_utf8_ref;
+    // 第一个 'a' 在 0
+    EXPECT_EQ(ref.indexOf("a"_utf8_ref, 0), 0);
+    // 从第 3 个码点开始找 'a' → 位置 4（第 3 个码点是 'b'）
+    EXPECT_EQ(ref.indexOf("a"_utf8_ref, 3), 4);
+    // 超出范围
+    EXPECT_EQ(ref.indexOf("a"_utf8_ref, 99), Utf8StringRef::npos);
+}
+
+TEST(Utf8StringRefTest, IndexOfCodePoint) {
+    using namespace ca::str::literals;
+    auto ref = "A中😀"_utf8_ref;
+    EXPECT_EQ(ref.indexOf(0x41), 0);       // 'A'
+    EXPECT_EQ(ref.indexOf(0x4E2D), 1);     // '中'
+    EXPECT_EQ(ref.indexOf(0x1F600), 2);    // '😀'
+    EXPECT_EQ(ref.indexOf(0x9999), Utf8StringRef::npos);
+}
+
+TEST(Utf8StringRefTest, IndexOfCodePointWithStart) {
+    using namespace ca::str::literals;
+    auto ref = "ABA"_utf8_ref;
+    EXPECT_EQ(ref.indexOf(0x41, 0), 0);    // 第一个 'A'
+    EXPECT_EQ(ref.indexOf(0x41, 1), 2);    // 从码点 1 开始找 'A'
+}
+
+TEST(Utf8StringRefTest, Contains) {
+    using namespace ca::str::literals;
+    auto ref = "Hello世界"_utf8_ref;
+    EXPECT_TRUE(ref.contains("世界"_utf8_ref));
+    EXPECT_TRUE(ref.contains("Hello"_utf8_ref));
+    EXPECT_FALSE(ref.contains("world"_utf8_ref));
+}
+
+// Utf8String 版本（委托至 Utf8StringRef）
+TEST(Utf8StringTest, IndexOfSubstring) {
+    Utf8String s("Hello世界");
+    EXPECT_EQ(s.indexOf(Utf8StringRef::fromCStr("世界")), 5);
+    EXPECT_EQ(s.indexOf(Utf8StringRef::fromCStr("Hello")), 0);
+}
+
+TEST(Utf8StringTest, Contains) {
+    Utf8String s("Hello世界");
+    EXPECT_TRUE(s.contains(Utf8StringRef::fromCStr("世界")));
+    EXPECT_FALSE(s.contains(Utf8StringRef::fromCStr("World")));
+}
+
+// ============================================================================
+// fromCStr / _utf8 literal 测试
+// ============================================================================
+
+TEST(Utf8StringRefTest, FromCStr) {
+    auto ref = Utf8StringRef::fromCStr("ABC");
+    EXPECT_EQ(ref.length(), 3);
+    EXPECT_EQ(ref.byteLength(), 3);
+    EXPECT_EQ(ref.codePointAt(0), 0x41);
+
+    // 中文
+    auto ref2 = Utf8StringRef::fromCStr("你好");
+    EXPECT_EQ(ref2.length(), 2);
+    EXPECT_EQ(ref2.byteLength(), 6);
+
+    // null 安全
+    auto ref3 = Utf8StringRef::fromCStr(nullptr);
+    EXPECT_TRUE(ref3.isEmpty());
+}
+
+TEST(Utf8StringTest, Utf8Literal) {
+    using namespace ca::str::literals;
+    auto s = "你好😀"_utf8;
+    EXPECT_EQ(s.length(), 3);
+    EXPECT_EQ(s.byteLength(), 10);
+    EXPECT_EQ(s.codePointAt(0), 0x4F60);   // '你'
+    EXPECT_EQ(s.codePointAt(2), 0x1F600);  // '😀'
+}
+
+// ============================================================================
+// size() / empty() STL 别名测试
+// ============================================================================
+
+TEST(Utf8StringTest, SizeAlias) {
+    Utf8String s("Hello");
+    EXPECT_EQ(s.size(), s.length());
+    EXPECT_TRUE(s.size() > 0);
+
+    Utf8String empty;
+    EXPECT_EQ(empty.size(), 0);
+}
+
+TEST(Utf8StringTest, EmptyAlias) {
+    Utf8String s;
+    EXPECT_TRUE(s.empty());
+
+    Utf8String s2("Hi");
+    EXPECT_FALSE(s2.empty());
+}
+
+// ============================================================================
+// buildOrEmpty 测试
+// ============================================================================
+
+TEST(Utf8StringBuilderTest, BuildOrEmpty_Valid) {
+    Utf8StringBuilder b;
+    b.append("Hello");
+    auto s = b.buildOrEmpty();
+    EXPECT_EQ(s.length(), 5);
+    EXPECT_STREQ(s.cStr(), "Hello");
+}
+
+TEST(Utf8StringBuilderTest, BuildOrEmpty_Invalid) {
+    // 通过 append raw bytes 放入非法序列
+    u8 bad[] = {0xFF, 0xFE};
+    Utf8StringBuilder b;
+    b.append(bad, 2);
+    auto s = b.buildOrEmpty();
+    EXPECT_TRUE(s.isEmpty());
+}
+
+// ============================================================================
+// operator<< 测试
+// ============================================================================
+
+TEST(Utf8StringTest, StreamOutput) {
+    Utf8String s("Hello世界");
+    std::ostringstream oss;
+    oss << s;
+    EXPECT_EQ(oss.str(), "Hello世界");
+}
+
+TEST(Utf8StringRefTest, StreamOutput) {
+    using namespace ca::str::literals;
+    auto ref = "Test"_utf8_ref;
+    std::ostringstream oss;
+    oss << ref;
+    EXPECT_EQ(oss.str(), "Test");
 }
 
 }  // namespace ca::str

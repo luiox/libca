@@ -1,15 +1,17 @@
 add_requires("gtest")
 
 target("libca_core")
-    set_kind("headeronly")
+    set_kind("static")
     set_group("libs")
     add_headerfiles("src/libca/core/*.hpp")
+    add_files("src/libca/core/byte_buffer.cpp")
     add_includedirs("src", {public = true})
 
 target("libca_core_unittest")
     set_kind("binary")
     set_group("libs/test")
     add_packages("gtest")
+    add_deps("libca_core")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")

@@ -14,6 +14,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,7 @@ namespace ca::str {
 // ============================================================================
 
 class Utf8String;
+class Utf8Iterator;
 
 
 // ============================================================================
@@ -43,6 +45,12 @@ public:
 
     // 从 Utf8String 构造视图
     Utf8StringRef(const Utf8String& str) noexcept;
+
+    // 从 C 字符串构造视图（O(n) 计算码点个数）
+    static Utf8StringRef fromCStr(const char* cstr) noexcept;
+
+    // 特殊常量
+    static constexpr usize npos = usize(-1);
 
     // ---- 查询 ----
 
@@ -102,6 +110,22 @@ public:
     // ---- 替换 ----
 
     Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
+
+    // ---- 查找 ----
+
+    // 查找子串首次出现的码点下标，未找到返回 npos
+    usize indexOf(const Utf8StringRef& needle) const noexcept;
+    usize indexOf(const Utf8StringRef& needle, usize startCp) const noexcept;
+    usize indexOf(u32 codePoint) const noexcept;
+    usize indexOf(u32 codePoint, usize startCp) const noexcept;
+
+    // 是否包含子串
+    bool contains(const Utf8StringRef& needle) const noexcept;
+
+    // ---- 迭代器 ----
+
+    Utf8Iterator begin() const noexcept;
+    Utf8Iterator end() const noexcept;
 
     // ---- 比较 ----
 
@@ -177,6 +201,10 @@ public:
     // 是否为空字符串
     bool isEmpty() const noexcept;
 
+    // STL 兼容别名
+    usize size() const noexcept { return length_; }
+    bool empty() const noexcept { return byteLength_ == 0; }
+
     // 原始字节数据指针（内部存储以 '\0' 结尾）
     const u8* data() const noexcept;
 
@@ -201,6 +229,11 @@ public:
 
     // 按码点区间切片：从第 cpStart 个码点开始，取 cpCount 个码点
     Utf8StringRef sliceByCp(usize cpStart, usize cpCount) const;
+
+    // ---- 迭代器 ----
+
+    Utf8Iterator begin() const noexcept;
+    Utf8Iterator end() const noexcept;
 
     // ---- 子串 ----
 
@@ -230,6 +263,14 @@ public:
     // ---- 替换 ----
 
     Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
+
+    // ---- 查找 ----
+
+    usize indexOf(const Utf8StringRef& needle) const noexcept;
+    usize indexOf(const Utf8StringRef& needle, usize startCp) const noexcept;
+    usize indexOf(u32 codePoint) const noexcept;
+    usize indexOf(u32 codePoint, usize startCp) const noexcept;
+    bool contains(const Utf8StringRef& needle) const noexcept;
 
     // ---- 比较 ----
 
@@ -279,7 +320,7 @@ public:
     void clear() noexcept;
 
     Utf8String build() const;
-    Utf8String buildSafe() const noexcept;
+    Utf8String buildOrEmpty() const noexcept;
 
 private:
     u8*   buffer_;
@@ -287,6 +328,52 @@ private:
     usize capacity_;
     static constexpr usize kDefaultCapacity = 64;
     void grow(usize minCapacity);
+};
+
+
+// ============================================================================
+// Utf8Iterator — 前向迭代器，O(1) 步进，配合范围 for 使用
+// ============================================================================
+
+class Utf8Iterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type        = u32;
+    using difference_type   = std::ptrdiff_t;
+    using pointer           = const u32*;
+    using reference         = u32;
+
+    Utf8Iterator() noexcept : pos_(nullptr), end_(nullptr) {}
+    Utf8Iterator(const u8* pos, const u8* end) noexcept : pos_(pos), end_(end) {}
+
+    u32 operator*() const noexcept {
+        return utf8DecodeCodePoint(pos_);
+    }
+
+    Utf8Iterator& operator++() noexcept {
+        pos_ += utf8CodePointBytesSafe(*pos_);
+        return *this;
+    }
+
+    Utf8Iterator operator++(int) noexcept {
+        Utf8Iterator tmp = *this;
+        pos_ += utf8CodePointBytesSafe(*pos_);
+        return tmp;
+    }
+
+    bool operator==(const Utf8Iterator& other) const noexcept {
+        return pos_ == other.pos_;
+    }
+
+    bool operator!=(const Utf8Iterator& other) const noexcept {
+        return pos_ != other.pos_;
+    }
+
+    const u8* bytePtr() const noexcept { return pos_; }
+
+private:
+    const u8* pos_;
+    const u8* end_;
 };
 
 
@@ -308,6 +395,10 @@ inline Utf8StringRef operator""_utf8_ref(const char* str, usize len) noexcept {
                          utf8CountCodePoints(reinterpret_cast<const u8*>(str), len));
 }
 
+inline Utf8String operator""_utf8(const char* str, usize len) {
+    return Utf8String(reinterpret_cast<const u8*>(str), len);
+}
+
 }  // namespace literals
 
 /// 按分隔符拆分为视图列表
@@ -317,6 +408,10 @@ std::vector<Utf8StringRef> split(const Utf8StringRef& str,
 /// 用分隔符连接多个字符串
 Utf8String join(const std::vector<Utf8StringRef>& parts,
                 const Utf8StringRef& separator);
+
+/// 流输出
+std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s);
+std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 
 }  // namespace ca::str
 
