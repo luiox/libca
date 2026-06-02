@@ -151,6 +151,10 @@ Utf8StringRef Utf8StringArena::intern(const Utf8StringRef& str) {
     return intern(str.data(), str.byteLength());
 }
 
+Utf8StringRef Utf8StringArena::intern(const Utf8String& str) {
+    return intern(str.data(), str.byteLength());
+}
+
 
 // ============================================================================
 // 统计

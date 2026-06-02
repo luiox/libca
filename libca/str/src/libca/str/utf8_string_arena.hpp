@@ -44,6 +44,7 @@ public:
     Utf8StringRef intern(const u8* data, usize byteLength);
     Utf8StringRef intern(const char* cstr);
     Utf8StringRef intern(const Utf8StringRef& str);
+    Utf8StringRef intern(const Utf8String& str);
 
     // ---- 统计 ----
 

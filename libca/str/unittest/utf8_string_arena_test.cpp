@@ -109,4 +109,86 @@ TEST(Utf8StringArenaTest, InternInvalidUtf8) {
     EXPECT_TRUE(r.isEmpty());  // 非法 UTF-8 返回空
 }
 
+// ============================================================================
+// intern(const Utf8String&)
+// ============================================================================
+
+TEST(Utf8StringArenaTest, InternUtf8String) {
+    Utf8StringArena arena;
+    Utf8String s("Hello");
+    auto r = arena.intern(s);
+
+    EXPECT_EQ(r.length(), 5);
+    EXPECT_EQ(r.byteLength(), 5);
+    EXPECT_EQ(r.byteAt(0), 'H');
+
+    // 原始 Utf8String 仍有效
+    EXPECT_EQ(s.length(), 5);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringDedupWithCStr) {
+    Utf8StringArena arena;
+    auto r1 = arena.intern("Hello");
+    Utf8String s("Hello");
+    auto r2 = arena.intern(s);
+
+    // 指向同一块内存（去重）
+    EXPECT_EQ(r1.data(), r2.data());
+    EXPECT_EQ(arena.size(), 1);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringDedupWithRef) {
+    Utf8StringArena arena;
+    Utf8String s1("Hello");
+    auto r1 = arena.intern(s1);
+    Utf8String s2("Hello");
+    auto r2 = arena.intern(s2);
+
+    EXPECT_EQ(r1.data(), r2.data());
+    EXPECT_EQ(arena.size(), 1);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringMultiple) {
+    Utf8StringArena arena;
+    Utf8String s1("Hello");
+    Utf8String s2("World");
+
+    auto r1 = arena.intern(s1);
+    auto r2 = arena.intern(s2);
+
+    EXPECT_NE(r1.data(), r2.data());
+    EXPECT_EQ(arena.size(), 2);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringUnicode) {
+    Utf8StringArena arena;
+    Utf8String s("你好世界");
+    auto r = arena.intern(s);
+
+    EXPECT_EQ(r.length(), 4);
+    EXPECT_EQ(r.byteLength(), 12);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringEmpty) {
+    Utf8StringArena arena;
+    Utf8String s;
+    auto r = arena.intern(s);
+
+    EXPECT_TRUE(r.isEmpty());
+    EXPECT_EQ(arena.size(), 0);
+}
+
+TEST(Utf8StringArenaTest, InternUtf8StringOriginalUnchanged) {
+    Utf8StringArena arena;
+    Utf8String s("Hello World");
+    auto dataBefore = s.data();
+
+    auto r = arena.intern(s);
+
+    // intern 后原始对象数据不变
+    EXPECT_EQ(s.data(), dataBefore);
+    EXPECT_EQ(s.length(), 11);
+    EXPECT_EQ(s.byteLength(), 11);
+}
+
 }  // namespace ca::str
