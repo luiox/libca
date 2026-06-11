@@ -138,6 +138,8 @@ public:
     bool operator==(const Utf8StringRef& other) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
 
+    // 创建标准库的字符串
+    std::string toStdString() const;
 private:
     const u8* data_;
     usize     byteLength_;
@@ -281,6 +283,9 @@ public:
     bool operator==(const Utf8StringRef& other) const noexcept;
     bool operator!=(const Utf8String& other) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
+
+    // 创建标准库的字符串
+    std::string toStdString() const;
 
 private:
     u8*   data_;

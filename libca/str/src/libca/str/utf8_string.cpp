@@ -57,6 +57,12 @@ const u8* Utf8StringRef::data() const noexcept {
     return data_;
 }
 
+std::string Utf8StringRef::toStdString() const {
+    if (data_ == nullptr || byteLength_ == 0)
+        return std::string();
+    return std::string(reinterpret_cast<const char*>(data_), byteLength_);
+}
+
 u8 Utf8StringRef::byteAt(usize index) const {
     return data_[index];
 }
@@ -361,6 +367,10 @@ const u8* Utf8String::data() const noexcept {
 
 const char* Utf8String::cStr() const noexcept {
     return reinterpret_cast<const char*>(data_);
+}
+
+std::string Utf8String::toStdString() const {
+    return std::string(reinterpret_cast<const char*>(data_), byteLength_);
 }
 
 u8 Utf8String::byteAt(usize index) const {

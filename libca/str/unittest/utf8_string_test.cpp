@@ -689,4 +689,59 @@ TEST(Utf8StringRefTest, StreamOutput) {
     EXPECT_EQ(oss.str(), "Test");
 }
 
+// ============================================================================
+// toStdString 测试
+// ============================================================================
+
+TEST(Utf8StringRefTest, ToStdString) {
+    using namespace ca::str::literals;
+    auto ref = "Hello"_utf8_ref;
+    auto stdStr = ref.toStdString();
+    EXPECT_EQ(stdStr, "Hello");
+    EXPECT_EQ(stdStr.size(), 5);
+}
+
+TEST(Utf8StringRefTest, ToStdString_Unicode) {
+    using namespace ca::str::literals;
+    auto ref = "你好😀"_utf8_ref;
+    auto stdStr = ref.toStdString();
+    EXPECT_EQ(stdStr, "你好😀");
+    EXPECT_EQ(stdStr.size(), 10);
+}
+
+TEST(Utf8StringRefTest, ToStdString_Empty) {
+    Utf8StringRef ref;
+    auto stdStr = ref.toStdString();
+    EXPECT_TRUE(stdStr.empty());
+}
+
+TEST(Utf8StringTest, ToStdString) {
+    Utf8String s("Hello");
+    auto stdStr = s.toStdString();
+    EXPECT_EQ(stdStr, "Hello");
+    EXPECT_EQ(stdStr.size(), 5);
+}
+
+TEST(Utf8StringTest, ToStdString_Unicode) {
+    Utf8String s("你好😀");
+    auto stdStr = s.toStdString();
+    EXPECT_EQ(stdStr, "你好😀");
+    EXPECT_EQ(stdStr.size(), 10);
+}
+
+TEST(Utf8StringTest, ToStdString_Empty) {
+    Utf8String s;
+    auto stdStr = s.toStdString();
+    EXPECT_TRUE(stdStr.empty());
+}
+
+TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip) {
+    Utf8String s("Hello世界");
+    auto stdStr = s.toStdString();
+    EXPECT_EQ(stdStr, "Hello世界");
+    // 验证可重新构造 Utf8String
+    Utf8String roundtrip(stdStr.c_str());
+    EXPECT_EQ(roundtrip, s);
+}
+
 }  // namespace ca::str
