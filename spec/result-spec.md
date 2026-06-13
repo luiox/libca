@@ -17,7 +17,8 @@
 | `map_error(f) -> Result<T, F>` | `map_err()` | Err 值经 f 变换，Ok 透传 |
 | `then(f) -> Result<T, E>` | n/a | Ok 时执行副作用 f，原值透传 |
 | `otherwise(f) -> Result<T, E>` | `inspect_err()` | Err 时执行副作用 f，原值透传 |
-| `or_else(f) -> Result<T, F>` | `or_else()` | Err 时用 f 恢复 |
+| `and_then(f) -> Result<U, E>` | `and_then()` | Ok 时用 f 变换为新的 Result，Err 透传 |
+| `or_else(f) -> Result<T, F>` | `or_else()` | Err 时用 f 恢复为新的 Result |
 
 ## 工厂函数
 

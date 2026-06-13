@@ -257,7 +257,7 @@ template<typename Ret, typename Cls, typename Arg>
 struct Map<Ret (Cls::*)(Arg) const> {
 
     static_assert(!IsResult<Ret>::value,
-            "Can not map a callback returning a Result, use orElse instead");
+            "Can not map a callback returning a Result, use and_then instead");
 
     template<typename T, typename E, typename Func>
     static Result<T, Ret> map(const Result<T, E>& result, Func func) {
@@ -534,7 +534,7 @@ template<typename T, typename E, typename Func,
             >::type
        >
 >
-Ret orElse(const Result<T, E>& result, Func func) {
+Ret or_else(const Result<T, E>& result, Func func) {
     return Or::Else<Func>::orElse(result, func);
 }
 
@@ -806,8 +806,40 @@ struct Result {
                 >::type
            >
     >
-    Ret orElse(Func func) const {
-        return details::orElse(*this, func);
+    Ret or_else(Func func) const {
+        return details::or_else(*this, func);
+    }
+
+    template<typename Func,
+        typename Ret = typename details::result_of<Func>::type,
+        typename U = T>
+    typename std::enable_if<
+        !std::is_same<U, void>::value,
+        Ret
+    >::type
+    and_then(Func func) const {
+        static_assert(details::IsResult<Ret>::value,
+            "and_then expects a function returning a Result");
+        if (is_ok()) {
+            return func(storage().template get<T>());
+        }
+        return types::Err<E>(storage().template get<E>());
+    }
+
+    template<typename Func,
+        typename Ret = typename details::result_of<Func>::type,
+        typename U = T>
+    typename std::enable_if<
+        std::is_same<U, void>::value,
+        Ret
+    >::type
+    and_then(Func func) const {
+        static_assert(details::IsResult<Ret>::value,
+            "and_then expects a function returning a Result");
+        if (is_ok()) {
+            return func();
+        }
+        return types::Err<E>(storage().template get<E>());
     }
 
     storage_type& storage() {
