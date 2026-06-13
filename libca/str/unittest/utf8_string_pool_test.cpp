@@ -9,8 +9,8 @@ namespace ca::str {
 
 TEST(Utf8StringPooledPtrTest, DefaultEmpty) {
     Utf8StringPooledPtr p;
-    EXPECT_TRUE(p.isEmpty());
-    EXPECT_EQ(p.byteLength(), 0);
+    EXPECT_TRUE(p.is_empty());
+    EXPECT_EQ(p.byte_length(), 0);
     EXPECT_EQ(p.length(), 0);
     EXPECT_FALSE(p);
 }
@@ -19,9 +19,9 @@ TEST(Utf8StringPooledPtrTest, DataAccess) {
     Utf8StringPool pool;
     auto p = pool.intern("Hello");
     EXPECT_TRUE(p);
-    EXPECT_FALSE(p.isEmpty());
+    EXPECT_FALSE(p.is_empty());
     EXPECT_EQ(p.length(), 5);
-    EXPECT_EQ(p.byteLength(), 5);
+    EXPECT_EQ(p.byte_length(), 5);
     EXPECT_EQ(p.data()[0], 'H');
 }
 
@@ -29,29 +29,29 @@ TEST(Utf8StringPooledPtrTest, CopyRefCount) {
     Utf8StringPool pool;
     {
         auto p1 = pool.intern("Hello");
-        EXPECT_EQ(pool.activeEntries(), 1);
+        EXPECT_EQ(pool.active_entries(), 1);
 
         {
             auto p2 = p1;  // 拷贝
-            EXPECT_EQ(pool.activeEntries(), 1);
+            EXPECT_EQ(pool.active_entries(), 1);
         }
         // p2 析构，refCount 恢复
-        EXPECT_EQ(pool.activeEntries(), 1);
+        EXPECT_EQ(pool.active_entries(), 1);
     }
     // p1 析构，refCount=0，条目死亡
-    EXPECT_EQ(pool.activeEntries(), 0);
+    EXPECT_EQ(pool.active_entries(), 0);
 }
 
 TEST(Utf8StringPooledPtrTest, MoveNoRefCountChange) {
     Utf8StringPool pool;
     auto p1 = pool.intern("Hello");
-    EXPECT_EQ(pool.activeEntries(), 1);
+    EXPECT_EQ(pool.active_entries(), 1);
 
     auto p2 = std::move(p1);
     // p1 转移给 p2，refCount 不变
     EXPECT_FALSE(p1);       // p1 空了
     EXPECT_TRUE(p2);
-    EXPECT_EQ(pool.activeEntries(), 1);
+    EXPECT_EQ(pool.active_entries(), 1);
 
     // p2 析构
 }
@@ -61,10 +61,10 @@ TEST(Utf8StringPooledPtrTest, Assignment) {
     auto p1 = pool.intern("Hello");
     auto p2 = pool.intern("World");
 
-    EXPECT_EQ(pool.activeEntries(), 2);
+    EXPECT_EQ(pool.active_entries(), 2);
 
     p2 = p1;  // p2 指向 "Hello"，"World" 被释放
-    EXPECT_EQ(pool.activeEntries(), 1);
+    EXPECT_EQ(pool.active_entries(), 1);
     EXPECT_EQ(p2.length(), 5);
 }
 
@@ -73,7 +73,7 @@ TEST(Utf8StringPooledPtrTest, Ref) {
     auto p = pool.intern("Hello");
     auto ref = p.ref();
     EXPECT_EQ(ref.length(), 5);
-    EXPECT_EQ(ref.byteLength(), 5);
+    EXPECT_EQ(ref.byte_length(), 5);
 }
 
 TEST(Utf8StringPooledPtrTest, Compare) {
@@ -96,7 +96,7 @@ TEST(Utf8StringPooledPtrTest, Compare) {
 TEST(Utf8StringPoolTest, BasicIntern) {
     Utf8StringPool pool;
     auto p = pool.intern("Hello World");
-    EXPECT_FALSE(p.isEmpty());
+    EXPECT_FALSE(p.is_empty());
     EXPECT_EQ(p.length(), 11);
 }
 
@@ -107,7 +107,7 @@ TEST(Utf8StringPoolTest, InternDedup) {
     // 相同内容返回同一条目（指针相等）
     EXPECT_EQ(p1.data(), p2.data());
     EXPECT_EQ(pool.size(), 1);    // 只有 1 个条目
-    EXPECT_EQ(pool.activeEntries(), 1);
+    EXPECT_EQ(pool.active_entries(), 1);
 }
 
 TEST(Utf8StringPoolTest, InternDifferent) {
@@ -116,7 +116,7 @@ TEST(Utf8StringPoolTest, InternDifferent) {
     auto p2 = pool.intern("World");
     EXPECT_NE(p1.data(), p2.data());
     EXPECT_EQ(pool.size(), 2);
-    EXPECT_EQ(pool.activeEntries(), 2);
+    EXPECT_EQ(pool.active_entries(), 2);
 }
 
 TEST(Utf8StringPoolTest, InternEmpty) {
@@ -134,14 +134,14 @@ TEST(Utf8StringPoolTest, InternUtf8StringRef) {
     Utf8StringRef ref(data, 3, 1);
     auto p = pool.intern(ref);
     EXPECT_EQ(p.length(), 1);
-    EXPECT_EQ(p.byteLength(), 3);
+    EXPECT_EQ(p.byte_length(), 3);
 }
 
 TEST(Utf8StringPoolTest, InternUnicode) {
     Utf8StringPool pool;
     auto p = pool.intern("你好世界");
     EXPECT_EQ(p.length(), 4);
-    EXPECT_EQ(p.byteLength(), 12);
+    EXPECT_EQ(p.byte_length(), 12);
 }
 
 TEST(Utf8StringPoolTest, InternInvalidUtf8) {
@@ -159,7 +159,7 @@ TEST(Utf8StringPoolTest, Clear) {
 
     pool.clear();
     EXPECT_EQ(pool.size(), 0);
-    EXPECT_EQ(pool.activeEntries(), 0);
+    EXPECT_EQ(pool.active_entries(), 0);
 
     // 清空后可继续使用
     auto p = pool.intern("Hello");
@@ -171,7 +171,7 @@ TEST(Utf8StringPoolTest, TotalBytes) {
     Utf8StringPool pool;
     auto h = pool.intern("Hello");
     auto w = pool.intern("World");
-    EXPECT_EQ(pool.totalBytes(), 10);
+    EXPECT_EQ(pool.total_bytes(), 10);
 }
 
 TEST(Utf8StringPoolTest, Move) {
@@ -180,7 +180,7 @@ TEST(Utf8StringPoolTest, Move) {
 
     Utf8StringPool p2(std::move(p1));
     EXPECT_EQ(p2.size(), 1);
-    EXPECT_EQ(p2.activeEntries(), 1);
+    EXPECT_EQ(p2.active_entries(), 1);
 
     // ptr 指向的条目仍有效
     EXPECT_EQ(ptr.length(), 5);
@@ -190,12 +190,12 @@ TEST(Utf8StringPoolTest, RefCountAutoRelease) {
     Utf8StringPool pool;
     {
         auto p = pool.intern("Temp");
-        EXPECT_EQ(pool.activeEntries(), 1);
-        EXPECT_EQ(pool.totalBytes(), 4);
+        EXPECT_EQ(pool.active_entries(), 1);
+        EXPECT_EQ(pool.total_bytes(), 4);
     }
     // 离开作用域，refCount=0，数据释放
-    EXPECT_EQ(pool.activeEntries(), 0);
-    EXPECT_EQ(pool.totalBytes(), 0);
+    EXPECT_EQ(pool.active_entries(), 0);
+    EXPECT_EQ(pool.total_bytes(), 0);
 }
 
 TEST(Utf8StringPoolTest, PooledPtrCompareWithRef) {
@@ -218,7 +218,7 @@ TEST(Utf8StringPoolTest, LargeBatch) {
         if (i == 0) kept = p;  // 保持一个引用不被析构
     }
     EXPECT_EQ(pool.size(), 1);      // 只有 1 个唯一条目
-    EXPECT_EQ(pool.activeEntries(), 1);
+    EXPECT_EQ(pool.active_entries(), 1);
 }
 
 }  // namespace ca::str

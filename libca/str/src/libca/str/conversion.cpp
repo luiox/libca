@@ -20,7 +20,7 @@ namespace ca::str {
 
 CString toCString(const Utf8StringRef& str) {
     // Utf8String 内部是 u8[] = UTF-8 编码 → 直接当 char[] 拷贝
-    return CString(reinterpret_cast<const char*>(str.data()), str.byteLength());
+    return CString(reinterpret_cast<const char*>(str.data()), str.byte_length());
 }
 
 Utf8String toUtf8String(const CStringRef& str) {
@@ -35,7 +35,7 @@ Utf8String toUtf8String(const CStringRef& str) {
 
 WString toWString(const Utf8StringRef& str) {
     auto  data = str.data();
-    auto  len  = str.byteLength();
+    auto  len  = str.byte_length();
 
     // 第一遍：计算需要的 wchar_t 数量
     // 对于 UTF-32 (Linux/macOS): 每个码点 = 1 wchar_t
@@ -43,11 +43,11 @@ WString toWString(const Utf8StringRef& str) {
     usize pos = 0;
     usize wcCount = 0;
     while (pos < len) {
-        auto clen = utf8CodePointBytes(data[pos]);
+        auto clen = utf8_code_point_bytes(data[pos]);
         if (clen == 0 || pos + clen > len) {
             throw std::runtime_error("toWString: invalid UTF-8 sequence");
         }
-        auto cp = utf8DecodeCodePoint(data + pos);
+        auto cp = utf8_decode_code_point(data + pos);
 #if defined(_WIN32)
         // Windows: wchar_t = UTF-16LE
         if (cp >= 0x10000 && cp <= 0x10FFFF) {
@@ -67,8 +67,8 @@ WString toWString(const Utf8StringRef& str) {
     pos = 0;
     usize outIdx = 0;
     while (pos < len) {
-        auto clen = utf8CodePointBytes(data[pos]);
-        auto cp   = utf8DecodeCodePoint(data + pos);
+        auto clen = utf8_code_point_bytes(data[pos]);
+        auto cp   = utf8_decode_code_point(data + pos);
 #if defined(_WIN32)
         if (cp >= 0x10000 && cp <= 0x10FFFF) {
             Utf16Char high, low;
@@ -147,7 +147,7 @@ Utf8String toUtf8String(const WStringRef& str) {
 #else
         cp = static_cast<u32>(data[i]);
 #endif
-        outPos += utf8EncodeCodePoint(cp, buf.get() + outPos);
+        outPos += utf8_encode_code_point(cp, buf.get() + outPos);
     }
     buf[byteCount] = '\0';
 
@@ -180,10 +180,10 @@ usize utf8ToUtf16Length(const u8* utf8, usize byteLength) noexcept {
     usize pos = 0;
     usize count = 0;
     while (pos < byteLength) {
-        auto clen = utf8CodePointBytes(utf8[pos]);
+        auto clen = utf8_code_point_bytes(utf8[pos]);
         if (clen == 0 || pos + clen > byteLength)
             return 0;
-        auto cp = utf8DecodeCodePoint(utf8 + pos);
+        auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
             return 0;
         count += (cp >= 0x10000) ? 2 : 1;
@@ -196,10 +196,10 @@ usize utf8ToUtf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
     usize pos = 0;
     usize out = 0;
     while (pos < byteLength) {
-        auto clen = utf8CodePointBytes(utf8[pos]);
+        auto clen = utf8_code_point_bytes(utf8[pos]);
         if (clen == 0 || pos + clen > byteLength)
             return 0;
-        auto cp = utf8DecodeCodePoint(utf8 + pos);
+        auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
             return 0;
         if (cp >= 0x10000) {
@@ -249,7 +249,7 @@ usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
         } else {
             cp = utf16[i];
         }
-        out += utf8EncodeCodePoint(cp, utf8 + out);
+        out += utf8_encode_code_point(cp, utf8 + out);
     }
     return out;
 }

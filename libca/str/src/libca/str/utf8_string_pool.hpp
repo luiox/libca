@@ -3,15 +3,15 @@
 // @author Canrad
 // @date 2026/05/31
 // @note 非线程安全。Pool 必须 outlive 所有 PooledPtr。
-//       PooledPtr 拷贝时原子递增 refCount，析构时递减到 0 自动释放数据。
+//       PooledPtr 拷贝时原子递增 ref_count，析构时递减到 0 自动释放数据。
 //
 // 使用场景:
 //   对象寿命不一致的场景，每个字符串独立管理生存期。
 //   Utf8StringPool pool;
-//   auto s1 = pool.intern("hello");  // refCount=1
-//   auto s2 = s1;                    // refCount=2
-//   // s2 析构 → refCount=1
-//   // s1 析构 → refCount=0 → 释放内存
+//   auto s1 = pool.intern("hello");  // ref_count=1
+//   auto s2 = s1;                    // ref_count=2
+//   // s2 析构 → ref_count=1
+//   // s1 析构 → ref_count=0 → 释放内存
 //
 
 #ifndef LIBCA_STR_UTF8_STRING_POOL_HPP
@@ -41,10 +41,10 @@ class Utf8StringPool;
 
 struct Utf8PoolEntry {
     u8*   data;
-    usize byteLength;
+    usize byte_length;
     usize length;    // 码点个数
     usize hash;
-    usize refCount;
+    usize ref_count;
     bool  alive;
 };
 
@@ -54,7 +54,7 @@ struct Utf8PoolEntry {
 // ============================================================================
 //
 // 8 字节（一个指针），指向 Pool 内部的 PoolEntry。
-// 拷贝/赋值递增 refCount，析构递减，到 0 自动释放数据。
+// 拷贝/赋值递增 ref_count，析构递减，到 0 自动释放数据。
 //
 
 class Utf8StringPooledPtr {
@@ -62,13 +62,13 @@ public:
     // 默认构造：空指针
     Utf8StringPooledPtr() noexcept;
 
-    // 拷贝构造：递增 refCount
+    // 拷贝构造：递增 ref_count
     Utf8StringPooledPtr(const Utf8StringPooledPtr& other) noexcept;
 
-    // 移动构造：转移所有权，不改变 refCount
+    // 移动构造：转移所有权，不改变 ref_count
     Utf8StringPooledPtr(Utf8StringPooledPtr&& other) noexcept;
 
-    // 析构：递减 refCount，到 0 释放数据
+    // 析构：递减 ref_count，到 0 释放数据
     ~Utf8StringPooledPtr();
 
     // 拷贝赋值
@@ -80,9 +80,9 @@ public:
     // ---- 访问 ----
 
     const u8* data() const noexcept;
-    usize     byteLength() const noexcept;
+    usize     byte_length() const noexcept;
     usize     length() const noexcept;  // 码点个数
-    bool      isEmpty() const noexcept;
+    bool      is_empty() const noexcept;
 
     explicit operator bool() const noexcept;
 
@@ -127,7 +127,7 @@ public:
     // ---- intern ----
 
     // 插入或获取已存在的引用计数条目
-    Utf8StringPooledPtr intern(const u8* data, usize byteLength);
+    Utf8StringPooledPtr intern(const u8* data, usize byte_length);
     Utf8StringPooledPtr intern(const char* cstr);
     Utf8StringPooledPtr intern(const Utf8StringRef& str);
 
@@ -136,11 +136,11 @@ public:
     // 已分配的 PoolEntry 总数（含墓碑）
     usize size() const noexcept;
 
-    // 活跃条目数（refCount > 0）
-    usize activeEntries() const noexcept;
+    // 活跃条目数（ref_count > 0）
+    usize active_entries() const noexcept;
 
     // 已分配字节总量
-    usize totalBytes() const noexcept;
+    usize total_bytes() const noexcept;
 
     // 重置，释放全部（调用者需确保无活跃 PooledPtr）
     void clear() noexcept;
@@ -148,9 +148,9 @@ public:
 private:
     std::list<Utf8PoolEntry> entries_;
     using HashIndex = std::unordered_map<usize, std::vector<Utf8PoolEntry*>>;
-    HashIndex hashIndex_;
+    HashIndex hash_index_;
 
-    usize computeHash(const u8* data, usize byteLength) const noexcept;
+    usize compute_hash(const u8* data, usize byte_length) const noexcept;
 };
 
 

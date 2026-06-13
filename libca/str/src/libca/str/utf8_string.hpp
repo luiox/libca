@@ -39,9 +39,9 @@ public:
 
     // 从字节数据 + 码点个数构造（不校验，不复制）
     // data: UTF-8 字节数据指针
-    // byteLength: 字节长度
+    // byte_length: 字节长度
     // length: 码点个数
-    Utf8StringRef(const u8* data, usize byteLength, usize length) noexcept;
+    Utf8StringRef(const u8* data, usize byte_length, usize length) noexcept;
 
     // 从 Utf8String 构造视图
     Utf8StringRef(const Utf8String& str) noexcept;
@@ -61,50 +61,50 @@ public:
     usize length() const noexcept;
 
     // 字节长度（O(1)）
-    usize byteLength() const noexcept;
+    usize byte_length() const noexcept;
 
     // 是否为空字符串
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
 
     // 原始字节数据指针（非空终止）
     const u8* data() const noexcept;
 
-    // 不提供cStr的根本原因是 拿到原始的c风格字符串，如果UTF8字符串内部有\0，那么不能保证可用性，
+    // 不提供c_str的根本原因是 拿到原始的c风格字符串，如果UTF8字符串内部有\0，那么不能保证可用性，
     // 其次如果只为了方便提供一个const char*版本的原始字符串，而且因为是ref，所以如果是别人字符串的中间切片的ref，也不能随意修改加\0
-    // 所以cStr这种导出一个const char*的接口不能在0拷贝情况下存在
-    // const char* cStr();
+    // 所以c_str这种导出一个const char*的接口不能在0拷贝情况下存在
+    // const char* c_str();
 
     // ---- 访问 ----
 
     // 按字节下标访问（O(1)），不进行边界检查
-    u8 byteAt(usize index) const;
+    u8 byte_at(usize index) const;
 
     // 按码点下标访问（O(n)），不进行边界检查
-    u32 codePointAt(usize index) const;
+    u32 code_point_at(usize index) const;
 
     // ---- 切片（返回 Utf8StringRef，不分配内存） ----
 
-    // 按字节区间 [byteStart, byteEnd) 切片
-    Utf8StringRef slice(usize byteStart, usize byteEnd) const;
+    // 按字节区间 [byte_start, byte_end) 切片
+    Utf8StringRef slice(usize byte_start, usize byte_end) const;
 
-    // 按码点区间切片：从第 cpStart 个码点开始，取 cpCount 个码点
-    Utf8StringRef sliceByCp(usize cpStart, usize cpCount) const;
+    // 按码点区间切片：从第 cp_start 个码点开始，取 cp_count 个码点
+    Utf8StringRef slice_by_cp(usize cp_start, usize cp_count) const;
 
     // ---- 子串（返回 Utf8String，分配内存） ----
 
-    // 按码点取子串：从第 cpStart 个码点开始，取 cpCount 个码点
-    Utf8String substr(usize cpStart, usize cpCount) const;
+    // 按码点取子串：从第 cp_start 个码点开始，取 cp_count 个码点
+    Utf8String substr(usize cp_start, usize cp_count) const;
 
     // ---- 前缀/后缀检查（字节级，O(n)）----
 
-    bool startsWith(const Utf8StringRef& prefix) const noexcept;
-    bool endsWith(const Utf8StringRef& suffix) const noexcept;
+    bool starts_with(const Utf8StringRef& prefix) const noexcept;
+    bool ends_with(const Utf8StringRef& suffix) const noexcept;
 
     // ---- 修剪（返回视图，不分配） ----
 
     Utf8StringRef trim() const noexcept;
-    Utf8StringRef trimStart() const noexcept;
-    Utf8StringRef trimEnd() const noexcept;
+    Utf8StringRef trim_start() const noexcept;
+    Utf8StringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
 
@@ -112,20 +112,20 @@ public:
 
     // ---- 大小写转换（返回 Utf8String，分配） ----
 
-    Utf8String toLower() const;
-    Utf8String toUpper() const;
+    Utf8String to_lower() const;
+    Utf8String to_upper() const;
 
     // ---- 替换 ----
 
-    Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
+    Utf8String replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const;
 
     // ---- 查找 ----
 
     // 查找子串首次出现的码点下标，未找到返回 npos
-    usize indexOf(const Utf8StringRef& needle) const noexcept;
-    usize indexOf(const Utf8StringRef& needle, usize startCp) const noexcept;
-    usize indexOf(u32 codePoint) const noexcept;
-    usize indexOf(u32 codePoint, usize startCp) const noexcept;
+    usize index_of(const Utf8StringRef& needle) const noexcept;
+    usize index_of(const Utf8StringRef& needle, usize start_cp) const noexcept;
+    usize index_of(u32 code_point) const noexcept;
+    usize index_of(u32 code_point, usize start_cp) const noexcept;
 
     // 是否包含子串
     bool contains(const Utf8StringRef& needle) const noexcept;
@@ -147,10 +147,10 @@ public:
     bool operator!=(const Utf8StringRef& other) const noexcept;
 
     // 创建标准库的字符串
-    std::string toStdString() const;
+    std::string to_std_string() const;
 private:
     const u8* data_;
-    usize     byteLength_;
+    usize     byte_length_;
     usize     length_;   // 码点个数
 };
 
@@ -168,8 +168,8 @@ public:
 
     // 从字节数组构造（复制 + 校验 UTF-8 合法性）
     // data: UTF-8 字节数据（不必以 '\0' 结尾）
-    // byteLength: 字节长度
-    Utf8String(const u8* data, usize byteLength);
+    // byte_length: 字节长度
+    Utf8String(const u8* data, usize byte_length);
 
     // 从 C 风格字符串构造（null-terminated）
     explicit Utf8String(const char* cstr);
@@ -207,39 +207,39 @@ public:
     usize length() const noexcept;
 
     // 字节长度（O(1)）
-    usize byteLength() const noexcept;
+    usize byte_length() const noexcept;
 
     // 是否为空字符串
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
 
     // STL 兼容别名
     usize size() const noexcept { return length_; }
-    bool empty() const noexcept { return byteLength_ == 0; }
+    bool empty() const noexcept { return byte_length_ == 0; }
 
     // 原始字节数据指针（内部存储以 '\0' 结尾）
     const u8* data() const noexcept;
 
     // C 风格字符串（O(1)，内部已有 '\0' 终止符）
-    const char* cStr() const noexcept;
+    const char* c_str() const noexcept;
 
     // ---- 访问 ----
 
     // 按字节下标访问（O(1)），不进行边界检查
-    u8 byteAt(usize index) const;
+    u8 byte_at(usize index) const;
 
     // 按码点下标访问（O(n) 扫描），不进行边界检查
-    u32 codePointAt(usize index) const;
+    u32 code_point_at(usize index) const;
 
     // ---- 视图 / 切片 ----
 
     // 获取整个字符串的 Utf8StringRef 视图
     Utf8StringRef ref() const noexcept;
 
-    // 按字节区间 [byteStart, byteEnd) 切片，返回非拥有视图
-    Utf8StringRef slice(usize byteStart, usize byteEnd) const;
+    // 按字节区间 [byte_start, byte_end) 切片，返回非拥有视图
+    Utf8StringRef slice(usize byte_start, usize byte_end) const;
 
-    // 按码点区间切片：从第 cpStart 个码点开始，取 cpCount 个码点
-    Utf8StringRef sliceByCp(usize cpStart, usize cpCount) const;
+    // 按码点区间切片：从第 cp_start 个码点开始，取 cp_count 个码点
+    Utf8StringRef slice_by_cp(usize cp_start, usize cp_count) const;
 
     // ---- 迭代器 ----
 
@@ -248,19 +248,19 @@ public:
 
     // ---- 子串 ----
 
-    // 按码点取子串：从第 cpStart 个码点开始，取 cpCount 个码点
-    Utf8String substr(usize cpStart, usize cpCount) const;
+    // 按码点取子串：从第 cp_start 个码点开始，取 cp_count 个码点
+    Utf8String substr(usize cp_start, usize cp_count) const;
 
     // ---- 前缀/后缀 ----
 
-    bool startsWith(const Utf8StringRef& prefix) const noexcept;
-    bool endsWith(const Utf8StringRef& suffix) const noexcept;
+    bool starts_with(const Utf8StringRef& prefix) const noexcept;
+    bool ends_with(const Utf8StringRef& suffix) const noexcept;
 
     // ---- 修剪 ----
 
     Utf8StringRef trim() const noexcept;
-    Utf8StringRef trimStart() const noexcept;
-    Utf8StringRef trimEnd() const noexcept;
+    Utf8StringRef trim_start() const noexcept;
+    Utf8StringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
 
@@ -268,19 +268,19 @@ public:
 
     // ---- 大小写转换 ----
 
-    Utf8String toLower() const;
-    Utf8String toUpper() const;
+    Utf8String to_lower() const;
+    Utf8String to_upper() const;
 
     // ---- 替换 ----
 
-    Utf8String replaceAll(const Utf8StringRef& from, const Utf8StringRef& to) const;
+    Utf8String replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const;
 
     // ---- 查找 ----
 
-    usize indexOf(const Utf8StringRef& needle) const noexcept;
-    usize indexOf(const Utf8StringRef& needle, usize startCp) const noexcept;
-    usize indexOf(u32 codePoint) const noexcept;
-    usize indexOf(u32 codePoint, usize startCp) const noexcept;
+    usize index_of(const Utf8StringRef& needle) const noexcept;
+    usize index_of(const Utf8StringRef& needle, usize start_cp) const noexcept;
+    usize index_of(u32 code_point) const noexcept;
+    usize index_of(u32 code_point, usize start_cp) const noexcept;
     bool contains(const Utf8StringRef& needle) const noexcept;
 
     // ---- 比较 ----
@@ -294,15 +294,15 @@ public:
     bool operator!=(const Utf8StringRef& other) const noexcept;
 
     // 创建标准库的字符串
-    std::string toStdString() const;
+    std::string to_std_string() const;
 
 private:
     u8*   data_;
-    usize byteLength_;
+    usize byte_length_;
     usize length_;   // 码点个数（缓存）
 
-    // 内部初始化：从 src 复制 byteLen 字节，校验 UTF-8，计算码点个数
-    void init(const u8* src, usize byteLen);
+    // 内部初始化：从 src 复制 byte_len 字节，校验 UTF-8，计算码点个数
+    void init(const u8* src, usize byte_len);
 };
 
 
@@ -324,24 +324,24 @@ public:
     Utf8StringBuilder& append(const Utf8StringRef& str);
     Utf8StringBuilder& append(const Utf8String& str);
     Utf8StringBuilder& append(const char* cstr);
-    Utf8StringBuilder& append(const u8* data, usize byteLength);
-    bool appendCodePoint(u32 cp);
+    Utf8StringBuilder& append(const u8* data, usize byte_length);
+    bool append_code_point(u32 cp);
 
-    void reserve(usize byteCapacity);
+    void reserve(usize byte_capacity);
     usize capacity() const noexcept;
-    usize byteLength() const noexcept;
-    bool isEmpty() const noexcept;
+    usize byte_length() const noexcept;
+    bool is_empty() const noexcept;
     void clear() noexcept;
 
     Utf8String build() const;
-    Utf8String buildOrEmpty() const noexcept;
+    Utf8String build_or_empty() const noexcept;
 
 private:
     u8*   buffer_;
-    usize byteLength_;
+    usize byte_length_;
     usize capacity_;
-    static constexpr usize kDefaultCapacity = 64;
-    void grow(usize minCapacity);
+    static constexpr usize DEFAULT_CAPACITY = 64;
+    void grow(usize min_capacity);
 };
 
 
@@ -361,17 +361,17 @@ public:
     Utf8Iterator(const u8* pos, const u8* end) noexcept : pos_(pos), end_(end) {}
 
     u32 operator*() const noexcept {
-        return utf8DecodeCodePoint(pos_);
+        return utf8_decode_code_point(pos_);
     }
 
     Utf8Iterator& operator++() noexcept {
-        pos_ += utf8CodePointBytesSafe(*pos_);
+        pos_ += utf8_code_point_bytes_safe(*pos_);
         return *this;
     }
 
     Utf8Iterator operator++(int) noexcept {
         Utf8Iterator tmp = *this;
-        pos_ += utf8CodePointBytesSafe(*pos_);
+        pos_ += utf8_code_point_bytes_safe(*pos_);
         return tmp;
     }
 
@@ -383,7 +383,7 @@ public:
         return pos_ != other.pos_;
     }
 
-    const u8* bytePtr() const noexcept { return pos_; }
+    const u8* byte_ptr() const noexcept { return pos_; }
 
 private:
     const u8* pos_;

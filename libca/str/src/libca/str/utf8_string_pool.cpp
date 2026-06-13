@@ -21,11 +21,11 @@ Utf8StringPooledPtr::Utf8StringPooledPtr(Utf8PoolEntry* entry) noexcept
 
 void Utf8StringPooledPtr::acquire() noexcept {
     if (entry_)
-        ++entry_->refCount;
+        ++entry_->ref_count;
 }
 
 void Utf8StringPooledPtr::release() noexcept {
-    if (entry_ && --entry_->refCount == 0) {
+    if (entry_ && --entry_->ref_count == 0) {
         entry_->alive = false;
         delete[] entry_->data;
         entry_->data = nullptr;
@@ -68,16 +68,16 @@ const u8* Utf8StringPooledPtr::data() const noexcept {
     return entry_ ? entry_->data : nullptr;
 }
 
-usize Utf8StringPooledPtr::byteLength() const noexcept {
-    return entry_ ? entry_->byteLength : 0;
+usize Utf8StringPooledPtr::byte_length() const noexcept {
+    return entry_ ? entry_->byte_length : 0;
 }
 
 usize Utf8StringPooledPtr::length() const noexcept {
     return entry_ ? entry_->length : 0;
 }
 
-bool Utf8StringPooledPtr::isEmpty() const noexcept {
-    return entry_ == nullptr || entry_->byteLength == 0;
+bool Utf8StringPooledPtr::is_empty() const noexcept {
+    return entry_ == nullptr || entry_->byte_length == 0;
 }
 
 Utf8StringPooledPtr::operator bool() const noexcept {
@@ -86,7 +86,7 @@ Utf8StringPooledPtr::operator bool() const noexcept {
 
 Utf8StringRef Utf8StringPooledPtr::ref() const noexcept {
     if (!entry_) return Utf8StringRef();
-    return Utf8StringRef(entry_->data, entry_->byteLength, entry_->length);
+    return Utf8StringRef(entry_->data, entry_->byte_length, entry_->length);
 }
 
 bool Utf8StringPooledPtr::operator==(const Utf8StringPooledPtr& other) const noexcept {
@@ -117,9 +117,9 @@ Utf8StringPool::~Utf8StringPool() {
 
 Utf8StringPool::Utf8StringPool(Utf8StringPool&& other) noexcept
     : entries_(std::move(other.entries_))
-    , hashIndex_(std::move(other.hashIndex_)) {
+    , hash_index_(std::move(other.hash_index_)) {
     other.entries_.clear();
-    other.hashIndex_.clear();
+    other.hash_index_.clear();
 }
 
 Utf8StringPool& Utf8StringPool::operator=(Utf8StringPool&& other) noexcept {
@@ -132,53 +132,53 @@ Utf8StringPool& Utf8StringPool::operator=(Utf8StringPool&& other) noexcept {
             }
         }
         entries_ = std::move(other.entries_);
-        hashIndex_ = std::move(other.hashIndex_);
+        hash_index_ = std::move(other.hash_index_);
         other.entries_.clear();
-        other.hashIndex_.clear();
+        other.hash_index_.clear();
     }
     return *this;
 }
 
-usize Utf8StringPool::computeHash(const u8* data, usize byteLength) const noexcept {
+usize Utf8StringPool::compute_hash(const u8* data, usize byte_length) const noexcept {
     usize h = 14695981039346656037ULL;
-    for (usize i = 0; i < byteLength; ++i) {
+    for (usize i = 0; i < byte_length; ++i) {
         h ^= static_cast<usize>(data[i]);
         h *= 1099511628211ULL;
     }
     return h;
 }
 
-Utf8StringPooledPtr Utf8StringPool::intern(const u8* data, usize byteLength) {
-    if (data == nullptr || byteLength == 0)
+Utf8StringPooledPtr Utf8StringPool::intern(const u8* data, usize byte_length) {
+    if (data == nullptr || byte_length == 0)
         return Utf8StringPooledPtr();
 
-    auto hash = computeHash(data, byteLength);
+    auto hash = compute_hash(data, byte_length);
 
     // 去重查找：相同 hash 的活跃条目中比较
-    auto it = hashIndex_.find(hash);
-    if (it != hashIndex_.end()) {
+    auto it = hash_index_.find(hash);
+    if (it != hash_index_.end()) {
         for (auto* ep : it->second) {
-            if (ep->alive && ep->byteLength == byteLength &&
-                std::memcmp(ep->data, data, byteLength) == 0) {
-                // 找到已存在的条目，递增 refCount
-                ++ep->refCount;
+            if (ep->alive && ep->byte_length == byte_length &&
+                std::memcmp(ep->data, data, byte_length) == 0) {
+                // 找到已存在的条目，递增 ref_count
+                ++ep->ref_count;
                 return Utf8StringPooledPtr(ep);
             }
         }
     }
 
     // 计算码点个数
-    usize cpCount = utf8CountCodePoints(data, byteLength);
-    if (cpCount == 0)
+    usize cp_count = utf8_count_code_points(data, byte_length);
+    if (cp_count == 0)
         return Utf8StringPooledPtr();  // 非法 UTF-8
 
     // 分配新条目
-    auto* buf = new u8[byteLength];
-    std::memcpy(buf, data, byteLength);
+    auto* buf = new u8[byte_length];
+    std::memcpy(buf, data, byte_length);
 
-    entries_.push_back({buf, byteLength, cpCount, hash, 1, true});
+    entries_.push_back({buf, byte_length, cp_count, hash, 1, true});
     auto* ep = &entries_.back();
-    hashIndex_[hash].push_back(ep);
+    hash_index_[hash].push_back(ep);
 
     return Utf8StringPooledPtr(ep);
 }
@@ -190,14 +190,14 @@ Utf8StringPooledPtr Utf8StringPool::intern(const char* cstr) {
 }
 
 Utf8StringPooledPtr Utf8StringPool::intern(const Utf8StringRef& str) {
-    return intern(str.data(), str.byteLength());
+    return intern(str.data(), str.byte_length());
 }
 
 usize Utf8StringPool::size() const noexcept {
     return entries_.size();
 }
 
-usize Utf8StringPool::activeEntries() const noexcept {
+usize Utf8StringPool::active_entries() const noexcept {
     usize count = 0;
     for (auto& e : entries_) {
         if (e.alive) ++count;
@@ -205,11 +205,11 @@ usize Utf8StringPool::activeEntries() const noexcept {
     return count;
 }
 
-usize Utf8StringPool::totalBytes() const noexcept {
+usize Utf8StringPool::total_bytes() const noexcept {
     usize total = 0;
     for (auto& e : entries_) {
         if (e.alive)
-            total += e.byteLength;
+            total += e.byte_length;
     }
     return total;
 }
@@ -222,7 +222,7 @@ void Utf8StringPool::clear() noexcept {
         }
     }
     entries_.clear();
-    hashIndex_.clear();
+    hash_index_.clear();
 }
 
 
@@ -250,7 +250,7 @@ namespace std {
 size_t hash<ca::str::Utf8StringPooledPtr>::operator()(
     const ca::str::Utf8StringPooledPtr& p) const noexcept {
     auto data = p.data();
-    auto len  = p.byteLength();
+    auto len  = p.byte_length();
     size_t h  = 14695981039346656037ULL;
     for (size_t i = 0; i < len; ++i) {
         h ^= static_cast<size_t>(data[i]);

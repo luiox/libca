@@ -12,18 +12,18 @@ TEST(Utf8StringArenaTest, EmptyIntern) {
     EXPECT_EQ(arena.size(), 0);
 
     auto r = arena.intern(nullptr, 0);
-    EXPECT_TRUE(r.isEmpty());
+    EXPECT_TRUE(r.is_empty());
 
     r = arena.intern(static_cast<const char*>(nullptr));
-    EXPECT_TRUE(r.isEmpty());
+    EXPECT_TRUE(r.is_empty());
 }
 
 TEST(Utf8StringArenaTest, InternCStr) {
     Utf8StringArena arena;
     auto r = arena.intern("Hello");
     EXPECT_EQ(r.length(), 5);
-    EXPECT_EQ(r.byteLength(), 5);
-    EXPECT_EQ(r.byteAt(0), 'H');
+    EXPECT_EQ(r.byte_length(), 5);
+    EXPECT_EQ(r.byte_at(0), 'H');
 }
 
 TEST(Utf8StringArenaTest, InternDedup) {
@@ -46,7 +46,7 @@ TEST(Utf8StringArenaTest, InternUnicode) {
     Utf8StringArena arena;
     auto r = arena.intern("你好世界");
     EXPECT_EQ(r.length(), 4);
-    EXPECT_EQ(r.byteLength(), 12);
+    EXPECT_EQ(r.byte_length(), 12);
 }
 
 TEST(Utf8StringArenaTest, InternUtf8StringRef) {
@@ -55,7 +55,7 @@ TEST(Utf8StringArenaTest, InternUtf8StringRef) {
     Utf8StringRef ref(data, 3, 3);
     auto r = arena.intern(ref);
     EXPECT_EQ(r.length(), 3);
-    EXPECT_EQ(r.byteAt(0), 0x41);
+    EXPECT_EQ(r.byte_at(0), 0x41);
 }
 
 TEST(Utf8StringArenaTest, Move) {
@@ -85,10 +85,10 @@ TEST(Utf8StringArenaTest, Clear) {
 
 TEST(Utf8StringArenaTest, TotalBytes) {
     Utf8StringArena arena;
-    EXPECT_GT(arena.totalBytes(), 0);  // 至少有一个 chunk
+    EXPECT_GT(arena.total_bytes(), 0);  // 至少有一个 chunk
 
     arena.intern("Hello");
-    EXPECT_GT(arena.totalBytes(), 0);
+    EXPECT_GT(arena.total_bytes(), 0);
 }
 
 TEST(Utf8StringArenaTest, LargeBatch) {
@@ -106,7 +106,7 @@ TEST(Utf8StringArenaTest, InternInvalidUtf8) {
     Utf8StringArena arena;
     u8 bad[] = {0xFF, 0xFE};
     auto r = arena.intern(bad, 2);
-    EXPECT_TRUE(r.isEmpty());  // 非法 UTF-8 返回空
+    EXPECT_TRUE(r.is_empty());  // 非法 UTF-8 返回空
 }
 
 // ============================================================================
@@ -119,8 +119,8 @@ TEST(Utf8StringArenaTest, InternUtf8String) {
     auto r = arena.intern(s);
 
     EXPECT_EQ(r.length(), 5);
-    EXPECT_EQ(r.byteLength(), 5);
-    EXPECT_EQ(r.byteAt(0), 'H');
+    EXPECT_EQ(r.byte_length(), 5);
+    EXPECT_EQ(r.byte_at(0), 'H');
 
     // 原始 Utf8String 仍有效
     EXPECT_EQ(s.length(), 5);
@@ -166,7 +166,7 @@ TEST(Utf8StringArenaTest, InternUtf8StringUnicode) {
     auto r = arena.intern(s);
 
     EXPECT_EQ(r.length(), 4);
-    EXPECT_EQ(r.byteLength(), 12);
+    EXPECT_EQ(r.byte_length(), 12);
 }
 
 TEST(Utf8StringArenaTest, InternUtf8StringEmpty) {
@@ -174,7 +174,7 @@ TEST(Utf8StringArenaTest, InternUtf8StringEmpty) {
     Utf8String s;
     auto r = arena.intern(s);
 
-    EXPECT_TRUE(r.isEmpty());
+    EXPECT_TRUE(r.is_empty());
     EXPECT_EQ(arena.size(), 0);
 }
 
@@ -188,7 +188,7 @@ TEST(Utf8StringArenaTest, InternUtf8StringOriginalUnchanged) {
     // intern 后原始对象数据不变
     EXPECT_EQ(s.data(), dataBefore);
     EXPECT_EQ(s.length(), 11);
-    EXPECT_EQ(s.byteLength(), 11);
+    EXPECT_EQ(s.byte_length(), 11);
 }
 
 }  // namespace ca::str
