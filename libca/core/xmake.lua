@@ -4,7 +4,7 @@ target("libca_core")
     set_kind("static")
     set_group("libs")
     add_headerfiles("src/libca/core/*.hpp")
-    add_files("src/libca/core/byte_buffer.cpp")
+    add_files("src/libca/core/bytes.cpp")
     add_includedirs("src", {public = true})
 
 target("libca_core_unittest")

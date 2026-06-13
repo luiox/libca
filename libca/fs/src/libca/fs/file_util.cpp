@@ -50,8 +50,8 @@ Result<ByteVector, std::string> FileUtil::readAllBytes(const std::string& path)
 Result<std::string, std::string> FileUtil::readAllText(const std::string& path)
 {
     auto result = readAllBytes(path);
-    if (result.isErr()) {
-        return Err(result.unwrapErr());
+    if (result.is_err()) {
+        return Err(result.unwrap_err());
     }
     auto bytes = result.unwrap();
     return Ok(std::string(bytes.begin(), bytes.end()));

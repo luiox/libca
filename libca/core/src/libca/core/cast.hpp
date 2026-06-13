@@ -1,44 +1,67 @@
 #pragma once
 
+#include "any.hpp"
+
 #include <type_traits>
 
 namespace ca::core {
 
-template <typename T>
-struct TypeOf;
+// ============================================================================
+// Polymorphic — 基类，提供运行时类型识别能力（替代 RTTI）
+// 派生类用 CA_TYPE_TAG() 宏实现 type_tag() 即可
+// ============================================================================
 
-template <typename T>
-struct TypeOf<const T> : TypeOf<T> {};
+class Polymorphic {
+public:
+    virtual const void* type_tag() const noexcept = 0;
+    virtual ~Polymorphic() = default;
+};
 
-namespace detail {
-    template <typename T> struct remove_star { using type = T; };
-    template <typename T> struct remove_star<T*> { using type = T; };
+#define CA_TYPE_TAG(T)                                         \
+    const void* type_tag() const noexcept override {           \
+        return ca::core::type_id<T>();                         \
+    }
 
-    template <typename T>
-    using cleanup_t = std::remove_cv_t<typename remove_star<T>::type>;
+// ============================================================================
+// isa<T>(ptr) — 精确类型检查（匹配 exact dynamic type，非层级）
+// ============================================================================
+
+template<typename T, typename U>
+bool isa(const U* ptr) noexcept {
+    using RawT = std::decay_t<T>;
+    return ptr && ptr->type_tag() == type_id<RawT>();
 }
 
-template <typename T, typename U>
-auto cast(U* ptr) {
-    using RawT = detail::cleanup_t<T>;
+// ============================================================================
+// cast<T>(ptr) — 无检查向下转型（UB 若类型不匹配）
+// ============================================================================
+
+template<typename T, typename U>
+auto cast(U* ptr) noexcept -> std::enable_if_t<!std::is_const_v<U>, std::decay_t<T>*> {
+    using RawT = std::decay_t<T>;
     return static_cast<RawT*>(ptr);
 }
 
-template <typename T, typename U>
-auto cast(const U* ptr) {
-    using RawT = detail::cleanup_t<T>;
+template<typename T, typename U>
+auto cast(const U* ptr) noexcept -> const std::decay_t<T>* {
+    using RawT = std::decay_t<T>;
     return static_cast<const RawT*>(ptr);
 }
 
-template <typename T, typename U>
-bool isa(const U* ptr) {
-    using RawT = detail::cleanup_t<T>;
-    return ptr && ptr->getType() == TypeOf<RawT>::value;
+// ============================================================================
+// dyn_cast<T>(ptr) — 安全向下转型，类型不匹配返回 nullptr
+// ============================================================================
+
+template<typename T, typename U>
+auto dyn_cast(U* ptr) noexcept -> std::enable_if_t<!std::is_const_v<U>, std::decay_t<T>*> {
+    using RawT = std::decay_t<T>;
+    return isa<RawT>(ptr) ? static_cast<RawT*>(ptr) : nullptr;
 }
 
-template <typename T, typename U>
-auto dyn_cast(const U* ptr) -> decltype(cast<T>(ptr)) {
-    return isa<T>(ptr) ? cast<T>(ptr) : nullptr;
+template<typename T, typename U>
+auto dyn_cast(const U* ptr) noexcept -> const std::decay_t<T>* {
+    using RawT = std::decay_t<T>;
+    return isa<RawT>(ptr) ? static_cast<const RawT*>(ptr) : nullptr;
 }
 
 } // namespace ca::core

@@ -24,11 +24,5 @@ namespace ca {
         constexpr u64 operator""_u64(unsigned long long v) noexcept { return v; }
     }
 
-    namespace core{
-        struct ByteArray{
-            u8* data_;
-            usize length_;
-        };
-    } 
 }
 

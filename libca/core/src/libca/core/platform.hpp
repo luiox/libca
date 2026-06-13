@@ -1,53 +1,30 @@
 #pragma once
 
-#include <string>
-
 // ============================================================================
 // 平台检测宏
 // ============================================================================
 
 #ifdef _WIN32
     #define CA_PLATFORM_WINDOWS 1
-    #define CA_PLATFORM_LINUX   0
-    #define CA_PLATFORM_MACOS   0
-    #define CA_PLATFORM_UNKNOWN 0
 #elif __linux__
-    #define CA_PLATFORM_LINUX   1
-    #define CA_PLATFORM_WINDOWS 0
-    #define CA_PLATFORM_MACOS   0
-    #define CA_PLATFORM_UNKNOWN 0
-#elif __APPLE__
-    #define CA_PLATFORM_MACOS   1
-    #define CA_PLATFORM_WINDOWS 0
-    #define CA_PLATFORM_LINUX   0
-    #define CA_PLATFORM_UNKNOWN 0
+    #define CA_PLATFORM_LINUX 1
 #else
-    #define CA_PLATFORM_UNKNOWN 1
-    #define CA_PLATFORM_WINDOWS 0
-    #define CA_PLATFORM_LINUX   0
-    #define CA_PLATFORM_MACOS   0
+    #error "Unsupported platform: only Windows and Linux are supported"
 #endif
 
 // ============================================================================
 // 编译器检测宏
 // ============================================================================
+// 注意: __clang__ 必须在 __GNUC__ 之前检测，因为 Clang 也定义了 __GNUC__
 
-#if defined(__GNUC__)
-    #define COMPILER_GCC   1
-    #define COMPILER_MSVC  0
-    #define COMPILER_CLANG 0
+#if defined(__clang__)
+    #define CA_COMPILER_CLANG 1
+#elif defined(__GNUC__)
+    #define CA_COMPILER_GCC 1
 #elif defined(_MSC_VER)
-    #define COMPILER_GCC   0
-    #define COMPILER_MSVC  1
-    #define COMPILER_CLANG 0
-#elif defined(__clang__)
-    #define COMPILER_GCC   0
-    #define COMPILER_MSVC  0
-    #define COMPILER_CLANG 1
+    #define CA_COMPILER_MSVC 1
 #else
-    #define COMPILER_GCC   0
-    #define COMPILER_MSVC  0
-    #define COMPILER_CLANG 0
+    #define CA_COMPILER_UNKNOWN 1
     #warning "Unknown compiler"
 #endif
 
@@ -64,70 +41,19 @@
 #endif
 
 // ============================================================================
-// 工具类
+// 工具函数
 // ============================================================================
 
-namespace ca {
+#include <string>
 
-class OsUtil
-{
-public:
-    static std::string getOsName()
-    {
+namespace ca::core {
+
+inline std::string get_os_name() {
 #ifdef _WIN32
-        return "Windows";
-#elif __linux__
-        return "Linux";
-#elif __APPLE__
-        return "MacOS";
+    return "Windows";
 #else
-        return "Unknown";
+    return "Linux";
 #endif
-    }
+}
 
-    static bool isWindows()
-    {
-#ifdef _WIN32
-        return true;
-#else
-        return false;
-#endif
-    }
-
-    static bool isLinux()
-    {
-#ifdef __linux__
-        return true;
-#else
-        return false;
-#endif
-    }
-
-    static bool isMac()
-    {
-#ifdef __APPLE__
-        return true;
-#else
-        return false;
-#endif
-    }
-};
-
-class ArchUtil
-{
-public:
-    static std::string getArchName()
-    {
-#ifdef _WIN32
-        return "x86_64";
-#elif __linux__
-        return "x86_64";
-#elif __APPLE__
-        return "x86_64";
-#else
-        return "Unknown";
-#endif
-    }
-};
-
-} // namespace ca
+} // namespace ca::core
