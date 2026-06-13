@@ -10,7 +10,7 @@ namespace ca::str {
 TEST(ConversionTest, Utf8ToCString) {
     Utf8String u8("Hello 世界");
     auto cs = toCString(u8.ref());
-    EXPECT_EQ(cs.length(), u8.byteLength());
+    EXPECT_EQ(cs.length(), u8.byte_length());
     EXPECT_STREQ(cs.cStr(), "Hello 世界");
 }
 
@@ -18,8 +18,8 @@ TEST(ConversionTest, CStringToUtf8) {
     CString cs("ABC");
     auto u8 = toUtf8String(cs.ref());
     EXPECT_EQ(u8.length(), 3);
-    EXPECT_EQ(u8.byteLength(), 3);
-    EXPECT_EQ(u8.codePointAt(0), 'A');
+    EXPECT_EQ(u8.byte_length(), 3);
+    EXPECT_EQ(u8.code_point_at(0), 'A');
 }
 
 TEST(ConversionTest, Utf8CStringRoundtrip) {
@@ -43,7 +43,7 @@ TEST(ConversionTest, WStringToUtf8) {
     WString ws(L"ABC");
     auto u8 = toUtf8String(ws.ref());
     EXPECT_EQ(u8.length(), 3);
-    EXPECT_EQ(u8.codePointAt(0), 'A');
+    EXPECT_EQ(u8.code_point_at(0), 'A');
 }
 
 TEST(ConversionTest, Utf8WStringRoundtrip) {
@@ -161,13 +161,13 @@ TEST(ConversionTest, EmptyUtf8ToCString) {
 TEST(ConversionTest, EmptyCStringToUtf8) {
     CString cs("");
     auto u8 = toUtf8String(cs.ref());
-    EXPECT_TRUE(u8.isEmpty());
+    EXPECT_TRUE(u8.is_empty());
 }
 
 TEST(ConversionTest, EmptyWStringToUtf8) {
     WString ws(L"");
     auto u8 = toUtf8String(ws.ref());
-    EXPECT_TRUE(u8.isEmpty());
+    EXPECT_TRUE(u8.is_empty());
 }
 
 }  // namespace ca::str

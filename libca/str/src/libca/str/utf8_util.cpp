@@ -5,19 +5,19 @@ namespace ca::str {
 // UTF-8 编解码工具函数
 // ============================================================================
 
-usize utf8CodePointBytes(u8 firstByte) noexcept {
-    if ((firstByte & 0x80) == 0)
+usize utf8_code_point_bytes(u8 first_byte) noexcept {
+    if ((first_byte & 0x80) == 0)
         return 1;   // 0xxxxxxx
-    if ((firstByte & 0xE0) == 0xC0)
+    if ((first_byte & 0xE0) == 0xC0)
         return 2;   // 110xxxxx
-    if ((firstByte & 0xF0) == 0xE0)
+    if ((first_byte & 0xF0) == 0xE0)
         return 3;   // 1110xxxx
-    if ((firstByte & 0xF8) == 0xF0)
+    if ((first_byte & 0xF8) == 0xF0)
         return 4;   // 11110xxx
     return 0;       // 非法首字节
 }
 
-u32 utf8DecodeCodePoint(const u8* bytes) noexcept {
+u32 utf8_decode_code_point(const u8* bytes) noexcept {
     auto b0 = bytes[0];
     if ((b0 & 0x80) == 0) {
         return b0;
@@ -40,7 +40,7 @@ u32 utf8DecodeCodePoint(const u8* bytes) noexcept {
     return 0;  // 非法
 }
 
-usize utf8EncodeCodePoint(u32 cp, u8* out) noexcept {
+usize utf8_encode_code_point(u32 cp, u8* out) noexcept {
     // 排除非法码点：代理项 (U+D800~U+DFFF) 和超出范围的值
     if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
         return 0;
@@ -68,24 +68,24 @@ usize utf8EncodeCodePoint(u32 cp, u8* out) noexcept {
     return 4;
 }
 
-usize utf8CountCodePoints(const u8* data, usize byteLength,
-                          usize* invalidPos) noexcept {
+usize utf8_count_code_points(const u8* data, usize byte_length,
+                             usize* invalid_pos) noexcept {
     usize count = 0;
     usize pos   = 0;
 
-    while (pos < byteLength) {
-        auto len = utf8CodePointBytes(data[pos]);
-        if (len == 0 || pos + len > byteLength) {
+    while (pos < byte_length) {
+        auto len = utf8_code_point_bytes(data[pos]);
+        if (len == 0 || pos + len > byte_length) {
             // 遇到非法序列
-            if (invalidPos)
-                *invalidPos = pos;
+            if (invalid_pos)
+                *invalid_pos = pos;
             return 0;
         }
         // 检查后续字节是否都是 10xxxxxx
         for (usize i = 1; i < len; ++i) {
             if ((data[pos + i] & 0xC0) != 0x80) {
-                if (invalidPos)
-                    *invalidPos = pos + i;
+                if (invalid_pos)
+                    *invalid_pos = pos + i;
                 return 0;
             }
         }
@@ -96,11 +96,11 @@ usize utf8CountCodePoints(const u8* data, usize byteLength,
     return count;
 }
 
-bool utf8IsValid(const u8* data, usize byteLength) noexcept {
+bool utf8_is_valid(const u8* data, usize byte_length) noexcept {
     usize pos = 0;
-    while (pos < byteLength) {
-        auto len = utf8CodePointBytes(data[pos]);
-        if (len == 0 || pos + len > byteLength)
+    while (pos < byte_length) {
+        auto len = utf8_code_point_bytes(data[pos]);
+        if (len == 0 || pos + len > byte_length)
             return false;
         for (usize i = 1; i < len; ++i) {
             if ((data[pos + i] & 0xC0) != 0x80)
@@ -111,6 +111,6 @@ bool utf8IsValid(const u8* data, usize byteLength) noexcept {
     return true;
 }
 
-    
+
 
 }

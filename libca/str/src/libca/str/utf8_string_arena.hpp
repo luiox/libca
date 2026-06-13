@@ -41,7 +41,7 @@ public:
     // ---- intern ----
 
     // 将 UTF-8 数据插入 arena，返回指向池内副本的引用
-    Utf8StringRef intern(const u8* data, usize byteLength);
+    Utf8StringRef intern(const u8* data, usize byte_length);
     Utf8StringRef intern(const char* cstr);
     Utf8StringRef intern(const Utf8StringRef& str);
     Utf8StringRef intern(const Utf8String& str);
@@ -52,7 +52,7 @@ public:
     usize size() const noexcept;
 
     // 已分配的总字节数（含每个 chunk 剩余未用空间）
-    usize totalBytes() const noexcept;
+    usize total_bytes() const noexcept;
 
     // 重置，释放所有 chunk
     void clear() noexcept;
@@ -68,24 +68,24 @@ private:
     // 条目元数据（用于去重查找）
     struct Entry {
         usize hash;
-        usize byteLength;
+        usize byte_length;
         usize length;   // 码点个数
-        usize chunkIdx;
-        usize chunkOffset;
+        usize chunk_idx;
+        usize chunk_offset;
     };
 
     std::vector<Chunk>  chunks_;
     std::vector<Entry>  entries_;      // 条目元数据
     using HashIndex = std::unordered_map<usize, std::vector<usize>>;
-    HashIndex           hashIndex_;    // hash → entry 下标列表
+    HashIndex           hash_index_;    // hash → entry 下标列表
 
-    usize nextChunkIdx_;  // 当前可写入的 chunk
+    usize next_chunk_idx_;  // 当前可写入的 chunk
 
-    static constexpr usize kDefaultChunkSize = 64 * 1024;  // 64KB
+    static constexpr usize DEFAULT_CHUNK_SIZE = 64 * 1024;  // 64KB
 
-    void  allocChunk();
-    u8*   allocInChunk(usize size);
-    usize computeHash(const u8* data, usize byteLength) const noexcept;
+    void  alloc_chunk();
+    u8*   alloc_in_chunk(usize size);
+    usize compute_hash(const u8* data, usize byte_length) const noexcept;
 };
 
 }  // namespace ca::str

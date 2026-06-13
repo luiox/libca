@@ -14,8 +14,8 @@ namespace ca::str {
 // ============================================================================
 
 Utf8StringArena::Utf8StringArena() noexcept
-    : nextChunkIdx_(0) {
-    allocChunk();
+    : next_chunk_idx_(0) {
+    alloc_chunk();
 }
 
 Utf8StringArena::~Utf8StringArena() {
@@ -26,12 +26,12 @@ Utf8StringArena::~Utf8StringArena() {
 Utf8StringArena::Utf8StringArena(Utf8StringArena&& other) noexcept
     : chunks_(std::move(other.chunks_))
     , entries_(std::move(other.entries_))
-    , hashIndex_(std::move(other.hashIndex_))
-    , nextChunkIdx_(other.nextChunkIdx_) {
+    , hash_index_(std::move(other.hash_index_))
+    , next_chunk_idx_(other.next_chunk_idx_) {
     other.chunks_.clear();
     other.entries_.clear();
-    other.hashIndex_.clear();
-    other.nextChunkIdx_ = 0;
+    other.hash_index_.clear();
+    other.next_chunk_idx_ = 0;
 }
 
 Utf8StringArena& Utf8StringArena::operator=(Utf8StringArena&& other) noexcept {
@@ -39,12 +39,12 @@ Utf8StringArena& Utf8StringArena::operator=(Utf8StringArena&& other) noexcept {
         for (auto& c : chunks_) delete[] c.data;
         chunks_ = std::move(other.chunks_);
         entries_ = std::move(other.entries_);
-        hashIndex_ = std::move(other.hashIndex_);
-        nextChunkIdx_ = other.nextChunkIdx_;
+        hash_index_ = std::move(other.hash_index_);
+        next_chunk_idx_ = other.next_chunk_idx_;
         other.chunks_.clear();
         other.entries_.clear();
-        other.hashIndex_.clear();
-        other.nextChunkIdx_ = 0;
+        other.hash_index_.clear();
+        other.next_chunk_idx_ = 0;
     }
     return *this;
 }
@@ -54,22 +54,22 @@ Utf8StringArena& Utf8StringArena::operator=(Utf8StringArena&& other) noexcept {
 // 内部：块管理
 // ============================================================================
 
-void Utf8StringArena::allocChunk() {
+void Utf8StringArena::alloc_chunk() {
     Chunk c;
-    c.data     = new u8[kDefaultChunkSize];
-    c.capacity = kDefaultChunkSize;
+    c.data     = new u8[DEFAULT_CHUNK_SIZE];
+    c.capacity = DEFAULT_CHUNK_SIZE;
     c.used     = 0;
     chunks_.push_back(c);
-    nextChunkIdx_ = chunks_.size() - 1;
+    next_chunk_idx_ = chunks_.size() - 1;
 }
 
-u8* Utf8StringArena::allocInChunk(usize size) {
+u8* Utf8StringArena::alloc_in_chunk(usize size) {
     // 当前块已满 → 新分配
-    auto& cur = chunks_[nextChunkIdx_];
+    auto& cur = chunks_[next_chunk_idx_];
     if (cur.used + size > cur.capacity)
-        allocChunk();
+        alloc_chunk();
 
-    auto& chunk = chunks_[nextChunkIdx_];
+    auto& chunk = chunks_[next_chunk_idx_];
     u8* ptr = chunk.data + chunk.used;
     chunk.used += size;
     return ptr;
@@ -80,10 +80,10 @@ u8* Utf8StringArena::allocInChunk(usize size) {
 // Hash
 // ============================================================================
 
-usize Utf8StringArena::computeHash(const u8* data, usize byteLength) const noexcept {
+usize Utf8StringArena::compute_hash(const u8* data, usize byte_length) const noexcept {
     // FNV-1a
     usize h = 14695981039346656037ULL;
-    for (usize i = 0; i < byteLength; ++i) {
+    for (usize i = 0; i < byte_length; ++i) {
         h ^= static_cast<usize>(data[i]);
         h *= 1099511628211ULL;
     }
@@ -95,50 +95,50 @@ usize Utf8StringArena::computeHash(const u8* data, usize byteLength) const noexc
 // intern
 // ============================================================================
 
-Utf8StringRef Utf8StringArena::intern(const u8* data, usize byteLength) {
-    if (data == nullptr || byteLength == 0)
+Utf8StringRef Utf8StringArena::intern(const u8* data, usize byte_length) {
+    if (data == nullptr || byte_length == 0)
         return Utf8StringRef();
 
-    auto hash = computeHash(data, byteLength);
+    auto hash = compute_hash(data, byte_length);
 
     // 去重查找：同 hash 的条目逐个比较
-    auto it = hashIndex_.find(hash);
-    if (it != hashIndex_.end()) {
+    auto it = hash_index_.find(hash);
+    if (it != hash_index_.end()) {
         for (auto idx : it->second) {
             auto& e = entries_[idx];
-            if (e.byteLength == byteLength &&
-                std::memcmp(chunks_[e.chunkIdx].data + e.chunkOffset, data, byteLength) == 0) {
+            if (e.byte_length == byte_length &&
+                std::memcmp(chunks_[e.chunk_idx].data + e.chunk_offset, data, byte_length) == 0) {
                 // 已存在，返回引用
                 return Utf8StringRef(
-                    chunks_[e.chunkIdx].data + e.chunkOffset,
-                    e.byteLength, e.length);
+                    chunks_[e.chunk_idx].data + e.chunk_offset,
+                    e.byte_length, e.length);
             }
         }
     }
 
     // 计算码点个数
-    usize cpCount = utf8CountCodePoints(data, byteLength);
-    if (cpCount == 0) {
+    usize cp_count = utf8_count_code_points(data, byte_length);
+    if (cp_count == 0) {
         // 非法 UTF-8 序列，返回空
         return Utf8StringRef();
     }
 
     // 分配到 chunk
-    u8* dest = allocInChunk(byteLength);
-    std::memcpy(dest, data, byteLength);
+    u8* dest = alloc_in_chunk(byte_length);
+    std::memcpy(dest, data, byte_length);
 
     // 记录条目
     Entry e;
-    e.hash        = hash;
-    e.byteLength  = byteLength;
-    e.length      = cpCount;
-    e.chunkIdx    = nextChunkIdx_;
-    e.chunkOffset = static_cast<usize>(dest - chunks_[nextChunkIdx_].data);
+    e.hash         = hash;
+    e.byte_length  = byte_length;
+    e.length       = cp_count;
+    e.chunk_idx    = next_chunk_idx_;
+    e.chunk_offset = static_cast<usize>(dest - chunks_[next_chunk_idx_].data);
     entries_.push_back(e);
 
-    hashIndex_[hash].push_back(entries_.size() - 1);
+    hash_index_[hash].push_back(entries_.size() - 1);
 
-    return Utf8StringRef(dest, byteLength, cpCount);
+    return Utf8StringRef(dest, byte_length, cp_count);
 }
 
 Utf8StringRef Utf8StringArena::intern(const char* cstr) {
@@ -148,11 +148,11 @@ Utf8StringRef Utf8StringArena::intern(const char* cstr) {
 }
 
 Utf8StringRef Utf8StringArena::intern(const Utf8StringRef& str) {
-    return intern(str.data(), str.byteLength());
+    return intern(str.data(), str.byte_length());
 }
 
 Utf8StringRef Utf8StringArena::intern(const Utf8String& str) {
-    return intern(str.data(), str.byteLength());
+    return intern(str.data(), str.byte_length());
 }
 
 
@@ -164,7 +164,7 @@ usize Utf8StringArena::size() const noexcept {
     return entries_.size();
 }
 
-usize Utf8StringArena::totalBytes() const noexcept {
+usize Utf8StringArena::total_bytes() const noexcept {
     usize total = 0;
     for (auto& c : chunks_)
         total += c.capacity;
@@ -176,9 +176,9 @@ void Utf8StringArena::clear() noexcept {
         delete[] c.data;
     chunks_.clear();
     entries_.clear();
-    hashIndex_.clear();
-    nextChunkIdx_ = 0;
-    allocChunk();
+    hash_index_.clear();
+    next_chunk_idx_ = 0;
+    alloc_chunk();
 }
 
 }  // namespace ca::str
