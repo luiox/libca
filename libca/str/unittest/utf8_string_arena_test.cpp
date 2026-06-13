@@ -102,6 +102,20 @@ TEST(Utf8StringArenaTest, LargeBatch) {
     EXPECT_EQ(arena.size(), 1);
 }
 
+TEST(Utf8StringArenaTest, InternSingleStringLargerThanChunk) {
+    Utf8StringArena arena;
+    std::string big;
+    for (int i = 0; i < 70000; ++i)
+        big += "A";
+
+    auto r = arena.intern(big.c_str());
+    EXPECT_EQ(r.length(), big.size());
+    EXPECT_EQ(r.byte_length(), big.size());
+    EXPECT_EQ(r.byte_at(0), 'A');
+    EXPECT_EQ(r.byte_at(r.byte_length() - 1), 'A');
+    EXPECT_EQ(arena.size(), 1);
+}
+
 TEST(Utf8StringArenaTest, InternInvalidUtf8) {
     Utf8StringArena arena;
     u8 bad[] = {0xFF, 0xFE};

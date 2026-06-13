@@ -307,6 +307,19 @@ TEST(Utf8StringTest, FromData) {
     EXPECT_STREQ(s.c_str(), "中国");
 }
 
+TEST(Utf8StringTest, FromCStrFactory) {
+    auto s = Utf8String::from_cstr("你好");
+    EXPECT_EQ(s.length(), 2);
+    EXPECT_EQ(s.byte_length(), 6);
+    EXPECT_STREQ(s.c_str(), "你好");
+}
+
+TEST(Utf8StringTest, FromCStrFactoryNull) {
+    auto s = Utf8String::from_cstr(nullptr);
+    EXPECT_TRUE(s.is_empty());
+    EXPECT_STREQ(s.c_str(), "");
+}
+
 TEST(Utf8StringTest, ByteAt) {
     Utf8String s("ABC");
     EXPECT_EQ(s.byte_at(0), 0x41);
@@ -445,6 +458,12 @@ TEST(Utf8StringTest, EmptyStringConstructors) {
 
     Utf8String s3("");
     EXPECT_TRUE(s3.is_empty());
+}
+
+TEST(Utf8StringTest, NullDataWithNonZeroLengthConstructsEmpty) {
+    Utf8String s(static_cast<const u8*>(nullptr), 3);
+    EXPECT_TRUE(s.is_empty());
+    EXPECT_STREQ(s.c_str(), "");
 }
 
 TEST(Utf8StringTest, LargeString) {
@@ -723,6 +742,15 @@ TEST(ZUtf8StringRef, SimpleTest)
     EXPECT_EQ(CONSTANT_RAW_STR.c_str(), "CONSTANT_RAW_STR");
 
     // ...
+}
+
+TEST(ZUtf8StringRef, FromStdStringCountsUtf8CodePoints)
+{
+    std::string value = "你好😀";
+    auto ref = ZUtf8StringRef::from_std_string(value);
+    EXPECT_EQ(ref.byte_length(), value.size());
+    EXPECT_EQ(ref.length(), 3);
+    EXPECT_EQ(ref.c_str(), value.c_str());
 }
 
 }  // namespace ca::str

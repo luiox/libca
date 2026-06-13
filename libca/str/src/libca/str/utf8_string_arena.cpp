@@ -54,20 +54,27 @@ Utf8StringArena& Utf8StringArena::operator=(Utf8StringArena&& other) noexcept {
 // 内部：块管理
 // ============================================================================
 
-void Utf8StringArena::alloc_chunk() {
+void Utf8StringArena::alloc_chunk(usize min_capacity) {
+    usize capacity = DEFAULT_CHUNK_SIZE;
+    if (capacity < min_capacity)
+        capacity = min_capacity;
+
     Chunk c;
-    c.data     = new u8[DEFAULT_CHUNK_SIZE];
-    c.capacity = DEFAULT_CHUNK_SIZE;
+    c.data     = new u8[capacity];
+    c.capacity = capacity;
     c.used     = 0;
     chunks_.push_back(c);
     next_chunk_idx_ = chunks_.size() - 1;
 }
 
 u8* Utf8StringArena::alloc_in_chunk(usize size) {
+    if (chunks_.empty())
+        alloc_chunk(size);
+
     // 当前块已满 → 新分配
     auto& cur = chunks_[next_chunk_idx_];
-    if (cur.used + size > cur.capacity)
-        alloc_chunk();
+    if (size > cur.capacity - cur.used)
+        alloc_chunk(size);
 
     auto& chunk = chunks_[next_chunk_idx_];
     u8* ptr = chunk.data + chunk.used;

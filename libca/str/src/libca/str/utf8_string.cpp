@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <mutex>
+#include <unordered_map>
 
 namespace ca::str {
 
@@ -170,7 +171,7 @@ bool Utf8StringRef::operator!=(const Utf8StringRef& other) const noexcept {
 // ============================================================================
 
 void Utf8String::init(const u8* src, usize byte_len) {
-    if (byte_len == 0) {
+    if (src == nullptr || byte_len == 0) {
         data_        = new u8[1]{0};
         byte_length_ = 0;
         length_      = 0;
@@ -264,6 +265,14 @@ Utf8String Utf8String::from_code_point(u32 cp) {
             + std::to_string(cp));
     }
     return Utf8String(buf, len);
+}
+
+Utf8String Utf8String::from_cstr(const char* cstr) noexcept {
+    try {
+        return Utf8String(cstr);
+    } catch (...) {
+        return Utf8String();
+    }
 }
 
 Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
@@ -769,7 +778,10 @@ ZUtf8StringRef ZUtf8StringRef::from_utf8_string(const Utf8String& s) {
 
 ZUtf8StringRef ZUtf8StringRef::from_std_string(const std::string& s)
 {
-    return ZUtf8StringRef(reinterpret_cast<const u8*>(s.data()), s.length(), s.length());
+    auto data = reinterpret_cast<const u8*>(s.data());
+    auto byte_length = static_cast<usize>(s.size());
+    auto cp_length = utf8_count_code_points(data, byte_length);
+    return ZUtf8StringRef(data, byte_length, cp_length);
 }
 
 }  // namespace ca::str

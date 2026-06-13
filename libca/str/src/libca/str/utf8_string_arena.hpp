@@ -83,7 +83,7 @@ private:
 
     static constexpr usize DEFAULT_CHUNK_SIZE = 64 * 1024;  // 64KB
 
-    void  alloc_chunk();
+    void  alloc_chunk(usize min_capacity = DEFAULT_CHUNK_SIZE);
     u8*   alloc_in_chunk(usize size);
     usize compute_hash(const u8* data, usize byte_length) const noexcept;
 };
