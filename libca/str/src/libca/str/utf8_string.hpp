@@ -46,8 +46,11 @@ public:
     // 从 Utf8String 构造视图
     Utf8StringRef(const Utf8String& str) noexcept;
 
-    // 从 C 字符串构造视图（O(n) 计算码点个数）
-    static Utf8StringRef fromCStr(const char* cstr) noexcept;
+    // 下面这两个构建都是O(n)，因为要计算码点个数
+    // 从 C 字符串构造视图
+    static Utf8StringRef from_cstr(const char* cstr) noexcept;
+    // 从二进制数据创建视图，如果cp_len不传入，那么会重新计算码点
+    static Utf8StringRef from_data(const u8* data, usize byte_len, usize cp_len = -1);
 
     // 特殊常量
     static constexpr usize npos = usize(-1);
@@ -65,6 +68,11 @@ public:
 
     // 原始字节数据指针（非空终止）
     const u8* data() const noexcept;
+
+    // 不提供cStr的根本原因是 拿到原始的c风格字符串，如果UTF8字符串内部有\0，那么不能保证可用性，
+    // 其次如果只为了方便提供一个const char*版本的原始字符串，而且因为是ref，所以如果是别人字符串的中间切片的ref，也不能随意修改加\0
+    // 所以cStr这种导出一个const char*的接口不能在0拷贝情况下存在
+    // const char* cStr();
 
     // ---- 访问 ----
 
@@ -186,11 +194,12 @@ public:
 
     // ---- 工厂方法 ----
 
+    // 从 C 字符串构造
+    static Utf8String from_cstr(const char* cstr) noexcept;
+    // 从utf8字符串数据构造
+    static Utf8String from_data(const u8* data, usize byte_len, usize cp_len = -1);
     // 从单个码点创建 UTF-8 字符串
-    static Utf8String fromCodePoint(u32 cp);
-
-    // 从字节数组创建（同构造函数语义）
-    static Utf8String fromUtf8(const u8* data, usize byteLength);
+    static Utf8String from_code_point(u32 cp);
 
     // ---- 查询 ----
 
@@ -389,23 +398,6 @@ private:
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 
-// ============================================================================
-// 自由函数
-// ============================================================================
-
-namespace literals {
-
-inline Utf8StringRef operator""_utf8_ref(const char* str, usize len) noexcept {
-    return Utf8StringRef(reinterpret_cast<const u8*>(str), len,
-                         utf8CountCodePoints(reinterpret_cast<const u8*>(str), len));
-}
-
-inline Utf8String operator""_utf8(const char* str, usize len) {
-    return Utf8String(reinterpret_cast<const u8*>(str), len);
-}
-
-}  // namespace literals
-
 /// 按分隔符拆分为视图列表
 std::vector<Utf8StringRef> split(const Utf8StringRef& str,
                                  const Utf8StringRef& delimiter);
@@ -417,6 +409,43 @@ Utf8String join(const std::vector<Utf8StringRef>& parts,
 /// 流输出
 std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s);
 std::ostream& operator<<(std::ostream& os, const Utf8String& s);
+
+// 针对\0结尾的字面量，也就是"test"这样子的字面量，解决既不能存Utf8String也不能存Utf8StringRef的问题
+// 这个问题的根本出发点是有两个原因，一个是Utf8String这玩意需要分配内存，实际上一个字面量不需要的
+// 它仅仅需要一个const char*加上一个usize就行，而且不需要任何拷贝。
+// 不用Utf8StringRef的原因是，没有所有权，使用没办法保证\0，虽然from_cstr看上去可以做缓存
+// 但是实际上，动态内存也会因此加入，没法都缓存
+// 所以我搞一个ZUtf8String从语义上保证这个问题，ZUtf8String是零结尾字符串视图
+// 一定是\0结尾，而且是字面量，可以做缓存的语义
+// 对于ZUtf8StringRef一定要做成全局变量或者是static，避免重复计算码点
+class ZUtf8StringRef{
+public:
+    // 从 C 字符串构造（仅建议用于字面量或全局常量），
+    // 只有这个from_static会吃到全局缓存表的查询优化，其他没有优化，
+    // 其次这个不保证去重的，如果要去重那么需要基于编译器的-fmerge-constants保证每个字符串常量一定是在一个地址上
+    static ZUtf8StringRef from_static(const char* cstr);
+
+    // 从 Utf8String 转换（Utf8String 保证末尾有 \0）
+    static ZUtf8StringRef from_utf8_string(const Utf8String& s);
+
+    // 从 std::string转换，自行保证std::string的内容
+    static ZUtf8StringRef from_std_string(const std::string& s);
+
+    // 不提供从普通 Utf8StringRef 的隐式转换，防止传入不保证 \0 的视图
+
+    const u8* data() const { return data_; }
+    usize byte_length() const { return byte_length_; }
+    usize length() const { return cp_length_; }
+    const char* c_str() const { return reinterpret_cast<const char*>(data_); } // 安全，保证 \0
+
+private:
+    const u8* data_;
+    usize byte_length_;
+    usize cp_length_;
+
+    ZUtf8StringRef(const u8* d, usize bl, usize cl) : data_(d), byte_length_(bl), cp_length_(cl) {}
+};
+
 
 }  // namespace ca::str
 

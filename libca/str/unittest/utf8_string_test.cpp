@@ -744,4 +744,12 @@ TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip) {
     EXPECT_EQ(roundtrip, s);
 }
 
+TEST(ZUtf8StringRef, SimpleTest)
+{
+    ZUtf8StringRef CONSTANT_RAW_STR = ZUtf8StringRef::from_static("CONSTANT_RAW_STR");
+    EXPECT_EQ(CONSTANT_RAW_STR.c_str(), "CONSTANT_RAW_STR");
+
+    // ...
+}
+
 }  // namespace ca::str

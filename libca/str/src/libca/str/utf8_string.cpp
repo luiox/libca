@@ -11,6 +11,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <mutex>
 
 namespace ca::str {
 
@@ -699,6 +700,46 @@ std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s) {
 std::ostream& operator<<(std::ostream& os, const Utf8String& s) {
     os << s.ref();
     return os;
+}
+
+struct CacheData {
+    std::mutex mutex;
+    // key: 字符串的内存地址（字面量地址全局唯一且不变）
+    std::unordered_map<const char*, ZUtf8StringRef> map;
+};
+
+static CacheData& getCache() {
+    static CacheData cache;
+    return cache;
+}
+
+ZUtf8StringRef ZUtf8StringRef::from_static(const char* cstr)
+{
+    if (!cstr) return ZUtf8StringRef(nullptr, 0, 0);
+        
+    auto& inst = getCache();
+    std::lock_guard<std::mutex> lock(inst.mutex);
+    
+    auto it = inst.map.find(cstr);
+    if (it != inst.map.end()) {
+        return it->second; // 命中缓存
+    }
+    
+    // 未命中，计算并加入缓存
+    usize len = std::strlen(cstr);
+    usize cp = utf8CountCodePoints(reinterpret_cast<const u8*>(cstr), len);
+    ZUtf8StringRef ref(reinterpret_cast<const u8*>(cstr), len, cp);
+    inst.map[cstr] = ref;
+    return ref;
+}
+
+ZUtf8StringRef ZUtf8StringRef::from_utf8_string(const Utf8String& s) {
+    return ZUtf8StringRef(s.data(), s.byteLength(), s.length());
+}
+
+ZUtf8StringRef ZUtf8StringRef::from_std_string(const std::string& s)
+{
+    return ZUtf8StringRef(reinterpret_cast<const u8*>(s.data()), s.length(), s.length());
 }
 
 }  // namespace ca::str
