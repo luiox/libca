@@ -134,7 +134,9 @@ update:
 | `begin() const noexcept -> Utf8Iterator` | 起始码点迭代器 |
 | `end() const noexcept -> Utf8Iterator` | 结束迭代器 |
 | `compare(const Utf8StringRef& other) const noexcept -> int` | 字节级字典序比较 |
+| `compare(const char* cstr) const noexcept -> int` | 与 C 字符串字节级比较，不分配 |
 | `equals(const Utf8StringRef& other) const noexcept -> bool` | 字节级相等 |
+| `equals(const char* cstr) const noexcept -> bool` | 与 C 字符串字节级相等，不分配 |
 | `operator==` / `operator!=` | 等价于 `equals()` |
 
 ## 5. Utf8String
@@ -211,9 +213,12 @@ update:
 |---|---|
 | `compare(const Utf8StringRef& other) const noexcept -> int` | 字节级字典序 |
 | `compare(const Utf8String& other) const noexcept -> int` | 字节级字典序 |
+| `compare(const char* cstr) const noexcept -> int` | 与 C 字符串字节级比较，不分配 |
 | `equals(const Utf8StringRef& other) const noexcept -> bool` | 字节级相等 |
+| `equals(const char* cstr) const noexcept -> bool` | 与 C 字符串字节级相等，不分配 |
 | `operator==(const Utf8String& other) const noexcept` | 相等 |
 | `operator==(const Utf8StringRef& other) const noexcept` | 相等 |
+| `operator==(const char* cstr) const noexcept` | 与 C 字符串相等 |
 | `operator!=` | 不相等 |
 
 ## 6. Utf8Iterator
@@ -245,6 +250,10 @@ for (ca::u32 cp : s) {
 |---|---|
 | `operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept` | 对称比较 |
 | `operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept` | 对称比较 |
+| `operator==(const char* lhs, const Utf8StringRef& rhs) noexcept` | C 字符串与视图对称比较，不分配 |
+| `operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept` | C 字符串与视图对称比较，不分配 |
+| `operator==(const char* lhs, const Utf8String& rhs) noexcept` | C 字符串与字符串对称比较，不分配 |
+| `operator!=(const char* lhs, const Utf8String& rhs) noexcept` | C 字符串与字符串对称比较，不分配 |
 | `split(const Utf8StringRef& str, const Utf8StringRef& delimiter) -> std::vector<Utf8StringRef>` | 调用 `str.split(delimiter)` |
 | `join(const std::vector<Utf8StringRef>& parts, const Utf8StringRef& separator) -> Utf8String` | 用分隔符连接 |
 | `operator<<(std::ostream& os, const Utf8StringRef& s) -> std::ostream&` | 按原始字节输出 |

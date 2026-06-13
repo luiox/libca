@@ -152,17 +152,50 @@ int Utf8StringRef::compare(const Utf8StringRef& other) const noexcept {
     return 0;
 }
 
+int Utf8StringRef::compare(const char* cstr) const noexcept {
+    auto other_len = cstr ? static_cast<usize>(std::strlen(cstr)) : 0;
+    auto other_data = reinterpret_cast<const u8*>(cstr);
+    auto cmp_len = byte_length_ < other_len ? byte_length_ : other_len;
+
+    if (cmp_len > 0) {
+        auto result = std::memcmp(data_, other_data, cmp_len);
+        if (result != 0)
+            return result;
+    }
+
+    if (byte_length_ < other_len)
+        return -1;
+    if (byte_length_ > other_len)
+        return 1;
+    return 0;
+}
+
 bool Utf8StringRef::equals(const Utf8StringRef& other) const noexcept {
     return byte_length_ == other.byte_length_ &&
            std::memcmp(data_, other.data_, byte_length_) == 0;
+}
+
+bool Utf8StringRef::equals(const char* cstr) const noexcept {
+    auto other_len = cstr ? static_cast<usize>(std::strlen(cstr)) : 0;
+    return byte_length_ == other_len &&
+           (byte_length_ == 0 ||
+            std::memcmp(data_, cstr, byte_length_) == 0);
 }
 
 bool Utf8StringRef::operator==(const Utf8StringRef& other) const noexcept {
     return equals(other);
 }
 
+bool Utf8StringRef::operator==(const char* cstr) const noexcept {
+    return equals(cstr);
+}
+
 bool Utf8StringRef::operator!=(const Utf8StringRef& other) const noexcept {
     return !equals(other);
+}
+
+bool Utf8StringRef::operator!=(const char* cstr) const noexcept {
+    return !equals(cstr);
 }
 
 
@@ -453,8 +486,16 @@ int Utf8String::compare(const Utf8String& other) const noexcept {
     return ref().compare(other.ref());
 }
 
+int Utf8String::compare(const char* cstr) const noexcept {
+    return ref().compare(cstr);
+}
+
 bool Utf8String::equals(const Utf8StringRef& other) const noexcept {
     return ref().equals(other);
+}
+
+bool Utf8String::equals(const char* cstr) const noexcept {
+    return ref().equals(cstr);
 }
 
 bool Utf8String::operator==(const Utf8String& other) const noexcept {
@@ -465,12 +506,20 @@ bool Utf8String::operator==(const Utf8StringRef& other) const noexcept {
     return ref().equals(other);
 }
 
+bool Utf8String::operator==(const char* cstr) const noexcept {
+    return ref().equals(cstr);
+}
+
 bool Utf8String::operator!=(const Utf8String& other) const noexcept {
     return !ref().equals(other.ref());
 }
 
 bool Utf8String::operator!=(const Utf8StringRef& other) const noexcept {
     return !ref().equals(other);
+}
+
+bool Utf8String::operator!=(const char* cstr) const noexcept {
+    return !ref().equals(cstr);
 }
 
 
@@ -701,6 +750,22 @@ bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
 
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
+}
+
+bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.equals(lhs);
+}
+
+bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return !rhs.equals(lhs);
+}
+
+bool operator==(const char* lhs, const Utf8String& rhs) noexcept {
+    return rhs.equals(lhs);
+}
+
+bool operator!=(const char* lhs, const Utf8String& rhs) noexcept {
+    return !rhs.equals(lhs);
 }
 
 

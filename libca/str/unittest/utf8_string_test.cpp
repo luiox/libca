@@ -213,6 +213,28 @@ TEST(Utf8StringRefTest, Equals) {
     EXPECT_TRUE(r1 != r3);
 }
 
+TEST(Utf8StringRefTest, CompareWithCStrWithoutOwningString) {
+    auto ref = Utf8StringRef::from_cstr("你好");
+    EXPECT_EQ(ref.compare("你好"), 0);
+    EXPECT_LT(ref.compare("你好啊"), 0);
+    EXPECT_GT(ref.compare("你"), 0);
+}
+
+TEST(Utf8StringRefTest, EqualityWithCStrWithoutOwningString) {
+    auto ref = Utf8StringRef::from_cstr("你好");
+    EXPECT_TRUE(ref.equals("你好"));
+    EXPECT_TRUE(ref == "你好");
+    EXPECT_TRUE("你好" == ref);
+    EXPECT_FALSE(ref == "你好啊");
+    EXPECT_TRUE(ref != "你好啊");
+    EXPECT_TRUE("你好啊" != ref);
+
+    Utf8StringRef empty;
+    EXPECT_TRUE(empty == nullptr);
+    EXPECT_TRUE(nullptr == empty);
+    EXPECT_FALSE(ref == nullptr);
+}
+
 
 // ============================================================================
 // Utf8String 测试
@@ -416,6 +438,28 @@ TEST(Utf8StringTest, EqualityOperators) {
     Utf8StringRef ref(reinterpret_cast<const u8*>("Hi"), 2, 2);
     EXPECT_TRUE(a == ref);
     EXPECT_TRUE(ref == a);
+}
+
+TEST(Utf8StringTest, CompareWithCStrWithoutTemporaryString) {
+    Utf8String s("你好");
+    EXPECT_EQ(s.compare("你好"), 0);
+    EXPECT_LT(s.compare("你好啊"), 0);
+    EXPECT_GT(s.compare("你"), 0);
+}
+
+TEST(Utf8StringTest, EqualityWithCStrWithoutTemporaryString) {
+    Utf8String s("你好");
+    EXPECT_TRUE(s.equals("你好"));
+    EXPECT_TRUE(s == "你好");
+    EXPECT_TRUE("你好" == s);
+    EXPECT_FALSE(s == "你好啊");
+    EXPECT_TRUE(s != "你好啊");
+    EXPECT_TRUE("你好啊" != s);
+
+    Utf8String empty;
+    EXPECT_TRUE(empty == nullptr);
+    EXPECT_TRUE(nullptr == empty);
+    EXPECT_FALSE(s == nullptr);
 }
 
 TEST(Utf8StringTest, InvalidUtf8_Throws) {

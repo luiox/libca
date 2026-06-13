@@ -139,12 +139,16 @@ public:
 
     // 逐字节字典序比较
     int compare(const Utf8StringRef& other) const noexcept;
+    int compare(const char* cstr) const noexcept;
 
     // 内容相等判断（逐字节比较）
     bool equals(const Utf8StringRef& other) const noexcept;
+    bool equals(const char* cstr) const noexcept;
 
     bool operator==(const Utf8StringRef& other) const noexcept;
+    bool operator==(const char* cstr) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
+    bool operator!=(const char* cstr) const noexcept;
 
     // 创建标准库的字符串
     std::string to_std_string() const;
@@ -287,11 +291,15 @@ public:
 
     int compare(const Utf8StringRef& other) const noexcept;
     int compare(const Utf8String& other) const noexcept;
+    int compare(const char* cstr) const noexcept;
     bool equals(const Utf8StringRef& other) const noexcept;
+    bool equals(const char* cstr) const noexcept;
     bool operator==(const Utf8String& other) const noexcept;
     bool operator==(const Utf8StringRef& other) const noexcept;
+    bool operator==(const char* cstr) const noexcept;
     bool operator!=(const Utf8String& other) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
+    bool operator!=(const char* cstr) const noexcept;
 
     // 创建标准库的字符串
     std::string to_std_string() const;
@@ -397,6 +405,10 @@ private:
 
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator==(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator!=(const char* lhs, const Utf8String& rhs) noexcept;
 
 /// 按分隔符拆分为视图列表
 std::vector<Utf8StringRef> split(const Utf8StringRef& str,
