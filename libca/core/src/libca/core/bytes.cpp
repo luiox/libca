@@ -44,7 +44,7 @@ Bytes Bytes::slice(usize begin, usize end) const {
 
 // ── 类型化读（Byes） ──
 
-u16 Bytes::get_u16() {
+u16 Bytes::get_u16_be() {
     if (pos_ + 2 > len_) throw std::out_of_range("Bytes::get_u16 underflow");
     u16 v = (static_cast<u16>(ptr_[pos_]) << 8) | static_cast<u16>(ptr_[pos_ + 1]);
     pos_ += 2;
@@ -58,7 +58,7 @@ u16 Bytes::get_u16_le() {
     return v;
 }
 
-u32 Bytes::get_u32() {
+u32 Bytes::get_u32_be() {
     if (pos_ + 4 > len_) throw std::out_of_range("Bytes::get_u32 underflow");
     u32 v = (static_cast<u32>(ptr_[pos_])     << 24) |
             (static_cast<u32>(ptr_[pos_ + 1]) << 16) |
@@ -78,7 +78,7 @@ u32 Bytes::get_u32_le() {
     return v;
 }
 
-u64 Bytes::get_u64() {
+u64 Bytes::get_u64_be() {
     if (pos_ + 8 > len_) throw std::out_of_range("Bytes::get_u64 underflow");
     u64 v = (static_cast<u64>(ptr_[pos_])     << 56) |
             (static_cast<u64>(ptr_[pos_ + 1]) << 48) |
@@ -106,22 +106,22 @@ u64 Bytes::get_u64_le() {
     return v;
 }
 
-i16 Bytes::get_i16() { return static_cast<i16>(get_u16()); }
+i16 Bytes::get_i16_be() { return static_cast<i16>(get_u16_be()); }
 i16 Bytes::get_i16_le() { return static_cast<i16>(get_u16_le()); }
-i32 Bytes::get_i32() { return static_cast<i32>(get_u32()); }
+i32 Bytes::get_i32_be() { return static_cast<i32>(get_u32_be()); }
 i32 Bytes::get_i32_le() { return static_cast<i32>(get_u32_le()); }
-i64 Bytes::get_i64() { return static_cast<i64>(get_u64()); }
+i64 Bytes::get_i64_be() { return static_cast<i64>(get_u64_be()); }
 i64 Bytes::get_i64_le() { return static_cast<i64>(get_u64_le()); }
 
-f32 Bytes::get_f32() {
-    u32 bits = get_u32();
+f32 Bytes::get_f32_be() {
+    u32 bits = get_u32_be();
     f32 v;
     std::memcpy(&v, &bits, sizeof(f32));
     return v;
 }
 
-f64 Bytes::get_f64() {
-    u64 bits = get_u64();
+f64 Bytes::get_f64_be() {
+    u64 bits = get_u64_be();
     f64 v;
     std::memcpy(&v, &bits, sizeof(f64));
     return v;
@@ -186,7 +186,7 @@ void BytesMut::put_slice(const u8* data, usize len) {
 
 // ── 类型化写（BytesMut） ──
 
-void BytesMut::put_u16(u16 val) {
+void BytesMut::put_u16_be(u16 val) {
     ensure_writable(2);
     data_[len_]     = static_cast<u8>((val >> 8) & 0xFF);
     data_[len_ + 1] = static_cast<u8>(val & 0xFF);
@@ -200,7 +200,7 @@ void BytesMut::put_u16_le(u16 val) {
     len_ += 2;
 }
 
-void BytesMut::put_u32(u32 val) {
+void BytesMut::put_u32_be(u32 val) {
     ensure_writable(4);
     data_[len_]     = static_cast<u8>((val >> 24) & 0xFF);
     data_[len_ + 1] = static_cast<u8>((val >> 16) & 0xFF);
@@ -218,7 +218,7 @@ void BytesMut::put_u32_le(u32 val) {
     len_ += 4;
 }
 
-void BytesMut::put_u64(u64 val) {
+void BytesMut::put_u64_be(u64 val) {
     ensure_writable(8);
     data_[len_]     = static_cast<u8>((val >> 56) & 0xFF);
     data_[len_ + 1] = static_cast<u8>((val >> 48) & 0xFF);
@@ -244,28 +244,28 @@ void BytesMut::put_u64_le(u64 val) {
     len_ += 8;
 }
 
-void BytesMut::put_i16(i16 val) { put_u16(static_cast<u16>(val)); }
+void BytesMut::put_i16_be(i16 val) { put_u16_be(static_cast<u16>(val)); }
 void BytesMut::put_i16_le(i16 val) { put_u16_le(static_cast<u16>(val)); }
-void BytesMut::put_i32(i32 val) { put_u32(static_cast<u32>(val)); }
+void BytesMut::put_i32_be(i32 val) { put_u32_be(static_cast<u32>(val)); }
 void BytesMut::put_i32_le(i32 val) { put_u32_le(static_cast<u32>(val)); }
-void BytesMut::put_i64(i64 val) { put_u64(static_cast<u64>(val)); }
+void BytesMut::put_i64_be(i64 val) { put_u64_be(static_cast<u64>(val)); }
 void BytesMut::put_i64_le(i64 val) { put_u64_le(static_cast<u64>(val)); }
 
-void BytesMut::put_f32(f32 val) {
+void BytesMut::put_f32_be(f32 val) {
     u32 bits;
     std::memcpy(&bits, &val, sizeof(f32));
-    put_u32(bits);
+    put_u32_be(bits);
 }
 
-void BytesMut::put_f64(f64 val) {
+void BytesMut::put_f64_be(f64 val) {
     u64 bits;
     std::memcpy(&bits, &val, sizeof(f64));
-    put_u64(bits);
+    put_u64_be(bits);
 }
 
 // ── 类型化读（BytesMut） ──
 
-u16 BytesMut::get_u16() {
+u16 BytesMut::get_u16_be() {
     if (pos_ + 2 > len_) throw std::out_of_range("BytesMut::get_u16 underflow");
     u16 v = (static_cast<u16>(data_[pos_]) << 8) | static_cast<u16>(data_[pos_ + 1]);
     pos_ += 2;
@@ -279,7 +279,7 @@ u16 BytesMut::get_u16_le() {
     return v;
 }
 
-u32 BytesMut::get_u32() {
+u32 BytesMut::get_u32_be() {
     if (pos_ + 4 > len_) throw std::out_of_range("BytesMut::get_u32 underflow");
     u32 v = (static_cast<u32>(data_[pos_])     << 24) |
             (static_cast<u32>(data_[pos_ + 1]) << 16) |
@@ -299,7 +299,7 @@ u32 BytesMut::get_u32_le() {
     return v;
 }
 
-u64 BytesMut::get_u64() {
+u64 BytesMut::get_u64_be() {
     if (pos_ + 8 > len_) throw std::out_of_range("BytesMut::get_u64 underflow");
     u64 v = (static_cast<u64>(data_[pos_])     << 56) |
             (static_cast<u64>(data_[pos_ + 1]) << 48) |
@@ -327,22 +327,22 @@ u64 BytesMut::get_u64_le() {
     return v;
 }
 
-i16 BytesMut::get_i16() { return static_cast<i16>(get_u16()); }
+i16 BytesMut::get_i16_be() { return static_cast<i16>(get_u16_be()); }
 i16 BytesMut::get_i16_le() { return static_cast<i16>(get_u16_le()); }
-i32 BytesMut::get_i32() { return static_cast<i32>(get_u32()); }
+i32 BytesMut::get_i32_be() { return static_cast<i32>(get_u32_be()); }
 i32 BytesMut::get_i32_le() { return static_cast<i32>(get_u32_le()); }
-i64 BytesMut::get_i64() { return static_cast<i64>(get_u64()); }
+i64 BytesMut::get_i64_be() { return static_cast<i64>(get_u64_be()); }
 i64 BytesMut::get_i64_le() { return static_cast<i64>(get_u64_le()); }
 
-f32 BytesMut::get_f32() {
-    u32 bits = get_u32();
+f32 BytesMut::get_f32_be() {
+    u32 bits = get_u32_be();
     f32 v;
     std::memcpy(&v, &bits, sizeof(f32));
     return v;
 }
 
-f64 BytesMut::get_f64() {
-    u64 bits = get_u64();
+f64 BytesMut::get_f64_be() {
+    u64 bits = get_u64_be();
     f64 v;
     std::memcpy(&v, &bits, sizeof(f64));
     return v;

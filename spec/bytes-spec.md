@@ -7,10 +7,37 @@
 
 | 类型 | 所有权 | 可变 | 存储 | 用途 |
 |------|--------|------|------|------|
+| `ByteSlice` | 非拥有（视图） | 不可变 | `const u8*` | 零拷贝参数传递、`&[u8]` 对标 |
 | `Bytes` | 共享（引用计数） | 不可变 | `shared_ptr<u8>` | 零拷贝切片、只读数据传递 |
 | `BytesMut` | 唯一 | 可变 | `unique_ptr<u8[]>` | 缓冲区构建、序列化 |
 
 `BytesMut::freeze()` → `Bytes`（转移所有权，零拷贝）。
+
+## ByteSlice — 非拥有字节视图
+
+> 对标 Rust `&[u8]`，零开销的指针+长度对，用于参数传递和局部切片。
+
+### 构造
+
+| 方法 | 说明 |
+|------|------|
+| `ByteSlice()` | 空视图 |
+| `ByteSlice(data, len)` | 从指针+长度构造 |
+
+### 查询
+
+| 方法 | 说明 |
+|------|------|
+| `data() -> const u8*` | 底层指针 |
+| `size() -> usize` | 字节长度 |
+| `empty() -> bool` | 是否为空 |
+| `operator[](index) -> const u8&` | 按字节下标访问（无边界检查） |
+
+### 切片
+
+| 方法 | 说明 |
+|------|------|
+| `sub_slice(start, count) -> ByteSlice` | 返回子切片（边界检查，越界抛 `std::out_of_range`） |
 
 ## Bytes — 不可变字节序列
 
@@ -50,15 +77,16 @@
 | 方法 | 端序 |
 |------|------|
 | `get_u8()` | — |
-| `get_u16()` / `get_u16_le()` | 大端 / 小端 |
-| `get_u32()` / `get_u32_le()` | 大端 / 小端 |
-| `get_u64()` / `get_u64_le()` | 大端 / 小端 |
-| `get_i16()` / `get_i16_le()` | 大端 / 小端 |
-| `get_i32()` / `get_i32_le()` | 大端 / 小端 |
-| `get_i64()` / `get_i64_le()` | 大端 / 小端 |
-| `get_f32()` / `get_f64()` | 大端（网络序） |
+| `get_u8()` | — |
+| `get_u16_be()` / `get_u16_le()` | 大端 / 小端 |
+| `get_u32_be()` / `get_u32_le()` | 大端 / 小端 |
+| `get_u64_be()` / `get_u64_le()` | 大端 / 小端 |
+| `get_i16_be()` / `get_i16_le()` | 大端 / 小端 |
+| `get_i32_be()` / `get_i32_le()` | 大端 / 小端 |
+| `get_i64_be()` / `get_i64_le()` | 大端 / 小端 |
+| `get_f32_be()` / `get_f64_be()` | 大端（网络序） |
 
-后缀 `_le` = 小端，无后缀 = 大端（网络字节序）。
+后缀 `_be` = 大端（网络字节序），`_le` = 小端，必须显式指定，无默认端序。
 
 ### 批量读
 
@@ -122,17 +150,17 @@
 | 方法 | 端序 |
 |------|------|
 | `put_u8(val)` | — |
-| `put_u16(val)` / `put_u16_le(val)` | 大端 / 小端 |
-| `put_u32(val)` / `put_u32_le(val)` | 大端 / 小端 |
-| `put_u64(val)` / `put_u64_le(val)` | 大端 / 小端 |
-| `put_i16(val)` / `put_i16_le(val)` | 大端 / 小端 |
-| `put_i32(val)` / `put_i32_le(val)` | 大端 / 小端 |
-| `put_i64(val)` / `put_i64_le(val)` | 大端 / 小端 |
-| `put_f32(val)` / `put_f64(val)` | 大端（网络序） |
+| `put_u16_be(val)` / `put_u16_le(val)` | 大端 / 小端 |
+| `put_u32_be(val)` / `put_u32_le(val)` | 大端 / 小端 |
+| `put_u64_be(val)` / `put_u64_le(val)` | 大端 / 小端 |
+| `put_i16_be(val)` / `put_i16_le(val)` | 大端 / 小端 |
+| `put_i32_be(val)` / `put_i32_le(val)` | 大端 / 小端 |
+| `put_i64_be(val)` / `put_i64_le(val)` | 大端 / 小端 |
+| `put_f32_be(val)` / `put_f64_be(val)` | 大端（网络序） |
 
 ### 类型化读（前进游标）
 
-与 `Bytes` 接口相同：`get_u8()`、`get_u16()`、`get_u32()` 等（见上表）。
+与 `Bytes` 接口相同：`get_u8()`、`get_u16_be()`、`get_u32_be()` 等（见上表）。
 
 ### 冻结
 
@@ -163,5 +191,6 @@
 
 - `shared_ptr<u8>` + `std::default_delete<u8[]>()` 作为 `Bytes` 共享存储
 - `from_static` 时 `storage_` 为 `nullptr`，`slice()` 通过 `storage_` 有无决定是否共享
-- 无后缀 = 大端（网络字节序），`_le` = 小端，对齐业界惯例
+- 禁止隐式端序：`_be`（大端/网络字节序）与 `_le`（小端）必须显式声明，避免误用
+- `f32`/`f64` 通过 `memcpy` 转 `u32`/`u64` 后按大端序列化
 - 所有 throw 异常为 `std::out_of_range`（Result 体系推广后改为 `Result`）

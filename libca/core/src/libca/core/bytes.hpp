@@ -10,6 +10,29 @@ namespace ca::core {
 
 class BytesMut;
 
+/// 非拥有字节视图，对标 Rust &[u8]
+class ByteSlice {
+public:
+    ByteSlice() noexcept = default;
+    ByteSlice(const u8* data, usize len) noexcept : data_(data), len_(len) {}
+
+    const u8* data() const noexcept { return data_; }
+    usize size() const noexcept { return len_; }
+    bool  empty() const noexcept { return len_ == 0; }
+
+    const u8& operator[](usize index) const { return data_[index]; }
+
+    ByteSlice sub_slice(usize start, usize count) const {
+        if (start > len_ || count > len_ - start)
+            throw std::out_of_range("ByteSlice::sub_slice invalid range");
+        return ByteSlice(data_ + start, count);
+    }
+
+private:
+    const u8* data_{nullptr};
+    usize     len_{0};
+};
+
 /// 不可变字节序列，引用计数共享存储，支持零拷贝切片
 class Bytes {
 public:
@@ -35,22 +58,22 @@ public:
     // ── 零拷贝切片 ──
     Bytes slice(usize begin, usize end) const;
 
-    // ── 类型化读（前进游标，大端 = network order） ──
+    // ── 类型化读（前进游标，后缀 _be = 大端/network order，_le = 小端） ──
     u8   get_u8();
-    u16  get_u16();
+    u16  get_u16_be();
     u16  get_u16_le();
-    u32  get_u32();
+    u32  get_u32_be();
     u32  get_u32_le();
-    u64  get_u64();
+    u64  get_u64_be();
     u64  get_u64_le();
-    i16  get_i16();
+    i16  get_i16_be();
     i16  get_i16_le();
-    i32  get_i32();
+    i32  get_i32_be();
     i32  get_i32_le();
-    i64  get_i64();
+    i64  get_i64_be();
     i64  get_i64_le();
-    f32  get_f32();
-    f64  get_f64();
+    f32  get_f32_be();
+    f64  get_f64_be();
 
     // ── 批量读 ──
     void copy_to_slice(u8* dst, usize len);
@@ -101,39 +124,39 @@ public:
     // ── 批量写 ──
     void put_slice(const u8* data, usize len);
 
-    // ── 类型化写（大端 = network order） ──
+    // ── 类型化写（后缀 _be = 大端/network order，_le = 小端） ──
     void put_u8(u8 val);
-    void put_u16(u16 val);
+    void put_u16_be(u16 val);
     void put_u16_le(u16 val);
-    void put_u32(u32 val);
+    void put_u32_be(u32 val);
     void put_u32_le(u32 val);
-    void put_u64(u64 val);
+    void put_u64_be(u64 val);
     void put_u64_le(u64 val);
-    void put_i16(i16 val);
+    void put_i16_be(i16 val);
     void put_i16_le(i16 val);
-    void put_i32(i32 val);
+    void put_i32_be(i32 val);
     void put_i32_le(i32 val);
-    void put_i64(i64 val);
+    void put_i64_be(i64 val);
     void put_i64_le(i64 val);
-    void put_f32(f32 val);
-    void put_f64(f64 val);
+    void put_f32_be(f32 val);
+    void put_f64_be(f64 val);
 
     // ── 类型化读（前进游标） ──
     u8   get_u8();
-    u16  get_u16();
+    u16  get_u16_be();
     u16  get_u16_le();
-    u32  get_u32();
+    u32  get_u32_be();
     u32  get_u32_le();
-    u64  get_u64();
+    u64  get_u64_be();
     u64  get_u64_le();
-    i16  get_i16();
+    i16  get_i16_be();
     i16  get_i16_le();
-    i32  get_i32();
+    i32  get_i32_be();
     i32  get_i32_le();
-    i64  get_i64();
+    i64  get_i64_be();
     i64  get_i64_le();
-    f32  get_f32();
-    f64  get_f64();
+    f32  get_f32_be();
+    f64  get_f64_be();
 
     // ── 冻结为不可变 Bytes ──
     Bytes freeze();
