@@ -849,6 +849,54 @@ ZUtf8StringRef ZUtf8StringRef::from_std_string(const std::string& s)
     return ZUtf8StringRef(data, byte_length, cp_length);
 }
 
+Utf8StringRef ZUtf8StringRef::ref() const noexcept {
+    return Utf8StringRef(data_, byte_length_, cp_length_);
+}
+
+ZUtf8StringRef::operator Utf8StringRef() const noexcept {
+    return ref();
+}
+
+int ZUtf8StringRef::compare(const Utf8StringRef& other) const noexcept {
+    return ref().compare(other);
+}
+
+int ZUtf8StringRef::compare(const char* cstr) const noexcept {
+    return ref().compare(cstr);
+}
+
+bool ZUtf8StringRef::equals(const Utf8StringRef& other) const noexcept {
+    return ref().equals(other);
+}
+
+bool ZUtf8StringRef::equals(const char* cstr) const noexcept {
+    return ref().equals(cstr);
+}
+
+bool ZUtf8StringRef::operator==(const Utf8StringRef& other) const noexcept {
+    return equals(other);
+}
+
+bool ZUtf8StringRef::operator==(const char* cstr) const noexcept {
+    return equals(cstr);
+}
+
+bool ZUtf8StringRef::operator!=(const Utf8StringRef& other) const noexcept {
+    return !equals(other);
+}
+
+bool ZUtf8StringRef::operator!=(const char* cstr) const noexcept {
+    return !equals(cstr);
+}
+
+bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept {
+    return rhs.equals(lhs);
+}
+
+bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept {
+    return !rhs.equals(lhs);
+}
+
 }  // namespace ca::str
 
 

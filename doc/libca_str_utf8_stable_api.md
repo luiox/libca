@@ -40,6 +40,7 @@ update:
 - UTF-8 构造时校验，码点长度缓存，`length()` 为 O(1)。
 - 码点下标访问 O(n)，文档明确后可接受。
 - `Utf8StringArena` 提供批量生命周期和去重，适合解析器、配置加载、编译前端等场景。
+- `ZUtf8StringRef` 可以零拷贝转换为 `Utf8StringRef`，也可以直接和 C 字符串比较，适合作为 static const 字面量视图使用。
 
 当前不建议固定的点：
 
@@ -328,6 +329,7 @@ for (ca::u32 cp : s) {
 
 - `from_std_string()` 返回的视图依赖传入 `std::string` 的生命周期。
 - `from_static()` 的缓存按 `const char*` 地址作为 key，语义依赖字面量/全局常量地址稳定。
+- 已支持 `ref()` / `operator Utf8StringRef()` 和 C 字符串零拷贝比较；这些接口后续可随 `ZUtf8StringRef` 单独稳定化。
 - 更适合作为后续单独设计文档固定。
 
 ## 10. 推荐用法

@@ -797,4 +797,27 @@ TEST(ZUtf8StringRef, FromStdStringCountsUtf8CodePoints)
     EXPECT_EQ(ref.c_str(), value.c_str());
 }
 
+TEST(ZUtf8StringRef, ConvertsToUtf8StringRef)
+{
+    auto z = ZUtf8StringRef::from_static("你好");
+    Utf8StringRef ref = z;
+    EXPECT_EQ(ref.byte_length(), 6);
+    EXPECT_EQ(ref.length(), 2);
+    EXPECT_TRUE(ref == "你好");
+}
+
+TEST(ZUtf8StringRef, EqualityWithCStrWithoutOwningString)
+{
+    auto z = ZUtf8StringRef::from_static("你好");
+    EXPECT_EQ(z.compare("你好"), 0);
+    EXPECT_TRUE(z.equals("你好"));
+    EXPECT_TRUE(z == "你好");
+    EXPECT_TRUE("你好" == z);
+    EXPECT_TRUE(z != "你好啊");
+    EXPECT_TRUE("你好啊" != z);
+
+    Utf8StringRef ref = Utf8StringRef::from_cstr("你好");
+    EXPECT_TRUE(z == ref);
+}
+
 }  // namespace ca::str

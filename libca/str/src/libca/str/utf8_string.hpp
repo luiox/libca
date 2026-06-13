@@ -26,6 +26,7 @@ namespace ca::str {
 
 class Utf8String;
 class Utf8Iterator;
+class ZUtf8StringRef;
 
 
 // ============================================================================
@@ -409,6 +410,8 @@ bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept;
 bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept;
 bool operator==(const char* lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
+bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 
 /// 按分隔符拆分为视图列表
 std::vector<Utf8StringRef> split(const Utf8StringRef& str,
@@ -449,6 +452,17 @@ public:
     usize byte_length() const { return byte_length_; }
     usize length() const { return cp_length_; }
     const char* c_str() const { return reinterpret_cast<const char*>(data_); } // 安全，保证 \0
+    Utf8StringRef ref() const noexcept;
+    operator Utf8StringRef() const noexcept;
+
+    int compare(const Utf8StringRef& other) const noexcept;
+    int compare(const char* cstr) const noexcept;
+    bool equals(const Utf8StringRef& other) const noexcept;
+    bool equals(const char* cstr) const noexcept;
+    bool operator==(const Utf8StringRef& other) const noexcept;
+    bool operator==(const char* cstr) const noexcept;
+    bool operator!=(const Utf8StringRef& other) const noexcept;
+    bool operator!=(const char* cstr) const noexcept;
 
 private:
     const u8* data_;
