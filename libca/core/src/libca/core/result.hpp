@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <functional>
@@ -63,6 +62,9 @@ namespace impl {
     template<typename Ret, typename Cls, typename... Args>
     struct result_of<Ret (Cls::*)(Args...)> : public result_of<Ret (Args...)> { };
 
+    template<typename Ret, typename Cls, typename... Args>
+    struct result_of<Ret (Cls::*)(Args...) const> : public result_of<Ret (Args...)> { };
+
     template<typename Ret, typename... Args>
     struct result_of<Ret (Args...)> {
         typedef Ret type;
@@ -108,11 +110,11 @@ namespace impl {
 
 template<typename T> struct Map;
 
-template<typename Ret, typename Cls, typename Arg>
-struct Map<Ret (Cls::*)(Arg) const> : public Map<Ret (Arg)> { };
+template<typename Ret, typename Cls, typename... Args>
+struct Map<Ret (Cls::*)(Args...) const> : public Map<Ret (Args...)> { };
 
-template<typename Ret, typename Cls, typename Arg>
-struct Map<Ret (Cls::*)(Arg)> : public Map<Ret (Arg)> { };
+template<typename Ret, typename Cls, typename... Args>
+struct Map<Ret (Cls::*)(Args...)> : public Map<Ret (Args...)> { };
 
 // General implementation
 template<typename Ret, typename Arg>
@@ -904,6 +906,7 @@ bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs) {
     if (lhs.is_err() && rhs.is_err()) {
         return lhs.storage().template get<E>() == rhs.storage().template get<E>();
     }
+    return false;
 }
 
 template<typename T, typename E>
@@ -913,6 +916,15 @@ bool operator==(const Result<T, E>& lhs, types::Ok<T> ok) {
     if (!lhs.is_ok()) return false;
 
     return lhs.storage().template get<T>() == ok.val;
+}
+
+template<typename E>
+bool operator==(const Result<void, E>& lhs, const Result<void, E>& rhs) {
+    if (lhs.is_ok() && rhs.is_ok()) return true;
+    if (lhs.is_err() && rhs.is_err()) {
+        return lhs.storage().template get<E>() == rhs.storage().template get<E>();
+    }
+    return false;
 }
 
 template<typename E>

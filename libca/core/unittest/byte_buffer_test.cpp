@@ -1,6 +1,6 @@
 #include <gmock/gmock.h>
 
-#include <libca/core/bytes.hpp>
+#include "libca/core/bytes.hpp"
 
 namespace ca::core { namespace test {
 

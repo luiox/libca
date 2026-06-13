@@ -1,7 +1,7 @@
 #pragma once
 
-#include <libca/core/datatype.hpp>
-#include <libca/core/platform.hpp>
+#include "datatype.hpp"
+#include "platform.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -12,7 +12,7 @@
 #if CA_PLATFORM_WINDOWS
     #include <DbgHelp.h>
     #pragma comment(lib, "dbghelp.lib")
-#elif CA_PLATFORM_LINUX || CA_PLATFORM_MACOS
+#elif CA_PLATFORM_LINUX
     #include <cxxabi.h>
     #include <execinfo.h>
 #endif
@@ -54,7 +54,7 @@ inline std::string capture_stack_trace(i32 max_frames = 64) {
         }
     }
 
-#elif CA_PLATFORM_LINUX || CA_PLATFORM_MACOS
+#elif CA_PLATFORM_LINUX
     std::vector<void*> frames(static_cast<usize>(max_frames));
     int count = backtrace(frames.data(), max_frames);
     char** entries = backtrace_symbols(frames.data(), count);

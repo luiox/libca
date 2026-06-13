@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libca/core/datatype.hpp>
+#include "bytes.hpp"
 
 #include <cstring>
 #include <memory>

@@ -1,0 +1,304 @@
+#include <gmock/gmock.h>
+
+#include "libca/core/result.hpp"
+
+#include <string>
+#include <utility>
+
+namespace ca::core { namespace test {
+
+using namespace testing;
+using namespace std::literals;
+
+// ==================== 构造 / 基本查询 ====================
+
+TEST(ResultTest, ConstructOk) {
+    Result<int, std::string> r = Ok(42);
+    EXPECT_TRUE(r.is_ok());
+    EXPECT_FALSE(r.is_err());
+    EXPECT_EQ(r.unwrap(), 42);
+}
+
+TEST(ResultTest, ConstructErr) {
+    Result<int, std::string> r = Err("fail"s);
+    EXPECT_FALSE(r.is_ok());
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), "fail");
+}
+
+TEST(ResultTest, OkVoid) {
+    Result<void, std::string> r = Ok();
+    EXPECT_TRUE(r.is_ok());
+}
+
+TEST(ResultTest, ErrVoidError) {
+    Result<void, std::string> r = Err("bad"s);
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), "bad");
+}
+
+TEST(ResultTest, MoveOk) {
+    Result<std::string, int> r1 = Ok(std::string("hello"));
+    Result<std::string, int> r2(std::move(r1));
+    EXPECT_TRUE(r2.is_ok());
+    EXPECT_EQ(r2.unwrap(), "hello");
+}
+
+TEST(ResultTest, CopyOk) {
+    Result<int, std::string> r1 = Ok(42);
+    Result<int, std::string> r2(r1);
+    EXPECT_EQ(r2.unwrap(), 42);
+    EXPECT_EQ(r1.unwrap(), 42);
+}
+
+// ==================== unwrap / unwrap_or / unwrap_err ====================
+
+TEST(ResultTest, UnwrapOk) {
+    Result<int, std::string> r = Ok(99);
+    EXPECT_EQ(r.unwrap(), 99);
+}
+
+TEST(ResultTest, UnwrapOrOk) {
+    Result<int, std::string> r = Ok(10);
+    EXPECT_EQ(r.unwrap_or(0), 10);
+}
+
+TEST(ResultTest, UnwrapOrErr) {
+    Result<int, std::string> r = Err("err"s);
+    EXPECT_EQ(r.unwrap_or(42), 42);
+}
+
+TEST(ResultTest, UnwrapErrOnErr) {
+    Result<int, std::string> r = Err("oops"s);
+    EXPECT_EQ(r.unwrap_err(), "oops");
+}
+
+// ==================== expect ====================
+
+TEST(ResultTest, ExpectOk) {
+    Result<int, std::string> r = Ok(7);
+    EXPECT_EQ(r.expect("should be ok"), 7);
+}
+
+// ==================== map ====================
+
+TEST(ResultTest, MapOk) {
+    Result<int, std::string> r = Ok(3);
+    auto mapped = r.map([](int x) { return x * 2; });
+    EXPECT_TRUE(mapped.is_ok());
+    EXPECT_EQ(mapped.unwrap(), 6);
+}
+
+TEST(ResultTest, MapErr) {
+    Result<int, std::string> r = Err("fail"s);
+    auto mapped = r.map([](int x) { return x * 2; });
+    EXPECT_TRUE(mapped.is_err());
+    EXPECT_EQ(mapped.unwrap_err(), "fail");
+}
+
+TEST(ResultTest, MapToDifferentType) {
+    Result<int, std::string> r = Ok(42);
+    auto mapped = r.map([](int x) { return std::to_string(x); });
+    EXPECT_TRUE(mapped.is_ok());
+    EXPECT_EQ(mapped.unwrap(), "42");
+}
+
+TEST(ResultTest, MapVoidOk) {
+    Result<void, std::string> r = Ok();
+    int side = 0;
+    auto mapped = r.map([&]() { side = 1; });
+    EXPECT_TRUE(mapped.is_ok());
+    EXPECT_EQ(side, 1);
+}
+
+// ==================== map_error ====================
+
+TEST(ResultTest, MapErrorOnErr) {
+    Result<int, std::string> r = Err("fail"s);
+    auto mapped = r.map_error([](const std::string& e) { return e.size(); });
+    EXPECT_TRUE(mapped.is_err());
+    EXPECT_EQ(mapped.unwrap_err(), 4u);
+}
+
+TEST(ResultTest, MapErrorOnOk) {
+    Result<int, std::string> r = Ok(10);
+    auto mapped = r.map_error([](const std::string& e) { return e.size(); });
+    EXPECT_TRUE(mapped.is_ok());
+    EXPECT_EQ(mapped.unwrap(), 10);
+}
+
+// ==================== then (副作用 on Ok) ====================
+
+TEST(ResultTest, ThenOk) {
+    Result<int, std::string> r = Ok(5);
+    int side = 0;
+    auto result = r.then([&](int x) { side = x; });
+    EXPECT_TRUE(result.is_ok());
+    EXPECT_EQ(side, 5);
+    EXPECT_EQ(result.unwrap(), 5);
+}
+
+TEST(ResultTest, ThenErr) {
+    Result<int, std::string> r = Err("skip"s);
+    int side = -1;
+    auto result = r.then([&](int x) { side = x; });
+    EXPECT_TRUE(result.is_err());
+    EXPECT_EQ(side, -1);
+}
+
+// ==================== otherwise (副作用 on Err) ====================
+
+TEST(ResultTest, OtherwiseErr) {
+    Result<int, std::string> r = Err("log me"s);
+    std::string logged;
+    auto result = r.otherwise([&](const std::string& e) { logged = e; });
+    EXPECT_TRUE(result.is_err());
+    EXPECT_EQ(logged, "log me");
+}
+
+TEST(ResultTest, OtherwiseOk) {
+    Result<int, std::string> r = Ok(99);
+    std::string logged = "none";
+    auto result = r.otherwise([&](const std::string& e) { logged = e; });
+    EXPECT_TRUE(result.is_ok());
+    EXPECT_EQ(logged, "none");
+}
+
+// ==================== or_else (恢复) ====================
+
+TEST(ResultTest, OrElseErr) {
+    Result<int, std::string> r = Err("not found"s);
+    auto recovered = r.or_else([](const std::string&) -> Result<int, std::string> {
+        return Ok(42);
+    });
+    EXPECT_TRUE(recovered.is_ok());
+    EXPECT_EQ(recovered.unwrap(), 42);
+}
+
+TEST(ResultTest, OrElseOk) {
+    Result<int, std::string> r = Ok(10);
+    auto recovered = r.or_else([](const std::string&) -> Result<int, std::string> {
+        return Ok(99);
+    });
+    EXPECT_TRUE(recovered.is_ok());
+    EXPECT_EQ(recovered.unwrap(), 10);
+}
+
+TEST(ResultTest, OrElseChangeErrorType) {
+    Result<int, std::string> r = Err("bad"s);
+    auto recovered = r.or_else([](const std::string&) -> Result<int, bool> {
+        return Err(true);
+    });
+    EXPECT_TRUE(recovered.is_err());
+    EXPECT_EQ(recovered.unwrap_err(), true);
+}
+
+// ==================== and_then ====================
+
+TEST(ResultTest, AndThenOk) {
+    Result<int, std::string> r = Ok(5);
+    auto next = r.and_then([](int x) -> Result<std::string, std::string> {
+        return Ok(std::to_string(x));
+    });
+    EXPECT_TRUE(next.is_ok());
+    EXPECT_EQ(next.unwrap(), "5");
+}
+
+TEST(ResultTest, AndThenErr) {
+    Result<int, std::string> r = Err("fail"s);
+    auto next = r.and_then([](int x) -> Result<std::string, std::string> {
+        return Ok(std::to_string(x));
+    });
+    EXPECT_TRUE(next.is_err());
+    EXPECT_EQ(next.unwrap_err(), "fail");
+}
+
+TEST(ResultTest, AndThenChained) {
+    Result<int, std::string> r = Ok(3);
+    auto r2 = r
+        .and_then([](int x) -> Result<int, std::string> { return Ok(x * 2); })
+        .and_then([](int x) -> Result<int, std::string> { return Ok(x + 1); });
+    EXPECT_EQ(r2.unwrap(), 7);
+}
+
+TEST(ResultTest, AndThenShortCircuit) {
+    Result<int, std::string> r = Ok(3);
+    auto r2 = r
+        .and_then([](int) -> Result<int, std::string> { return Err("stop"s); })
+        .and_then([](int) -> Result<int, std::string> { return Ok(999); });
+    EXPECT_TRUE(r2.is_err());
+    EXPECT_EQ(r2.unwrap_err(), "stop");
+}
+
+TEST(ResultTest, AndThenVoidToNonVoid) {
+    Result<void, std::string> r = Ok();
+    auto next = r.and_then([]() -> Result<int, std::string> { return Ok(42); });
+    EXPECT_TRUE(next.is_ok());
+    EXPECT_EQ(next.unwrap(), 42);
+}
+
+TEST(ResultTest, AndThenVoidErr) {
+    Result<void, std::string> r = Err("bad"s);
+    auto next = r.and_then([]() -> Result<int, std::string> { return Ok(42); });
+    EXPECT_TRUE(next.is_err());
+    EXPECT_EQ(next.unwrap_err(), "bad");
+}
+
+// ==================== operator== ====================
+
+TEST(ResultTest, EqualOk) {
+    Result<int, std::string> a = Ok(1);
+    Result<int, std::string> b = Ok(1);
+    Result<int, std::string> c = Ok(2);
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a == c);
+}
+
+TEST(ResultTest, EqualErr) {
+    Result<int, std::string> a = Err("a"s);
+    Result<int, std::string> b = Err("a"s);
+    Result<int, std::string> c = Err("b"s);
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a == c);
+}
+
+TEST(ResultTest, EqualOkVoid) {
+    Result<void, std::string> a = Ok();
+    Result<void, std::string> b = Ok();
+    EXPECT_TRUE(a == b);
+}
+
+// ==================== map + and_then 混用 ====================
+
+TEST(ResultTest, MapThenAndThen) {
+    Result<int, std::string> r = Ok(10);
+    auto r2 = r
+        .map([](int x) { return x * 2; })
+        .and_then([](int x) -> Result<int, std::string> { return Ok(x + 3); });
+    EXPECT_EQ(r2.unwrap(), 23);
+}
+
+// ==================== TRY 宏 ====================
+// TRY uses GCC statement expression __extension__ ({ ... }), not available on MSVC
+
+#if !defined(_MSC_VER) || defined(__clang__)
+
+static Result<int, std::string> try_unwrap_impl(Result<int, std::string> input) {
+    auto val = TRY(input);
+    return Ok(val * 2);
+}
+
+TEST(ResultTest, TryMacroOk) {
+    auto r = try_unwrap_impl(Ok(21));
+    EXPECT_EQ(r.unwrap(), 42);
+}
+
+TEST(ResultTest, TryMacroErr) {
+    auto r = try_unwrap_impl(Err(std::string("fail")));
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), "fail");
+}
+
+#endif
+
+}} // namespace ca::core::test
