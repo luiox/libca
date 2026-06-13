@@ -175,22 +175,10 @@
 | `equals(other) -> bool` | 内容相等（仅剩余部分） |
 | `operator==` / `operator!=` | 委托 `equals()` |
 
-## 与旧 ByteBuffer 的差异
-
-| 旧 ByteBuffer | Bytes / BytesMut |
-|---------------|------------------|
-| `flip()` | ❌ 移除 — 读写分离通过独立游标实现 |
-| `position()` setter | ❌ 移除 |
-| `capacity()` 查询 | ❌ 移除（BytesMut 仅 `remaining_mut()`） |
-| `ByteOrder` 状态枚举 | ❌ 移除 — 端序显式在方法名 |
-| 绝对位置读写 | ❌ 移除 |
-| 单个可变类型 | ✅ 拆为 `Bytes`（不可变）+ `BytesMut`（可变） |
-| 不可变序列零拷贝切片 | ✅ `Bytes::slice()` |
-
 ## 设计决策
 
 - `shared_ptr<u8>` + `std::default_delete<u8[]>()` 作为 `Bytes` 共享存储
 - `from_static` 时 `storage_` 为 `nullptr`，`slice()` 通过 `storage_` 有无决定是否共享
 - 禁止隐式端序：`_be`（大端/网络字节序）与 `_le`（小端）必须显式声明，避免误用
 - `f32`/`f64` 通过 `memcpy` 转 `u32`/`u64` 后按大端序列化
-- 所有 throw 异常为 `std::out_of_range`（Result 体系推广后改为 `Result`）
+- 所有 throw 异常为 `std::out_of_range`

@@ -27,11 +27,11 @@
 - 禁止裸 `int`、`long`、`size_t`
 - 错误处理使用 `Result<T, E>` 而非异常
 
-> Result 类型的方法签名约定参考 [result-spec.md](result-spec.md)。
+> Result 类型的方法签名约定参考 [`libca/core/doc/result-spec.md`](../libca/core/doc/result-spec.md)。
 
 ## 字符串约定
 
-> 详见 [str-spec.md](str-spec.md)。
+> 详见 [`libca/str/doc/str-spec.md`](../libca/str/doc/str-spec.md)。
 
 ## 工程约定
 
