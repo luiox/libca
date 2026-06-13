@@ -16,7 +16,7 @@ public:
     TempDirGuard()
     {
         auto result = FileUtil::createTempDirectory("libca_fs_test_");
-        if (result.isOk()) {
+        if (result.is_ok()) {
             m_path = std::move(result.unwrap());
         }
     }
@@ -59,7 +59,7 @@ TEST(FileUtilTest, ReadWriteRoundtrip)
     EXPECT_TRUE(FileUtil::writeBytes(filePath, data));
 
     auto result = FileUtil::readAllBytes(filePath);
-    ASSERT_TRUE(result.isOk()) << "readAllBytes failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "readAllBytes failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap(), data);
 }
 
@@ -72,14 +72,14 @@ TEST(FileUtilTest, ReadAllText)
     EXPECT_TRUE(FileUtil::writeText(filePath, "Hello, 世界!"));
 
     auto result = FileUtil::readAllText(filePath);
-    ASSERT_TRUE(result.isOk()) << "readAllText failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "readAllText failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap(), "Hello, 世界!");
 }
 
 TEST(FileUtilTest, ReadAllBytes_FileNotFound)
 {
     auto result = FileUtil::readAllBytes("/nonexistent/path/file.bin");
-    EXPECT_TRUE(result.isErr());
+    EXPECT_TRUE(result.is_err());
 }
 
 TEST(FileUtilTest, ReadAllBytes_PathIsDirectory)
@@ -88,13 +88,13 @@ TEST(FileUtilTest, ReadAllBytes_PathIsDirectory)
     ASSERT_TRUE(tmp.valid());
 
     auto result = FileUtil::readAllBytes(tmp.path());
-    EXPECT_TRUE(result.isErr());
+    EXPECT_TRUE(result.is_err());
 }
 
 TEST(FileUtilTest, ReadAllText_FileNotFound)
 {
     auto result = FileUtil::readAllText("/nonexistent/path/file.txt");
-    EXPECT_TRUE(result.isErr());
+    EXPECT_TRUE(result.is_err());
 }
 
 // ==================== writeText / writeBytes ====================
@@ -109,7 +109,7 @@ TEST(FileUtilTest, WriteBytes_OverwriteDefault)
     EXPECT_TRUE(FileUtil::writeText(filePath, "second"));
 
     auto result = FileUtil::readAllText(filePath);
-    ASSERT_TRUE(result.isOk());
+    ASSERT_TRUE(result.is_ok());
     EXPECT_EQ(result.unwrap(), "second");
 }
 
@@ -123,7 +123,7 @@ TEST(FileUtilTest, WriteBytes_Append)
     EXPECT_TRUE(FileUtil::writeText(filePath, " world", FileMode::Append));
 
     auto result = FileUtil::readAllText(filePath);
-    ASSERT_TRUE(result.isOk());
+    ASSERT_TRUE(result.is_ok());
     EXPECT_EQ(result.unwrap(), "hello world");
 }
 
@@ -233,7 +233,7 @@ TEST(FileUtilTest, ListFiles_Flat)
     tmp.createFile("b.txt");
 
     auto result = FileUtil::listFiles(tmp.path(), false);
-    ASSERT_TRUE(result.isOk()) << "listFiles failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "listFiles failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
 
@@ -246,14 +246,14 @@ TEST(FileUtilTest, ListFiles_Recursive)
     tmp.createFile("sub/b.txt");
 
     auto result = FileUtil::listFiles(tmp.path(), true);
-    ASSERT_TRUE(result.isOk()) << "listFiles recursive failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "listFiles recursive failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
 
 TEST(FileUtilTest, ListFiles_DirectoryNotFound)
 {
     auto result = FileUtil::listFiles("/nonexistent_dir");
-    EXPECT_TRUE(result.isErr());
+    EXPECT_TRUE(result.is_err());
 }
 
 TEST(FileUtilTest, ListEntries)
@@ -266,7 +266,7 @@ TEST(FileUtilTest, ListEntries)
     EXPECT_TRUE(FileUtil::createDirectories(tmp.makePath("subdir")));
 
     auto result = FileUtil::listEntries(tmp.path());
-    ASSERT_TRUE(result.isOk()) << "listEntries failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "listEntries failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 3u);
 }
 
@@ -284,7 +284,7 @@ TEST(FileUtilTest, Copy_File)
     EXPECT_TRUE(FileUtil::exists(dst));
 
     auto content = FileUtil::readAllText(dst);
-    ASSERT_TRUE(content.isOk());
+    ASSERT_TRUE(content.is_ok());
     EXPECT_EQ(content.unwrap(), "copy test");
 }
 
@@ -405,20 +405,20 @@ TEST(FileUtilTest, Backup_File)
     EXPECT_TRUE(FileUtil::writeText(src, "important data"));
 
     auto result = FileUtil::backup(src);
-    ASSERT_TRUE(result.isOk()) << "backup failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "backup failed: " << result.unwrap_err();
 
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
     EXPECT_NE(result.unwrap(), src);
 
     auto content = FileUtil::readAllText(result.unwrap());
-    ASSERT_TRUE(content.isOk());
+    ASSERT_TRUE(content.is_ok());
     EXPECT_EQ(content.unwrap(), "important data");
 }
 
 TEST(FileUtilTest, Backup_NonExistent)
 {
     auto result = FileUtil::backup("/nonexistent/path");
-    EXPECT_TRUE(result.isErr());
+    EXPECT_TRUE(result.is_err());
 }
 
 // ==================== createTempFile / createTempDirectory ====================
@@ -426,7 +426,7 @@ TEST(FileUtilTest, Backup_NonExistent)
 TEST(FileUtilTest, CreateTempFile)
 {
     auto result = FileUtil::createTempFile("libca_", ".tmp");
-    ASSERT_TRUE(result.isOk()) << "createTempFile failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "createTempFile failed: " << result.unwrap_err();
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
     EXPECT_TRUE(FileUtil::isFile(result.unwrap()));
     FileUtil::remove(result.unwrap());
@@ -435,7 +435,7 @@ TEST(FileUtilTest, CreateTempFile)
 TEST(FileUtilTest, CreateTempDirectory)
 {
     auto result = FileUtil::createTempDirectory("libca_dir_");
-    ASSERT_TRUE(result.isOk()) << "createTempDirectory failed: " << result.unwrapErr();
+    ASSERT_TRUE(result.is_ok()) << "createTempDirectory failed: " << result.unwrap_err();
     EXPECT_TRUE(FileUtil::isDirectory(result.unwrap()));
     FileUtil::removeAll(result.unwrap());
 }
