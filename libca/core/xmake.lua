@@ -1,4 +1,5 @@
-add_requires("gtest")
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
+-- 此处不再强制 require，避免作为 submodule 被 includes 时强制拉取 gtest。
 
 target("libca_core")
     set_kind("static")

@@ -1,4 +1,4 @@
-add_requires("gtest")
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
 
 target("libca_time")
     set_kind("static")

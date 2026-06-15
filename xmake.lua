@@ -20,6 +20,20 @@ option("with_demo")
     set_description("Enable demo targets")
 option_end()
 
+-- 测试开关：控制是否拉取 gtest 并启用 *_unittest target。
+-- 默认 true，保持 libca 独立构建的既有行为。
+-- 作为 submodule 被引用时（如 morpher 直接 includes 子库 xmake.lua），
+-- 若宿主项目已自行 require gtest，可设为 n 以避免重复下载。
+option("with_tests")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable *_unittest targets and pull gtest via xrepo.")
+option_end()
+
+if has_config("with_tests") then
+    add_requires("gtest")
+end
+
 set_languages("c99")
 set_languages("cxx17")
 

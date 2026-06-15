@@ -1,4 +1,4 @@
-add_requires("gtest")
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
 
 -- headeronly: Stream 和 ImmutableList 均为模板类，必须在头文件中实现
 target("libca_collection")
