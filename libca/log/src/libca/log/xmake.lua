@@ -1,6 +1,6 @@
 add_requires("fmt", { configs = { header_only = true } })
 add_requires("spdlog", { configs = { header_only = true, fmt_external = true } })
-add_requires("gtest")
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
 
 target("libca.log")
 	set_kind("static")
