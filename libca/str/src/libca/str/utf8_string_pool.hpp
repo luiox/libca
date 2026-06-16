@@ -23,7 +23,6 @@
 #include <cstddef>
 #include <cstring>
 #include <unordered_map>
-#include <list>
 #include <vector>
 
 namespace ca::str {
@@ -40,12 +39,12 @@ class Utf8StringPool;
 // ============================================================================
 
 struct Utf8PoolEntry {
-    u8*   data;
-    usize byte_length;
-    usize length;    // 码点个数
-    usize hash;
-    usize ref_count;
-    bool  alive;
+    u8*             data;
+    usize           byte_length;
+    usize           length;    // 码点个数
+    usize           hash;
+    usize           ref_count;
+    Utf8StringPool* owner;     // 回指：ref_count 归零时由它真删本条目
 };
 
 
@@ -144,7 +143,7 @@ public:
 
     // ---- 统计 ----
 
-    // 已分配的 PoolEntry 总数（含墓碑）
+    // 唯一条目总数（真删后 == 活条目数）
     usize size() const noexcept;
 
     // 活跃条目数（ref_count > 0）
@@ -157,11 +156,21 @@ public:
     void clear() noexcept;
 
 private:
-    std::list<Utf8PoolEntry> entries_;
+    // hash_index_ 是条目的唯一所有者：hash → 同 hash 的堆分配条目列表（冲突链）。
+    // 条目堆分配 → 指针稳定，PooledPtr 可安全长持。ref_count 归零即真删（无墓碑）。
     using HashIndex = std::unordered_map<usize, std::vector<Utf8PoolEntry*>>;
     HashIndex hash_index_;
+    usize     active_count_ = 0;   // 活条目数（O(1)）
+    usize     total_bytes_  = 0;   // 活条目字节和（O(1)）
 
     usize compute_hash(const u8* data, usize byte_length) const noexcept;
+
+    // 真删：从 hash 桶摘除 entry、释放其字节、delete 条目、空桶则删 key。
+    // 由 PooledPtr::release() 在 ref_count 归零时回调。
+    void erase_entry(Utf8PoolEntry* entry) noexcept;
+    // move 后把所有条目的 owner 回指改向 this
+    void repoint_entries() noexcept;
+    friend class Utf8StringPooledPtr;
 };
 
 

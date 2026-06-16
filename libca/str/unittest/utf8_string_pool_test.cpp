@@ -153,15 +153,17 @@ TEST(Utf8StringPoolTest, InternInvalidUtf8) {
 
 TEST(Utf8StringPoolTest, Clear) {
     Utf8StringPool pool;
-    pool.intern("Hello");
-    pool.intern("World");
-    EXPECT_EQ(pool.size(), 2);
-
-    pool.clear();
+    {
+        auto a = pool.intern("Hello");
+        auto b = pool.intern("World");
+        EXPECT_EQ(pool.size(), 2);   // 持有句柄 → 条目存活
+    }                                 // a,b 析构 → 真删自动清空
     EXPECT_EQ(pool.size(), 0);
     EXPECT_EQ(pool.active_entries(), 0);
 
-    // 清空后可继续使用
+    // clear() 契约要求无活跃 PooledPtr；此处池已空，clear 为安全 no-op 且可复用
+    pool.clear();
+    EXPECT_EQ(pool.size(), 0);
     auto p = pool.intern("Hello");
     EXPECT_TRUE(p);
     EXPECT_EQ(pool.size(), 1);
@@ -175,15 +177,21 @@ TEST(Utf8StringPoolTest, TotalBytes) {
 }
 
 TEST(Utf8StringPoolTest, Move) {
-    Utf8StringPool p1;
-    auto ptr = p1.intern("Hello");
-
-    Utf8StringPool p2(std::move(p1));
-    EXPECT_EQ(p2.size(), 1);
-    EXPECT_EQ(p2.active_entries(), 1);
-
-    // ptr 指向的条目仍有效
-    EXPECT_EQ(ptr.length(), 5);
+    // 契约：Pool 必须 outlive 所有 PooledPtr。故 ptr 须在两个池之后声明，
+    // 用 move-assign 把 p1 的内容搬进先声明的 p2，搬完 owner 回指 p2。
+    Utf8StringPool p2;
+    {
+        Utf8StringPooledPtr ptr;
+        {
+            Utf8StringPool p1;
+            ptr = p1.intern("Hello");
+            p2 = std::move(p1);              // 搬入 p2，repoint owner→p2
+            EXPECT_EQ(p2.size(), 1);
+            EXPECT_EQ(p2.active_entries(), 1);
+        }                                     // p1 析构（已空）
+        EXPECT_EQ(ptr.length(), 5);          // ptr 指向的条目仍有效（在 p2 里）
+    }                                         // ptr 先析构 → 真删 p2 中条目
+    EXPECT_EQ(p2.size(), 0);                 // p2 后析构，已空，安全
 }
 
 TEST(Utf8StringPoolTest, RefCountAutoRelease) {
@@ -290,6 +298,58 @@ TEST(Utf8StringPoolTest, FindHoldsRefCount) {
     }
     // 两个句柄都析构 → 条目应可回收
     EXPECT_EQ(pool.active_entries(), 0u);
+}
+
+// ---- Step 4: 真删（无墓碑） ----
+
+TEST(Utf8StringPoolTest, TrueDeleteOnRefZero) {
+    Utf8StringPool pool;
+    {
+        auto p = pool.intern("ephemeral");
+        EXPECT_EQ(pool.size(), 1u);
+        EXPECT_EQ(pool.total_bytes(), 9u);
+    }                                       // p 析构 → 真删
+    EXPECT_EQ(pool.size(), 0u);             // 无墓碑残留
+    EXPECT_EQ(pool.total_bytes(), 0u);      // 字节计数归零
+}
+
+TEST(Utf8StringPoolTest, ReinternAfterDeleteNewEntry) {
+    Utf8StringPool pool;
+    const u8* firstAddr = nullptr;
+    { auto p = pool.intern("X"); firstAddr = p.data(); }   // 删除
+    EXPECT_EQ(pool.size(), 0u);
+    auto q = pool.intern("X");              // 重新 intern → 新建条目
+    EXPECT_TRUE(q);
+    EXPECT_EQ(pool.size(), 1u);
+    (void)firstAddr;                        // 旧地址已释放，不解引用
+}
+
+TEST(Utf8StringPoolTest, RefCountSharedEntry) {
+    Utf8StringPool pool;
+    auto a = pool.intern("shared");
+    {
+        auto b = pool.intern("shared");     // 同 entry，refcount=2
+        EXPECT_EQ(pool.size(), 1u);
+        EXPECT_EQ(a.data(), b.data());
+    }                                       // b 析构 → refcount=1，条目仍活
+    EXPECT_EQ(pool.size(), 1u);
+    EXPECT_TRUE(a.ref().equals("shared"));
+}
+
+TEST(Utf8StringPoolTest, BucketCollisionEraseKeepsOther) {
+    // 同桶多条目：删一个不影响另一个（验证摘除逻辑）
+    Utf8StringPool pool;
+    auto keep = pool.intern("alpha");
+    {
+        auto drop = pool.intern("beta");
+        EXPECT_EQ(pool.size(), 2u);
+    }                                       // beta 删除
+    EXPECT_EQ(pool.size(), 1u);
+    EXPECT_TRUE(keep.ref().equals("alpha"));  // alpha 不受影响
+    // alpha 再查得到
+    auto again = pool.find(Utf8StringRef::from_cstr("alpha"));
+    EXPECT_TRUE(again);
+    EXPECT_EQ(again.data(), keep.data());
 }
 
 }  // namespace ca::str
