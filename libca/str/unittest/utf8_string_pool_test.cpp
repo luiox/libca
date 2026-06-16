@@ -243,4 +243,53 @@ TEST(Utf8StringPooledPtrTest, ImplicitConvertEmpty) {
     EXPECT_TRUE(r.is_empty());
 }
 
+// ---- Step 3: 跨类型相等 + 内容回退 + Pool::find ----
+
+TEST(Utf8StringPooledPtrTest, RefEqPooledSymmetric) {
+    Utf8StringPool pool;
+    auto p = pool.intern("Hello");
+    u8 d[] = {0x48,0x65,0x6C,0x6C,0x6F};
+    Utf8StringRef r(d, 5, 5);
+    EXPECT_TRUE(p == r);     // PooledPtr == Ref
+    EXPECT_TRUE(r == p);     // Ref == PooledPtr（反向对称）
+    EXPECT_FALSE(r != p);
+}
+
+TEST(Utf8StringPooledPtrTest, CrossPoolContentFallback) {
+    // 两个独立池，同内容 → 不同 entry 指针 → 必须内容回退判等
+    Utf8StringPool poolA, poolB;
+    auto a = poolA.intern("same/content");
+    auto b = poolB.intern("same/content");
+    EXPECT_NE(a.data(), b.data());   // 不同地址
+    EXPECT_TRUE(a == b);             // 内容回退 → 相等
+    auto c = poolA.intern("diff");
+    EXPECT_FALSE(a == c);
+}
+
+TEST(Utf8StringPoolTest, FindHitAndMiss) {
+    Utf8StringPool pool;
+    auto kept = pool.intern("java/lang/Object");
+    // find 命中：返回持有句柄，且与原 entry 同指针
+    auto hit = pool.find(Utf8StringRef::from_cstr("java/lang/Object"));
+    EXPECT_TRUE(hit);
+    EXPECT_EQ(hit.data(), kept.data());
+    EXPECT_EQ(pool.active_entries(), 1u);   // find 命中不新建条目
+    // find 未命中：返回空
+    auto miss = pool.find(Utf8StringRef::from_cstr("not/here"));
+    EXPECT_FALSE(miss);
+    EXPECT_EQ(pool.active_entries(), 1u);
+}
+
+TEST(Utf8StringPoolTest, FindHoldsRefCount) {
+    Utf8StringPool pool;
+    {
+        auto kept = pool.intern("temp");
+        auto found = pool.find(Utf8StringRef::from_cstr("temp"));
+        EXPECT_TRUE(found);
+        // kept + found 两个句柄持同一 entry
+    }
+    // 两个句柄都析构 → 条目应可回收
+    EXPECT_EQ(pool.active_entries(), 0u);
+}
+
 }  // namespace ca::str

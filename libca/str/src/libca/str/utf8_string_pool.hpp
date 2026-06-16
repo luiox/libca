@@ -135,6 +135,13 @@ public:
     Utf8StringPooledPtr intern(const char* cstr);
     Utf8StringPooledPtr intern(const Utf8StringRef& str);
 
+    // ---- 查找（不分配、不改 ref_count）----
+
+    // 按内容查已存在条目。命中返回持有该条目的 PooledPtr（ref_count++），
+    // 未命中返回空 PooledPtr。Pool 本身即「内容 → PooledPtr」索引——
+    // 替代 C++20 才有的 unordered_map 异构查找（C++17 不可用）。
+    Utf8StringPooledPtr find(const Utf8StringRef& str) const;
+
     // ---- 统计 ----
 
     // 已分配的 PoolEntry 总数（含墓碑）
@@ -164,6 +171,9 @@ private:
 
 bool operator==(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept;
 bool operator!=(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept;
+// 反向对称：Ref == PooledPtr（内容比较）
+bool operator==(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
+bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
 
 }  // namespace ca::str
 

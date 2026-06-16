@@ -90,11 +90,15 @@ Utf8StringRef Utf8StringPooledPtr::ref() const noexcept {
 }
 
 bool Utf8StringPooledPtr::operator==(const Utf8StringPooledPtr& other) const noexcept {
-    return entry_ == other.entry_;
+    // 先指针：同池去重后同内容必同 entry（快路径）
+    if (entry_ == other.entry_) return true;
+    // 不同指针不代表不等：跨池同内容落不同地址，回退内容比较
+    if (!entry_ || !other.entry_) return false;  // 一空一非空
+    return ref() == other.ref();
 }
 
 bool Utf8StringPooledPtr::operator!=(const Utf8StringPooledPtr& other) const noexcept {
-    return entry_ != other.entry_;
+    return !(*this == other);
 }
 
 
@@ -146,6 +150,26 @@ usize Utf8StringPool::compute_hash(const u8* data, usize byte_length) const noex
         h *= 1099511628211ULL;
     }
     return h;
+}
+
+Utf8StringPooledPtr Utf8StringPool::find(const Utf8StringRef& str) const {
+    const u8* data = str.data();
+    usize byte_length = str.byte_length();
+    if (data == nullptr || byte_length == 0)
+        return Utf8StringPooledPtr();
+
+    auto hash = compute_hash(data, byte_length);
+    auto it = hash_index_.find(hash);
+    if (it != hash_index_.end()) {
+        for (auto* ep : it->second) {
+            if (ep->alive && ep->byte_length == byte_length &&
+                std::memcmp(ep->data, data, byte_length) == 0) {
+                ++ep->ref_count;   // 命中：返回持有句柄（与 intern 一致）
+                return Utf8StringPooledPtr(ep);
+            }
+        }
+    }
+    return Utf8StringPooledPtr();  // 未命中
 }
 
 Utf8StringPooledPtr Utf8StringPool::intern(const u8* data, usize byte_length) {
@@ -236,6 +260,14 @@ bool operator==(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexce
 
 bool operator!=(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept {
     return !(lhs.ref() == rhs);
+}
+
+bool operator==(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept {
+    return lhs == rhs.ref();
+}
+
+bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept {
+    return !(lhs == rhs.ref());
 }
 
 }  // namespace ca::str
