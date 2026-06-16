@@ -91,6 +91,10 @@ public:
     // 转为 Utf8StringRef 视图
     Utf8StringRef ref() const noexcept;
 
+    // 隐式转为 Utf8StringRef（零开销借用降级，对齐 ZUtf8StringRef）
+    // 让 PooledPtr 直接喂给只读接口；只读期间 PooledPtr 须存活（拥有者 outlive 借用者）
+    operator Utf8StringRef() const noexcept { return ref(); }
+
     // ---- 比较 ----
 
     bool operator==(const Utf8StringPooledPtr& other) const noexcept;

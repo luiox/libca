@@ -1,0 +1,55 @@
+# dev_plan — ca::str 字符串所有权地基重构
+
+> 分支：`refactor/str-ownership`（libca 独立仓）
+> 契约依据：morpher 仓 `spec/str-ownership-spec.md`（八条决策 A–H）
+> 目标：把 `ca::str` 的类型族补齐到 spec 契约，地基夯实后 morpher 再 bump submodule。
+
+## 现状审计（vs spec，已核实）
+
+| spec 决策 | 现状 | 差距 |
+|---|---|---|
+| §6.1 PooledPtr 隐式转 Ref | 仅显式 `ref()` | 补隐式 `operator Utf8StringRef()` |
+| §3 Utf8Twine | 不存在 | 新建 `utf8_twine.hpp/cpp` |
+| §7.1 三者同一内容 hash | ✅ FNV-1a 一致（Ref/Pooled/String） | 无 |
+| §7.1 异构查找 | 缺透明比较器 | `map<PooledPtr>` 不能用 Ref 查，需补 |
+| §7.2 == 先指针后内容 | `PooledPtr==` 只比指针 | 补跨类型 `PooledPtr==Ref`（内容回退） |
+| §10-D Pool 真删 | 墓碑（`alive=false`+删字节，节点留 list/桶） | 改真删（核心难点） |
+| §10-C Ref 24 字节带码点 | ✅ 已符合 | 无 |
+| §10-G intern 纯拷贝 | ✅ memcpy | 无 |
+
+## 实现顺序（风险阶梯，每步 build+test）
+
+### Step 1 — PooledPtr 隐式转 Ref（纯增，零风险）
+- `utf8_string_pool.hpp`：加 `operator Utf8StringRef() const noexcept;`（复用现有 `ref()`）。
+- 测试：`PooledPtr` 直接传进收 `Utf8StringRef` 的函数、参与 `equals`。
+
+### Step 2 — Utf8Twine 懒拼接（纯增，独立）
+- 新建 `utf8_twine.hpp/cpp`：持各片段视图，`operator+` 链式，`materialize(Arena&)→Ref` / `materialize(Pool&)→PooledPtr` / `to_string()→Utf8String`。
+- 铁律落到注释：只作参数 / 单表达式即弃，绝不存成员、绝不跨语句。
+- 测试：`pool.intern(a + "/" + b)` 内容正确；嵌套拼接；空片段。
+
+### Step 3 — 异构比较器 + 跨类型相等（改造，中风险）
+- 补 `PooledPtr==Ref` / `Ref==PooledPtr`：**先指针、不同指针回退内容比较**。
+- 补透明比较器（`is_transparent`），让 `unordered_map<PooledPtr>` 用 `Ref` 查。
+- 测试：`map<PooledPtr,V>` 用 `Ref` 命中；跨「两个池同内容」相等为真。
+
+### Step 4 — Pool 真删（核心难点，重测试护体）
+- 难点：`release()` 是 PooledPtr 成员，拿不到 Pool 的 `entries_`/`hash_index_`。
+- 方案：`Utf8PoolEntry` 加 `Utf8StringPool* owner`（+8B/entry）；release 归零时回调 `owner->erase_entry(entry)`：
+  1. 从 `hash_index_[hash]` 的 vector 摘除该 entry 指针；
+  2. vector 空则 erase 该 hash key；
+  3. 从 `entries_`(std::list，节点稳定) erase 节点。
+- 去掉 `alive` 墓碑逻辑（真删后无墓碑）。
+- 测试：intern→drop→`size()` 归零、`active_entries()` 准确；drop 后同内容再 intern 新建；多 PooledPtr 共享同 entry 的 refcount 正确；hash 桶不残留死指针。
+
+## 验证
+
+```bash
+cd /d/WorkSpace/libca
+xmake f -p windows -a x64 -m release --with_tests=y -y
+xmake build libca_str_unittest && xmake run libca_str_unittest   # 基线 211 tests，每步只增不减
+```
+
+## 注（不在本轮，记录给上层）
+
+- §3.1 `from_static` 全局 mutex 是热点锁隐患——morpher reader 属性名比较若密集走它需量化，必要时换无锁/线程局部缓存。本轮不动，标记待评估。

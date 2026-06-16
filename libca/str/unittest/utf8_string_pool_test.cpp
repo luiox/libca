@@ -221,4 +221,26 @@ TEST(Utf8StringPoolTest, LargeBatch) {
     EXPECT_EQ(pool.active_entries(), 1);
 }
 
+// ---- Step 1: PooledPtr 隐式转 Utf8StringRef（读货币降级） ----
+
+namespace {
+static usize takesRef(Utf8StringRef r) { return r.byte_length(); }
+}
+
+TEST(Utf8StringPooledPtrTest, ImplicitConvertToRef) {
+    Utf8StringPool pool;
+    auto p = pool.intern("Hello");
+    Utf8StringRef r = p;                    // 隐式转换，无需 .ref()
+    EXPECT_EQ(r.byte_length(), 5u);
+    EXPECT_EQ(r.data(), p.data());          // 同一字节
+    EXPECT_EQ(takesRef(p), 5u);             // 直接作实参
+    EXPECT_TRUE(r.equals("Hello"));
+}
+
+TEST(Utf8StringPooledPtrTest, ImplicitConvertEmpty) {
+    Utf8StringPooledPtr p;
+    Utf8StringRef r = p;
+    EXPECT_TRUE(r.is_empty());
+}
+
 }  // namespace ca::str
