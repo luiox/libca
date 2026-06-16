@@ -17,23 +17,23 @@
 | §10-C Ref 24 字节带码点 | ✅ 已符合 | 无 |
 | §10-G intern 纯拷贝 | ✅ memcpy | 无 |
 
-## 实现顺序（风险阶梯，每步 build+test）
+## 实现顺序（风险阶梯，每步 build+test）— ✅ 全部完成（229 tests）
 
-### Step 1 — PooledPtr 隐式转 Ref（纯增，零风险）
+### Step 1 — PooledPtr 隐式转 Ref（纯增，零风险）✅ `331a492`
 - `utf8_string_pool.hpp`：加 `operator Utf8StringRef() const noexcept;`（复用现有 `ref()`）。
 - 测试：`PooledPtr` 直接传进收 `Utf8StringRef` 的函数、参与 `equals`。
 
-### Step 2 — Utf8Twine 懒拼接（纯增，独立）
+### Step 2 — Utf8Twine 懒拼接（纯增，独立）✅ `7fc9842`
 - 新建 `utf8_twine.hpp/cpp`：持各片段视图，`operator+` 链式，`materialize(Arena&)→Ref` / `materialize(Pool&)→PooledPtr` / `to_string()→Utf8String`。
 - 铁律落到注释：只作参数 / 单表达式即弃，绝不存成员、绝不跨语句。
 - 测试：`pool.intern(a + "/" + b)` 内容正确；嵌套拼接；空片段。
 
-### Step 3 — 异构比较器 + 跨类型相等（改造，中风险）
+### Step 3 — 异构比较器 + 跨类型相等（改造，中风险）✅ `994c564`
 - 补 `PooledPtr==Ref` / `Ref==PooledPtr`：**先指针、不同指针回退内容比较**。
-- 补透明比较器（`is_transparent`），让 `unordered_map<PooledPtr>` 用 `Ref` 查。
-- 测试：`map<PooledPtr,V>` 用 `Ref` 命中；跨「两个池同内容」相等为真。
+- ⚠️ 修正：`unordered_map` 异构查找是 C++20，本项目 C++17 不可用。改用 `Pool::find(Ref)→PooledPtr`（Pool 自身即内容索引，不分配/命中 refcount++）。
+- 测试：`Pool::find` 命中/未命中/refcount；跨「两个池同内容」相等为真。
 
-### Step 4 — Pool 真删（核心难点，重测试护体）
+### Step 4 — Pool 真删（核心难点，重测试护体）✅ `4b0900c`
 - 难点：`release()` 是 PooledPtr 成员，拿不到 Pool 的 `entries_`/`hash_index_`。
 - 方案：`Utf8PoolEntry` 加 `Utf8StringPool* owner`（+8B/entry）；release 归零时回调 `owner->erase_entry(entry)`：
   1. 从 `hash_index_[hash]` 的 vector 摘除该 entry 指针；
