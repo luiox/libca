@@ -1,4 +1,4 @@
--- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 false）。
 
 target("libca_str")
     set_kind("static")
@@ -10,6 +10,7 @@ target("libca_str")
     end
     add_deps("libca_core")
 
+if has_config("with_tests") then
 target("libca_str_unittest")
     set_kind("binary")
     set_group("libs/test")
@@ -22,3 +23,4 @@ target("libca_str_unittest")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+end

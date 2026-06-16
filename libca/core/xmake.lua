@@ -1,5 +1,5 @@
--- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
--- 此处不再强制 require，避免作为 submodule 被 includes 时强制拉取 gtest。
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 false）。
+-- *_unittest target 受 has_config("with_tests") 守卫，关闭时不定义。
 
 target("libca_core")
     set_kind("static")
@@ -8,11 +8,12 @@ target("libca_core")
     add_files("src/libca/core/bytes.cpp")
     add_includedirs("src", {public = true})
 
+if has_config("with_tests") then
 target("libca_core_unittest")
     set_kind("binary")
     set_group("libs/test")
-    add_packages("gtest")
     add_deps("libca_core")
+    add_packages("gtest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
@@ -20,3 +21,4 @@ target("libca_core_unittest")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+end

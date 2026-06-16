@@ -1,4 +1,4 @@
--- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 true）。
+-- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 false）。
 
 -- headeronly: Stream 和 ImmutableList 均为模板类，必须在头文件中实现
 target("libca_collection")
@@ -7,6 +7,7 @@ target("libca_collection")
     add_headerfiles("src/libca/collection/*.hpp")
     add_includedirs("src", {public = true})
 
+if has_config("with_tests") then
 target("libca_collection_unittest")
     set_kind("binary")
     set_group("libs/test")
@@ -18,3 +19,4 @@ target("libca_collection_unittest")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+end
