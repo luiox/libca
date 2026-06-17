@@ -23,7 +23,6 @@
 #include <cstddef>
 #include <cstring>
 #include <unordered_map>
-#include <list>
 #include <vector>
 
 namespace ca::str {
@@ -40,12 +39,12 @@ class Utf8StringPool;
 // ============================================================================
 
 struct Utf8PoolEntry {
-    u8*   data;
-    usize byte_length;
-    usize length;    // 码点个数
-    usize hash;
-    usize ref_count;
-    bool  alive;
+    u8*             data;
+    usize           byte_length;
+    usize           length;    // 码点个数
+    usize           hash;
+    usize           ref_count;
+    Utf8StringPool* owner;     // 回指：ref_count 归零时由它真删本条目
 };
 
 
@@ -91,6 +90,10 @@ public:
     // 转为 Utf8StringRef 视图
     Utf8StringRef ref() const noexcept;
 
+    // 隐式转为 Utf8StringRef（零开销借用降级，对齐 ZUtf8StringRef）
+    // 让 PooledPtr 直接喂给只读接口；只读期间 PooledPtr 须存活（拥有者 outlive 借用者）
+    operator Utf8StringRef() const noexcept { return ref(); }
+
     // ---- 比较 ----
 
     bool operator==(const Utf8StringPooledPtr& other) const noexcept;
@@ -131,9 +134,16 @@ public:
     Utf8StringPooledPtr intern(const char* cstr);
     Utf8StringPooledPtr intern(const Utf8StringRef& str);
 
+    // ---- 查找（不分配、不改 ref_count）----
+
+    // 按内容查已存在条目。命中返回持有该条目的 PooledPtr（ref_count++），
+    // 未命中返回空 PooledPtr。Pool 本身即「内容 → PooledPtr」索引——
+    // 替代 C++20 才有的 unordered_map 异构查找（C++17 不可用）。
+    Utf8StringPooledPtr find(const Utf8StringRef& str) const;
+
     // ---- 统计 ----
 
-    // 已分配的 PoolEntry 总数（含墓碑）
+    // 唯一条目总数（真删后 == 活条目数）
     usize size() const noexcept;
 
     // 活跃条目数（ref_count > 0）
@@ -146,11 +156,26 @@ public:
     void clear() noexcept;
 
 private:
-    std::list<Utf8PoolEntry> entries_;
+    // hash_index_ 是条目的唯一所有者：hash → 同 hash 的堆分配条目列表（冲突链）。
+    // 条目堆分配 → 指针稳定，PooledPtr 可安全长持。ref_count 归零即真删（无墓碑）。
     using HashIndex = std::unordered_map<usize, std::vector<Utf8PoolEntry*>>;
     HashIndex hash_index_;
+    usize     active_count_ = 0;   // 活条目数（O(1)）
+    usize     total_bytes_  = 0;   // 活条目字节和（O(1)）
 
     usize compute_hash(const u8* data, usize byte_length) const noexcept;
+
+    // 真删：从 hash 桶摘除 entry、释放其字节、delete 条目、空桶则删 key。
+    // 由 PooledPtr::release() 在 ref_count 归零时回调。
+    void erase_entry(Utf8PoolEntry* entry) noexcept;
+    // move 后把所有条目的 owner 回指改向 this
+    void repoint_entries() noexcept;
+    // Pool 退出（析构/clear/move-assign 释放自身旧条目）前的 fail-safe：
+    // hash_index_ 里残留的 entry 都仍有外部 PooledPtr 持有（ref_count 归零的早已被
+    // erase_entry 真删移出），一律置 owner=nullptr，由存活句柄自管释放。
+    // 消除「Pool 先死、PooledPtr 后死」UAF。
+    void disown_all() noexcept;
+    friend class Utf8StringPooledPtr;
 };
 
 
@@ -160,6 +185,9 @@ private:
 
 bool operator==(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept;
 bool operator!=(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept;
+// 反向对称：Ref == PooledPtr（内容比较）
+bool operator==(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
+bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
 
 }  // namespace ca::str
 

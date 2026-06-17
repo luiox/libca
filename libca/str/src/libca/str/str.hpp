@@ -19,5 +19,6 @@
 #include "string_util.hpp"
 #include "utf8_string_arena.hpp"
 #include "utf8_string_pool.hpp"
+#include "utf8_twine.hpp"
 
 #endif  // LIBCA_STR_STR_HPP

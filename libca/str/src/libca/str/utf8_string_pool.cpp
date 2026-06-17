@@ -26,9 +26,12 @@ void Utf8StringPooledPtr::acquire() noexcept {
 
 void Utf8StringPooledPtr::release() noexcept {
     if (entry_ && --entry_->ref_count == 0) {
-        entry_->alive = false;
-        delete[] entry_->data;
-        entry_->data = nullptr;
+        // owner 非空：正常路径，由 Pool 真删（摘桶 + 释放 + delete entry）。
+        // owner 为空：Pool 已 disown 本条目（见 disown_all），把所有权交给最后存活的
+        //   PooledPtr 自管释放，避免 Pool 退出后悬空 erase_entry 导致 UAF。
+        if (entry_->owner) entry_->owner->erase_entry(entry_);
+        else { delete[] entry_->data; delete entry_; }
+        entry_ = nullptr;
     }
 }
 
@@ -90,11 +93,15 @@ Utf8StringRef Utf8StringPooledPtr::ref() const noexcept {
 }
 
 bool Utf8StringPooledPtr::operator==(const Utf8StringPooledPtr& other) const noexcept {
-    return entry_ == other.entry_;
+    // 先指针：同池去重后同内容必同 entry（快路径）
+    if (entry_ == other.entry_) return true;
+    // 不同指针不代表不等：跨池同内容落不同地址，回退内容比较
+    if (!entry_ || !other.entry_) return false;  // 一空一非空
+    return ref() == other.ref();
 }
 
 bool Utf8StringPooledPtr::operator!=(const Utf8StringPooledPtr& other) const noexcept {
-    return entry_ != other.entry_;
+    return !(*this == other);
 }
 
 
@@ -105,38 +112,77 @@ bool Utf8StringPooledPtr::operator!=(const Utf8StringPooledPtr& other) const noe
 Utf8StringPool::Utf8StringPool() noexcept {}
 
 Utf8StringPool::~Utf8StringPool() {
-    // 释放所有 dead entry 的数据内存
-    // alive entry 的 data 仍有效，由 PooledPtr 析构时释放
-    for (auto& e : entries_) {
-        if (!e.alive && e.data) {
-            delete[] e.data;
-            e.data = nullptr;
-        }
-    }
+    // 真删模型下条目堆分配、由 hash_index_ 独占。但仍有 PooledPtr 存活时，
+    // 直接 delete 会让这些句柄之后 release 访问到已释放 entry → UAF。
+    // 故走 disown_all：仍被引用的 entry 把所有权移交给存活 PooledPtr（owner 置 null），
+    // 由它们自管释放；无人引用的当场 delete。spec §5 的 outlive 由硬契约降为软契约。
+    disown_all();
 }
 
 Utf8StringPool::Utf8StringPool(Utf8StringPool&& other) noexcept
-    : entries_(std::move(other.entries_))
-    , hash_index_(std::move(other.hash_index_)) {
-    other.entries_.clear();
+    : hash_index_(std::move(other.hash_index_))
+    , active_count_(other.active_count_)
+    , total_bytes_(other.total_bytes_) {
+    repoint_entries();              // 条目 owner 回指改向 this
     other.hash_index_.clear();
+    other.active_count_ = 0;
+    other.total_bytes_  = 0;
 }
 
 Utf8StringPool& Utf8StringPool::operator=(Utf8StringPool&& other) noexcept {
     if (this != &other) {
-        // 释放自身 dead 数据
-        for (auto& e : entries_) {
-            if (!e.alive && e.data) {
-                delete[] e.data;
-                e.data = nullptr;
-            }
-        }
-        entries_ = std::move(other.entries_);
-        hash_index_ = std::move(other.hash_index_);
-        other.entries_.clear();
+        disown_all();                         // fail-safe 释放自身旧条目
+        hash_index_   = std::move(other.hash_index_);
+        active_count_ = other.active_count_;
+        total_bytes_  = other.total_bytes_;
+        repoint_entries();
         other.hash_index_.clear();
+        other.active_count_ = 0;
+        other.total_bytes_  = 0;
     }
     return *this;
+}
+
+void Utf8StringPool::repoint_entries() noexcept {
+    for (auto& [h, bucket] : hash_index_)
+        for (auto* ep : bucket) ep->owner = this;
+}
+
+void Utf8StringPool::disown_all() noexcept {
+    // Pool 退出（析构 / clear / move-assign 释放自身旧条目）前的 fail-safe。
+    // 凡 hash_index_ 里的 entry 都还有外部 PooledPtr 持有（ref_count 归零的早已被
+    // erase_entry 真删移出），故一律 disown：置 owner=nullptr，把字节/entry 所有权
+    // 移交给那些存活句柄，由它们各自 release 时自管释放（见 PooledPtr::release 双分支）。
+    // 如此消除「Pool 先死、PooledPtr 后死」的 UAF；代价是这些条目失去真删/去重收益，
+    // 故 spec §5 的 outlive 仍作为软契约保留（遵循则享受真删，违反则退化自管）。
+    for (auto& [h, bucket] : hash_index_) {
+        for (auto* ep : bucket) {
+            ep->owner = nullptr;
+        }
+    }
+    hash_index_.clear();
+    active_count_ = 0;
+    total_bytes_  = 0;
+}
+
+void Utf8StringPool::erase_entry(Utf8PoolEntry* entry) noexcept {
+    if (!entry) return;
+    auto it = hash_index_.find(entry->hash);
+    if (it != hash_index_.end()) {
+        auto& bucket = it->second;
+        for (usize i = 0; i < bucket.size(); ++i) {
+            if (bucket[i] == entry) {
+                bucket[i] = bucket.back();   // 摘除：与末尾交换后弹出
+                bucket.pop_back();
+                break;
+            }
+        }
+        if (bucket.empty()) hash_index_.erase(it);   // 空桶删 key
+    }
+    if (active_count_) --active_count_;
+    if (total_bytes_ >= entry->byte_length) total_bytes_ -= entry->byte_length;
+    delete[] entry->data;
+    delete entry;
 }
 
 usize Utf8StringPool::compute_hash(const u8* data, usize byte_length) const noexcept {
@@ -148,37 +194,55 @@ usize Utf8StringPool::compute_hash(const u8* data, usize byte_length) const noex
     return h;
 }
 
+Utf8StringPooledPtr Utf8StringPool::find(const Utf8StringRef& str) const {
+    const u8* data = str.data();
+    usize byte_length = str.byte_length();
+    if (data == nullptr || byte_length == 0)
+        return Utf8StringPooledPtr();
+
+    auto hash = compute_hash(data, byte_length);
+    auto it = hash_index_.find(hash);
+    if (it != hash_index_.end()) {
+        for (auto* ep : it->second) {
+            if (ep->byte_length == byte_length &&
+                std::memcmp(ep->data, data, byte_length) == 0) {
+                ++ep->ref_count;   // 命中：返回持有句柄（与 intern 一致）
+                return Utf8StringPooledPtr(ep);
+            }
+        }
+    }
+    return Utf8StringPooledPtr();  // 未命中
+}
+
 Utf8StringPooledPtr Utf8StringPool::intern(const u8* data, usize byte_length) {
     if (data == nullptr || byte_length == 0)
         return Utf8StringPooledPtr();
 
     auto hash = compute_hash(data, byte_length);
 
-    // 去重查找：相同 hash 的活跃条目中比较
+    // 去重查找：相同 hash 的条目中比较内容（真删后无墓碑，无需 alive 判断）
     auto it = hash_index_.find(hash);
     if (it != hash_index_.end()) {
         for (auto* ep : it->second) {
-            if (ep->alive && ep->byte_length == byte_length &&
+            if (ep->byte_length == byte_length &&
                 std::memcmp(ep->data, data, byte_length) == 0) {
-                // 找到已存在的条目，递增 ref_count
                 ++ep->ref_count;
                 return Utf8StringPooledPtr(ep);
             }
         }
     }
 
-    // 计算码点个数
     usize cp_count = utf8_count_code_points(data, byte_length);
     if (cp_count == 0)
         return Utf8StringPooledPtr();  // 非法 UTF-8
 
-    // 分配新条目
+    // 堆分配新条目（hash_index_ 独占所有权，指针稳定）
     auto* buf = new u8[byte_length];
     std::memcpy(buf, data, byte_length);
-
-    entries_.push_back({buf, byte_length, cp_count, hash, 1, true});
-    auto* ep = &entries_.back();
+    auto* ep = new Utf8PoolEntry{buf, byte_length, cp_count, hash, 1, this};
     hash_index_[hash].push_back(ep);
+    ++active_count_;
+    total_bytes_ += byte_length;
 
     return Utf8StringPooledPtr(ep);
 }
@@ -194,35 +258,21 @@ Utf8StringPooledPtr Utf8StringPool::intern(const Utf8StringRef& str) {
 }
 
 usize Utf8StringPool::size() const noexcept {
-    return entries_.size();
+    return active_count_;
 }
 
 usize Utf8StringPool::active_entries() const noexcept {
-    usize count = 0;
-    for (auto& e : entries_) {
-        if (e.alive) ++count;
-    }
-    return count;
+    return active_count_;
 }
 
 usize Utf8StringPool::total_bytes() const noexcept {
-    usize total = 0;
-    for (auto& e : entries_) {
-        if (e.alive)
-            total += e.byte_length;
-    }
-    return total;
+    return total_bytes_;
 }
 
 void Utf8StringPool::clear() noexcept {
-    for (auto& e : entries_) {
-        if (e.data) {
-            delete[] e.data;
-            e.data = nullptr;
-        }
-    }
-    entries_.clear();
-    hash_index_.clear();
+    // spec §8：clear 是「不依赖 refcount 全部归零的兜底」。走 disown_all →
+    // 仍有 PooledPtr 活着时不崩溃，其所有权移交存活句柄自管释放。
+    disown_all();
 }
 
 
@@ -236,6 +286,14 @@ bool operator==(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexce
 
 bool operator!=(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexcept {
     return !(lhs.ref() == rhs);
+}
+
+bool operator==(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept {
+    return lhs == rhs.ref();
+}
+
+bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept {
+    return !(lhs == rhs.ref());
 }
 
 }  // namespace ca::str
