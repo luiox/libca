@@ -1,19 +1,21 @@
 ---
-version: 1.0
+version: 1.1
 update:
 2026-06-13 - 完成 utf8_string.hpp 与 utf8_string_arena.hpp 稳定接口分级与首版冻结清单
+2026-06-17 - 新增 §10 Utf8StringPool（Provisional）：PooledPtr/隐式转 Ref/find/真删 + disown fail-safe；outlive 降为软契约
 ---
 
 # libca/str UTF-8 稳定接口文档
 
 ## 1. 固定范围
 
-本文件只固定以下两个头文件中的接口：
+本文件固定以下头文件中的接口：
 
-- `libca/str/src/libca/str/utf8_string.hpp`
-- `libca/str/src/libca/str/utf8_string_arena.hpp`
+- `libca/str/src/libca/str/utf8_string.hpp`（Stable）
+- `libca/str/src/libca/str/utf8_string_arena.hpp`（Stable）
+- `libca/str/src/libca/str/utf8_string_pool.hpp`（Provisional，见 §11）
 
-其他 `libca/str` 头文件和模块暂不在本次稳定承诺内。
+其他 `libca/str` 头文件（`utf8_twine.hpp`、`string_util.hpp` 等）暂不在本次稳定承诺内。
 
 当前结论：
 
@@ -26,6 +28,7 @@ update:
 | `Utf8StringArena` | Stable | 可以固定，需明确生命周期和非线程安全 |
 | `Utf8StringBuilder` | Provisional | 头文件内可用，但不建议本次对下游固定 |
 | `ZUtf8StringRef` | Provisional | 思路合理，但缓存和生命周期语义建议单独冻结 |
+| `Utf8StringPool` / `Utf8StringPooledPtr` | Provisional | 引用计数池，接口已稳定可用，但 disown fail-safe 语义需下游充分理解后再升级 Stable（见 §11） |
 
 稳定承诺是源码级 API，不承诺二进制 ABI、对象内存布局、私有成员、哈希具体数值、异常消息文本。
 
@@ -332,7 +335,88 @@ for (ca::u32 cp : s) {
 - 已支持 `ref()` / `operator Utf8StringRef()` 和 C 字符串零拷贝比较；这些接口后续可随 `ZUtf8StringRef` 单独稳定化。
 - 更适合作为后续单独设计文档固定。
 
-## 10. 推荐用法
+## 10. Utf8StringPool（Provisional）
+
+头文件：`libca/str/src/libca/str/utf8_string_pool.hpp`
+
+> **稳定性**：Provisional。接口形状已稳定可用，但 disown fail-safe 语义较新，需下游（morpher 字节码符号池）充分接线验证后再升级 Stable。**当前不建议下游把它写入自身公共稳定接口**。
+
+`Utf8StringPool` 是引用计数 UTF-8 字符串池。它复制输入字符串，去重后返回引用计数的 `Utf8StringPooledPtr`；多个句柄共享同一 entry，最后一个句柄析构时真删该 entry。
+
+与 `Utf8StringArena` 的区别：arena 是「同生共死、整块释放」，pool 是「各主人寿命不同、按引用计数回收」。选型判据是「这批字符串有没有共同死亡点」——有则 arena，无则 pool。
+
+### 10.1 生命周期契约（核心，必读）
+
+- **真删**：`PooledPtr` refcount 归零即 `delete` 该 entry 字节 + 条目（非墓碑）。
+- **outlive 是软契约，不是硬契约**：Pool 析构 / `clear()` / move-assign 时若仍有 `PooledPtr` 存活，**不会 UAF**（走 disown fail-safe，见下），但被 disown 的 entry 失去去重收益（同内容会各自 new 一份）。故「Pool 宜 outlive 所有 PooledPtr」是**性能契约**——遵守则享受真删+去重，违反则退化自管。
+- **Ref 仍由借用纪律保证**：`PooledPtr` 析构后，由它 `.ref()` 派生的 `Utf8StringRef` 失效（与 arena 同理）。
+- **非线程安全**。
+
+### 10.2 fail-safe：disown
+
+Pool 退出（析构 / `clear()` / move-assign 释放自身旧条目）时，凡 `hash_index_` 残留的 entry 都仍有外部 `PooledPtr` 持有（refcount 归零的早已被 `erase_entry` 真删移出）——一律置 `owner=nullptr`（**disown**），把字节/entry 所有权移交给存活句柄。`PooledPtr::release()` 走双分支：
+
+- `owner` 非空 → Pool 真删（正常路径，零开销）；
+- `owner` 为空 → 自管 `delete`（被 disown 的句柄）。
+
+效果：正常使用零开销；Pool 先死、PooledPtr 后死不崩溃、不 double-free。
+
+### 10.3 Utf8StringPooledPtr
+
+`Utf8StringPooledPtr` 是引用计数的池化不可变 UTF-8 字符串句柄，8 字节（一个指针）。
+
+| 接口 | 稳定性 | 行为 |
+|---|---|---|
+| `Utf8StringPooledPtr() noexcept` | Provisional | 空句柄 |
+| `Utf8StringPooledPtr(const Utf8StringPooledPtr&) noexcept` | Provisional | 拷贝，refcount++ |
+| `Utf8StringPooledPtr(Utf8StringPooledPtr&&) noexcept` | Provisional | 移动，refcount 不变 |
+| `operator=(const Utf8StringPooledPtr&) noexcept` | Provisional | 拷贝赋值 |
+| `operator=(Utf8StringPooledPtr&&) noexcept` | Provisional | 移动赋值 |
+| `~Utf8StringPooledPtr()` | Provisional | refcount--，归零触发真删/disown 自删 |
+| `data() const noexcept -> const u8*` | Provisional | 原始字节指针，不保证 `\0` 终止 |
+| `byte_length() const noexcept -> usize` | Provisional | 字节数 |
+| `length() const noexcept -> usize` | Provisional | 码点数 |
+| `is_empty() const noexcept -> bool` | Provisional | 是否空 |
+| `explicit operator bool() const noexcept` | Provisional | 是否持有有效 entry |
+| `ref() const noexcept -> Utf8StringRef` | Provisional | 借用视图，**借用纪律同 Ref** |
+| `operator Utf8StringRef() const noexcept` | Provisional | 隐式转 Ref（零开销降级，喂给只读接口） |
+
+隐式转 Ref 让 `PooledPtr` 可直接传给收 `Utf8StringRef` 的只读接口；只读期间 `PooledPtr` 须存活。
+
+### 10.4 Utf8StringPool
+
+| 接口 | 稳定性 | 行为 |
+|---|---|---|
+| `Utf8StringPool() noexcept` | Provisional | 构造空池 |
+| `~Utf8StringPool()` | Provisional | disown_all fail-safe 释放 |
+| `Utf8StringPool(const Utf8StringPool&) = delete` | Provisional | 禁止复制 |
+| `operator=(const Utf8StringPool&) = delete` | Provisional | 禁止复制赋值 |
+| `Utf8StringPool(Utf8StringPool&&) noexcept` | Provisional | 移动构造，entry owner repoint |
+| `operator=(Utf8StringPool&&) noexcept` | Provisional | 移动赋值，自身旧条目走 disown_all |
+| `intern(const u8* data, usize byte_length) -> Utf8StringPooledPtr` | Provisional | 校验 UTF-8，复制入池，去重；空/非法返回空句柄 |
+| `intern(const char* cstr) -> Utf8StringPooledPtr` | Provisional | 从 C 字符串 intern；空指针返回空句柄 |
+| `intern(const Utf8StringRef& str) -> Utf8StringPooledPtr` | Provisional | intern 视图内容 |
+| `find(const Utf8StringRef& str) const -> Utf8StringPooledPtr` | Provisional | 按内容查已存在条目；命中返回句柄（refcount++），未命中返回空。替代 C++20 `unordered_map` 异构查找 |
+| `size() const noexcept -> usize` | Provisional | 唯一条目数（真删后 == 活条目数） |
+| `active_entries() const noexcept -> usize` | Provisional | 活跃条目数（refcount > 0） |
+| `total_bytes() const noexcept -> usize` | Provisional | 活条目字节和 |
+| `clear() noexcept` | Provisional | disown_all fail-safe，回到空池 |
+
+去重规则与 arena 一致：内容相同返回同一 entry；哈希冲突继续比较完整字节内容。
+
+### 10.5 非成员比较
+
+`==` / `!=` 先指针、不同指针回退内容比较（跨池同内容判等为真）：
+
+| 接口 | 行为 |
+|---|---|
+| `operator==(const Utf8StringPooledPtr&, const Utf8StringPooledPtr&)` | 先指针后内容 |
+| `operator==(const Utf8StringPooledPtr&, const Utf8StringRef&)` | 内容比较 |
+| `operator==(const Utf8StringRef&, const Utf8StringPooledPtr&)` | 反向对称 |
+| `operator!=` | 上述各项的否定 |
+| `std::hash<Utf8StringPooledPtr>` | 按内容哈希（与 Ref/String 一致 FNV-1a） |
+
+## 11. 推荐用法
 
 ```cpp
 #include <libca/str/utf8_string.hpp>
