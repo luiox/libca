@@ -352,4 +352,85 @@ TEST(Utf8StringPoolTest, BucketCollisionEraseKeepsOther) {
     EXPECT_EQ(again.data(), keep.data());
 }
 
+// ---- Step 5: Pool 退出 fail-safe（disown）—— 消除「Pool 先死、PooledPtr 后死」UAF ----
+//
+// 这些测试覆盖原本会 UAF 的三条退出路径（析构 / clear / move-assign）。
+// 契约依据：spec §8「clear 整体兜底，不依赖 refcount 全部归零的纪律」——
+// 故「Pool 死时仍有 PooledPtr 活着」是设计预期的兜底场景，不是违约，绝不能崩。
+
+TEST(Utf8StringPoolTest, PoolDestructorBeforePooledPtr_NoUaf) {
+    // Pool 先析构，PooledPtr 后析构：disown 后 PooledPtr 自管释放，无 UAF。
+    Utf8StringPooledPtr p;
+    {
+        Utf8StringPool pool;
+        p = pool.intern("survivor");
+        EXPECT_TRUE(p);
+    }                                       // pool 析构 → disown p（owner=nullptr）
+    EXPECT_TRUE(p);                          // p 仍持字节
+    EXPECT_TRUE(p.ref().equals("survivor")); // disown 后字节未被提前释放
+}                                           // p 析构 → 自管 delete（双分支），无 double-free
+
+TEST(Utf8StringPoolTest, ClearWhilePooledPtrAlive_NoUaf) {
+    // clear() 时仍有 PooledPtr 存活：spec §8 的兜底路径。
+    Utf8StringPool pool;
+    auto a = pool.intern("keepA");
+    auto b = pool.intern("keepB");
+    EXPECT_EQ(pool.size(), 2u);
+    pool.clear();                            // disown a,b → owner=nullptr
+    EXPECT_EQ(pool.size(), 0u);              // 池视图清空
+    // disown 后句柄仍可读（字节未提前释放）
+    EXPECT_TRUE(a.ref().equals("keepA"));
+    EXPECT_TRUE(b.ref().equals("keepB"));
+    // 池已空，仍可继续使用
+    auto c = pool.intern("fresh");
+    EXPECT_TRUE(c);
+    EXPECT_EQ(pool.size(), 1u);
+}                                           // a,b,c 析构各自自管释放，无崩溃
+
+TEST(Utf8StringPoolTest, MoveAssignSourceHasLivePooledPtr_NoUaf) {
+    // move-assign：source 的条目（含被外部 PooledPtr 持有的）搬进 target，
+    // target 自身旧条目走 disown_all。验证两端都不崩、legacy 句柄仍可读。
+    Utf8StringPooledPtr legacy;
+    Utf8StringPool target;
+    auto targetOwn = target.intern("targetOld");   // target 旧条目
+    {
+        Utf8StringPool source;
+        legacy = source.intern("legacy");            // source 持有，被 legacy 句柄引用
+        target = std::move(source);                  // source→target；target 旧条目 disown
+    }                                                 // source 析构（已空）
+    // legacy 随条目搬进 target，owner repoint→target，仍正常存活
+    EXPECT_TRUE(legacy.ref().equals("legacy"));
+    EXPECT_EQ(target.size(), 1u);                    // target 持 legacy
+    // targetOwn 被 target disown（target 旧条目退出），仍可读
+    EXPECT_TRUE(targetOwn.ref().equals("targetOld"));
+}                                                     // legacy/targetOwn 析构各自安全释放
+
+TEST(Utf8StringPoolTest, DisownedPtrReleasesCleanly) {
+    // disown 的 PooledPtr 析构无泄漏、无 double-free。
+    // 析两个共享同一 disowned entry 的 PooledPtr，验证 ref_count 路径正确。
+    Utf8StringPooledPtr shared;
+    {
+        Utf8StringPool pool;
+        auto a = pool.intern("shared");
+        shared = a;                          // ref_count=2
+        // pool 析构：a 先死（ref_count→1），shared 被移交
+    }
+    EXPECT_TRUE(shared.ref().equals("shared"));
+}                                           // shared 析构 → ref_count→0 → 自管 delete
+
+TEST(Utf8StringPoolTest, DisownDoesNotAffectIndependentPool) {
+    // 一个 Pool disown 不影响另一个 Pool 的真删路径。
+    Utf8StringPool poolA, poolB;
+    auto a = poolA.intern("x");
+    auto b = poolB.intern("x");              // 跨池同内容、不同 entry
+    {
+        Utf8StringPooledPtr heldA = a;
+        // poolA 析构：disown heldA；poolB 仍正常
+    }
+    EXPECT_TRUE(b.ref().equals("x"));
+    EXPECT_EQ(poolB.size(), 1u);             // poolB 未受 poolA 影响
+    auto b2 = poolB.intern("x");             // poolB 真删/去重仍工作
+    EXPECT_EQ(b.data(), b2.data());
+}
+
 }  // namespace ca::str

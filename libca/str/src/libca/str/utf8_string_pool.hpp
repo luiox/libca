@@ -170,6 +170,11 @@ private:
     void erase_entry(Utf8PoolEntry* entry) noexcept;
     // move 后把所有条目的 owner 回指改向 this
     void repoint_entries() noexcept;
+    // Pool 退出（析构/clear/move-assign 释放自身旧条目）前的 fail-safe：
+    // hash_index_ 里残留的 entry 都仍有外部 PooledPtr 持有（ref_count 归零的早已被
+    // erase_entry 真删移出），一律置 owner=nullptr，由存活句柄自管释放。
+    // 消除「Pool 先死、PooledPtr 后死」UAF。
+    void disown_all() noexcept;
     friend class Utf8StringPooledPtr;
 };
 
