@@ -14,7 +14,9 @@ The two code styles are governed by **different, authoritative rule files** — 
 
 ### libca module inventory (the "is there already a wheel?" index)
 
-Check this table before building anything new under `libca/`. For modules with a stable-API doc, **read that doc** for ownership/selection semantics rather than scanning headers — headers give signatures, the doc gives the contract.
+Check this table before building anything new under `libca/`. **API usage lives in the header Doxygen comments** (`///`) — read the header to learn how to use a type. The `doc/libca_*_stable_api.md` files are now lean **freeze-status** docs (which tiers are Stable/Experimental/Legacy + cross-cutting conventions), not API references. Per-module design rationale is in `libca/<mod>/doc/`.
+
+> Exception: `str` headers are not yet fully Doxygen-annotated, so `doc/libca_str_utf8_stable_api.md` is still the API reference for `ca::str` until that debt is paid.
 
 | 模块 | 能力一句话 | 关键类型/入口 | 命名空间 | 状态 | 详情文档 |
 |------|-----------|--------------|----------|------|----------|
