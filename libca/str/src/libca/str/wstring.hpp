@@ -6,8 +6,7 @@
 // @note 命名空间 ca::str，基于 wchar_t 类型存储
 //
 
-#ifndef LIBCA_STR_WSTRING_HPP
-#define LIBCA_STR_WSTRING_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 
@@ -183,5 +182,3 @@ struct hash<ca::str::WStringRef> {
 };
 
 }  // namespace std
-
-#endif  // LIBCA_STR_WSTRING_HPP

@@ -7,8 +7,7 @@
 // 使用 #include <libca/str/str.hpp> 引入整个模块
 //
 
-#ifndef LIBCA_STR_STR_HPP
-#define LIBCA_STR_STR_HPP
+#pragma once
 
 #include "utf8_util.hpp"
 #include "utf8_string.hpp"
@@ -20,5 +19,3 @@
 #include "utf8_string_arena.hpp"
 #include "utf8_string_pool.hpp"
 #include "utf8_twine.hpp"
-
-#endif  // LIBCA_STR_STR_HPP

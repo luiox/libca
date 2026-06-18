@@ -6,8 +6,7 @@
 //       避免在 UTF-8 字节上直接使用 std::isalnum 等
 //
 
-#ifndef LIBCA_STR_CHAR_UTIL_HPP
-#define LIBCA_STR_CHAR_UTIL_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 
@@ -215,5 +214,3 @@ inline bool Utf16Char::encodePair(u32 cp, Utf16Char& high, Utf16Char& low) noexc
 }
 
 }  // namespace ca::str
-
-#endif  // LIBCA_STR_CHAR_UTIL_HPP

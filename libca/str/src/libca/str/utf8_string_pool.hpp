@@ -14,8 +14,7 @@
 //   // s1 析构 → ref_count=0 → 释放内存
 //
 
-#ifndef LIBCA_STR_UTF8_STRING_POOL_HPP
-#define LIBCA_STR_UTF8_STRING_POOL_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 #include "utf8_string.hpp"
@@ -204,5 +203,3 @@ struct hash<ca::str::Utf8StringPooledPtr> {
 };
 
 }  // namespace std
-
-#endif  // LIBCA_STR_UTF8_STRING_POOL_HPP
