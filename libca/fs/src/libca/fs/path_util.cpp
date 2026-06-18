@@ -12,7 +12,7 @@ std::string PathUtil::normalize(const std::string& path)
     return result;
 }
 
-std::string PathUtil::toUnixSeparators(const std::string& path)
+std::string PathUtil::to_unix_separators(const std::string& path)
 {
     std::string result = path;
     std::replace(result.begin(), result.end(), '\\', '/');
@@ -49,12 +49,12 @@ std::string PathUtil::parent(const std::string& path)
     return std::filesystem::path(path).parent_path().generic_string();
 }
 
-bool PathUtil::isAbsolute(const std::string& path)
+bool PathUtil::is_absolute(const std::string& path)
 {
     return std::filesystem::path(path).is_absolute();
 }
 
-std::string PathUtil::toAbsolute(const std::string& path)
+std::string PathUtil::to_absolute(const std::string& path)
 {
     return std::filesystem::absolute(std::filesystem::path(path)).generic_string();
 }
