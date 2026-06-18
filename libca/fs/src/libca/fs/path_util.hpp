@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef LIBCA_FS_PATH_UTIL_HPP
 #define LIBCA_FS_PATH_UTIL_HPP
 
@@ -18,7 +16,7 @@ public:
     static std::string normalize(const std::string& path);
 
     /// 仅将路径中的反斜杠替换为斜杠，不做其他归一化
-    static std::string toUnixSeparators(const std::string& path);
+    static std::string to_unix_separators(const std::string& path);
 
     /// 拼接两个路径段，自动处理分隔符
     static std::string join(const std::string& base, const std::string& part1);
@@ -39,10 +37,10 @@ public:
     static std::string parent(const std::string& path);
 
     /// 判断路径是否为绝对路径
-    static bool isAbsolute(const std::string& path);
+    static bool is_absolute(const std::string& path);
 
     /// 转为绝对路径（基于当前工作目录进行解析）
-    static std::string toAbsolute(const std::string& path);
+    static std::string to_absolute(const std::string& path);
 
     /// 拆分路径为各段。如 "a/b/c" -> ["a", "b", "c"]
     static std::vector<std::string> split(const std::string& path);

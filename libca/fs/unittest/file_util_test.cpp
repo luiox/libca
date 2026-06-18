@@ -15,7 +15,7 @@ class TempDirGuard
 public:
     TempDirGuard()
     {
-        auto result = FileUtil::createTempDirectory("libca_fs_test_");
+        auto result = FileUtil::create_temp_directory("libca_fs_test_");
         if (result.is_ok()) {
             m_path = std::move(result.unwrap());
         }
@@ -24,22 +24,22 @@ public:
     ~TempDirGuard()
     {
         if (!m_path.empty()) {
-            FileUtil::removeAll(m_path);
+            FileUtil::remove_all(m_path);
         }
     }
 
     const std::string& path() const { return m_path; }
     bool valid() const { return !m_path.empty(); }
 
-    std::string makePath(const std::string& relative) const
+    std::string make_path(const std::string& relative) const
     {
         return PathUtil::join(m_path, relative);
     }
 
-    void createFile(const std::string& relative, const std::string& content = "") const
+    void create_file(const std::string& relative, const std::string& content = "") const
     {
-        auto full = makePath(relative);
-        FileUtil::writeText(full, content);
+        auto full = make_path(relative);
+        FileUtil::write_text(full, content);
     }
 
 private:
@@ -53,12 +53,12 @@ TEST(FileUtilTest, ReadWriteRoundtrip)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("test_roundtrip.bin");
+    auto filePath = tmp.make_path("test_roundtrip.bin");
     ByteVector data = {0x00, 0xFF, 0xAB, 0xCD, 0x12, 0x34};
 
-    EXPECT_TRUE(FileUtil::writeBytes(filePath, data));
+    EXPECT_TRUE(FileUtil::write_bytes(filePath, data));
 
-    auto result = FileUtil::readAllBytes(filePath);
+    auto result = FileUtil::read_all_bytes(filePath);
     ASSERT_TRUE(result.is_ok()) << "readAllBytes failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap(), data);
 }
@@ -68,17 +68,17 @@ TEST(FileUtilTest, ReadAllText)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("hello.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "Hello, 世界!"));
+    auto filePath = tmp.make_path("hello.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "Hello, 世界!"));
 
-    auto result = FileUtil::readAllText(filePath);
+    auto result = FileUtil::read_all_text(filePath);
     ASSERT_TRUE(result.is_ok()) << "readAllText failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap(), "Hello, 世界!");
 }
 
 TEST(FileUtilTest, ReadAllBytes_FileNotFound)
 {
-    auto result = FileUtil::readAllBytes("/nonexistent/path/file.bin");
+    auto result = FileUtil::read_all_bytes("/nonexistent/path/file.bin");
     EXPECT_TRUE(result.is_err());
 }
 
@@ -87,13 +87,13 @@ TEST(FileUtilTest, ReadAllBytes_PathIsDirectory)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto result = FileUtil::readAllBytes(tmp.path());
+    auto result = FileUtil::read_all_bytes(tmp.path());
     EXPECT_TRUE(result.is_err());
 }
 
 TEST(FileUtilTest, ReadAllText_FileNotFound)
 {
-    auto result = FileUtil::readAllText("/nonexistent/path/file.txt");
+    auto result = FileUtil::read_all_text("/nonexistent/path/file.txt");
     EXPECT_TRUE(result.is_err());
 }
 
@@ -104,11 +104,11 @@ TEST(FileUtilTest, WriteBytes_OverwriteDefault)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("overwrite.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "first"));
-    EXPECT_TRUE(FileUtil::writeText(filePath, "second"));
+    auto filePath = tmp.make_path("overwrite.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "first"));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "second"));
 
-    auto result = FileUtil::readAllText(filePath);
+    auto result = FileUtil::read_all_text(filePath);
     ASSERT_TRUE(result.is_ok());
     EXPECT_EQ(result.unwrap(), "second");
 }
@@ -118,11 +118,11 @@ TEST(FileUtilTest, WriteBytes_Append)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("append.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "hello", FileMode::Overwrite));
-    EXPECT_TRUE(FileUtil::writeText(filePath, " world", FileMode::Append));
+    auto filePath = tmp.make_path("append.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "hello", FileMode::OVERWRITE));
+    EXPECT_TRUE(FileUtil::write_text(filePath, " world", FileMode::APPEND));
 
-    auto result = FileUtil::readAllText(filePath);
+    auto result = FileUtil::read_all_text(filePath);
     ASSERT_TRUE(result.is_ok());
     EXPECT_EQ(result.unwrap(), "hello world");
 }
@@ -132,8 +132,8 @@ TEST(FileUtilTest, WriteBytes_CreateNew_Success)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("create_new.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "new file", FileMode::CreateNew));
+    auto filePath = tmp.make_path("create_new.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "new file", FileMode::CREATE_NEW));
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -142,9 +142,9 @@ TEST(FileUtilTest, WriteBytes_CreateNew_Existing_Fails)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("already_exists.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "original", FileMode::CreateNew));
-    EXPECT_FALSE(FileUtil::writeText(filePath, "again", FileMode::CreateNew));
+    auto filePath = tmp.make_path("already_exists.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "original", FileMode::CREATE_NEW));
+    EXPECT_FALSE(FileUtil::write_text(filePath, "again", FileMode::CREATE_NEW));
 }
 
 TEST(FileUtilTest, WriteBytes_CreatesParentDirectories)
@@ -152,8 +152,8 @@ TEST(FileUtilTest, WriteBytes_CreatesParentDirectories)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("subdir/nested/file.txt");
-    EXPECT_TRUE(FileUtil::writeText(filePath, "nested"));
+    auto filePath = tmp.make_path("subdir/nested/file.txt");
+    EXPECT_TRUE(FileUtil::write_text(filePath, "nested"));
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -164,16 +164,16 @@ TEST(FileUtilTest, GetSize)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("size_test.bin");
+    auto filePath = tmp.make_path("size_test.bin");
     ByteVector data(4096, 0xAB);
-    EXPECT_TRUE(FileUtil::writeBytes(filePath, data));
+    EXPECT_TRUE(FileUtil::write_bytes(filePath, data));
 
-    EXPECT_EQ(FileUtil::getSize(filePath), 4096);
+    EXPECT_EQ(FileUtil::size(filePath), 4096);
 }
 
 TEST(FileUtilTest, GetSize_FileNotFound)
 {
-    EXPECT_EQ(FileUtil::getSize("/nonexistent"), -1);
+    EXPECT_EQ(FileUtil::size("/nonexistent"), -1);
 }
 
 TEST(FileUtilTest, GetSize_EmptyFile)
@@ -181,10 +181,10 @@ TEST(FileUtilTest, GetSize_EmptyFile)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("empty.txt");
-    FileUtil::createFile(filePath);
+    auto filePath = tmp.make_path("empty.txt");
+    FileUtil::create_file(filePath);
 
-    EXPECT_EQ(FileUtil::getSize(filePath), 0);
+    EXPECT_EQ(FileUtil::size(filePath), 0);
 }
 
 // ==================== exists / isFile / isDirectory ====================
@@ -194,10 +194,10 @@ TEST(FileUtilTest, Exists_File)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("exists_test.txt");
+    auto filePath = tmp.make_path("exists_test.txt");
     EXPECT_FALSE(FileUtil::exists(filePath));
 
-    FileUtil::createFile(filePath);
+    FileUtil::create_file(filePath);
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -206,11 +206,11 @@ TEST(FileUtilTest, IsFile)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("is_file_test.txt");
-    FileUtil::createFile(filePath);
+    auto filePath = tmp.make_path("is_file_test.txt");
+    FileUtil::create_file(filePath);
 
-    EXPECT_TRUE(FileUtil::isFile(filePath));
-    EXPECT_FALSE(FileUtil::isDirectory(filePath));
+    EXPECT_TRUE(FileUtil::is_file(filePath));
+    EXPECT_FALSE(FileUtil::is_directory(filePath));
 }
 
 TEST(FileUtilTest, IsDirectory)
@@ -218,8 +218,8 @@ TEST(FileUtilTest, IsDirectory)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    EXPECT_TRUE(FileUtil::isDirectory(tmp.path()));
-    EXPECT_FALSE(FileUtil::isFile(tmp.path()));
+    EXPECT_TRUE(FileUtil::is_directory(tmp.path()));
+    EXPECT_FALSE(FileUtil::is_file(tmp.path()));
 }
 
 // ==================== listFiles / listEntries ====================
@@ -229,10 +229,10 @@ TEST(FileUtilTest, ListFiles_Flat)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    tmp.createFile("a.txt");
-    tmp.createFile("b.txt");
+    tmp.create_file("a.txt");
+    tmp.create_file("b.txt");
 
-    auto result = FileUtil::listFiles(tmp.path(), false);
+    auto result = FileUtil::list_files(tmp.path(), false);
     ASSERT_TRUE(result.is_ok()) << "listFiles failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
@@ -242,17 +242,17 @@ TEST(FileUtilTest, ListFiles_Recursive)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    tmp.createFile("a.txt");
-    tmp.createFile("sub/b.txt");
+    tmp.create_file("a.txt");
+    tmp.create_file("sub/b.txt");
 
-    auto result = FileUtil::listFiles(tmp.path(), true);
+    auto result = FileUtil::list_files(tmp.path(), true);
     ASSERT_TRUE(result.is_ok()) << "listFiles recursive failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
 
 TEST(FileUtilTest, ListFiles_DirectoryNotFound)
 {
-    auto result = FileUtil::listFiles("/nonexistent_dir");
+    auto result = FileUtil::list_files("/nonexistent_dir");
     EXPECT_TRUE(result.is_err());
 }
 
@@ -261,11 +261,11 @@ TEST(FileUtilTest, ListEntries)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    tmp.createFile("f1.txt");
-    tmp.createFile("f2.txt");
-    EXPECT_TRUE(FileUtil::createDirectories(tmp.makePath("subdir")));
+    tmp.create_file("f1.txt");
+    tmp.create_file("f2.txt");
+    EXPECT_TRUE(FileUtil::create_directories(tmp.make_path("subdir")));
 
-    auto result = FileUtil::listEntries(tmp.path());
+    auto result = FileUtil::list_entries(tmp.path());
     ASSERT_TRUE(result.is_ok()) << "listEntries failed: " << result.unwrap_err();
     EXPECT_EQ(result.unwrap().size(), 3u);
 }
@@ -277,13 +277,13 @@ TEST(FileUtilTest, Copy_File)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto src = tmp.makePath("src.txt");
-    auto dst = tmp.makePath("dst.txt");
-    EXPECT_TRUE(FileUtil::writeText(src, "copy test"));
+    auto src = tmp.make_path("src.txt");
+    auto dst = tmp.make_path("dst.txt");
+    EXPECT_TRUE(FileUtil::write_text(src, "copy test"));
     EXPECT_TRUE(FileUtil::copy(src, dst));
     EXPECT_TRUE(FileUtil::exists(dst));
 
-    auto content = FileUtil::readAllText(dst);
+    auto content = FileUtil::read_all_text(dst);
     ASSERT_TRUE(content.is_ok());
     EXPECT_EQ(content.unwrap(), "copy test");
 }
@@ -298,13 +298,13 @@ TEST(FileUtilTest, Copy_Directory)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto srcDir = tmp.makePath("srcdir");
-    auto dstDir = tmp.makePath("dstdir");
-    EXPECT_TRUE(FileUtil::createDirectories(srcDir));
-    EXPECT_TRUE(FileUtil::writeText(tmp.makePath("srcdir/a.txt"), "file in dir"));
+    auto srcDir = tmp.make_path("srcdir");
+    auto dstDir = tmp.make_path("dstdir");
+    EXPECT_TRUE(FileUtil::create_directories(srcDir));
+    EXPECT_TRUE(FileUtil::write_text(tmp.make_path("srcdir/a.txt"), "file in dir"));
 
     EXPECT_TRUE(FileUtil::copy(srcDir, dstDir));
-    EXPECT_TRUE(FileUtil::isDirectory(dstDir));
+    EXPECT_TRUE(FileUtil::is_directory(dstDir));
 }
 
 // ==================== move ====================
@@ -314,9 +314,9 @@ TEST(FileUtilTest, Move_File)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto src = tmp.makePath("move_src.txt");
-    auto dst = tmp.makePath("move_dst.txt");
-    EXPECT_TRUE(FileUtil::writeText(src, "move test"));
+    auto src = tmp.make_path("move_src.txt");
+    auto dst = tmp.make_path("move_dst.txt");
+    EXPECT_TRUE(FileUtil::write_text(src, "move test"));
     EXPECT_TRUE(FileUtil::move(src, dst));
     EXPECT_FALSE(FileUtil::exists(src));
     EXPECT_TRUE(FileUtil::exists(dst));
@@ -334,8 +334,8 @@ TEST(FileUtilTest, Remove_File)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("to_remove.txt");
-    FileUtil::createFile(filePath);
+    auto filePath = tmp.make_path("to_remove.txt");
+    FileUtil::create_file(filePath);
     EXPECT_TRUE(FileUtil::exists(filePath));
 
     EXPECT_TRUE(FileUtil::remove(filePath));
@@ -352,26 +352,26 @@ TEST(FileUtilTest, RemoveAll_Directory)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto dirPath = tmp.makePath("remove_subdir");
-    EXPECT_TRUE(FileUtil::createDirectories(dirPath));
-    tmp.createFile("remove_subdir/a.txt");
+    auto dirPath = tmp.make_path("remove_subdir");
+    EXPECT_TRUE(FileUtil::create_directories(dirPath));
+    tmp.create_file("remove_subdir/a.txt");
 
-    EXPECT_TRUE(FileUtil::removeAll(dirPath));
+    EXPECT_TRUE(FileUtil::remove_all(dirPath));
     EXPECT_FALSE(FileUtil::exists(dirPath));
 }
 
-// ==================== createFile / createDirectories ====================
+// ==================== create_file / create_directories ====================
 
 TEST(FileUtilTest, CreateFile)
 {
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("brand_new.txt");
-    EXPECT_TRUE(FileUtil::createFile(filePath));
+    auto filePath = tmp.make_path("brand_new.txt");
+    EXPECT_TRUE(FileUtil::create_file(filePath));
     EXPECT_TRUE(FileUtil::exists(filePath));
-    EXPECT_TRUE(FileUtil::isFile(filePath));
-    EXPECT_EQ(FileUtil::getSize(filePath), 0);
+    EXPECT_TRUE(FileUtil::is_file(filePath));
+    EXPECT_EQ(FileUtil::size(filePath), 0);
 }
 
 TEST(FileUtilTest, CreateFile_WithParentDirectories)
@@ -379,8 +379,8 @@ TEST(FileUtilTest, CreateFile_WithParentDirectories)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("a/b/c/deep.txt");
-    EXPECT_TRUE(FileUtil::createFile(filePath));
+    auto filePath = tmp.make_path("a/b/c/deep.txt");
+    EXPECT_TRUE(FileUtil::create_file(filePath));
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -389,9 +389,9 @@ TEST(FileUtilTest, CreateDirectories)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto dirPath = tmp.makePath("deeply/nested/dir/structure");
-    EXPECT_TRUE(FileUtil::createDirectories(dirPath));
-    EXPECT_TRUE(FileUtil::isDirectory(dirPath));
+    auto dirPath = tmp.make_path("deeply/nested/dir/structure");
+    EXPECT_TRUE(FileUtil::create_directories(dirPath));
+    EXPECT_TRUE(FileUtil::is_directory(dirPath));
 }
 
 // ==================== backup ====================
@@ -401,8 +401,8 @@ TEST(FileUtilTest, Backup_File)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto src = tmp.makePath("backup_me.txt");
-    EXPECT_TRUE(FileUtil::writeText(src, "important data"));
+    auto src = tmp.make_path("backup_me.txt");
+    EXPECT_TRUE(FileUtil::write_text(src, "important data"));
 
     auto result = FileUtil::backup(src);
     ASSERT_TRUE(result.is_ok()) << "backup failed: " << result.unwrap_err();
@@ -410,7 +410,7 @@ TEST(FileUtilTest, Backup_File)
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
     EXPECT_NE(result.unwrap(), src);
 
-    auto content = FileUtil::readAllText(result.unwrap());
+    auto content = FileUtil::read_all_text(result.unwrap());
     ASSERT_TRUE(content.is_ok());
     EXPECT_EQ(content.unwrap(), "important data");
 }
@@ -425,19 +425,19 @@ TEST(FileUtilTest, Backup_NonExistent)
 
 TEST(FileUtilTest, CreateTempFile)
 {
-    auto result = FileUtil::createTempFile("libca_", ".tmp");
+    auto result = FileUtil::create_temp_file("libca_", ".tmp");
     ASSERT_TRUE(result.is_ok()) << "createTempFile failed: " << result.unwrap_err();
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
-    EXPECT_TRUE(FileUtil::isFile(result.unwrap()));
+    EXPECT_TRUE(FileUtil::is_file(result.unwrap()));
     FileUtil::remove(result.unwrap());
 }
 
 TEST(FileUtilTest, CreateTempDirectory)
 {
-    auto result = FileUtil::createTempDirectory("libca_dir_");
+    auto result = FileUtil::create_temp_directory("libca_dir_");
     ASSERT_TRUE(result.is_ok()) << "createTempDirectory failed: " << result.unwrap_err();
-    EXPECT_TRUE(FileUtil::isDirectory(result.unwrap()));
-    FileUtil::removeAll(result.unwrap());
+    EXPECT_TRUE(FileUtil::is_directory(result.unwrap()));
+    FileUtil::remove_all(result.unwrap());
 }
 
 // ==================== isReadable / isWritable ====================
@@ -447,17 +447,17 @@ TEST(FileUtilTest, IsReadable_ExistingFile)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.makePath("readable.txt");
-    FileUtil::createFile(filePath);
+    auto filePath = tmp.make_path("readable.txt");
+    FileUtil::create_file(filePath);
 
-    EXPECT_TRUE(FileUtil::isReadable(filePath));
-    EXPECT_TRUE(FileUtil::isWritable(filePath));
+    EXPECT_TRUE(FileUtil::is_readable(filePath));
+    EXPECT_TRUE(FileUtil::is_writable(filePath));
 }
 
 TEST(FileUtilTest, IsReadable_NonExistent)
 {
-    EXPECT_FALSE(FileUtil::isReadable("/nonexistent/path"));
-    EXPECT_FALSE(FileUtil::isWritable("/nonexistent/path"));
+    EXPECT_FALSE(FileUtil::is_readable("/nonexistent/path"));
+    EXPECT_FALSE(FileUtil::is_writable("/nonexistent/path"));
 }
 
 }}}  // namespace ca::fs::test

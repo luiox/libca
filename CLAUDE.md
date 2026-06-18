@@ -6,11 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a library monorepo built with **xmake**, split into two independently-shipped halves plus a legacy tree:
 
-- **`libca/`** — modern C++17 desktop infrastructure. Per-module layout `libca/<mod>/src/libca/<mod>/*.hpp|cpp` with Google Test in `libca/<mod>/unittest/*_test.cpp`. Modules: `core`, `crypto`, `fs`, `str`, `time`, `collection` (active; wired in `libca/xmake.lua`), plus `opt`, `reflect`, `log`, `utility`, `zip` (present but not yet included). This is the half under active refactor.
+- **`libca/`** — modern C++17 desktop infrastructure. Per-module layout `libca/<mod>/src/libca/<mod>/*.hpp|cpp` with Google Test in `libca/<mod>/unittest/*_test.cpp`. This is the half under active refactor. **Module inventory below.**
 - **`libca.em/`** — embedded **C99** components for MCUs (`libca.em/src/em_*`). Driver/bus/protocol/shell/crypto code with on-MCU constraints. See `libca.em/README.md` for the module + driver catalog.
 - **`libca.core/`** — older C++ desktop code (`base`, `network`, `database`, `event`, `io`, `thread`, `platform/win`, `old/`). Treat as legacy; prefer adding new C++ work under `libca/`.
 
 The two code styles are governed by **different, authoritative rule files** — read the relevant one before writing code (see Coding rules below).
+
+### libca module inventory (the "is there already a wheel?" index)
+
+Check this table before building anything new under `libca/`. For modules with a stable-API doc, **read that doc** for ownership/selection semantics rather than scanning headers — headers give signatures, the doc gives the contract.
+
+| 模块 | 能力一句话 | 关键类型/入口 | 命名空间 | 状态 | 详情文档 |
+|------|-----------|--------------|----------|------|----------|
+| **core** | Result/字节/类型转换/基础类型地基 | `Result<T,E>`, `Bytes`, `cast`, `any`, `i32/u8/usize` | `ca` / `ca::core` | 稳定(依赖根) | `doc/libca_core_stable_api.md` |
+| **str** | UTF-8 字符串与所有权类型 | `Utf8String`, `Utf8StringRef`, `Utf8StringArena` | `ca::str` | 稳定 | `doc/libca_str_utf8_stable_api.md` |
+| **fs** | 文件/路径操作(封装 std::filesystem) | `FileUtil`, `PathUtil`, `FileMode` | `ca::fs` | 稳定 | `doc/libca_fs_stable_api.md` |
+| **crypto** | 哈希/CRC/base64 | `sha256`, `md5`, `sha1`, `crc`, `base64` | `ca::crypto` | 可用(缺文档/测试薄) | — |
+| **time** | 日期时间 | `DateTime` | `ca::time` | 可用(薄) | — |
+| **collection** | 不可变列表/流 | `immutable_list`, `stream` | `ca` | 雏形(薄,杠杆高) | — |
+| opt / reflect / zip | — | — | — | **空,未开始** | — |
+| log / utility | 有码但**未接入构建** | — | — | 暂勿依赖 | — |
+
+只有 `core / crypto / fs / str / time / collection` 接进了 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
 
 ## Build & test commands
 

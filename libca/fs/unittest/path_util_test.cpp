@@ -50,27 +50,27 @@ TEST(PathUtilTest, Normalize_TrailingSeparator)
 
 TEST(PathUtilTest, ToUnixSeparators_Basic)
 {
-    EXPECT_EQ(PathUtil::toUnixSeparators("a\\b\\c"), "a/b/c");
+    EXPECT_EQ(PathUtil::to_unix_separators("a\\b\\c"), "a/b/c");
 }
 
 TEST(PathUtilTest, ToUnixSeparators_AlreadyUnix_Unchanged)
 {
-    EXPECT_EQ(PathUtil::toUnixSeparators("a/b/c"), "a/b/c");
+    EXPECT_EQ(PathUtil::to_unix_separators("a/b/c"), "a/b/c");
 }
 
 TEST(PathUtilTest, ToUnixSeparators_Mixed)
 {
-    EXPECT_EQ(PathUtil::toUnixSeparators("a\\b/c\\d"), "a/b/c/d");
+    EXPECT_EQ(PathUtil::to_unix_separators("a\\b/c\\d"), "a/b/c/d");
 }
 
 TEST(PathUtilTest, ToUnixSeparators_Empty)
 {
-    EXPECT_EQ(PathUtil::toUnixSeparators(""), "");
+    EXPECT_EQ(PathUtil::to_unix_separators(""), "");
 }
 
 TEST(PathUtilTest, ToUnixSeparators_WindowsDriveLetter)
 {
-    EXPECT_EQ(PathUtil::toUnixSeparators("C:\\Users\\test"), "C:/Users/test");
+    EXPECT_EQ(PathUtil::to_unix_separators("C:\\Users\\test"), "C:/Users/test");
 }
 
 // ==================== join ====================
@@ -197,27 +197,27 @@ TEST(PathUtilTest, IsAbsolute_UnixAbsolute)
 {
     // POSIX 上 /usr/bin 是绝对路径；Windows 上无盘符则不是
 #ifdef _WIN32
-    EXPECT_FALSE(PathUtil::isAbsolute("/usr/bin"));
+    EXPECT_FALSE(PathUtil::is_absolute("/usr/bin"));
 #else
-    EXPECT_TRUE(PathUtil::isAbsolute("/usr/bin"));
+    EXPECT_TRUE(PathUtil::is_absolute("/usr/bin"));
 #endif
 }
 
 TEST(PathUtilTest, IsAbsolute_Relative)
 {
-    EXPECT_FALSE(PathUtil::isAbsolute("relative/path"));
+    EXPECT_FALSE(PathUtil::is_absolute("relative/path"));
 }
 
 TEST(PathUtilTest, IsAbsolute_Empty)
 {
-    EXPECT_FALSE(PathUtil::isAbsolute(""));
+    EXPECT_FALSE(PathUtil::is_absolute(""));
 }
 
 #ifdef _WIN32
 TEST(PathUtilTest, IsAbsolute_WindowsAbsolute)
 {
-    EXPECT_TRUE(PathUtil::isAbsolute("C:\\Users"));
-    EXPECT_TRUE(PathUtil::isAbsolute("C:/Users"));
+    EXPECT_TRUE(PathUtil::is_absolute("C:\\Users"));
+    EXPECT_TRUE(PathUtil::is_absolute("C:/Users"));
 }
 #endif
 
@@ -225,15 +225,15 @@ TEST(PathUtilTest, IsAbsolute_WindowsAbsolute)
 
 TEST(PathUtilTest, ToAbsolute_RelativePath)
 {
-    auto result = PathUtil::toAbsolute("some/path");
-    EXPECT_TRUE(PathUtil::isAbsolute(result));
+    auto result = PathUtil::to_absolute("some/path");
+    EXPECT_TRUE(PathUtil::is_absolute(result));
     EXPECT_THAT(result, HasSubstr("some/path"));
 }
 
 TEST(PathUtilTest, ToAbsolute_AbsolutePath_Unchanged)
 {
-    auto result = PathUtil::toAbsolute("/usr/bin");
-    EXPECT_TRUE(PathUtil::isAbsolute(result));
+    auto result = PathUtil::to_absolute("/usr/bin");
+    EXPECT_TRUE(PathUtil::is_absolute(result));
 }
 
 // ==================== split ====================

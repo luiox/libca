@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef LIBCA_FS_FILE_UTIL_HPP
 #define LIBCA_FS_FILE_UTIL_HPP
 
@@ -15,9 +13,9 @@ namespace ca { namespace fs {
 /// 文件写入模式常量
 struct FileMode
 {
-    static constexpr unsigned int Overwrite  = 0x01;  ///< 覆盖写入（默认）
-    static constexpr unsigned int Append     = 0x02;  ///< 追加写入
-    static constexpr unsigned int CreateNew  = 0x04;  ///< 创建新文件，失败若已存在
+    static constexpr unsigned int OVERWRITE   = 0x01;  ///< 覆盖写入（默认）
+    static constexpr unsigned int APPEND      = 0x02;  ///< 追加写入
+    static constexpr unsigned int CREATE_NEW  = 0x04;  ///< 创建新文件，失败若已存在
 };
 
 using ByteVector = std::vector<ca::u8>;
@@ -32,41 +30,41 @@ public:
     // ==================== 读写 ====================
 
     /// 读取整个文件为字节数组
-    static Result<ByteVector, std::string> readAllBytes(const std::string& path);
+    static Result<ByteVector, std::string> read_all_bytes(const std::string& path);
 
     /// 读取整个文件为 UTF-8 字符串
-    static Result<std::string, std::string> readAllText(const std::string& path);
+    static Result<std::string, std::string> read_all_text(const std::string& path);
 
     /// 按模式写入字节数组到文件
-    static bool writeBytes(const std::string& path, const ByteVector& content,
-                           unsigned int mode = FileMode::Overwrite);
+    static bool write_bytes(const std::string& path, const ByteVector& content,
+                            unsigned int mode = FileMode::OVERWRITE);
 
     /// 按模式写入字符串到文件
-    static bool writeText(const std::string& path, const std::string& content,
-                          unsigned int mode = FileMode::Overwrite);
+    static bool write_text(const std::string& path, const std::string& content,
+                           unsigned int mode = FileMode::OVERWRITE);
 
     // ==================== 查询 ====================
 
     /// 获取文件大小（字节）。文件不存在或出错返回 -1。
-    static ca::i64 getSize(const std::string& path);
+    static ca::i64 size(const std::string& path);
 
     /// 判断路径是否存在
     static bool exists(const std::string& path);
 
     /// 判断是否为普通文件
-    static bool isFile(const std::string& path);
+    static bool is_file(const std::string& path);
 
     /// 判断是否为目录
-    static bool isDirectory(const std::string& path);
+    static bool is_directory(const std::string& path);
 
     // ==================== 遍历 ====================
 
     /// 列出目录下所有文件（不含子目录本身）。recursive=true 时递归所有子目录。
-    static Result<std::vector<std::string>, std::string> listFiles(const std::string& dir,
-                                                                    bool recursive = false);
+    static Result<std::vector<std::string>, std::string> list_files(const std::string& dir,
+                                                                     bool recursive = false);
 
     /// 列出目录下的直接条目（文件和子目录）
-    static Result<std::vector<std::string>, std::string> listEntries(const std::string& dir);
+    static Result<std::vector<std::string>, std::string> list_entries(const std::string& dir);
 
     // ==================== 拷贝 / 移动 ====================
 
@@ -82,22 +80,22 @@ public:
     static bool remove(const std::string& path);
 
     /// 递归删除文件或目录（无论是否为空）
-    static bool removeAll(const std::string& path);
+    static bool remove_all(const std::string& path);
 
     // ==================== 创建 ====================
 
     /// 创建空文件（自动创建父目录）
-    static bool createFile(const std::string& path);
+    static bool create_file(const std::string& path);
 
     /// 递归创建目录
-    static bool createDirectories(const std::string& path);
+    static bool create_directories(const std::string& path);
 
     /// 创建临时文件，返回完整路径
-    static Result<std::string, std::string> createTempFile(const std::string& prefix = "",
-                                                            const std::string& suffix = "");
+    static Result<std::string, std::string> create_temp_file(const std::string& prefix = "",
+                                                              const std::string& suffix = "");
 
     /// 创建临时目录，返回完整路径
-    static Result<std::string, std::string> createTempDirectory(const std::string& prefix = "");
+    static Result<std::string, std::string> create_temp_directory(const std::string& prefix = "");
 
     // ==================== 备份 ====================
 
@@ -107,10 +105,10 @@ public:
     // ==================== 权限 ====================
 
     /// 判断文件或目录是否可读
-    static bool isReadable(const std::string& path);
+    static bool is_readable(const std::string& path);
 
     /// 判断文件或目录是否可写
-    static bool isWritable(const std::string& path);
+    static bool is_writable(const std::string& path);
 };
 
 }}  // namespace ca::fs

@@ -15,7 +15,7 @@ namespace ca { namespace fs {
 
 // ==================== 读写 ====================
 
-Result<ByteVector, std::string> FileUtil::readAllBytes(const std::string& path)
+Result<ByteVector, std::string> FileUtil::read_all_bytes(const std::string& path)
 {
     try {
         auto p = std::filesystem::path(path);
@@ -43,13 +43,13 @@ Result<ByteVector, std::string> FileUtil::readAllBytes(const std::string& path)
 
         return Ok(std::move(buffer));
     } catch (const std::exception& e) {
-        return Err(std::string("readAllBytes failed: ") + e.what());
+        return Err(std::string("read_all_bytes failed: ") + e.what());
     }
 }
 
-Result<std::string, std::string> FileUtil::readAllText(const std::string& path)
+Result<std::string, std::string> FileUtil::read_all_text(const std::string& path)
 {
-    auto result = readAllBytes(path);
+    auto result = read_all_bytes(path);
     if (result.is_err()) {
         return Err(result.unwrap_err());
     }
@@ -57,12 +57,12 @@ Result<std::string, std::string> FileUtil::readAllText(const std::string& path)
     return Ok(std::string(bytes.begin(), bytes.end()));
 }
 
-bool FileUtil::writeBytes(const std::string& path, const ByteVector& content, unsigned int mode)
+bool FileUtil::write_bytes(const std::string& path, const ByteVector& content, unsigned int mode)
 {
     try {
         auto p = std::filesystem::path(path);
 
-        if ((mode & FileMode::CreateNew) && std::filesystem::exists(p)) {
+        if ((mode & FileMode::CREATE_NEW) && std::filesystem::exists(p)) {
             return false;
         }
 
@@ -71,7 +71,7 @@ bool FileUtil::writeBytes(const std::string& path, const ByteVector& content, un
         }
 
         std::ios::openmode openMode = std::ios::binary;
-        if (mode & FileMode::Append) {
+        if (mode & FileMode::APPEND) {
             openMode |= std::ios::app;
         } else {
             openMode |= std::ios::trunc;
@@ -89,15 +89,15 @@ bool FileUtil::writeBytes(const std::string& path, const ByteVector& content, un
     }
 }
 
-bool FileUtil::writeText(const std::string& path, const std::string& content, unsigned int mode)
+bool FileUtil::write_text(const std::string& path, const std::string& content, unsigned int mode)
 {
     ByteVector bytes(content.begin(), content.end());
-    return writeBytes(path, bytes, mode);
+    return write_bytes(path, bytes, mode);
 }
 
 // ==================== 查询 ====================
 
-ca::i64 FileUtil::getSize(const std::string& path)
+ca::i64 FileUtil::size(const std::string& path)
 {
     try {
         auto p = std::filesystem::path(path);
@@ -114,13 +114,13 @@ bool FileUtil::exists(const std::string& path)
     return std::filesystem::exists(std::filesystem::path(path), ec);
 }
 
-bool FileUtil::isFile(const std::string& path)
+bool FileUtil::is_file(const std::string& path)
 {
     std::error_code ec;
     return std::filesystem::is_regular_file(std::filesystem::path(path), ec);
 }
 
-bool FileUtil::isDirectory(const std::string& path)
+bool FileUtil::is_directory(const std::string& path)
 {
     std::error_code ec;
     return std::filesystem::is_directory(std::filesystem::path(path), ec);
@@ -128,7 +128,7 @@ bool FileUtil::isDirectory(const std::string& path)
 
 // ==================== 遍历 ====================
 
-Result<std::vector<std::string>, std::string> FileUtil::listFiles(const std::string& dir, bool recursive)
+Result<std::vector<std::string>, std::string> FileUtil::list_files(const std::string& dir, bool recursive)
 {
     try {
         auto p = std::filesystem::path(dir);
@@ -145,11 +145,11 @@ Result<std::vector<std::string>, std::string> FileUtil::listFiles(const std::str
         }
         return Ok(std::move(files));
     } catch (const std::exception& e) {
-        return Err(std::string("listFiles failed: ") + e.what());
+        return Err(std::string("list_files failed: ") + e.what());
     }
 }
 
-Result<std::vector<std::string>, std::string> FileUtil::listEntries(const std::string& dir)
+Result<std::vector<std::string>, std::string> FileUtil::list_entries(const std::string& dir)
 {
     try {
         auto p = std::filesystem::path(dir);
@@ -161,7 +161,7 @@ Result<std::vector<std::string>, std::string> FileUtil::listEntries(const std::s
             entries.push_back(entry.path().generic_string());
         return Ok(std::move(entries));
     } catch (const std::exception& e) {
-        return Err(std::string("listEntries failed: ") + e.what());
+        return Err(std::string("list_entries failed: ") + e.what());
     }
 }
 
@@ -212,7 +212,7 @@ bool FileUtil::remove(const std::string& path)
     return std::filesystem::remove(std::filesystem::path(path), ec);
 }
 
-bool FileUtil::removeAll(const std::string& path)
+bool FileUtil::remove_all(const std::string& path)
 {
     std::error_code ec;
     auto p = std::filesystem::path(path);
@@ -222,7 +222,7 @@ bool FileUtil::removeAll(const std::string& path)
 
 // ==================== 创建 ====================
 
-bool FileUtil::createFile(const std::string& path)
+bool FileUtil::create_file(const std::string& path)
 {
     try {
         auto p = std::filesystem::path(path);
@@ -235,7 +235,7 @@ bool FileUtil::createFile(const std::string& path)
     } catch (const std::exception&) { return false; }
 }
 
-bool FileUtil::createDirectories(const std::string& path)
+bool FileUtil::create_directories(const std::string& path)
 {
     std::error_code ec;
     auto p = std::filesystem::path(path);
@@ -243,8 +243,8 @@ bool FileUtil::createDirectories(const std::string& path)
     return std::filesystem::create_directories(p, ec);
 }
 
-Result<std::string, std::string> FileUtil::createTempFile(const std::string& prefix,
-                                                           const std::string& suffix)
+Result<std::string, std::string> FileUtil::create_temp_file(const std::string& prefix,
+                                                            const std::string& suffix)
 {
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
@@ -260,11 +260,11 @@ Result<std::string, std::string> FileUtil::createTempFile(const std::string& pre
         }
         return Err(std::string("failed to create temp file after 1024 attempts"));
     } catch (const std::exception& e) {
-        return Err(std::string("createTempFile failed: ") + e.what());
+        return Err(std::string("create_temp_file failed: ") + e.what());
     }
 }
 
-Result<std::string, std::string> FileUtil::createTempDirectory(const std::string& prefix)
+Result<std::string, std::string> FileUtil::create_temp_directory(const std::string& prefix)
 {
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
@@ -277,7 +277,7 @@ Result<std::string, std::string> FileUtil::createTempDirectory(const std::string
         }
         return Err(std::string("failed to create temp directory after 1024 attempts"));
     } catch (const std::exception& e) {
-        return Err(std::string("createTempDirectory failed: ") + e.what());
+        return Err(std::string("create_temp_directory failed: ") + e.what());
     }
 }
 
@@ -311,7 +311,7 @@ Result<std::string, std::string> FileUtil::backup(const std::string& path)
 
 // ==================== 权限 ====================
 
-bool FileUtil::isReadable(const std::string& path)
+bool FileUtil::is_readable(const std::string& path)
 {
     std::error_code ec;
     auto p = std::filesystem::path(path);
@@ -330,7 +330,7 @@ bool FileUtil::isReadable(const std::string& path)
 #endif
 }
 
-bool FileUtil::isWritable(const std::string& path)
+bool FileUtil::is_writable(const std::string& path)
 {
     std::error_code ec;
     auto p = std::filesystem::path(path);
