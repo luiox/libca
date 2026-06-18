@@ -1,9 +1,11 @@
-//
-// @brief 不可变 UTF-8 字符串 (Utf8String) 及引用视图 (Utf8StringRef)
-// @author Canrad
-// @date 2026/05/31
-// @note 命名空间 ca::str，基于 u8 类型存储，支持码点访问
-//
+/// @file utf8_string.hpp
+/// @brief 不可变 UTF-8 字符串：拥有所有权的 Utf8String、非拥有视图 Utf8StringRef、码点迭代器 Utf8Iterator。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note 命名空间 ca::str，UTF-8 是唯一编码，按 u8 存储。
+///       length() = 码点数（O(1)，构造时缓存）；byte_length() = 字节数；下标按码点访问是 O(n)。
+///       比较/查找/前后缀按 UTF-8 字节序列，不做 Unicode 规范化。
+///       选型：长期持有用 Utf8String；临时参数/切片用 Utf8StringRef；批量解析用 Utf8StringArena。
 
 #pragma once
 
@@ -28,31 +30,29 @@ class Utf8Iterator;
 class ZUtf8StringRef;
 
 
-// ============================================================================
-// Utf8StringRef — 非拥有引用的不可变 UTF-8 字符串视图
-// ============================================================================
-
+/// @brief 非拥有、不可变的 UTF-8 字符串视图（类似 Rust &str）。
+/// @warning 不拥有数据，调用方须保证 data() 在视图使用期内有效。来自 Utf8String::ref()/slice()
+///          的视图在原串销毁或移动后失效；来自 Utf8StringArena::intern() 的在 arena 销毁/clear() 后失效。
+/// @note 不保证结尾 `\0`，故**不提供** c_str()（中段切片不能假设以 `\0` 结尾）。切片须落在码点边界。
 class Utf8StringRef {
 public:
-    // 默认构造：空视图
+    /// 空视图。
     Utf8StringRef() noexcept;
 
-    // 从字节数据 + 码点个数构造（不校验，不复制）
-    // data: UTF-8 字节数据指针
-    // byte_length: 字节长度
-    // length: 码点个数
+    /// @brief 从字节数据 + 码点数构造（不校验 UTF-8、不复制）。
+    /// @param data UTF-8 字节指针  @param byte_length 字节长度  @param length 码点数
     Utf8StringRef(const u8* data, usize byte_length, usize length) noexcept;
 
-    // 从 Utf8String 构造视图
+    /// 从 Utf8String 构造视图（引用其内部数据）。
     Utf8StringRef(const Utf8String& str) noexcept;
 
-    // 下面这两个构建都是O(n)，因为要计算码点个数
-    // 从 C 字符串构造视图
+    /// @brief 从 C 字符串构造视图。O(n) 计算码点数；空指针返回空视图。
     static Utf8StringRef from_cstr(const char* cstr) noexcept;
-    // 从二进制数据创建视图，如果cp_len不传入，那么会重新计算码点
+    /// @brief 从字节数据构造视图，不复制。cp_len 缺省时 O(n) 计算码点数。
+    /// @warning 输入必须是合法 UTF-8；非法时码点数可能为 0，后续码点语义不再保证。调用方负责。
     static Utf8StringRef from_data(const u8* data, usize byte_len, usize cp_len = -1);
 
-    // 特殊常量
+    /// 查找未命中 / 默认未知码点长度的哨兵值。
     static constexpr usize npos = usize(-1);
 
     // ---- 查询 ----
@@ -159,10 +159,9 @@ private:
 };
 
 
-// ============================================================================
-// Utf8String — 拥有所有权的不可变 UTF-8 字符串
-// ============================================================================
-
+/// @brief 拥有所有权、不可变、内部以 `\0` 终止的 UTF-8 字符串。
+/// @note 禁止隐式拷贝（须显式 clone()），可移动。保证结尾 `\0`，故提供 c_str()。
+///       构造时校验 UTF-8 并缓存码点数。
 class Utf8String {
 public:
     // ---- 构造 / 析构 ----
@@ -170,12 +169,10 @@ public:
     // 默认构造：空字符串
     Utf8String() noexcept;
 
-    // 从字节数组构造（复制 + 校验 UTF-8 合法性）
-    // data: UTF-8 字节数据（不必以 '\0' 结尾）
-    // byte_length: 字节长度
+    /// @brief 从字节数组复制构造并校验 UTF-8。@throw std::runtime_error 非法 UTF-8。
     Utf8String(const u8* data, usize byte_length);
 
-    // 从 C 风格字符串构造（null-terminated）
+    /// 从 C 字符串复制构造；空指针构造空字符串。
     explicit Utf8String(const char* cstr);
 
     // 拷贝构造（已删除，请使用 clone()）
@@ -193,16 +190,16 @@ public:
     // 移动赋值
     Utf8String& operator=(Utf8String&& other) noexcept;
 
-    // 显式克隆（唯一复制方式）
+    /// 显式深拷贝（唯一的复制方式）。
     Utf8String clone() const;
 
     // ---- 工厂方法 ----
 
-    // 从 C 字符串构造
+    /// 从 C 字符串构造；空指针或非法 UTF-8 返回空字符串（不抛）。
     static Utf8String from_cstr(const char* cstr) noexcept;
-    // 从utf8字符串数据构造
+    /// @brief 从字节数据复制构造并校验 UTF-8。@throw std::runtime_error 非法 UTF-8。
     static Utf8String from_data(const u8* data, usize byte_len, usize cp_len = -1);
-    // 从单个码点创建 UTF-8 字符串
+    /// @brief 从单个码点构造。@throw std::runtime_error 非法码点。
     static Utf8String from_code_point(u32 cp);
 
     // ---- 查询 ----
@@ -314,10 +311,9 @@ private:
 };
 
 
-// ============================================================================
-// Utf8StringBuilder — 用于构建 Utf8String 的可变构建器
-// ============================================================================
-
+/// @brief 构建 Utf8String 的可变构建器（追加写入，build() 校验并产出）。
+/// @note **Provisional**：暴露可变缓冲/容量语义，下游暂勿写入公共接口。
+///       append(const u8*, usize) 接受未校验字节，非法直到 build() 才暴露。
 class Utf8StringBuilder {
 public:
     Utf8StringBuilder() noexcept;
@@ -353,10 +349,7 @@ private:
 };
 
 
-// ============================================================================
-// Utf8Iterator — 前向迭代器，O(1) 步进，配合范围 for 使用
-// ============================================================================
-
+/// @brief 前向迭代器，解引用得到 u32 码点，O(1) 步进。配合范围 for 使用。
 class Utf8Iterator {
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -424,25 +417,21 @@ Utf8String join(const std::vector<Utf8StringRef>& parts,
 std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s);
 std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 
-// 针对\0结尾的字面量，也就是"test"这样子的字面量，解决既不能存Utf8String也不能存Utf8StringRef的问题
-// 这个问题的根本出发点是有两个原因，一个是Utf8String这玩意需要分配内存，实际上一个字面量不需要的
-// 它仅仅需要一个const char*加上一个usize就行，而且不需要任何拷贝。
-// 不用Utf8StringRef的原因是，没有所有权，使用没办法保证\0，虽然from_cstr看上去可以做缓存
-// 但是实际上，动态内存也会因此加入，没法都缓存
-// 所以我搞一个ZUtf8String从语义上保证这个问题，ZUtf8String是零结尾字符串视图
-// 一定是\0结尾，而且是字面量，可以做缓存的语义
-// 对于ZUtf8StringRef一定要做成全局变量或者是static，避免重复计算码点
+/// @brief 零结尾 UTF-8 字符串视图：保证 `\0` 终止、零拷贝、可做字面量缓存。
+/// @note **Provisional**：专为字面量/全局常量设计——只有 from_static() 吃全局缓存表。
+///       实例应做成 static / 全局变量，避免重复计算码点。
+///       解决了"字面量既不必分配(Utf8String)、又不能丢 `\0` 保证(Utf8StringRef)"的两难。
+/// @warning from_std_string() 的视图依赖传入 std::string 的生命周期；
+///          from_static() 按 const char* 地址缓存，依赖字面量地址稳定（不保证跨串去重）。
 class ZUtf8StringRef{
 public:
-    // 从 C 字符串构造（仅建议用于字面量或全局常量），
-    // 只有这个from_static会吃到全局缓存表的查询优化，其他没有优化，
-    // 其次这个不保证去重的，如果要去重那么需要基于编译器的-fmerge-constants保证每个字符串常量一定是在一个地址上
+    /// @brief 从 C 字符串构造（仅建议字面量/全局常量）。命中全局缓存表优化；不保证去重。
     static ZUtf8StringRef from_static(const char* cstr);
 
-    // 从 Utf8String 转换（Utf8String 保证末尾有 \0）
+    /// 从 Utf8String 转换（其保证末尾 `\0`）。
     static ZUtf8StringRef from_utf8_string(const Utf8String& s);
 
-    // 从 std::string转换，自行保证std::string的内容
+    /// @brief 从 std::string 转换。@warning 视图寿命受该 std::string 约束，调用方自负。
     static ZUtf8StringRef from_std_string(const std::string& s);
 
     // 不提供从普通 Utf8StringRef 的隐式转换，防止传入不保证 \0 的视图

@@ -1,17 +1,14 @@
-//
-// @brief 惰性 UTF-8 字符串拼接 (Utf8Twine)
-// @author Canrad
-// @note 借用语义同 Utf8StringRef：只在单表达式内作参数使用，绝不存成员、绝不跨语句。
-//       拼接零分配，仅在 materialize/to_string 时一次性产出。
-//
-// 使用:
-//   pool.intern(a + "/" + b);          // → PooledPtr
-//   arena.intern(Utf8Twine(x) + y);    // → Utf8StringRef
-//   (a + b).to_string();               // → Utf8String（独立拥有）
-//
-// 设计: LLVM Twine 风格的二叉拼接树。叶子按值存 Utf8StringRef（视图，
-//       其字节由调用方保证存活）；子 Twine 按指针存（指向表达式内的栈临时量）。
-//
+/// @file utf8_twine.hpp
+/// @brief 惰性 UTF-8 字符串拼接 Utf8Twine（LLVM Twine 风格二叉拼接树，拼接零分配）。
+/// @author Canrad
+/// @note **借用语义同 Utf8StringRef**：只在单表达式内作参数使用，绝不存成员、绝不跨语句。
+///       仅在 materialize()/to_string() 时一次性产出。
+///       叶子按值存 Utf8StringRef（字节由调用方保证存活）；子 Twine 按指针存（指向表达式内栈临时量）。
+/// @code
+///   pool.intern(a + "/" + b);          // → PooledPtr
+///   arena.intern(Utf8Twine(x) + y);    // → Utf8StringRef
+///   (a + b).to_string();               // → Utf8String（独立拥有）
+/// @endcode
 
 #pragma once
 
@@ -24,6 +21,7 @@ class Utf8StringArena;
 class Utf8StringPool;
 class Utf8StringPooledPtr;
 
+/// @brief 惰性拼接节点。详见文件头借用语义。
 class Utf8Twine {
 public:
     // ---- 叶子构造（隐式，让 "a" + ref 这类表达式成立）----

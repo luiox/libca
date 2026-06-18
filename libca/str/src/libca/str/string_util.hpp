@@ -12,7 +12,8 @@
 
 namespace ca::str {
 
-/// 字符串辅助工具类
+/// @brief std::string 辅助工具（大小写/修剪/拆分/合并/数值互转/比较）。
+/// @note 面向 std::string、按字节/ASCII 操作；需要 UTF-8 码点语义请用 Utf8String/Utf8StringRef。
 class StringUtil {
 public:
     // ==================== 大小写转换 ====================
