@@ -5,8 +5,7 @@
 // @note 仅依赖 datatype.hpp，不依赖其他字符串类型
 //
 
-#ifndef LIBCA_STR_UTF8_UTIL_HPP
-#define LIBCA_STR_UTF8_UTIL_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 
@@ -35,5 +34,3 @@ usize utf8_count_code_points(const u8* data, usize byte_length,
 bool utf8_is_valid(const u8* data, usize byte_length) noexcept;
 
 }  // namespace ca::str
-
-#endif  // LIBCA_STR_UTF8_UTIL_HPP

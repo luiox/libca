@@ -10,8 +10,7 @@
 //     Linux/macOS: UTF-32 (每个 wchar_t = 一个码点)
 //
 
-#ifndef LIBCA_STR_CONVERSION_HPP
-#define LIBCA_STR_CONVERSION_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 #include "utf8_string.hpp"
@@ -81,5 +80,3 @@ usize utf16ToUtf8Length(const u16* utf16, usize unitCount) noexcept;
 usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept;
 
 }  // namespace ca::str
-
-#endif  // LIBCA_STR_CONVERSION_HPP

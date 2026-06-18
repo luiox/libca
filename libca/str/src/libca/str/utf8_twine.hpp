@@ -13,8 +13,7 @@
 //       其字节由调用方保证存活）；子 Twine 按指针存（指向表达式内的栈临时量）。
 //
 
-#ifndef LIBCA_STR_UTF8_TWINE_HPP
-#define LIBCA_STR_UTF8_TWINE_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 #include "utf8_string.hpp"
@@ -68,5 +67,3 @@ inline Utf8Twine operator+(const Utf8Twine& l, const Utf8Twine& r) noexcept {
 }
 
 }  // namespace ca::str
-
-#endif  // LIBCA_STR_UTF8_TWINE_HPP

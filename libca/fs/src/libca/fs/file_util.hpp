@@ -1,5 +1,4 @@
-#ifndef LIBCA_FS_FILE_UTIL_HPP
-#define LIBCA_FS_FILE_UTIL_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -112,5 +111,3 @@ public:
 };
 
 }}  // namespace ca::fs
-
-#endif  // LIBCA_FS_FILE_UTIL_HPP

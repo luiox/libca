@@ -6,8 +6,7 @@
 // @note 命名空间 ca::str，基于 char 类型存储，长度即字符数（O(1)）
 //
 
-#ifndef LIBCA_STR_CSTRING_HPP
-#define LIBCA_STR_CSTRING_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 
@@ -208,5 +207,3 @@ struct hash<ca::str::CStringRef> {
 };
 
 }  // namespace std
-
-#endif  // LIBCA_STR_CSTRING_HPP

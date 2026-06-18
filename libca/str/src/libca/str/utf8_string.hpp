@@ -5,8 +5,7 @@
 // @note 命名空间 ca::str，基于 u8 类型存储，支持码点访问
 //
 
-#ifndef LIBCA_STR_UTF8_STRING_HPP
-#define LIBCA_STR_UTF8_STRING_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 
@@ -493,5 +492,3 @@ struct hash<ca::str::Utf8StringRef> {
 };
 
 }  // namespace std
-
-#endif  // LIBCA_STR_UTF8_STRING_HPP

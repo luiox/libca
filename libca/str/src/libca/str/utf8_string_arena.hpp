@@ -12,8 +12,7 @@
 //   // arena 析构后 ref 失效
 //
 
-#ifndef LIBCA_STR_UTF8_STRING_ARENA_HPP
-#define LIBCA_STR_UTF8_STRING_ARENA_HPP
+#pragma once
 
 #include "libca/core/datatype.hpp"
 #include "utf8_string.hpp"
@@ -89,5 +88,3 @@ private:
 };
 
 }  // namespace ca::str
-
-#endif  // LIBCA_STR_UTF8_STRING_ARENA_HPP
