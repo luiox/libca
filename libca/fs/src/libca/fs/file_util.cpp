@@ -13,57 +13,132 @@
 
 namespace ca { namespace fs {
 
+namespace {
+
+/// 把 std::error_code 归类为 FsError。无错误映射时退回 Unknown。
+FsError classify_fs_error(const std::error_code& ec) noexcept
+{
+    if (!ec) return FsError::Unknown;
+    // 优先用 std::errc 条件值判断，跨平台稳定。
+    const auto cond = static_cast<std::errc>(ec.default_error_condition().value());
+    switch (cond) {
+        case std::errc::no_such_file_or_directory:    return FsError::FileNotFound;
+        case std::errc::not_a_directory:              return FsError::NotADirectory;
+        case std::errc::permission_denied:            return FsError::PermissionDenied;
+        case std::errc::file_exists:                  return FsError::AlreadyExists;
+        case std::errc::no_space_on_device:           return FsError::DiskFull;
+        case std::errc::read_only_file_system:        return FsError::PermissionDenied;
+        case std::errc::no_buffer_space:              return FsError::DiskFull;
+        default:                                       return FsError::Unknown;
+    }
+}
+
+/// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
+/// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
+/// 失败时返回具体 FsError（out_* 未定义）。
+/// size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
+/// 防止后续 buffer 分配截断导致缓冲区溢出。
+FsError open_for_read(const std::string& path, std::ifstream& out_file, std::streamoff& out_size)
+{
+    auto p = std::filesystem::path(path);
+    if (!std::filesystem::exists(p)) {
+        return FsError::FileNotFound;
+    }
+    if (!std::filesystem::is_regular_file(p)) {
+        return FsError::NotARegularFile;
+    }
+
+    std::ifstream file(p, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        return FsError::OpenFailed;
+    }
+
+    auto size = file.tellg();
+    if (size < 0) {
+        return FsError::ReadFailed;
+    }
+    // 防御：文件大小超出 usize 可表示范围时拒绝，避免分配截断/缓冲区溢出。
+    if (static_cast<unsigned long long>(size) >
+        static_cast<unsigned long long>(static_cast<ca::usize>(-1))) {
+        return FsError::ReadFailed;
+    }
+
+    out_file = std::move(file);
+    out_size = size;
+    return FsError::Ok;
+}
+
+}  // namespace
+
 // ==================== 读写 ====================
 
-Result<ByteVector, std::string> FileUtil::read_all_bytes(const std::string& path)
+Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& path)
 {
     try {
-        auto p = std::filesystem::path(path);
-        if (!std::filesystem::exists(p)) {
-            return Err(std::string("file not found: ") + path);
+        std::ifstream file;
+        std::streamoff size = 0;
+        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+            return Err(e);
         }
-        if (!std::filesystem::is_regular_file(p)) {
-            return Err(std::string("not a regular file: ") + path);
+        auto byte_count = static_cast<ca::usize>(size);
+
+        if (byte_count == 0) {
+            return Ok(ca::core::Bytes());
         }
 
-        std::ifstream file(p, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            return Err(std::string("failed to open file: ") + path);
-        }
-
-        auto size = file.tellg();
-        if (size < 0) {
-            return Err(std::string("failed to determine file size: ") + path);
-        }
-
-        ByteVector buffer(static_cast<ca::usize>(size));
+        std::vector<ca::u8> buffer(byte_count);
         file.seekg(0, std::ios::beg);
         file.read(reinterpret_cast<char*>(buffer.data()), size);
+        if (file.fail() && !file.eof()) {
+            return Err(FsError::ReadFailed);
+        }
+        file.close();
+
+        return Ok(ca::core::Bytes::copy_from_slice(buffer.data(), buffer.size()));
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
+}
+
+Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
+{
+    try {
+        std::ifstream file;
+        std::streamoff size = 0;
+        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+            return Err(e);
+        }
+
+        // 直接读入 std::string 并移动返回，避免 vector→Bytes→string 的多重拷贝。
+        std::string buffer;
+        if (size > 0) {
+            buffer.resize(static_cast<std::size_t>(size));
+            file.seekg(0, std::ios::beg);
+            file.read(&buffer[0], size);
+            if (file.fail() && !file.eof()) {
+                return Err(FsError::ReadFailed);
+            }
+        }
         file.close();
 
         return Ok(std::move(buffer));
-    } catch (const std::exception& e) {
-        return Err(std::string("read_all_bytes failed: ") + e.what());
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 
-Result<std::string, std::string> FileUtil::read_all_text(const std::string& path)
-{
-    auto result = read_all_bytes(path);
-    if (result.is_err()) {
-        return Err(result.unwrap_err());
-    }
-    auto bytes = result.unwrap();
-    return Ok(std::string(bytes.begin(), bytes.end()));
-}
-
-bool FileUtil::write_bytes(const std::string& path, const ByteVector& content, unsigned int mode)
+Result<void, FsError> FileUtil::write_bytes(const std::string& path,
+                                            const ca::core::ByteSlice& content, unsigned int mode)
 {
     try {
         auto p = std::filesystem::path(path);
 
         if ((mode & FileMode::CREATE_NEW) && std::filesystem::exists(p)) {
-            return false;
+            return Err(FsError::AlreadyExists);
         }
 
         if (p.has_parent_path()) {
@@ -78,20 +153,24 @@ bool FileUtil::write_bytes(const std::string& path, const ByteVector& content, u
         }
 
         std::ofstream file(p, openMode);
-        if (!file.is_open()) return false;
+        if (!file.is_open()) return Err(FsError::OpenFailed);
 
         file.write(reinterpret_cast<const char*>(content.data()),
                    static_cast<std::streamsize>(content.size()));
         file.close();
-        return !file.fail();
+        if (file.fail()) return Err(FsError::WriteFailed);
+        return Ok();
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
     } catch (const std::exception&) {
-        return false;
+        return Err(FsError::Unknown);
     }
 }
 
-bool FileUtil::write_text(const std::string& path, const std::string& content, unsigned int mode)
+Result<void, FsError> FileUtil::write_text(const std::string& path, const std::string& content,
+                                           unsigned int mode)
 {
-    ByteVector bytes(content.begin(), content.end());
+    ca::core::ByteSlice bytes(reinterpret_cast<const ca::u8*>(content.data()), content.size());
     return write_bytes(path, bytes, mode);
 }
 
@@ -128,12 +207,12 @@ bool FileUtil::is_directory(const std::string& path)
 
 // ==================== 遍历 ====================
 
-Result<std::vector<std::string>, std::string> FileUtil::list_files(const std::string& dir, bool recursive)
+Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string& dir, bool recursive)
 {
     try {
         auto p = std::filesystem::path(dir);
-        if (!std::filesystem::exists(p))  return Err(std::string("directory not found: ") + dir);
-        if (!std::filesystem::is_directory(p)) return Err(std::string("not a directory: ") + dir);
+        if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
 
         std::vector<std::string> files;
         if (recursive) {
@@ -144,24 +223,28 @@ Result<std::vector<std::string>, std::string> FileUtil::list_files(const std::st
                 if (entry.is_regular_file()) files.push_back(entry.path().generic_string());
         }
         return Ok(std::move(files));
-    } catch (const std::exception& e) {
-        return Err(std::string("list_files failed: ") + e.what());
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 
-Result<std::vector<std::string>, std::string> FileUtil::list_entries(const std::string& dir)
+Result<std::vector<std::string>, FsError> FileUtil::list_entries(const std::string& dir)
 {
     try {
         auto p = std::filesystem::path(dir);
-        if (!std::filesystem::exists(p))  return Err(std::string("directory not found: ") + dir);
-        if (!std::filesystem::is_directory(p)) return Err(std::string("not a directory: ") + dir);
+        if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
 
         std::vector<std::string> entries;
         for (const auto& entry : std::filesystem::directory_iterator(p))
             entries.push_back(entry.path().generic_string());
         return Ok(std::move(entries));
-    } catch (const std::exception& e) {
-        return Err(std::string("list_entries failed: ") + e.what());
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 
@@ -243,8 +326,8 @@ bool FileUtil::create_directories(const std::string& path)
     return std::filesystem::create_directories(p, ec);
 }
 
-Result<std::string, std::string> FileUtil::create_temp_file(const std::string& prefix,
-                                                            const std::string& suffix)
+Result<std::string, FsError> FileUtil::create_temp_file(const std::string& prefix,
+                                                        const std::string& suffix)
 {
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
@@ -258,13 +341,15 @@ Result<std::string, std::string> FileUtil::create_temp_file(const std::string& p
                 if (f.is_open()) { f.close(); return Ok(p.generic_string()); }
             }
         }
-        return Err(std::string("failed to create temp file after 1024 attempts"));
-    } catch (const std::exception& e) {
-        return Err(std::string("create_temp_file failed: ") + e.what());
+        return Err(FsError::OpenFailed);
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 
-Result<std::string, std::string> FileUtil::create_temp_directory(const std::string& prefix)
+Result<std::string, FsError> FileUtil::create_temp_directory(const std::string& prefix)
 {
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
@@ -275,19 +360,21 @@ Result<std::string, std::string> FileUtil::create_temp_directory(const std::stri
             auto p = basePath / (prefix + id);
             if (std::filesystem::create_directory(p)) return Ok(p.generic_string());
         }
-        return Err(std::string("failed to create temp directory after 1024 attempts"));
-    } catch (const std::exception& e) {
-        return Err(std::string("create_temp_directory failed: ") + e.what());
+        return Err(FsError::OpenFailed);
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 
 // ==================== 备份 ====================
 
-Result<std::string, std::string> FileUtil::backup(const std::string& path)
+Result<std::string, FsError> FileUtil::backup(const std::string& path)
 {
     try {
         auto srcPath = std::filesystem::path(path);
-        if (!std::filesystem::exists(srcPath)) return Err(std::string("path does not exist: ") + path);
+        if (!std::filesystem::exists(srcPath)) return Err(FsError::FileNotFound);
 
         auto backupPath = srcPath;
         auto newName = srcPath.filename().generic_string() + ".backup";
@@ -301,11 +388,13 @@ Result<std::string, std::string> FileUtil::backup(const std::string& path)
             std::filesystem::copy(srcPath, backupPath,
                 std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
         } else {
-            return Err(std::string("unsupported file type: ") + path);
+            return Err(FsError::NotARegularFile);
         }
         return Ok(backupPath.generic_string());
-    } catch (const std::exception& e) {
-        return Err(std::string("backup failed: ") + e.what());
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
 }
 

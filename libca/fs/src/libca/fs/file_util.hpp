@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 
+#include "fs_error.hpp"
 #include "path_util.hpp"
+#include <libca/core/bytes.hpp>
 #include <libca/core/result.hpp>
 #include <libca/core/datatype.hpp>
 
@@ -18,30 +20,30 @@ struct FileMode
     static constexpr unsigned int CREATE_NEW  = 0x04;  ///< 创建新文件，失败若已存在
 };
 
-using ByteVector = std::vector<ca::u8>;
-
 /// 文件与目录操作工具类
 ///
 /// 封装 std::filesystem，提供类似 Java FileUtil 的便捷静态接口。
-/// 可能失败的操作返回 ca::Result<T, std::string>，纯查询返回裸值。
+/// 可能失败且需知原因的操作返回 ca::Result<T, FsError>（结构化错误码，可用 to_string 转可读字符串）；
+/// 纯查询/只关心成败的操作返回裸 bool 或哨兵值。不向外抛异常。
 class FileUtil
 {
 public:
     // ==================== 读写 ====================
 
-    /// 读取整个文件为字节数组
-    static Result<ByteVector, std::string> read_all_bytes(const std::string& path);
+    /// 读取整个文件为不可变字节序列 ca::core::Bytes（自管理生命周期）。
+    static Result<ca::core::Bytes, FsError> read_all_bytes(const std::string& path);
 
     /// 读取整个文件为 UTF-8 字符串
-    static Result<std::string, std::string> read_all_text(const std::string& path);
+    static Result<std::string, FsError> read_all_text(const std::string& path);
 
-    /// 按模式写入字节数组到文件
-    static bool write_bytes(const std::string& path, const ByteVector& content,
-                            unsigned int mode = FileMode::OVERWRITE);
+    /// 按模式写入字节序列到文件。content 为非拥有只读视图（ca::core::ByteSlice）。
+    static Result<void, FsError> write_bytes(const std::string& path,
+                                             const ca::core::ByteSlice& content,
+                                             unsigned int mode = FileMode::OVERWRITE);
 
     /// 按模式写入字符串到文件
-    static bool write_text(const std::string& path, const std::string& content,
-                           unsigned int mode = FileMode::OVERWRITE);
+    static Result<void, FsError> write_text(const std::string& path, const std::string& content,
+                                            unsigned int mode = FileMode::OVERWRITE);
 
     // ==================== 查询 ====================
 
@@ -60,11 +62,11 @@ public:
     // ==================== 遍历 ====================
 
     /// 列出目录下所有文件（不含子目录本身）。recursive=true 时递归所有子目录。
-    static Result<std::vector<std::string>, std::string> list_files(const std::string& dir,
-                                                                     bool recursive = false);
+    static Result<std::vector<std::string>, FsError> list_files(const std::string& dir,
+                                                                 bool recursive = false);
 
     /// 列出目录下的直接条目（文件和子目录）
-    static Result<std::vector<std::string>, std::string> list_entries(const std::string& dir);
+    static Result<std::vector<std::string>, FsError> list_entries(const std::string& dir);
 
     // ==================== 拷贝 / 移动 ====================
 
@@ -91,16 +93,16 @@ public:
     static bool create_directories(const std::string& path);
 
     /// 创建临时文件，返回完整路径
-    static Result<std::string, std::string> create_temp_file(const std::string& prefix = "",
-                                                              const std::string& suffix = "");
+    static Result<std::string, FsError> create_temp_file(const std::string& prefix = "",
+                                                          const std::string& suffix = "");
 
     /// 创建临时目录，返回完整路径
-    static Result<std::string, std::string> create_temp_directory(const std::string& prefix = "");
+    static Result<std::string, FsError> create_temp_directory(const std::string& prefix = "");
 
     // ==================== 备份 ====================
 
     /// 备份文件或目录，追加 ".backup" 后缀。返回备份路径。
-    static Result<std::string, std::string> backup(const std::string& path);
+    static Result<std::string, FsError> backup(const std::string& path);
 
     // ==================== 权限 ====================
 
