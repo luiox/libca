@@ -1,44 +1,143 @@
+# libca Core CI（Linux，不含 libca.em）
+#
+# 范围：新 core 子库（libca/{core,str,fs,crypto,time,collection}）+ 其 unittest。
+# 不编译 libca.em（嵌入式模拟层）。
+#
+# 历史背景：此前本文件的 path filter 写成 libca.core/**（带点，指老 core 目录），
+# 命令也未开 --with_tests，导致新 core（libca/core，morpher 实际引用的）从不在 CI
+# 覆盖范围内，size_t 等 Linux 兼容 bug 长期漏网。本次重写：path 覆盖 libca/**、
+# 开 with_tests、点名 unittest target，让 CI 真正验证新 core。
+
 name: Core CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - "libca.core/**"
+      - "libca/**"
       - "xmake.lua"
-      - "libca.core/xmake.lua"
       - ".github/workflows/core-ci.yml"
-      - ".github/workflows/core-coverage.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - "libca.core/**"
+      - "libca/**"
       - "xmake.lua"
-      - "libca.core/xmake.lua"
       - ".github/workflows/core-ci.yml"
-      - ".github/workflows/core-coverage.yml"
+
+concurrency:
+  group: core-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test-core:
+  lint:
+    name: clang-format
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+      - name: Collect changed C/C++ files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            mapfile -t FILES < <(git diff --name-only "$BASE" "$HEAD" -- libca \
+                       | grep -E '\.(cpp|hpp|c|h)$' || true)
+          else
+            mapfile -t FILES < <(git ls-files 'libca/**/*.cpp' 'libca/**/*.hpp' || true)
+          fi
+          printf '%s\n' "${FILES[@]}" > /tmp/ci_files.txt
+          echo "files: ${#FILES[@]}"
+      - name: Run clang-format
+        run: |
+          set -e
+          FILES=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && FILES+=("$line")
+          done < /tmp/ci_files.txt
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No C/C++ files to check, skipping."
+            exit 0
+          fi
+          clang-format -i "${FILES[@]}"
+          if ! git diff --exit-code --quiet; then
+            echo "::error::clang-format 发现格式不一致（见 diff）。本地修复：clang-format -i <files>"
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "All files conform to .clang-format."
 
-    - name: Setup xmake
-      uses: xmake-io/github-action-setup-xmake@v1
-      with:
-        xmake-version: 3.0.5
-        actions-cache-folder: '.xmake-cache'
+  build-and-test-core:
+    name: build & test (linux, no em)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false  # libca 独立构建不依赖 submodule（gtest 走 xrepo）
 
-    - name: Configure core-only build
-      run: xmake f --toolchain=gcc --ccache=y --with_core=y --with_em=n --with_demo=n -y
+      - name: Install system deps
+        run: |
+          # cmake/ninja：xrepo 编译 gtest（cmake-based）需要。
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
 
-    - name: Build core tests
-      run: xmake build -v
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v3.0.9
+          actions-cache-folder: '.xmake-cache'
 
-    - name: Run core tests
-      run: xmake test -g core/test -v
+      - name: Cache xrepo packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.xmake/packages
+            ~/.local/share/xmake
+          key: libca-xrepo-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          restore-keys: |
+            libca-xrepo-linux-x64-xmake309-
+
+      - name: Configure (core + tests, no em)
+        run: |
+          # -p linux：显式指定平台，避免歧义。
+          # --with_core=y --with_em=n：只编 core 族，排除 em。
+          # --with_tests=y：启用 *_unittest target 并拉取 gtest。
+          # --with_demo=n：不编 demo。
+          # -y：xrepo 安装 gtest 的交互确认自动通过。
+          xmake f -p linux --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+
+      - name: Build new-core targets
+        run: |
+          # 显式点名新 core 子库 + 其 unittest，避免老 libca.core 和 demo 干扰。
+          # 若某子库在 Linux 暂未就绪，可先从此列表移除，逐步收敛。
+          xmake build libca_core libca_str libca_fs libca_crypto libca_time libca_collection \
+                     libca_core_unittest libca_str_unittest libca_fs_unittest \
+                     libca_crypto_unittest libca_time_unittest libca_collection_unittest
+
+      - name: Run unit tests
+        run: |
+          set -e
+          TESTS=(
+            libca_core_unittest
+            libca_str_unittest
+            libca_fs_unittest
+            libca_crypto_unittest
+            libca_time_unittest
+            libca_collection_unittest
+          )
+          failed=0
+          for t in "${TESTS[@]}"; do
+            echo "::group::xmake run $t"
+            if xmake run "$t"; then
+              echo "PASS: $t"
+            else
+              echo "::error::FAIL: $t"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $failed
