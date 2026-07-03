@@ -1,11 +1,8 @@
-//
-// @brief libca/str 聚合头文件
-// @author Canrad
-// @date 2026/05/31
-//
-// 包含 ca::str 命名空间下的所有组件
-// 使用 #include <libca/str/str.hpp> 引入整个模块
-//
+/// @file str.hpp
+/// @brief libca/str 聚合头文件——包含 ca::str 下所有组件。
+///        用 `#include <libca/str/str.hpp>` 一次引入整个模块。
+/// @author Canrad
+/// @date 2026/05/31
 
 #pragma once
 

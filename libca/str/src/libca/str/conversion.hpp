@@ -1,14 +1,9 @@
-//
-// @brief ca::str 各字符串类型间的转换函数
-// @author Canrad
-// @date 2026/05/31
-// @note
-//   Utf8String ↔ CString : 直接拷贝字节
-//   Utf8String ↔ WString : 逐码点编解码
-//   WString 底层 wchar_t 编码是平台相关的:
-//     Windows: UTF-16LE (需处理代理对)
-//     Linux/macOS: UTF-32 (每个 wchar_t = 一个码点)
-//
+/// @file conversion.hpp
+/// @brief ca::str 各字符串类型间的转换：Utf8String ↔ CString（拷字节）/ WString（逐码点编解码）。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note WString 底层 wchar_t 编码平台相关：Windows = UTF-16LE（含代理对），Linux/macOS = UTF-32。
+///       非法 UTF-8 / 非法码点的转换会抛 std::runtime_error。
 
 #pragma once
 

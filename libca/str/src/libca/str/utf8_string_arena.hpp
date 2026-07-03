@@ -1,16 +1,16 @@
-//
-// @brief 追加式 UTF-8 字符串池 (Utf8StringArena)
-// @author Canrad
-// @date 2026/05/31
-// @note 固定块链式扩展，内存不挪动，返回 Utf8StringRef 指向池内数据
-//       池析构前引用稳定有效。无锁，非线程安全。
-//
-// 使用场景:
-//   解析器、编译前端、配置加载 — 整批字符串共存，一起销毁
-//   Utf8StringArena arena;
-//   auto key = arena.intern("name");  // Utf8StringRef 指向 arena 内部
-//   // arena 析构后 ref 失效
-//
+/// @file utf8_string_arena.hpp
+/// @brief 追加式 UTF-8 字符串池 Utf8StringArena：复制输入、去重、返回指向池内数据的 Utf8StringRef。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note 固定块链式扩展，内存不挪动。无锁，**非线程安全**。
+///       选型：一批字符串有共同死亡点（整批共存、一起销毁）用 arena；寿命各异用 Utf8StringPool。
+/// @warning **返回的 Utf8StringRef 生命周期绑定 arena**：arena 析构或 clear() 后全部失效；
+///          移动赋值会释放目标旧 chunk，使其旧 ref 失效。
+/// @code
+///   Utf8StringArena arena;
+///   auto key = arena.intern("name");  // ref 指向 arena 内部
+///   // arena 析构后 key 失效
+/// @endcode
 
 #pragma once
 
@@ -24,36 +24,40 @@
 
 namespace ca::str {
 
+/// @brief 追加式去重 UTF-8 字符串池。详见文件头说明。
 class Utf8StringArena {
 public:
+    /// 构造空池并分配初始 chunk。
     Utf8StringArena() noexcept;
+    /// 释放所有 chunk（此后所有返回的 ref 失效）。
     ~Utf8StringArena();
 
-    // 不可拷贝
     Utf8StringArena(const Utf8StringArena&) = delete;
     Utf8StringArena& operator=(const Utf8StringArena&) = delete;
 
-    // 可移动
     Utf8StringArena(Utf8StringArena&&) noexcept;
     Utf8StringArena& operator=(Utf8StringArena&&) noexcept;
 
-    // ---- intern ----
+    // ---- intern：复制入池、去重，返回指向池内副本的视图 ----
 
-    // 将 UTF-8 数据插入 arena，返回指向池内副本的引用
+    /// @brief 校验 UTF-8 并复制入池，内容去重。空或非法输入返回空视图。
     Utf8StringRef intern(const u8* data, usize byte_length);
+    /// intern C 字符串；空指针返回空视图。
     Utf8StringRef intern(const char* cstr);
+    /// intern 视图内容。
     Utf8StringRef intern(const Utf8StringRef& str);
+    /// intern 拥有字符串内容。
     Utf8StringRef intern(const Utf8String& str);
 
     // ---- 统计 ----
 
-    // 唯一字符串数量
+    /// 唯一字符串数量。
     usize size() const noexcept;
 
-    // 已分配的总字节数（含每个 chunk 剩余未用空间）
+    /// 已分配 chunk 总容量（含每个 chunk 未用空间）。
     usize total_bytes() const noexcept;
 
-    // 重置，释放所有 chunk
+    /// 释放所有 chunk 和索引，回到空池（此后所有返回的 ref 失效）。
     void clear() noexcept;
 
 private:

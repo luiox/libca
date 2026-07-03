@@ -1,10 +1,9 @@
-//
-// @brief 不可变 C 风格字符串 (CString)、引用视图 (CStringRef)
-//        及可变构建器 (CStringBuilder)
-// @author Canrad
-// @date 2026/05/31
-// @note 命名空间 ca::str，基于 char 类型存储，长度即字符数（O(1)）
-//
+/// @file cstring.hpp
+/// @brief 不可变 char 字符串：拥有所有权的 CString、非拥有视图 CStringRef、可变构建器 CStringBuilder。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note 命名空间 ca::str，按 char 存储，length() = 字符数（O(1)），不做 UTF-8 码点语义。
+///       需要 Unicode 码点处理用 Utf8String；本类型用于纯 char/字节级字符串。
 
 #pragma once
 
@@ -24,10 +23,8 @@ namespace ca::str {
 class CString;
 
 
-// ============================================================================
-// CStringRef — 非拥有引用的不可变 char 字符串视图
-// ============================================================================
-
+/// @brief 非拥有、不可变的 char 字符串视图。
+/// @warning 不拥有数据；来自 CString::ref()/slice() 的视图在原串销毁或移动后失效。
 class CStringRef {
 public:
     CStringRef() noexcept;
@@ -73,10 +70,8 @@ private:
 };
 
 
-// ============================================================================
-// CString — 拥有所有权的不可变 char 字符串
-// ============================================================================
-
+/// @brief 拥有所有权、不可变、内部以 `\0` 终止的 char 字符串。
+/// @note 禁止隐式拷贝（须显式 clone()），可移动。保证结尾 `\0`，故提供 c_str()。
 class CString {
 public:
     CString() noexcept;
@@ -142,10 +137,7 @@ private:
 };
 
 
-// ============================================================================
-// CStringBuilder
-// ============================================================================
-
+/// @brief 构建 CString 的可变构建器（追加写入，build() 产出）。
 class CStringBuilder {
 public:
     CStringBuilder() noexcept;

@@ -1,18 +1,22 @@
-//
-// @brief 引用计数 UTF-8 字符串池 (Utf8StringPool) 及池化指针 (Utf8StringPooledPtr)
-// @author Canrad
-// @date 2026/05/31
-// @note 非线程安全。Pool 必须 outlive 所有 PooledPtr。
-//       PooledPtr 拷贝时原子递增 ref_count，析构时递减到 0 自动释放数据。
-//
-// 使用场景:
-//   对象寿命不一致的场景，每个字符串独立管理生存期。
-//   Utf8StringPool pool;
-//   auto s1 = pool.intern("hello");  // ref_count=1
-//   auto s2 = s1;                    // ref_count=2
-//   // s2 析构 → ref_count=1
-//   // s1 析构 → ref_count=0 → 释放内存
-//
+/// @file utf8_string_pool.hpp
+/// @brief 引用计数 UTF-8 字符串池 Utf8StringPool 及池化句柄 Utf8StringPooledPtr。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note **Provisional**：接口形状已稳定，但 disown fail-safe 语义较新，下游充分验证前
+///       勿写入自身公共稳定接口。**非线程安全**。
+/// @note 选型：vs Utf8StringArena——arena 是"同生共死、整块释放"，pool 是"各句柄寿命不同、
+///       按引用计数回收"。一批字符串有共同死亡点用 arena，无则用 pool。
+/// @note 生命周期契约（核心）：
+///       - **真删**：PooledPtr refcount 归零即 delete 该 entry（非墓碑）。
+///       - **outlive 是软契约（性能契约，非硬约束）**：Pool 先于 PooledPtr 析构 / clear() /
+///         move-assign 时**不会 UAF**（走 disown fail-safe，存活句柄自管释放），但被 disown 的
+///         entry 失去去重收益。遵守 outlive 则享真删+去重，违反则退化自管。
+///       - **Ref 仍由借用纪律保证**：PooledPtr 析构后，由它 .ref() 派生的 Utf8StringRef 失效。
+/// @code
+///   Utf8StringPool pool;
+///   auto s1 = pool.intern("hello");  // refcount=1
+///   auto s2 = s1;                    // refcount=2；s2、s1 依次析构后 entry 真删
+/// @endcode
 
 #pragma once
 
@@ -33,31 +37,22 @@ namespace ca::str {
 class Utf8StringPool;
 
 
-// ============================================================================
-// Utf8PoolEntry — 池内条目（数据 + 引用计数）
-// ============================================================================
-
+/// @brief 池内条目：数据 + 引用计数 + 回指 owner（refcount 归零时由 owner 真删）。
 struct Utf8PoolEntry {
     u8*             data;
     usize           byte_length;
     usize           length;    // 码点个数
     usize           hash;
     usize           ref_count;
-    Utf8StringPool* owner;     // 回指：ref_count 归零时由它真删本条目
+    Utf8StringPool* owner;     // 回指：ref_count 归零时由它真删本条目；被 disown 后为 nullptr
 };
 
 
-// ============================================================================
-// Utf8StringPooledPtr — 引用计数的池化不可变 UTF-8 字符串指针
-// ============================================================================
-//
-// 8 字节（一个指针），指向 Pool 内部的 PoolEntry。
-// 拷贝/赋值递增 ref_count，析构递减，到 0 自动释放数据。
-//
-
+/// @brief 引用计数的池化不可变 UTF-8 字符串句柄，8 字节（一个指针）。
+/// @note 拷贝/赋值 refcount++，析构 refcount--，归零触发真删或（被 disown 时）自管释放。
 class Utf8StringPooledPtr {
 public:
-    // 默认构造：空指针
+    /// 空句柄。
     Utf8StringPooledPtr() noexcept;
 
     // 拷贝构造：递增 ref_count
@@ -86,12 +81,14 @@ public:
 
     // ---- 转换 ----
 
-    // 转为 Utf8StringRef 视图
+    /// 转为 Utf8StringRef 视图（借用纪律同 Ref：PooledPtr 须存活）。
     Utf8StringRef ref() const noexcept;
 
-    // 隐式转为 Utf8StringRef（零开销借用降级，对齐 ZUtf8StringRef）
-    // 让 PooledPtr 直接喂给只读接口；只读期间 PooledPtr 须存活（拥有者 outlive 借用者）
-    operator Utf8StringRef() const noexcept { return ref(); }
+    /// @brief 隐式转 Utf8StringRef（零开销借用降级），可直接喂给只读接口。
+    /// @warning 只读期间 PooledPtr 须存活（拥有者 outlive 借用者）。
+    /// @note 仅允许左值隐式转换；右值（临时对象）转换会悬空，已显式 delete 防止 UAF。
+    operator Utf8StringRef() const& noexcept { return ref(); }
+    operator Utf8StringRef() const&& = delete;
 
     // ---- 比较 ----
 
@@ -113,45 +110,41 @@ private:
 // Utf8StringPool — 引用计数 UTF-8 字符串池
 // ============================================================================
 
+/// @brief 引用计数 UTF-8 字符串池。详见文件头的选型与生命周期契约。
 class Utf8StringPool {
 public:
     Utf8StringPool() noexcept;
+    /// 析构：disown_all fail-safe 释放（残留句柄转为自管，不 UAF）。
     ~Utf8StringPool();
 
-    // 不可拷贝
     Utf8StringPool(const Utf8StringPool&) = delete;
     Utf8StringPool& operator=(const Utf8StringPool&) = delete;
 
-    // 可移动
     Utf8StringPool(Utf8StringPool&&) noexcept;
     Utf8StringPool& operator=(Utf8StringPool&&) noexcept;
 
-    // ---- intern ----
+    // ---- intern：复制入池、去重，返回引用计数句柄 ----
 
-    // 插入或获取已存在的引用计数条目
+    /// @brief 校验 UTF-8 并复制入池、去重。空/非法返回空句柄。
     Utf8StringPooledPtr intern(const u8* data, usize byte_length);
+    /// intern C 字符串；空指针返回空句柄。
     Utf8StringPooledPtr intern(const char* cstr);
+    /// intern 视图内容。
     Utf8StringPooledPtr intern(const Utf8StringRef& str);
 
     // ---- 查找（不分配、不改 ref_count）----
 
-    // 按内容查已存在条目。命中返回持有该条目的 PooledPtr（ref_count++），
-    // 未命中返回空 PooledPtr。Pool 本身即「内容 → PooledPtr」索引——
-    // 替代 C++20 才有的 unordered_map 异构查找（C++17 不可用）。
+    /// @brief 按内容查已存在条目。命中返回持有该条目的句柄（refcount++），未命中返回空句柄。
+    /// @note 替代 C++20 才有的异构查找（C++17 不可用）。
     Utf8StringPooledPtr find(const Utf8StringRef& str) const;
 
     // ---- 统计 ----
 
-    // 唯一条目总数（真删后 == 活条目数）
-    usize size() const noexcept;
+    usize size() const noexcept;            ///< 唯一条目数（真删后 == 活条目数）
+    usize active_entries() const noexcept;  ///< 活跃条目数（ref_count > 0）
+    usize total_bytes() const noexcept;     ///< 活条目字节和
 
-    // 活跃条目数（ref_count > 0）
-    usize active_entries() const noexcept;
-
-    // 已分配字节总量
-    usize total_bytes() const noexcept;
-
-    // 重置，释放全部（调用者需确保无活跃 PooledPtr）
+    /// disown_all fail-safe，回到空池（残留句柄转自管，不 UAF）。
     void clear() noexcept;
 
 private:

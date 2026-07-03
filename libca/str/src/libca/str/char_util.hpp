@@ -1,10 +1,9 @@
-//
-// @brief 字符类型 (Utf8Char / Utf16Char) 及字符分类工具
-// @author Canrad
-// @date 2026/05/31
-// @note 命名空间 ca::str，基于解码后的码点做字符分类
-//       避免在 UTF-8 字节上直接使用 std::isalnum 等
-//
+/// @file char_util.hpp
+/// @brief 字符类型 Utf8Char（解码后的 Unicode 码点）/ Utf16Char（UTF-16 码元）及字符分类工具。
+/// @author Canrad
+/// @date 2026/05/31
+/// @note 分类基于**解码后的码点**，不要在 UTF-8 原始字节上直接用 std::isalnum 等。
+///       大小写转换仅 ASCII 和部分拉丁字母准确，不做完整 Unicode 折叠。
 
 #pragma once
 
@@ -15,18 +14,11 @@
 
 namespace ca::str {
 
-// ============================================================================
-// Utf8Char — 一个解码后的 Unicode 码点（UTF-8 已解码）
-// ============================================================================
-//
-// 存储 u32 码点值，提供字符分类方法（基于码点而非原始字节）。
-//
-// 使用示例:
-//   Utf8Char cp = Utf8Char::fromRaw("\xE4\xB8\xAD");  // '中'
-//   if (cp.isAlpha()) { ... }
-//   u8 buf[4]; usize n = cp.encode(buf);
-//
-
+/// @brief 一个解码后的 Unicode 码点（4 字节），提供基于码点的字符分类。
+/// @code
+///   Utf8Char cp = Utf8Char::fromRaw("\xE4\xB8\xAD");  // '中'
+///   if (cp.isAlpha()) { u8 buf[4]; usize n = cp.encode(buf); }
+/// @endcode
 class Utf8Char {
 public:
     // 默认构造：空码点 (U+0000)
@@ -105,20 +97,11 @@ private:
 static_assert(sizeof(Utf8Char) == 4, "Utf8Char must be 4 bytes");
 
 
-// ============================================================================
-// Utf16Char — 一个 UTF-16 码元（16 位）
-// ============================================================================
-//
-// 存储 u16 值，可以是 BMP 字符、高位代理或低位代理。
-// 提供代理对判定方法。
-//
-// 使用示例:
-//   Utf16Char cu(0xD83D);          // 高位代理
-//   if (cu.isLeadSurrogate()) { ... }
-//   Utf16Char trail(0xDE00);
-//   u32 cp = Utf16Char::decodePair(cu, trail);  // → U+1F600
-//
-
+/// @brief 一个 UTF-16 码元（16 位）：可为 BMP 字符、高位或低位代理。提供代理对判定/编解码。
+/// @code
+///   Utf16Char cu(0xD83D);  // 高位代理
+///   if (cu.isLeadSurrogate()) { u32 cp = Utf16Char::decodePair(cu, Utf16Char(0xDE00)); }
+/// @endcode
 class Utf16Char {
 public:
     constexpr Utf16Char() noexcept : unit_(0) {}
