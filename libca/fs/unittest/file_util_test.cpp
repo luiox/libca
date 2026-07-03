@@ -1,6 +1,7 @@
 #include <gmock/gmock.h>
 
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 
 #include "libca/fs/file_util.hpp"
@@ -8,6 +9,22 @@
 namespace ca { namespace fs { namespace test {
 
 using namespace testing;
+
+/// 测试辅助：比较 ca::core::Bytes 与裸字节序列内容是否一致。
+/// Bytes 无 operator==，这里取其底层指针与期望字节做 memcmp。
+::testing::AssertionResult bytes_match(const ca::core::Bytes& actual, const ca::u8* expected,
+                                       ca::usize expected_len)
+{
+    if (actual.len() != expected_len) {
+        return ::testing::AssertionFailure()
+            << "length mismatch: actual=" << actual.len() << " expected=" << expected_len;
+    }
+    if (expected_len > 0 &&
+        std::memcmp(actual.as_ptr(), expected, expected_len) != 0) {
+        return ::testing::AssertionFailure() << "content mismatch";
+    }
+    return ::testing::AssertionSuccess();
+}
 
 /// 测试辅助：临时目录 RAII 守卫
 class TempDirGuard
@@ -54,13 +71,33 @@ TEST(FileUtilTest, ReadWriteRoundtrip)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("test_roundtrip.bin");
-    ByteVector data = {0x00, 0xFF, 0xAB, 0xCD, 0x12, 0x34};
+    static const ca::u8 data[] = {0x00, 0xFF, 0xAB, 0xCD, 0x12, 0x34};
+    ca::core::ByteSlice slice(data, sizeof(data));
 
-    EXPECT_TRUE(FileUtil::write_bytes(filePath, data));
+    EXPECT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
 
     auto result = FileUtil::read_all_bytes(filePath);
-    ASSERT_TRUE(result.is_ok()) << "readAllBytes failed: " << result.unwrap_err();
-    EXPECT_EQ(result.unwrap(), data);
+    ASSERT_TRUE(result.is_ok()) << "readAllBytes failed: " << to_string(result.unwrap_err());
+    EXPECT_TRUE(bytes_match(result.unwrap(), data, sizeof(data)));
+}
+
+TEST(FileUtilTest, ReadAllBytes_ReturnsBytes)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto filePath = tmp.make_path("bytes_type.bin");
+    static const ca::u8 data[] = {0x01, 0x02, 0x03, 0x04};
+    ca::core::ByteSlice slice(data, sizeof(data));
+    ASSERT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
+
+    auto result = FileUtil::read_all_bytes(filePath);
+    ASSERT_TRUE(result.is_ok());
+    auto bytes = result.unwrap();
+    // Bytes 是不可变共享存储，类型即为 ca::core::Bytes，长度与内容正确。
+    EXPECT_EQ(bytes.len(), 4u);
+    EXPECT_EQ(bytes.as_ptr()[0], 0x01);
+    EXPECT_EQ(bytes.as_ptr()[3], 0x04);
 }
 
 TEST(FileUtilTest, ReadAllText)
@@ -69,17 +106,18 @@ TEST(FileUtilTest, ReadAllText)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("hello.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "Hello, 世界!"));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "Hello, 世界!").is_ok());
 
     auto result = FileUtil::read_all_text(filePath);
-    ASSERT_TRUE(result.is_ok()) << "readAllText failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "readAllText failed: " << to_string(result.unwrap_err());
     EXPECT_EQ(result.unwrap(), "Hello, 世界!");
 }
 
 TEST(FileUtilTest, ReadAllBytes_FileNotFound)
 {
     auto result = FileUtil::read_all_bytes("/nonexistent/path/file.bin");
-    EXPECT_TRUE(result.is_err());
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::FileNotFound);
 }
 
 TEST(FileUtilTest, ReadAllBytes_PathIsDirectory)
@@ -88,13 +126,15 @@ TEST(FileUtilTest, ReadAllBytes_PathIsDirectory)
     ASSERT_TRUE(tmp.valid());
 
     auto result = FileUtil::read_all_bytes(tmp.path());
-    EXPECT_TRUE(result.is_err());
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::NotARegularFile);
 }
 
 TEST(FileUtilTest, ReadAllText_FileNotFound)
 {
     auto result = FileUtil::read_all_text("/nonexistent/path/file.txt");
-    EXPECT_TRUE(result.is_err());
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::FileNotFound);
 }
 
 // ==================== writeText / writeBytes ====================
@@ -105,8 +145,8 @@ TEST(FileUtilTest, WriteBytes_OverwriteDefault)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("overwrite.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "first"));
-    EXPECT_TRUE(FileUtil::write_text(filePath, "second"));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "first").is_ok());
+    EXPECT_TRUE(FileUtil::write_text(filePath, "second").is_ok());
 
     auto result = FileUtil::read_all_text(filePath);
     ASSERT_TRUE(result.is_ok());
@@ -119,8 +159,8 @@ TEST(FileUtilTest, WriteBytes_Append)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("append.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "hello", FileMode::OVERWRITE));
-    EXPECT_TRUE(FileUtil::write_text(filePath, " world", FileMode::APPEND));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "hello", FileMode::OVERWRITE).is_ok());
+    EXPECT_TRUE(FileUtil::write_text(filePath, " world", FileMode::APPEND).is_ok());
 
     auto result = FileUtil::read_all_text(filePath);
     ASSERT_TRUE(result.is_ok());
@@ -133,7 +173,7 @@ TEST(FileUtilTest, WriteBytes_CreateNew_Success)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("create_new.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "new file", FileMode::CREATE_NEW));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "new file", FileMode::CREATE_NEW).is_ok());
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -143,8 +183,10 @@ TEST(FileUtilTest, WriteBytes_CreateNew_Existing_Fails)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("already_exists.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "original", FileMode::CREATE_NEW));
-    EXPECT_FALSE(FileUtil::write_text(filePath, "again", FileMode::CREATE_NEW));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "original", FileMode::CREATE_NEW).is_ok());
+    auto result = FileUtil::write_text(filePath, "again", FileMode::CREATE_NEW);
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::AlreadyExists);
 }
 
 TEST(FileUtilTest, WriteBytes_CreatesParentDirectories)
@@ -153,7 +195,7 @@ TEST(FileUtilTest, WriteBytes_CreatesParentDirectories)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("subdir/nested/file.txt");
-    EXPECT_TRUE(FileUtil::write_text(filePath, "nested"));
+    EXPECT_TRUE(FileUtil::write_text(filePath, "nested").is_ok());
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
@@ -165,8 +207,9 @@ TEST(FileUtilTest, GetSize)
     ASSERT_TRUE(tmp.valid());
 
     auto filePath = tmp.make_path("size_test.bin");
-    ByteVector data(4096, 0xAB);
-    EXPECT_TRUE(FileUtil::write_bytes(filePath, data));
+    std::vector<ca::u8> data(4096, 0xAB);
+    ca::core::ByteSlice slice(data.data(), data.size());
+    EXPECT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
 
     EXPECT_EQ(FileUtil::size(filePath), 4096);
 }
@@ -233,7 +276,7 @@ TEST(FileUtilTest, ListFiles_Flat)
     tmp.create_file("b.txt");
 
     auto result = FileUtil::list_files(tmp.path(), false);
-    ASSERT_TRUE(result.is_ok()) << "listFiles failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "listFiles failed: " << to_string(result.unwrap_err());
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
 
@@ -246,7 +289,7 @@ TEST(FileUtilTest, ListFiles_Recursive)
     tmp.create_file("sub/b.txt");
 
     auto result = FileUtil::list_files(tmp.path(), true);
-    ASSERT_TRUE(result.is_ok()) << "listFiles recursive failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "listFiles recursive failed: " << to_string(result.unwrap_err());
     EXPECT_EQ(result.unwrap().size(), 2u);
 }
 
@@ -266,7 +309,7 @@ TEST(FileUtilTest, ListEntries)
     EXPECT_TRUE(FileUtil::create_directories(tmp.make_path("subdir")));
 
     auto result = FileUtil::list_entries(tmp.path());
-    ASSERT_TRUE(result.is_ok()) << "listEntries failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "listEntries failed: " << to_string(result.unwrap_err());
     EXPECT_EQ(result.unwrap().size(), 3u);
 }
 
@@ -279,7 +322,7 @@ TEST(FileUtilTest, Copy_File)
 
     auto src = tmp.make_path("src.txt");
     auto dst = tmp.make_path("dst.txt");
-    EXPECT_TRUE(FileUtil::write_text(src, "copy test"));
+    EXPECT_TRUE(FileUtil::write_text(src, "copy test").is_ok());
     EXPECT_TRUE(FileUtil::copy(src, dst));
     EXPECT_TRUE(FileUtil::exists(dst));
 
@@ -301,7 +344,7 @@ TEST(FileUtilTest, Copy_Directory)
     auto srcDir = tmp.make_path("srcdir");
     auto dstDir = tmp.make_path("dstdir");
     EXPECT_TRUE(FileUtil::create_directories(srcDir));
-    EXPECT_TRUE(FileUtil::write_text(tmp.make_path("srcdir/a.txt"), "file in dir"));
+    EXPECT_TRUE(FileUtil::write_text(tmp.make_path("srcdir/a.txt"), "file in dir").is_ok());
 
     EXPECT_TRUE(FileUtil::copy(srcDir, dstDir));
     EXPECT_TRUE(FileUtil::is_directory(dstDir));
@@ -316,7 +359,7 @@ TEST(FileUtilTest, Move_File)
 
     auto src = tmp.make_path("move_src.txt");
     auto dst = tmp.make_path("move_dst.txt");
-    EXPECT_TRUE(FileUtil::write_text(src, "move test"));
+    EXPECT_TRUE(FileUtil::write_text(src, "move test").is_ok());
     EXPECT_TRUE(FileUtil::move(src, dst));
     EXPECT_FALSE(FileUtil::exists(src));
     EXPECT_TRUE(FileUtil::exists(dst));
@@ -402,10 +445,10 @@ TEST(FileUtilTest, Backup_File)
     ASSERT_TRUE(tmp.valid());
 
     auto src = tmp.make_path("backup_me.txt");
-    EXPECT_TRUE(FileUtil::write_text(src, "important data"));
+    EXPECT_TRUE(FileUtil::write_text(src, "important data").is_ok());
 
     auto result = FileUtil::backup(src);
-    ASSERT_TRUE(result.is_ok()) << "backup failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "backup failed: " << to_string(result.unwrap_err());
 
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
     EXPECT_NE(result.unwrap(), src);
@@ -426,7 +469,7 @@ TEST(FileUtilTest, Backup_NonExistent)
 TEST(FileUtilTest, CreateTempFile)
 {
     auto result = FileUtil::create_temp_file("libca_", ".tmp");
-    ASSERT_TRUE(result.is_ok()) << "createTempFile failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "createTempFile failed: " << to_string(result.unwrap_err());
     EXPECT_TRUE(FileUtil::exists(result.unwrap()));
     EXPECT_TRUE(FileUtil::is_file(result.unwrap()));
     FileUtil::remove(result.unwrap());
@@ -435,7 +478,7 @@ TEST(FileUtilTest, CreateTempFile)
 TEST(FileUtilTest, CreateTempDirectory)
 {
     auto result = FileUtil::create_temp_directory("libca_dir_");
-    ASSERT_TRUE(result.is_ok()) << "createTempDirectory failed: " << result.unwrap_err();
+    ASSERT_TRUE(result.is_ok()) << "createTempDirectory failed: " << to_string(result.unwrap_err());
     EXPECT_TRUE(FileUtil::is_directory(result.unwrap()));
     FileUtil::remove_all(result.unwrap());
 }
