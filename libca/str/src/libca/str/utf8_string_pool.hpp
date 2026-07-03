@@ -86,7 +86,9 @@ public:
 
     /// @brief 隐式转 Utf8StringRef（零开销借用降级），可直接喂给只读接口。
     /// @warning 只读期间 PooledPtr 须存活（拥有者 outlive 借用者）。
-    operator Utf8StringRef() const noexcept { return ref(); }
+    /// @note 仅允许左值隐式转换；右值（临时对象）转换会悬空，已显式 delete 防止 UAF。
+    operator Utf8StringRef() const& noexcept { return ref(); }
+    operator Utf8StringRef() const&& = delete;
 
     // ---- 比较 ----
 

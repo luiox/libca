@@ -42,9 +42,9 @@ update:
 
 ### UTF-8 语义
 
-- **length() = 码点数**（O(1)，构造时缓存）；**byte_length() = 字节数**；下标 `[]` 按码点访问是 O(n)。
+- **length() = 码点数**（O(1)，构造时缓存）；**byte_length() = 字节数**；通过 `code_point_at()` 按码点访问是 O(n)（未提供 `[]` 运算符以避免低效的随机访问）。
 - **切片须在码点边界**（否则未定义行为）；查找/比较/前后缀按 UTF-8 字节序列，不做 Unicode 规范化。
-- 构造时校验 UTF-8 合法性（非法抛 `std::runtime_error`）。`Utf8StringRef::from_data()` 的 `from_static()` 不重复校验（由调用方保证）。
+- 构造时校验 UTF-8 合法性（非法抛 `std::runtime_error`）。`Utf8StringRef::from_data()` 与 `ZUtf8StringRef::from_static()` 不重复校验（由调用方保证）。
 
 ### 选型指南
 

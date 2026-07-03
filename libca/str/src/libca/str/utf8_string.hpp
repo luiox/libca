@@ -423,7 +423,7 @@ std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 ///       解决了"字面量既不必分配(Utf8String)、又不能丢 `\0` 保证(Utf8StringRef)"的两难。
 /// @warning from_std_string() 的视图依赖传入 std::string 的生命周期；
 ///          from_static() 按 const char* 地址缓存，依赖字面量地址稳定（不保证跨串去重）。
-class ZUtf8StringRef{
+class ZUtf8StringRef {
 public:
     /// @brief 从 C 字符串构造（仅建议字面量/全局常量）。命中全局缓存表优化；不保证去重。
     static ZUtf8StringRef from_static(const char* cstr);
