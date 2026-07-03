@@ -1,4 +1,7 @@
 #include <gtest/gtest.h>
+
+#include <cstring>
+
 #include <libca/str/conversion.hpp>
 
 namespace ca::str {
