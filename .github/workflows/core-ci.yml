@@ -73,11 +73,20 @@ jobs:
 
       - name: Build new-core targets
         run: |
+          # xmake build 一次只接受一个 target，用循环逐个编。
           # 显式点名新 core 子库 + 其 unittest，避免老 libca.core 和 demo 干扰。
           # 若某子库在 Linux 暂未就绪，可先从此列表移除，逐步收敛。
-          xmake build libca_core libca_str libca_fs libca_crypto libca_time libca_collection \
-                     libca_core_unittest libca_str_unittest libca_fs_unittest \
-                     libca_crypto_unittest libca_time_unittest libca_collection_unittest
+          set -e
+          TARGETS=(
+            libca_core libca_str libca_fs libca_crypto libca_time libca_collection
+            libca_core_unittest libca_str_unittest libca_fs_unittest
+            libca_crypto_unittest libca_time_unittest libca_collection_unittest
+          )
+          for t in "${TARGETS[@]}"; do
+            echo "::group::xmake build $t"
+            xmake build "$t"
+            echo "::endgroup::"
+          done
 
       - name: Run unit tests
         run: |
