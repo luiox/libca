@@ -33,6 +33,41 @@ FsError classify_fs_error(const std::error_code& ec) noexcept
     }
 }
 
+/// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
+/// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
+/// 失败时返回具体 FsError（out_* 未定义）。
+/// size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
+/// 防止后续 buffer 分配截断导致缓冲区溢出。
+FsError open_for_read(const std::string& path, std::ifstream& out_file, std::streamoff& out_size)
+{
+    auto p = std::filesystem::path(path);
+    if (!std::filesystem::exists(p)) {
+        return FsError::FileNotFound;
+    }
+    if (!std::filesystem::is_regular_file(p)) {
+        return FsError::NotARegularFile;
+    }
+
+    std::ifstream file(p, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        return FsError::OpenFailed;
+    }
+
+    auto size = file.tellg();
+    if (size < 0) {
+        return FsError::ReadFailed;
+    }
+    // 防御：文件大小超出 usize 可表示范围时拒绝，避免分配截断/缓冲区溢出。
+    if (static_cast<unsigned long long>(size) >
+        static_cast<unsigned long long>(static_cast<ca::usize>(-1))) {
+        return FsError::ReadFailed;
+    }
+
+    out_file = std::move(file);
+    out_size = size;
+    return FsError::Ok;
+}
+
 }  // namespace
 
 // ==================== 读写 ====================
@@ -40,31 +75,22 @@ FsError classify_fs_error(const std::error_code& ec) noexcept
 Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& path)
 {
     try {
-        auto p = std::filesystem::path(path);
-        if (!std::filesystem::exists(p)) {
-            return Err(FsError::FileNotFound);
+        std::ifstream file;
+        std::streamoff size = 0;
+        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+            return Err(e);
         }
-        if (!std::filesystem::is_regular_file(p)) {
-            return Err(FsError::NotARegularFile);
+        auto byte_count = static_cast<ca::usize>(size);
+
+        if (byte_count == 0) {
+            return Ok(ca::core::Bytes());
         }
 
-        std::ifstream file(p, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            return Err(FsError::OpenFailed);
-        }
-
-        auto size = file.tellg();
-        if (size < 0) {
-            return Err(FsError::ReadFailed);
-        }
-
-        std::vector<ca::u8> buffer(static_cast<ca::usize>(size));
+        std::vector<ca::u8> buffer(byte_count);
         file.seekg(0, std::ios::beg);
-        if (size > 0) {
-            file.read(reinterpret_cast<char*>(buffer.data()), size);
-            if (file.fail() && !file.eof()) {
-                return Err(FsError::ReadFailed);
-            }
+        file.read(reinterpret_cast<char*>(buffer.data()), size);
+        if (file.fail() && !file.eof()) {
+            return Err(FsError::ReadFailed);
         }
         file.close();
 
@@ -78,13 +104,31 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
 
 Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
 {
-    auto result = read_all_bytes(path);
-    if (result.is_err()) {
-        return Err(result.unwrap_err());
+    try {
+        std::ifstream file;
+        std::streamoff size = 0;
+        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+            return Err(e);
+        }
+
+        // 直接读入 std::string 并移动返回，避免 vector→Bytes→string 的多重拷贝。
+        std::string buffer;
+        if (size > 0) {
+            buffer.resize(static_cast<std::size_t>(size));
+            file.seekg(0, std::ios::beg);
+            file.read(&buffer[0], size);
+            if (file.fail() && !file.eof()) {
+                return Err(FsError::ReadFailed);
+            }
+        }
+        file.close();
+
+        return Ok(std::move(buffer));
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
     }
-    auto bytes = result.unwrap();
-    const ca::u8* ptr = bytes.as_ptr();
-    return Ok(std::string(reinterpret_cast<const char*>(ptr), bytes.len()));
 }
 
 Result<void, FsError> FileUtil::write_bytes(const std::string& path,
