@@ -5,11 +5,19 @@
 #include <functional>
 #include <type_traits>
 
+/// @file result.hpp
+/// @brief Result<T, E> —— 用返回值替代异常的错误处理类型，对齐 Rust std::result。
+///        成功用 Ok(value)、失败用 Err(error)，命名空间 ca::core（兼容导出到 ca）。
+/// @note 约束：E 不能是 void；T 可以是 void。取值失败（unwrap 错误值等）会 std::terminate。
+///       链式 API：map/map_error/then/otherwise/and_then/or_else。
+///       TRY 宏依赖 GNU statement expression，仅 GCC/Clang 可用（见宏处说明）。
+/// @attention 内部 details/ok/err/And/Or/Other 等命名空间是实现机制，非公开接口。
+
 namespace ca::core {
 
-/* 
+/*
    Mathieu Stefani, 03 mai 2016
-   
+
    This header provides a Result type that can be used to replace exceptions in code
    that has to handle error.
 
@@ -17,6 +25,7 @@ namespace ca::core {
    data type that can either Ok(T) to represent success or Err(E) to represent an error.
 */
 
+/// 成功/错误值的包装类型，通常不直接用，经 Ok()/Err() 工厂构造。
 namespace types {
     template<typename T>
     struct Ok {
@@ -38,15 +47,18 @@ namespace types {
     };
 }
 
+/// @brief 构造成功值：`return Ok(42);`。值类型自动 decay。
 template<typename T, typename CleanT = typename std::decay<T>::type>
 types::Ok<CleanT> Ok(T&& val) {
     return types::Ok<CleanT>(std::forward<T>(val));
 }
 
+/// @brief 构造无值成功（用于 Result<void, E>）：`return Ok();`。
 inline types::Ok<void> Ok() {
     return types::Ok<void>();
 }
 
+/// @brief 构造错误值：`return Err(std::string("bad"));`。
 template<typename E, typename CleanE = typename std::decay<E>::type>
 types::Err<CleanE> Err(E&& val) {
     return types::Err<CleanE>(std::forward<E>(val));
@@ -706,6 +718,7 @@ typename std::enable_if<
 
 } // namespace concepts
 
+/// @brief 持有成功值 T 或错误值 E 之一，二选一。用 Ok()/Err() 构造，is_ok()/is_err() 判别。
 template<typename T, typename E>
 struct Result {
 
@@ -752,22 +765,26 @@ struct Result {
             storage_.destroy(details::err_tag());
     }
 
+    /// 是否为成功。
     bool is_ok() const {
         return ok_;
     }
 
+    /// 是否为错误。
     bool is_err() const {
         return !ok_;
     }
 
+    /// @brief 成功则取值；失败则打印 str 到 stderr 并 std::terminate。
     T expect(const char* str) const {
         if (!is_ok()) {
             std::fprintf(stderr, "%s\n", str);
-            std::terminate(); 
+            std::terminate();
         }
         return expect_impl(std::is_same<T, void>());
     }
 
+    /// @brief 成功值经 func 变换得到新 Result<U,E>；错误原样透传。func 不应返回 Result（那用 and_then）。
     template<typename Func,
              typename Ret =
                 Result<
@@ -780,6 +797,7 @@ struct Result {
         return details::map(*this, func);
     }
 
+    /// @brief 错误值经 func 变换得到新错误类型；成功原样透传。
     template<typename Func,
          typename Ret =
              Result<T,
@@ -792,16 +810,19 @@ struct Result {
         return details::map_error(*this, func);
     }
 
+    /// @brief 成功时执行 func 副作用（func 返回 void），返回原 Result。
     template<typename Func>
     Result<T, E> then(Func func) const {
         return details::then(*this, func);
     }
 
+    /// @brief 错误时执行 func 副作用（func 返回 void），返回原 Result。
     template<typename Func>
     Result<T, E> otherwise(Func func) const {
         return details::otherwise(*this, func);
     }
 
+    /// @brief 错误时用 func 恢复为另一个 Result（func 返回 Result）；成功透传。
     template<typename Func,
         typename Ret =
             Result<T,
@@ -814,6 +835,7 @@ struct Result {
         return details::or_else(*this, func);
     }
 
+    /// @brief 成功时链式调用 func 返回另一个 Result（func 必须返回 Result）；错误透传。非 void 版本。
     template<typename Func,
         typename Ret = typename details::result_of<Func>::type,
         typename U = T>
@@ -830,6 +852,7 @@ struct Result {
         return types::Err<E>(storage().template get<E>());
     }
 
+    /// @copydoc and_then() —— Result<void,E> 的重载（func 无参）。
     template<typename Func,
         typename Ret = typename details::result_of<Func>::type,
         typename U = T>
@@ -846,6 +869,7 @@ struct Result {
         return types::Err<E>(storage().template get<E>());
     }
 
+    /// @brief 暴露内部存储，主要供 TRY 宏和底层工具使用，业务代码不应直接用。
     storage_type& storage() {
         return storage_;
     }
@@ -854,6 +878,7 @@ struct Result {
         return storage_;
     }
 
+    /// @brief 成功则取值，失败则返回 defaultValue（不终止）。
     template<typename U = T>
     typename std::enable_if<
         !std::is_same<U, void>::value,
@@ -866,6 +891,7 @@ struct Result {
         return defaultValue;
     }
 
+    /// @brief 成功则取值；失败则 std::terminate。确定是 Ok 时才用。
     template<typename U = T>
     typename std::enable_if<
         !std::is_same<U, void>::value,
@@ -880,6 +906,7 @@ struct Result {
         std::terminate();
     }
 
+    /// @brief 错误则取错误值；成功则 std::terminate。确定是 Err 时才用。
     E unwrap_err() const {
         if (is_err()) {
             return storage().template get<E>();
@@ -942,6 +969,9 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
     return lhs.storage().template get<E>() == err.val;
 }
 
+/// @brief 在返回 Result<*,E> 的函数里展开另一个 Result<T,E>：成功取出 Ok 值，失败提前 return Err。
+/// @warning 依赖 GNU statement expression（`__extension__ ({...})`），仅 GCC/Clang 可用；
+///          MSVC 不支持。需要 MSVC 兼容的代码请手动 if (res.is_err()) return ...。
 #define TRY(...)                                                   \
     __extension__ ({                                               \
         auto res = __VA_ARGS__;                                    \
@@ -955,7 +985,7 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
 
 }  // namespace ca::core
 
-// Backward compat: make ca::Result available
+// 向后兼容：让 ca::Result 等可用。新代码应显式用 ca::core::。
 namespace ca {
     using namespace ca::core;
 }

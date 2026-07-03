@@ -3,6 +3,11 @@
 #include "datatype.hpp"
 #include "platform.hpp"
 
+/// @file stacktrace.hpp
+/// @brief 调用栈捕获/打印工具。
+/// @note **Experimental**：输出格式依赖 OS/编译器/符号信息/链接参数，适合调试和日志，
+///       不要当作可解析协议或稳定业务数据。只承诺"不崩溃地返回字符串/打印"。
+
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
@@ -21,7 +26,8 @@ namespace ca::core {
 
 namespace detail { } // namespace detail
 
-/// 捕获当前调用栈，返回多行字符串（每行一个栈帧）
+/// @brief 捕获当前调用栈，返回多行字符串（每行一个栈帧）。
+/// @param max_frames 最大帧数，钳制到 [1, 256]。
 inline std::string capture_stack_trace(i32 max_frames = 64) {
     if (max_frames <= 0) max_frames = 1;
     if (max_frames > 256) max_frames = 256;
@@ -95,7 +101,7 @@ inline std::string capture_stack_trace(i32 max_frames = 64) {
     return oss.str();
 }
 
-/// 打印当前调用栈到 stderr
+/// @brief 打印当前调用栈到 stderr。
 inline void print_stack_trace(i32 max_frames = 64) {
     std::cerr << capture_stack_trace(max_frames);
 }
