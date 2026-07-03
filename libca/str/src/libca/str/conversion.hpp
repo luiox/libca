@@ -16,6 +16,7 @@
 #include "utf8_string.hpp"
 #include "cstring.hpp"
 #include "wstring.hpp"
+#include <stdexcept>
 
 namespace ca::str {
 

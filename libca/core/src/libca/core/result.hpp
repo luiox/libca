@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdio>
+#include <exception>
 #include <functional>
 #include <type_traits>
 
