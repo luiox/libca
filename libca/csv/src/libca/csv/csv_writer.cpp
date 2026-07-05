@@ -1,6 +1,7 @@
 #include "libca/csv/csv_writer.hpp"
 
 #include <fstream>
+#include <ostream>
 #include <sstream>
 
 namespace ca::csv {
@@ -23,7 +24,7 @@ bool needs_quote(const std::string& field, const CsvWriterOptions& options) {
     return false;
 }
 
-void write_field(std::ostringstream& output,
+void write_field(std::ostream& output,
                  const std::string& field,
                  const CsvWriterOptions& options) {
     const bool quoted = needs_quote(field, options);
@@ -42,7 +43,7 @@ void write_field(std::ostringstream& output,
     output << options.quote;
 }
 
-void write_row(std::ostringstream& output,
+void write_row(std::ostream& output,
                const std::vector<std::string>& fields,
                const CsvWriterOptions& options) {
     for (ca::usize i = 0; i < fields.size(); ++i) {
@@ -53,12 +54,9 @@ void write_row(std::ostringstream& output,
     }
 }
 
-}  // namespace
-
-std::string CsvWriter::write(
-    const CsvDocument& document,
-    const CsvWriterOptions& options) {
-    std::ostringstream output;
+void write_to_stream(std::ostream& output,
+                     const CsvDocument& document,
+                     const CsvWriterOptions& options) {
     bool wrote_row = false;
 
     if (options.write_header && document.has_header()) {
@@ -73,7 +71,15 @@ std::string CsvWriter::write(
         write_row(output, row.fields(), options);
         wrote_row = true;
     }
+}
 
+}  // namespace
+
+std::string CsvWriter::write(
+    const CsvDocument& document,
+    const CsvWriterOptions& options) {
+    std::ostringstream output;
+    write_to_stream(output, document, options);
     return output.str();
 }
 
@@ -86,7 +92,7 @@ ca::Result<void, std::string> CsvWriter::write_file(
         return ca::Err(std::string("failed to open CSV file for writing: ") + path);
     }
 
-    output << write(document, options);
+    write_to_stream(output, document, options);
     if (!output.good()) {
         return ca::Err(std::string("failed to write CSV file: ") + path);
     }

@@ -47,6 +47,22 @@ TEST(CsvReaderTest, ReportsUnterminatedQuotedField) {
     EXPECT_NE(result.unwrap_err().find("unterminated quoted field"), std::string::npos);
 }
 
+TEST(CsvReaderTest, KeepsTrailingEmptyQuotedField) {
+    auto single = CsvReader::read("\"\"");
+    ASSERT_TRUE(single.is_ok());
+    auto single_document = single.unwrap();
+    ASSERT_EQ(single_document.rows().size(), 1u);
+    ASSERT_EQ(single_document.rows()[0].size(), 1u);
+    EXPECT_EQ(single_document.rows()[0][0], "");
+
+    auto row = CsvReader::read("name,value\nempty,\"\"");
+    ASSERT_TRUE(row.is_ok());
+    auto row_document = row.unwrap();
+    ASSERT_EQ(row_document.rows().size(), 2u);
+    ASSERT_EQ(row_document.rows()[1].size(), 2u);
+    EXPECT_EQ(row_document.rows()[1][1], "");
+}
+
 TEST(CsvWriterTest, WritesEscapedCsvText) {
     CsvDocument document;
     document.set_header({"id", "note"});

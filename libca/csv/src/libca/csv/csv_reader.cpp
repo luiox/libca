@@ -111,9 +111,9 @@ ca::Result<CsvDocument, std::string> CsvReader::read(
         return ca::Err(parse_error(line, column, "unterminated quoted field"));
     }
 
-    // 文件末尾没有换行时补最后一行；纯空文本保持空文档。
+    // 文件末尾没有换行时补最后一行；被引号包裹的空字段也应形成一行。
     if (saw_any_char && (!current_field.empty() || !current_row.empty() ||
-                         text.back() == options.delimiter)) {
+                         text.back() == options.delimiter || field_was_quoted)) {
         finish_row();
     }
 
