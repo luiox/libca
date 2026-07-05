@@ -198,6 +198,38 @@ bool Utf8StringRef::operator!=(const char* cstr) const noexcept {
     return !equals(cstr);
 }
 
+bool Utf8StringRef::operator<(const Utf8StringRef& other) const noexcept {
+    return compare(other) < 0;
+}
+
+bool Utf8StringRef::operator<(const char* cstr) const noexcept {
+    return compare(cstr) < 0;
+}
+
+bool Utf8StringRef::operator>(const Utf8StringRef& other) const noexcept {
+    return compare(other) > 0;
+}
+
+bool Utf8StringRef::operator>(const char* cstr) const noexcept {
+    return compare(cstr) > 0;
+}
+
+bool Utf8StringRef::operator<=(const Utf8StringRef& other) const noexcept {
+    return compare(other) <= 0;
+}
+
+bool Utf8StringRef::operator<=(const char* cstr) const noexcept {
+    return compare(cstr) <= 0;
+}
+
+bool Utf8StringRef::operator>=(const Utf8StringRef& other) const noexcept {
+    return compare(other) >= 0;
+}
+
+bool Utf8StringRef::operator>=(const char* cstr) const noexcept {
+    return compare(cstr) >= 0;
+}
+
 
 // ============================================================================
 // Utf8String
@@ -522,6 +554,54 @@ bool Utf8String::operator!=(const char* cstr) const noexcept {
     return !ref().equals(cstr);
 }
 
+bool Utf8String::operator<(const Utf8String& other) const noexcept {
+    return compare(other) < 0;
+}
+
+bool Utf8String::operator<(const Utf8StringRef& other) const noexcept {
+    return compare(other) < 0;
+}
+
+bool Utf8String::operator<(const char* cstr) const noexcept {
+    return compare(cstr) < 0;
+}
+
+bool Utf8String::operator>(const Utf8String& other) const noexcept {
+    return compare(other) > 0;
+}
+
+bool Utf8String::operator>(const Utf8StringRef& other) const noexcept {
+    return compare(other) > 0;
+}
+
+bool Utf8String::operator>(const char* cstr) const noexcept {
+    return compare(cstr) > 0;
+}
+
+bool Utf8String::operator<=(const Utf8String& other) const noexcept {
+    return compare(other) <= 0;
+}
+
+bool Utf8String::operator<=(const Utf8StringRef& other) const noexcept {
+    return compare(other) <= 0;
+}
+
+bool Utf8String::operator<=(const char* cstr) const noexcept {
+    return compare(cstr) <= 0;
+}
+
+bool Utf8String::operator>=(const Utf8String& other) const noexcept {
+    return compare(other) >= 0;
+}
+
+bool Utf8String::operator>=(const Utf8StringRef& other) const noexcept {
+    return compare(other) >= 0;
+}
+
+bool Utf8String::operator>=(const char* cstr) const noexcept {
+    return compare(cstr) >= 0;
+}
+
 
 // ============================================================================
 // Utf8StringRef — 新增操作
@@ -752,6 +832,22 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
 }
 
+bool operator<(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return lhs.compare(rhs.ref()) < 0;
+}
+
+bool operator>(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return lhs.compare(rhs.ref()) > 0;
+}
+
+bool operator<=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return lhs.compare(rhs.ref()) <= 0;
+}
+
+bool operator>=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return lhs.compare(rhs.ref()) >= 0;
+}
+
 bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return rhs.equals(lhs);
 }
@@ -760,12 +856,44 @@ bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return !rhs.equals(lhs);
 }
 
+bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) > 0;
+}
+
+bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) < 0;
+}
+
+bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) >= 0;
+}
+
+bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) <= 0;
+}
+
 bool operator==(const char* lhs, const Utf8String& rhs) noexcept {
     return rhs.equals(lhs);
 }
 
 bool operator!=(const char* lhs, const Utf8String& rhs) noexcept {
     return !rhs.equals(lhs);
+}
+
+bool operator<(const char* lhs, const Utf8String& rhs) noexcept {
+    return rhs.compare(lhs) > 0;
+}
+
+bool operator>(const char* lhs, const Utf8String& rhs) noexcept {
+    return rhs.compare(lhs) < 0;
+}
+
+bool operator<=(const char* lhs, const Utf8String& rhs) noexcept {
+    return rhs.compare(lhs) >= 0;
+}
+
+bool operator>=(const char* lhs, const Utf8String& rhs) noexcept {
+    return rhs.compare(lhs) <= 0;
 }
 
 

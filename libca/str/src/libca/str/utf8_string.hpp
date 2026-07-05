@@ -149,6 +149,14 @@ public:
     bool operator==(const char* cstr) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
     bool operator!=(const char* cstr) const noexcept;
+    bool operator<(const Utf8StringRef& other) const noexcept;
+    bool operator<(const char* cstr) const noexcept;
+    bool operator>(const Utf8StringRef& other) const noexcept;
+    bool operator>(const char* cstr) const noexcept;
+    bool operator<=(const Utf8StringRef& other) const noexcept;
+    bool operator<=(const char* cstr) const noexcept;
+    bool operator>=(const Utf8StringRef& other) const noexcept;
+    bool operator>=(const char* cstr) const noexcept;
 
     // 创建标准库的字符串
     std::string to_std_string() const;
@@ -297,6 +305,18 @@ public:
     bool operator!=(const Utf8String& other) const noexcept;
     bool operator!=(const Utf8StringRef& other) const noexcept;
     bool operator!=(const char* cstr) const noexcept;
+    bool operator<(const Utf8String& other) const noexcept;
+    bool operator<(const Utf8StringRef& other) const noexcept;
+    bool operator<(const char* cstr) const noexcept;
+    bool operator>(const Utf8String& other) const noexcept;
+    bool operator>(const Utf8StringRef& other) const noexcept;
+    bool operator>(const char* cstr) const noexcept;
+    bool operator<=(const Utf8String& other) const noexcept;
+    bool operator<=(const Utf8StringRef& other) const noexcept;
+    bool operator<=(const char* cstr) const noexcept;
+    bool operator>=(const Utf8String& other) const noexcept;
+    bool operator>=(const Utf8StringRef& other) const noexcept;
+    bool operator>=(const char* cstr) const noexcept;
 
     // 创建标准库的字符串
     std::string to_std_string() const;
@@ -398,10 +418,22 @@ private:
 
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+bool operator<(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+bool operator>(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+bool operator<=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+bool operator>=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept;
 bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept;
 bool operator==(const char* lhs, const Utf8String& rhs) noexcept;
 bool operator!=(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator<(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator>(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator<=(const char* lhs, const Utf8String& rhs) noexcept;
+bool operator>=(const char* lhs, const Utf8String& rhs) noexcept;
 bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 

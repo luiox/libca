@@ -2,6 +2,8 @@
 #include "libca/str/utf8_string.hpp"
 #include "libca/str/utf8_util.hpp"
 
+#include <algorithm>
+#include <map>
 #include <sstream>
 #include <string>
 #include <cstring>
@@ -196,6 +198,39 @@ TEST(Utf8StringRefTest, Compare) {
     EXPECT_LT(r1.compare(r2), 0);
     EXPECT_GT(r2.compare(r1), 0);
     EXPECT_EQ(r1.compare(r1), 0);
+}
+
+TEST(Utf8StringRefTest, OrderingOperators) {
+    auto abc = Utf8StringRef::from_cstr("ABC");
+    auto abd = Utf8StringRef::from_cstr("ABD");
+    auto longer = Utf8StringRef::from_cstr("ABCD");
+
+    EXPECT_TRUE(abc < abd);
+    EXPECT_TRUE(abd > abc);
+    EXPECT_TRUE(abc <= abd);
+    EXPECT_TRUE(abc <= abc);
+    EXPECT_TRUE(abd >= abc);
+    EXPECT_TRUE(abc < longer);
+
+    EXPECT_TRUE(abc < "ABD");
+    EXPECT_TRUE(abc <= "ABC");
+    EXPECT_TRUE(abd > "ABC");
+    EXPECT_TRUE(abd >= "ABD");
+    EXPECT_TRUE("ABC" < abd);
+    EXPECT_TRUE("ABD" > abc);
+    EXPECT_TRUE("ABC" <= abc);
+    EXPECT_TRUE("ABD" >= abd);
+
+    std::vector<Utf8StringRef> items{abd, longer, abc};
+    std::sort(items.begin(), items.end());
+    EXPECT_TRUE(items[0] == "ABC");
+    EXPECT_TRUE(items[1] == "ABCD");
+    EXPECT_TRUE(items[2] == "ABD");
+
+    std::map<Utf8StringRef, int> map;
+    map[abd] = 2;
+    map[abc] = 1;
+    EXPECT_EQ(map.begin()->second, 1);
 }
 
 TEST(Utf8StringRefTest, Equals) {
@@ -413,6 +448,27 @@ TEST(Utf8StringTest, Compare) {
     // 与 StringRef 比较
     Utf8StringRef ref = b.ref();
     EXPECT_LT(a.compare(ref), 0);
+}
+
+TEST(Utf8StringTest, OrderingOperators) {
+    Utf8String abc("ABC");
+    Utf8String abd("ABD");
+    auto ref_abd = abd.ref();
+
+    EXPECT_TRUE(abc < abd);
+    EXPECT_TRUE(abd > abc);
+    EXPECT_TRUE(abc <= abd);
+    EXPECT_TRUE(abc <= abc);
+    EXPECT_TRUE(abd >= abc);
+
+    EXPECT_TRUE(abc < ref_abd);
+    EXPECT_TRUE(ref_abd > abc);
+    EXPECT_TRUE(abc < "ABD");
+    EXPECT_TRUE(abd > "ABC");
+    EXPECT_TRUE("ABC" < abd);
+    EXPECT_TRUE("ABD" > abc);
+    EXPECT_TRUE("ABC" <= abc);
+    EXPECT_TRUE("ABD" >= abd);
 }
 
 TEST(Utf8StringTest, Equals) {
