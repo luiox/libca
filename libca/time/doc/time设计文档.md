@@ -73,3 +73,17 @@ time 模块接受 `std::chrono` 作为 C++ 标准库互操作层，但不直接�
 - chrono roundtrip。
 - `now()` 的粗略合理性。
 - 纯值操作的 `constexpr` 可用性。
+
+## 7. Date / Time / DateTime
+
+`Date`、`Time` 和 `DateTime` 是面向简单日历展示的接口：
+
+- `Date` 保存年、月、日，支持从 `"YYYY-MM-DD"` 字符串构造并格式化回字符串。
+- `Time` 保存时、分、秒，支持从 `"HH:MM:SS"` 字符串构造并格式化回字符串。
+- `DateTime` 提供获取当前本地日期和时间的静态入口。
+
+这些类型不承载时区、闰秒、日历系统转换等复杂语义，也不应替代 `Timestamp` 表达绝对时间点。
+
+## 8. 新人阅读顺序
+
+建议先看 `duration.hpp` 和 `timestamp.hpp` 理解纯值时间模型，再看 `datetime.hpp` 理解旧的日历展示接口。对应测试位于 `libca/time/unittest/duration_timestamp_test.cpp` 和 `libca/time/unittest/datetime_test.cpp`。
