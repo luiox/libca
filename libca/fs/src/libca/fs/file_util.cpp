@@ -2,7 +2,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 #include <random>
+#include <regex>
 #include <sstream>
 #include <iterator>
 #include <stdexcept>
@@ -66,6 +68,97 @@ FsError open_for_read(const std::string& path, std::ifstream& out_file, std::str
     out_file = std::move(file);
     out_size = size;
     return FsError::Ok;
+}
+
+std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
+{
+    auto parent = dst.has_parent_path() ? dst.parent_path() : std::filesystem::path(".");
+    auto name = dst.filename().generic_string();
+    std::random_device rd;
+    std::mt19937_64 rng(rd());
+    for (int i = 0; i < 128; ++i) {
+        auto candidate = parent / (name + ".tmp." + std::to_string(rng()));
+        if (!std::filesystem::exists(candidate))
+            return candidate;
+    }
+    return parent / (name + ".tmp");
+}
+
+bool has_glob_wildcard(const std::string& pattern) noexcept
+{
+    return pattern.find('*') != std::string::npos ||
+           pattern.find('?') != std::string::npos;
+}
+
+bool is_regex_meta(char ch) noexcept
+{
+    switch (ch) {
+    case '.':
+    case '^':
+    case '$':
+    case '+':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case '|':
+    case '\\':
+        return true;
+    default:
+        return false;
+    }
+}
+
+std::string glob_to_regex(const std::string& pattern)
+{
+    std::string out = "^";
+    for (ca::usize i = 0; i < pattern.size();) {
+        const char ch = pattern[i];
+        if (ch == '*') {
+            if (i + 1 < pattern.size() && pattern[i + 1] == '*') {
+                if (i + 2 < pattern.size() && pattern[i + 2] == '/') {
+                    out += "(?:.*/)?";
+                    i += 3;
+                } else {
+                    out += ".*";
+                    i += 2;
+                }
+            } else {
+                out += "[^/]*";
+                ++i;
+            }
+        } else if (ch == '?') {
+            out += "[^/]";
+            ++i;
+        } else {
+            if (is_regex_meta(ch))
+                out += '\\';
+            out += ch;
+            ++i;
+        }
+    }
+    out += "$";
+    return out;
+}
+
+std::filesystem::path glob_root(const std::string& pattern)
+{
+    const auto wildcard = pattern.find_first_of("*?");
+    if (wildcard == std::string::npos)
+        return std::filesystem::path(pattern).parent_path();
+
+    auto prefix = pattern.substr(0, wildcard);
+    while (!prefix.empty() && prefix.back() != '/' && prefix.back() != '\\')
+        prefix.pop_back();
+    if (prefix.empty())
+        return ".";
+
+    auto root = std::filesystem::path(prefix);
+    if (root.has_relative_path() && root.filename().empty())
+        root = root.parent_path();
+    return root.empty() ? std::filesystem::path(".") : root;
 }
 
 }  // namespace
@@ -174,6 +267,77 @@ Result<void, FsError> FileUtil::write_text(const std::string& path, const std::s
     return write_bytes(path, bytes, mode);
 }
 
+Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
+                                                   const ca::core::ByteSlice& content)
+{
+    auto dst = std::filesystem::path(path);
+    auto tmp = make_atomic_temp_path(dst);
+
+    auto write_result = write_bytes(tmp.generic_string(), content, FileMode::CREATE_NEW);
+    if (write_result.is_err())
+        return write_result;
+
+    try {
+        std::error_code ec;
+        std::filesystem::rename(tmp, dst, ec);
+        if (ec && std::filesystem::exists(dst)) {
+            std::filesystem::remove(dst, ec);
+            if (ec) {
+                std::filesystem::remove(tmp);
+                return Err(classify_fs_error(ec));
+            }
+            std::filesystem::rename(tmp, dst, ec);
+        }
+        if (ec) {
+            std::filesystem::remove(tmp);
+            return Err(classify_fs_error(ec));
+        }
+        return Ok();
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::error_code ec;
+        std::filesystem::remove(tmp, ec);
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        std::error_code ec;
+        std::filesystem::remove(tmp, ec);
+        return Err(FsError::Unknown);
+    }
+}
+
+Result<void, FsError> FileUtil::atomic_write_text(const std::string& path,
+                                                  const std::string& content)
+{
+    ca::core::ByteSlice bytes(reinterpret_cast<const ca::u8*>(content.data()), content.size());
+    return atomic_write_bytes(path, bytes);
+}
+
+Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string& path)
+{
+    try {
+        std::ifstream file;
+        std::streamoff size = 0;
+        if (auto e = open_for_read(path, file, size); e != FsError::Ok)
+            return Err(e);
+
+        std::vector<std::string> lines;
+        std::string line;
+        file.seekg(0, std::ios::beg);
+        while (std::getline(file, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            lines.push_back(line);
+        }
+        if (file.bad())
+            return Err(FsError::ReadFailed);
+
+        return Ok(std::move(lines));
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
+}
+
 // ==================== 查询 ====================
 
 ca::i64 FileUtil::size(const std::string& path)
@@ -203,6 +367,46 @@ bool FileUtil::is_directory(const std::string& path)
 {
     std::error_code ec;
     return std::filesystem::is_directory(std::filesystem::path(path), ec);
+}
+
+Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
+{
+    std::error_code ec;
+    auto p = std::filesystem::path(path);
+    auto st = std::filesystem::symlink_status(p, ec);
+    if (ec)
+        return Err(classify_fs_error(ec));
+    if (!std::filesystem::exists(st))
+        return Err(FsError::FileNotFound);
+
+    FileMetadata meta;
+    meta.exists = true;
+    meta.is_file = std::filesystem::is_regular_file(st);
+    meta.is_directory = std::filesystem::is_directory(st);
+    meta.is_symlink = std::filesystem::is_symlink(st);
+    meta.permissions = st.permissions();
+    meta.modified_at = std::filesystem::last_write_time(p, ec);
+    if (ec)
+        return Err(classify_fs_error(ec));
+    if (meta.is_file) {
+        auto size = std::filesystem::file_size(p, ec);
+        if (ec)
+            return Err(classify_fs_error(ec));
+        meta.size = static_cast<ca::i64>(size);
+    }
+
+    return Ok(meta);
+}
+
+Result<std::filesystem::perms, FsError> FileUtil::permissions(const std::string& path)
+{
+    std::error_code ec;
+    auto st = std::filesystem::symlink_status(std::filesystem::path(path), ec);
+    if (ec)
+        return Err(classify_fs_error(ec));
+    if (!std::filesystem::exists(st))
+        return Err(FsError::FileNotFound);
+    return Ok(st.permissions());
 }
 
 // ==================== 遍历 ====================
@@ -285,6 +489,85 @@ bool FileUtil::move(const std::string& src, const std::string& dst, bool overwri
         std::filesystem::rename(srcPath, dstPath);
         return true;
     } catch (const std::exception&) { return false; }
+}
+
+Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::string& dst,
+                                         bool overwrite)
+{
+    try {
+        auto srcPath = std::filesystem::path(src);
+        auto dstPath = std::filesystem::path(dst);
+        if (!std::filesystem::exists(srcPath))
+            return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(srcPath))
+            return Err(FsError::NotADirectory);
+        if (std::filesystem::exists(dstPath) && !std::filesystem::is_directory(dstPath)) {
+            if (!overwrite)
+                return Err(FsError::AlreadyExists);
+            std::filesystem::remove(dstPath);
+        }
+
+        std::filesystem::create_directories(dstPath);
+        auto opts = overwrite
+            ? std::filesystem::copy_options::overwrite_existing
+            : std::filesystem::copy_options::none;
+
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath)) {
+            auto rel = std::filesystem::relative(entry.path(), srcPath);
+            auto target = dstPath / rel;
+            if (entry.is_directory()) {
+                std::filesystem::create_directories(target);
+            } else if (entry.is_regular_file()) {
+                if (target.has_parent_path())
+                    std::filesystem::create_directories(target.parent_path());
+                std::filesystem::copy_file(entry.path(), target, opts);
+            } else if (entry.is_symlink()) {
+                if (target.has_parent_path())
+                    std::filesystem::create_directories(target.parent_path());
+                std::error_code ec;
+                if (overwrite && std::filesystem::exists(target, ec))
+                    std::filesystem::remove(target, ec);
+                std::filesystem::copy_symlink(entry.path(), target);
+            }
+        }
+        return Ok();
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
+}
+
+Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& pattern)
+{
+    try {
+        auto normalized = PathUtil::to_unix_separators(pattern);
+        if (!has_glob_wildcard(normalized)) {
+            if (!std::filesystem::exists(std::filesystem::path(normalized)))
+                return Err(FsError::FileNotFound);
+            return Ok(std::vector<std::string>{std::filesystem::path(normalized).generic_string()});
+        }
+
+        auto root = glob_root(normalized);
+        if (!std::filesystem::exists(root))
+            return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(root))
+            return Err(FsError::NotADirectory);
+
+        const std::regex matcher(glob_to_regex(normalized), std::regex::ECMAScript);
+        std::vector<std::string> matches;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+            auto candidate = PathUtil::to_unix_separators(entry.path().generic_string());
+            if (std::regex_match(candidate, matcher))
+                matches.push_back(candidate);
+        }
+        std::sort(matches.begin(), matches.end());
+        return Ok(std::move(matches));
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
 }
 
 // ==================== 删除 ====================
