@@ -214,6 +214,25 @@ TEST(FileUtilTest, AtomicWriteText_ReplacesContent)
     EXPECT_EQ(content.unwrap(), "new content");
 }
 
+TEST(FileUtilTest, AtomicWriteText_RenameFailurePreservesExistingTarget)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto dirPath = tmp.make_path("atomic_target_dir");
+    ASSERT_TRUE(FileUtil::create_directories(dirPath));
+
+    auto result = FileUtil::atomic_write_text(dirPath, "should not replace directory");
+    ASSERT_TRUE(result.is_err());
+    EXPECT_TRUE(FileUtil::is_directory(dirPath));
+
+    auto entries = FileUtil::list_entries(tmp.path());
+    ASSERT_TRUE(entries.is_ok());
+    for (const auto& entry : entries.unwrap()) {
+        EXPECT_THAT(entry, Not(HasSubstr("atomic_target_dir.tmp.")));
+    }
+}
+
 TEST(FileUtilTest, ReadLines_StripsLineEndings)
 {
     TempDirGuard tmp;
@@ -423,6 +442,35 @@ TEST(FileUtilTest, CopyDir_Recursive)
     EXPECT_EQ(b.unwrap(), "b");
 }
 
+TEST(FileUtilTest, CopyDir_OverwritesBrokenSymlinkTargetWhenSupported)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto srcDir = std::filesystem::path(tmp.make_path("copy_symlink_src"));
+    auto dstDir = std::filesystem::path(tmp.make_path("copy_symlink_dst"));
+    ASSERT_TRUE(FileUtil::create_directories(srcDir.generic_string()));
+    ASSERT_TRUE(FileUtil::create_directories(dstDir.generic_string()));
+
+    auto srcLink = srcDir / "link.txt";
+    std::error_code ec;
+    std::filesystem::create_symlink("target.txt", srcLink, ec);
+    if (ec) {
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    auto dstLink = dstDir / "link.txt";
+    std::filesystem::create_symlink("missing.txt", dstLink, ec);
+    if (ec) {
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    auto copied = FileUtil::copy_dir(srcDir.generic_string(), dstDir.generic_string(), true);
+    ASSERT_TRUE(copied.is_ok()) << to_string(copied.unwrap_err());
+    EXPECT_TRUE(std::filesystem::is_symlink(dstLink));
+    EXPECT_EQ(std::filesystem::read_symlink(dstLink).generic_string(), "target.txt");
+}
+
 TEST(FileUtilTest, Glob_StarAndRecursive)
 {
     TempDirGuard tmp;
@@ -442,6 +490,20 @@ TEST(FileUtilTest, Glob_StarAndRecursive)
     ASSERT_EQ(recursive.unwrap().size(), 2u);
     EXPECT_THAT(recursive.unwrap()[0], HasSubstr("a.txt"));
     EXPECT_THAT(recursive.unwrap()[1], HasSubstr("nested/c.txt"));
+}
+
+TEST(FileUtilTest, Glob_DirectoryWildcardUsesRecursiveWalk)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("nested/c.txt"), "c").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("other/d.txt"), "d").is_ok());
+
+    auto matched = FileUtil::glob(PathUtil::join(tmp.path(), "*/c.txt"));
+    ASSERT_TRUE(matched.is_ok()) << to_string(matched.unwrap_err());
+    ASSERT_EQ(matched.unwrap().size(), 1u);
+    EXPECT_THAT(matched.unwrap()[0], HasSubstr("nested/c.txt"));
 }
 
 // ==================== move ====================

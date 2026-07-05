@@ -35,6 +35,12 @@ FsError classify_fs_error(const std::error_code& ec) noexcept
     }
 }
 
+void remove_if_exists(const std::filesystem::path& path) noexcept
+{
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
+
 /// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
 /// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
 /// 失败时返回具体 FsError（out_* 未定义）。
@@ -74,8 +80,8 @@ std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
 {
     auto parent = dst.has_parent_path() ? dst.parent_path() : std::filesystem::path(".");
     auto name = dst.filename().generic_string();
-    std::random_device rd;
-    std::mt19937_64 rng(rd());
+    // 每个线程只初始化一次随机源，避免 atomic write 高频调用时反复触发系统熵源。
+    thread_local static std::mt19937_64 rng(std::random_device{}());
     for (int i = 0; i < 128; ++i) {
         auto candidate = parent / (name + ".tmp." + std::to_string(rng()));
         if (!std::filesystem::exists(candidate))
@@ -159,6 +165,18 @@ std::filesystem::path glob_root(const std::string& pattern)
     if (root.has_relative_path() && root.filename().empty())
         root = root.parent_path();
     return root.empty() ? std::filesystem::path(".") : root;
+}
+
+bool glob_needs_recursive_walk(const std::string& pattern) noexcept
+{
+    if (pattern.find("**") != std::string::npos)
+        return true;
+
+    const auto first_wildcard = pattern.find_first_of("*?");
+    const auto last_slash = pattern.find_last_of('/');
+    return first_wildcard != std::string::npos &&
+           last_slash != std::string::npos &&
+           first_wildcard < last_slash;
 }
 
 }  // namespace
@@ -274,32 +292,25 @@ Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
     auto tmp = make_atomic_temp_path(dst);
 
     auto write_result = write_bytes(tmp.generic_string(), content, FileMode::CREATE_NEW);
-    if (write_result.is_err())
+    if (write_result.is_err()) {
+        remove_if_exists(tmp);
         return write_result;
+    }
 
     try {
         std::error_code ec;
+        // rename 是唯一的提交点。失败时只清理临时文件，不删除旧目标，保证失败不破坏原数据。
         std::filesystem::rename(tmp, dst, ec);
-        if (ec && std::filesystem::exists(dst)) {
-            std::filesystem::remove(dst, ec);
-            if (ec) {
-                std::filesystem::remove(tmp);
-                return Err(classify_fs_error(ec));
-            }
-            std::filesystem::rename(tmp, dst, ec);
-        }
         if (ec) {
-            std::filesystem::remove(tmp);
+            remove_if_exists(tmp);
             return Err(classify_fs_error(ec));
         }
         return Ok();
     } catch (const std::filesystem::filesystem_error& e) {
-        std::error_code ec;
-        std::filesystem::remove(tmp, ec);
+        remove_if_exists(tmp);
         return Err(classify_fs_error(e.code()));
     } catch (const std::exception&) {
-        std::error_code ec;
-        std::filesystem::remove(tmp, ec);
+        remove_if_exists(tmp);
         return Err(FsError::Unknown);
     }
 }
@@ -524,9 +535,9 @@ Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::stri
             } else if (entry.is_symlink()) {
                 if (target.has_parent_path())
                     std::filesystem::create_directories(target.parent_path());
-                std::error_code ec;
-                if (overwrite && std::filesystem::exists(target, ec))
-                    std::filesystem::remove(target, ec);
+                // remove 不跟随符号链接；即使 target 是 broken symlink 也能安全替换。
+                if (overwrite)
+                    remove_if_exists(target);
                 std::filesystem::copy_symlink(entry.path(), target);
             }
         }
@@ -556,10 +567,20 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
 
         const std::regex matcher(glob_to_regex(normalized), std::regex::ECMAScript);
         std::vector<std::string> matches;
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
-            auto candidate = PathUtil::to_unix_separators(entry.path().generic_string());
-            if (std::regex_match(candidate, matcher))
-                matches.push_back(candidate);
+        auto options = std::filesystem::directory_options::skip_permission_denied;
+        if (glob_needs_recursive_walk(normalized)) {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(root, options)) {
+                auto candidate = PathUtil::to_unix_separators(entry.path().generic_string());
+                if (std::regex_match(candidate, matcher))
+                    matches.push_back(candidate);
+            }
+        } else {
+            // 普通文件名通配只扫描 root 一层，避免在大目录树上做不必要的递归遍历。
+            for (const auto& entry : std::filesystem::directory_iterator(root, options)) {
+                auto candidate = PathUtil::to_unix_separators(entry.path().generic_string());
+                if (std::regex_match(candidate, matcher))
+                    matches.push_back(candidate);
+            }
         }
         std::sort(matches.begin(), matches.end());
         return Ok(std::move(matches));
