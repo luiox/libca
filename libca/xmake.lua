@@ -1,5 +1,6 @@
 includes("core")
 includes("crypto")
+includes("csv")
 includes("fs")
 includes("str")
 includes("time")
