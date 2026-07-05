@@ -23,7 +23,7 @@ namespace ca {
     /// @}
     using f32 = float;   ///< 单精度浮点
     using f64 = double;  ///< 双精度浮点
-    /// 大小/索引语义类型。当前等同 size_t，仅承诺"大小语义"，不承诺具体位宽。
+    /// 大小/索引语义类型。当前等同 size_t，具体位宽随平台。
     using usize = size_t;
     /// 字节语义，当前等同 u8。区别于 std::byte 和"8 位无符号整数"的数值语义。
     using byte = u8;

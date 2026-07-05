@@ -6,7 +6,7 @@
 /// @file stacktrace.hpp
 /// @brief 调用栈捕获/打印工具。
 /// @note **Experimental**：输出格式依赖 OS/编译器/符号信息/链接参数，适合调试和日志，
-///       不要当作可解析协议或稳定业务数据。只承诺"不崩溃地返回字符串/打印"。
+///       不要当作可解析协议或稳定业务数据；目标是在可用平台上尽量安全地返回字符串/打印。
 
 #include <cstdlib>
 #include <iostream>
