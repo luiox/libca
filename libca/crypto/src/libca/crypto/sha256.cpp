@@ -231,4 +231,21 @@ std::string SHA256::operator()(const std::string& text) {
     return getHash();
 }
 
+ca::core::Bytes sha256(ca::core::ByteSlice data)
+{
+    SHA256 hasher;
+    hasher.add(data.data(), data.size());
+
+    ca::u8 digest[SHA256::HashBytes];
+    hasher.getHash(digest);
+    return ca::core::Bytes::copy_from_slice(digest, SHA256::HashBytes);
+}
+
+std::string sha256_hex(ca::core::ByteSlice data)
+{
+    SHA256 hasher;
+    hasher.add(data.data(), data.size());
+    return hasher.getHash();
+}
+
 }

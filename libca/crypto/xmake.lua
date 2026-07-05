@@ -7,9 +7,11 @@ target("libca_crypto")
     add_headerfiles("src/libca/crypto/*.hpp")
     add_headerfiles("src/libca/crypto/sha3.h")
     add_includedirs("src", {public = true})
+    add_deps("libca_core")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
+        add_syslinks("bcrypt")
     end
 
 if has_config("with_tests") then
