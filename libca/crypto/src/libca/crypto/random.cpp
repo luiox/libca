@@ -9,6 +9,8 @@
 #elif defined(__linux__)
 #include <cerrno>
 #include <sys/random.h>
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#include <cstdlib>
 #else
 #include <random>
 #endif
@@ -51,10 +53,18 @@ Result<Bytes, CryptoError> secure_random_bytes(usize len)
         }
         offset += static_cast<usize>(ret);
     }
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    arc4random_buf(output.as_mut_ptr(), len);
 #else
     std::random_device rd;
-    for (usize i = 0; i < len; ++i)
-        output.as_mut_ptr()[i] = static_cast<u8>(rd());
+    usize i = 0;
+    while (i < len) {
+        auto value = rd();
+        for (usize j = 0; j < sizeof(value) && i < len; ++j) {
+            output.as_mut_ptr()[i++] = static_cast<u8>(value & 0xFF);
+            value >>= 8;
+        }
+    }
 #endif
 
     return Ok(output.freeze());

@@ -55,6 +55,7 @@ TEST(Base64ResultTest, StrictDecode)
 
     EXPECT_TRUE(base64_decode("Zm9v=").is_err());
     EXPECT_TRUE(base64_decode("Zm=v").is_err());
+    EXPECT_TRUE(base64_decode("@m8=").is_err());
     EXPECT_TRUE(base64_decode("AB==").is_err());
     EXPECT_TRUE(base64_decode("AAB=").is_err());
 }

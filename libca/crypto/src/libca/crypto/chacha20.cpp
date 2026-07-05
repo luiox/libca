@@ -36,14 +36,9 @@ void quarter_round(u32& a, u32& b, u32& c, u32& d) noexcept
     c += d; b ^= c; b = rotl32(b, 7);
 }
 
-}  // namespace
-
-Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice nonce)
+void chacha20_init_state(u32* state, ByteSlice key, u32 counter, ByteSlice nonce) noexcept
 {
-    if (key.size() != CHACHA20_KEY_SIZE || nonce.size() != CHACHA20_NONCE_SIZE)
-        return Err(CryptoError::INVALID_ARGUMENT);
-
-    u32 state[16] = {
+    const u32 initial[16] = {
         0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
         load_le32(key.data() + 0),
         load_le32(key.data() + 4),
@@ -58,7 +53,12 @@ Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice 
         load_le32(nonce.data() + 4),
         load_le32(nonce.data() + 8),
     };
+    for (usize i = 0; i < 16; ++i)
+        state[i] = initial[i];
+}
 
+void chacha20_block_impl(const u32* state, u8* out) noexcept
+{
     u32 working[16];
     for (usize i = 0; i < 16; ++i)
         working[i] = state[i];
@@ -74,9 +74,21 @@ Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice 
         quarter_round(working[3], working[4], working[9], working[14]);
     }
 
-    u8 out[CHACHA20_BLOCK_SIZE];
     for (usize i = 0; i < 16; ++i)
         store_le32(out + (i * 4), working[i] + state[i]);
+}
+
+}  // namespace
+
+Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice nonce)
+{
+    if (key.size() != CHACHA20_KEY_SIZE || nonce.size() != CHACHA20_NONCE_SIZE)
+        return Err(CryptoError::INVALID_ARGUMENT);
+
+    u32 state[16];
+    u8 out[CHACHA20_BLOCK_SIZE];
+    chacha20_init_state(state, key, counter, nonce);
+    chacha20_block_impl(state, out);
 
     return Ok(Bytes::copy_from_slice(out, CHACHA20_BLOCK_SIZE));
 }
@@ -86,18 +98,20 @@ Result<Bytes, CryptoError> chacha20_xor(ByteSlice key, u32 counter, ByteSlice no
     if (key.size() != CHACHA20_KEY_SIZE || nonce.size() != CHACHA20_NONCE_SIZE)
         return Err(CryptoError::INVALID_ARGUMENT);
 
+    u32 state[16];
+    u8 block[CHACHA20_BLOCK_SIZE];
+    chacha20_init_state(state, key, counter, nonce);
+
     BytesMut output = BytesMut::with_capacity(data.size());
     usize offset = 0;
     while (offset < data.size()) {
-        auto block_result = chacha20_block(key, counter, nonce);
-        if (block_result.is_err())
-            return Err(block_result.unwrap_err());
+        state[12] = counter;
+        chacha20_block_impl(state, block);
 
-        const auto block = block_result.unwrap();
         const usize remaining = data.size() - offset;
         const usize take = remaining < CHACHA20_BLOCK_SIZE ? remaining : CHACHA20_BLOCK_SIZE;
         for (usize i = 0; i < take; ++i)
-            output.put_u8(static_cast<u8>(data[offset + i] ^ block.as_ptr()[i]));
+            output.put_u8(static_cast<u8>(data[offset + i] ^ block[i]));
 
         offset += take;
         ++counter;
