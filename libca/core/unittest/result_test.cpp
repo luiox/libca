@@ -300,6 +300,36 @@ TEST(ResultTest, TryMacroErr) {
     EXPECT_EQ(r.unwrap_err(), "fail");
 }
 
+static Result<void, std::string> try_void_ok_source() {
+    return Ok();
+}
+
+static Result<int, std::string> try_void_ok_impl() {
+    TRY(try_void_ok_source());
+    return Ok(42);
+}
+
+TEST(ResultTest, TryMacroVoidOk) {
+    auto r = try_void_ok_impl();
+    ASSERT_TRUE(r.is_ok());
+    EXPECT_EQ(r.unwrap(), 42);
+}
+
+static Result<void, std::string> try_void_err_source() {
+    return Err("fail"s);
+}
+
+static Result<int, std::string> try_void_err_impl() {
+    TRY(try_void_err_source());
+    return Ok(42);
+}
+
+TEST(ResultTest, TryMacroVoidErr) {
+    auto r = try_void_err_impl();
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), "fail");
+}
+
 static Result<std::unique_ptr<int>, std::string> make_move_only_ok() {
     return Ok(std::make_unique<int>(42));
 }

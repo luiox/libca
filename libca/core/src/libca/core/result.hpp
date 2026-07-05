@@ -970,6 +970,21 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
     return lhs.storage().template get<E>() == err.val;
 }
 
+namespace details {
+
+template<typename T, typename StorageT>
+typename std::enable_if<std::is_same<T, void>::value, void>::type
+try_take_ok(StorageT&) {
+}
+
+template<typename T, typename StorageT>
+typename std::enable_if<!std::is_same<T, void>::value, T>::type
+try_take_ok(StorageT& storage) {
+    return std::move(storage.template get<T>());
+}
+
+} // namespace details
+
 /// @brief 在返回 Result<*,E> 的函数里展开另一个 Result<T,E>：成功取出 Ok 值，失败提前 return Err。
 /// @warning 依赖 GNU statement expression（`__extension__ ({...})`），仅 GCC/Clang 可用；
 ///          MSVC 不支持。需要 MSVC 兼容的代码请手动 if (res.is_err()) return ...。
@@ -982,7 +997,7 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
                 res.storage().template get<E>()));                  \
         }                                                          \
         typedef details::ResultOkType<decltype(res)>::type T;      \
-        std::move(res.storage().template get<T>());                \
+        details::try_take_ok<T>(res.storage());                    \
     })
 
 }  // namespace ca::core
