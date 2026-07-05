@@ -66,10 +66,6 @@ public:
     /// @brief 默认构造为 OK。
     Status() = default;
 
-    /// @brief 由状态码和可选消息构造。OK 状态会忽略消息。
-    Status(StatusCode code, std::string message = {})
-        : code_(code), message_(code == StatusCode::OK ? std::string() : std::move(message)) {}
-
     /// @brief 构造 OK 状态。
     static Status ok() {
         return Status();
@@ -112,6 +108,9 @@ public:
     }
 
 private:
+    Status(StatusCode code, std::string message)
+        : code_(code), message_(std::move(message)) {}
+
     StatusCode code_{StatusCode::OK};
     std::string message_;
 };

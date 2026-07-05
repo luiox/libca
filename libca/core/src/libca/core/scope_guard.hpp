@@ -23,9 +23,7 @@ public:
 
     /// @brief 移动构造，转移回调执行权。
     ScopeGuard(ScopeGuard&& other) noexcept(std::is_nothrow_move_constructible<F>::value)
-        : func_(std::move(other.func_)), active_(other.active_) {
-        other.dismiss();
-    }
+        : func_(std::move(other.func_)), active_(std::exchange(other.active_, false)) {}
 
     ScopeGuard& operator=(ScopeGuard&&) = delete;
 
@@ -53,8 +51,8 @@ private:
 
 /// @brief 根据可调用对象推导类型并构造 ScopeGuard。
 template<typename F>
-ScopeGuard<typename std::decay<F>::type> make_scope_guard(F&& func) {
-    return ScopeGuard<typename std::decay<F>::type>(std::forward<F>(func));
+ScopeGuard<std::decay_t<F>> make_scope_guard(F&& func) {
+    return ScopeGuard<std::decay_t<F>>(std::forward<F>(func));
 }
 
 } // namespace ca::core
