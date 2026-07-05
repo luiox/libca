@@ -2,16 +2,6 @@
 
 namespace ca::time {
 
-Duration& Duration::operator+=(Duration other) noexcept
-{
-    *this = *this + other;
-    return *this;
-}
-
-Duration& Duration::operator-=(Duration other) noexcept
-{
-    *this = *this - other;
-    return *this;
-}
+// Duration is intentionally header-only for arithmetic so it can be used in constexpr contexts.
 
 }  // namespace ca::time

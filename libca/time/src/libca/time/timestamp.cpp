@@ -17,16 +17,6 @@ bool Timestamp::is_future() const noexcept
     return *this > now();
 }
 
-Timestamp& Timestamp::operator+=(Duration duration) noexcept
-{
-    *this = *this + duration;
-    return *this;
-}
-
-Timestamp& Timestamp::operator-=(Duration duration) noexcept
-{
-    *this = *this - duration;
-    return *this;
-}
+// Timestamp arithmetic is defined inline to keep pure value operations constexpr.
 
 }  // namespace ca::time

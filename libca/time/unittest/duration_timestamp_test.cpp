@@ -7,6 +7,29 @@
 
 using namespace ca::time;
 
+constexpr Duration make_constexpr_duration()
+{
+    auto value = Duration::from_seconds(1);
+    value += Duration::from_milliseconds(500);
+    value -= Duration::from_microseconds(250);
+    return value;
+}
+
+constexpr Timestamp make_constexpr_timestamp()
+{
+    auto value = Timestamp::from_unix_seconds(10);
+    value += Duration::from_seconds(5);
+    value -= Duration::from_milliseconds(500);
+    return value;
+}
+
+static_assert(make_constexpr_duration().microseconds() == 1499750,
+              "Duration compound arithmetic should be constexpr");
+static_assert(make_constexpr_timestamp().unix_milliseconds() == 14500,
+              "Timestamp compound arithmetic should be constexpr");
+static_assert(Timestamp::from_time_point(Timestamp::from_unix_seconds(2).to_time_point()).unix_seconds() == 2,
+              "Timestamp chrono conversion should be constexpr");
+
 TEST(DurationTest, FactoriesAndAccessors)
 {
     EXPECT_EQ(Duration::from_nanoseconds(42).nanoseconds(), 42);
