@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-07-06 - 精简排序运算符为非成员视图比较
 2026-07-06 - 补充比较运算符分层设计说明
 2026-05-31 - 首版
 ---
@@ -173,13 +174,12 @@ sliceByCp(cpStart, cpCount): 先扫描到第 cpStart 个码点的字节位置，
 比较入口分为三层：
 
 - `Utf8StringRef` 是公共视图层，负责视图之间、视图与 C 字符串之间的比较。
-- `Utf8String` 作为左操作数时保留成员运算符，成员内部只转发到 `ref().compare(...)`。
-- `Utf8StringRef` 与 `Utf8String`、`const char*` 与 `Utf8String` 的右操作数场景复用
-  `Utf8String` 到 `Utf8StringRef` 的隐式视图构造，避免重复展开非成员排序重载。
+- 排序运算符定义为非成员函数，允许 `Utf8String` 在参数位置隐式构造成 `Utf8StringRef`。
+- `const char*` 作为左操作数时保留对称非成员重载，避免把 C 字符串误当作指针比较。
 
-这里不能删除 `Utf8String` 左操作数的成员运算符：C++ 的成员运算符查找不会先把左操作数
-隐式转换成另一个类再查找该类成员，因此 `Utf8String` 自身需要一组薄转发来支持
-`Utf8String("a") < Utf8String("b")` 这类表达式。
+这种布局避免在 `Utf8String` 和 `Utf8StringRef` 类内重复声明 `< > <= >=` 成员重载，
+同时保留 `Utf8String("a") < Utf8String("b")`、`Utf8StringRef < "b"`、
+`"a" < Utf8String` 这类常用表达式。
 
 ## 4. 架构设计
 
