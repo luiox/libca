@@ -4,6 +4,7 @@
 #include <exception>
 #include <functional>
 #include <type_traits>
+#include <utility>
 
 /// @file result.hpp
 /// @brief Result<T, E> —— 用返回值替代异常的错误处理类型，对齐 Rust std::result。
@@ -570,12 +571,12 @@ struct Storage {
 
     void construct(types::Ok<T> ok)
     {
-        new (&storage_) T(ok.val);
+        new (&storage_) T(std::move(ok.val));
         initialized_ = true;
     }
     void construct(types::Err<E> err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(std::move(err.val));
         initialized_ = true;
     }
 
@@ -626,7 +627,7 @@ struct Storage<void, E> {
 
     void construct(types::Err<E> err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(std::move(err.val));
         initialized_ = true;
     }
 
@@ -969,6 +970,21 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
     return lhs.storage().template get<E>() == err.val;
 }
 
+namespace details {
+
+template<typename T, typename StorageT>
+typename std::enable_if<std::is_same<T, void>::value, void>::type
+try_take_ok(StorageT&) {
+}
+
+template<typename T, typename StorageT>
+typename std::enable_if<!std::is_same<T, void>::value, T>::type
+try_take_ok(StorageT& storage) {
+    return std::move(storage.template get<T>());
+}
+
+} // namespace details
+
 /// @brief 在返回 Result<*,E> 的函数里展开另一个 Result<T,E>：成功取出 Ok 值，失败提前 return Err。
 /// @warning 依赖 GNU statement expression（`__extension__ ({...})`），仅 GCC/Clang 可用；
 ///          MSVC 不支持。需要 MSVC 兼容的代码请手动 if (res.is_err()) return ...。
@@ -977,10 +993,11 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
         auto res = __VA_ARGS__;                                    \
         if (!res.is_ok()) {                                         \
             typedef details::ResultErrType<decltype(res)>::type E; \
-            return types::Err<E>(res.storage().get<E>());          \
+            return types::Err<E>(std::move(                         \
+                res.storage().template get<E>()));                  \
         }                                                          \
         typedef details::ResultOkType<decltype(res)>::type T;      \
-        res.storage().get<T>();                                    \
+        details::try_take_ok<T>(res.storage());                    \
     })
 
 }  // namespace ca::core

@@ -43,8 +43,8 @@ auto val = TRY(fallible_func());
 // 等价于：
 auto res = fallible_func();
 if (!res.is_ok())
-    return types::Err<E>(res.storage().get<E>());
-// 继续使用 res 内的 T 值
+    return types::Err<E>(std::move(res.storage().get<E>()));
+// 继续使用从 res 内移动出的 T 值
 ```
 
 ## 常规用法
