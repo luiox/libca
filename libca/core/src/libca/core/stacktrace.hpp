@@ -15,7 +15,12 @@
 #include <vector>
 
 #if CA_PLATFORM_WINDOWS
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
     #include <DbgHelp.h>
+    #include <mutex>
     #pragma comment(lib, "dbghelp.lib")
 #elif CA_PLATFORM_LINUX
     #include <cxxabi.h>
@@ -40,11 +45,14 @@ inline std::string capture_stack_trace(i32 max_frames = 64) {
         0, static_cast<USHORT>(max_frames), frames.data(), nullptr);
 
     HANDLE process = GetCurrentProcess();
-    static bool sym_once = false;
-    if (!sym_once) {
-        SymInitialize(process, nullptr, TRUE);
-        sym_once = true;
-    }
+    static std::mutex dbghelp_mutex;
+    std::lock_guard<std::mutex> lock(dbghelp_mutex);
+
+    static const bool sym_initialized = []() {
+        SymInitialize(GetCurrentProcess(), nullptr, TRUE);
+        return true;
+    }();
+    (void)sym_initialized;
 
     alignas(SYMBOL_INFO) char buf[sizeof(SYMBOL_INFO) + 256 * sizeof(wchar_t)];
     SYMBOL_INFO* sym = reinterpret_cast<SYMBOL_INFO*>(buf);
