@@ -20,6 +20,7 @@
     #endif
     #include <windows.h>
     #include <DbgHelp.h>
+    #include <mutex>
     #pragma comment(lib, "dbghelp.lib")
 #elif CA_PLATFORM_LINUX
     #include <cxxabi.h>
@@ -44,6 +45,9 @@ inline std::string capture_stack_trace(i32 max_frames = 64) {
         0, static_cast<USHORT>(max_frames), frames.data(), nullptr);
 
     HANDLE process = GetCurrentProcess();
+    static std::mutex dbghelp_mutex;
+    std::lock_guard<std::mutex> lock(dbghelp_mutex);
+
     static const bool sym_initialized = []() {
         SymInitialize(GetCurrentProcess(), nullptr, TRUE);
         return true;
