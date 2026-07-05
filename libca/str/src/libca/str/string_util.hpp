@@ -107,15 +107,25 @@ public:
                                                                       bool plus_as_space = false);
 
     /// @brief URL 表单组件编码：空格编码为 '+'，其它非 unreserved 字节编码为 %HH。
+    /// @param input 输入文本，按字节处理。
+    /// @return 可放入 query/form 组件的编码字符串。
     static std::string urlEncodeComponent(const std::string& input);
 
     /// @brief URL 表单组件解码：'+' 解码为空格，并解析 %HH。
+    /// @param input URL 表单组件文本。
+    /// @return 成功返回解码后的字节串；非法 percent escape 返回错误说明。
     static ca::core::Result<std::string, std::string> urlDecodeComponent(const std::string& input);
 
     /// @brief Base64url 编码，使用 '-' 和 '_'，默认不输出 '=' padding。
+    /// @param input 原始字节串。
+    /// @param padding true 时补齐 '='，false 时输出无 padding 形式。
+    /// @return Base64url 文本，不插入换行。
     static std::string base64UrlEncode(const std::string& input, bool padding = false);
 
     /// @brief Base64url 解码，接受无 padding 或带 '=' padding 的输入。
+    /// @param input Base64url 文本。
+    /// @return 成功返回原始字节串；非法字符、非法长度、非法 padding 或非零尾部填充位返回错误说明。
+    /// @note 解码是严格模式，会拒绝 `Zh` / `Zm9` 这类尾部填充位非零的输入。
     static ca::core::Result<std::string, std::string> base64UrlDecode(const std::string& input);
 
     // ==================== 前缀/后缀/包含 ====================

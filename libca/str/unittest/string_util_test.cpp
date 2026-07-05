@@ -231,6 +231,7 @@ TEST(StringUtilTest, base64UrlSupportsPaddingAndRejectsInvalidInput) {
 
     EXPECT_TRUE(StringUtil::base64UrlDecode("Z").is_err());
     EXPECT_TRUE(StringUtil::base64UrlDecode("Zh").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm9").is_err());
     EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=").is_err());
     EXPECT_TRUE(StringUtil::base64UrlDecode("Zg===").is_err());
     EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=A").is_err());

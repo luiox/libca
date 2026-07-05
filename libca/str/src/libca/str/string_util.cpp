@@ -423,6 +423,7 @@ ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
     for (std::string::size_type i = 0; i < input.size(); ++i) {
         char ch = input[i];
         if (ch == '=') {
+            // Padding 只能出现在末尾，且 Base64url 最多需要两个 '='。
             seen_padding = true;
             ++padding_count;
             if (padding_count > 2) {
@@ -457,6 +458,7 @@ ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
             return ca::core::Err(std::string("invalid base64url padding"));
         }
     }
+    // 严格模式：末尾不足 8 bit 的填充位必须全为 0，否则同一字节串会有多个编码形式。
     if (bit_count > 0 && (buffer & ((static_cast<ca::u32>(1) << bit_count) - 1)) != 0) {
         return ca::core::Err(std::string("invalid base64url trailing bits"));
     }
