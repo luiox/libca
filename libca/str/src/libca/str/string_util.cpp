@@ -283,39 +283,39 @@ bool StringUtil::isNumeric(const std::string& input) {
     return true;
 }
 
-bool StringUtil::is_unreserved_url_char(char ch) {
-    return is_ascii_alnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~';
+bool StringUtil::isUnreservedUrlChar(char ch) {
+    return isAsciiAlnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~';
 }
 
-bool StringUtil::is_ascii_lower(char ch) {
+bool StringUtil::isAsciiLower(char ch) {
     return ch >= 'a' && ch <= 'z';
 }
 
-bool StringUtil::is_ascii_upper(char ch) {
+bool StringUtil::isAsciiUpper(char ch) {
     return ch >= 'A' && ch <= 'Z';
 }
 
-bool StringUtil::is_ascii_alpha(char ch) {
-    return is_ascii_lower(ch) || is_ascii_upper(ch);
+bool StringUtil::isAsciiAlpha(char ch) {
+    return isAsciiLower(ch) || isAsciiUpper(ch);
 }
 
-bool StringUtil::is_ascii_digit(char ch) {
+bool StringUtil::isAsciiDigit(char ch) {
     return ch >= '0' && ch <= '9';
 }
 
-bool StringUtil::is_ascii_alnum(char ch) {
-    return is_ascii_alpha(ch) || is_ascii_digit(ch);
+bool StringUtil::isAsciiAlnum(char ch) {
+    return isAsciiAlpha(ch) || isAsciiDigit(ch);
 }
 
-char StringUtil::ascii_to_lower(char ch) {
-    if (is_ascii_upper(ch)) {
+char StringUtil::asciiToLower(char ch) {
+    if (isAsciiUpper(ch)) {
         return static_cast<char>(ch - 'A' + 'a');
     }
     return ch;
 }
 
-char StringUtil::ascii_to_upper(char ch) {
-    if (is_ascii_lower(ch)) {
+char StringUtil::asciiToUpper(char ch) {
+    if (isAsciiLower(ch)) {
         return static_cast<char>(ch - 'a' + 'A');
     }
     return ch;
@@ -323,7 +323,7 @@ char StringUtil::ascii_to_upper(char ch) {
 
 // ==================== URL / percent 编码 ====================
 
-std::string StringUtil::percent_encode(const std::string& input, bool space_as_plus) {
+std::string StringUtil::percentEncode(const std::string& input, bool space_as_plus) {
     std::string output;
     output.reserve(input.size());
 
@@ -331,7 +331,7 @@ std::string StringUtil::percent_encode(const std::string& input, bool space_as_p
         char ch = static_cast<char>(byte);
         if (space_as_plus && ch == ' ') {
             output.push_back('+');
-        } else if (is_unreserved_url_char(ch)) {
+        } else if (isUnreservedUrlChar(ch)) {
             output.push_back(ch);
         } else {
             output.push_back('%');
@@ -343,7 +343,7 @@ std::string StringUtil::percent_encode(const std::string& input, bool space_as_p
     return output;
 }
 
-ca::core::Result<std::string, std::string> StringUtil::percent_decode(const std::string& input,
+ca::core::Result<std::string, std::string> StringUtil::percentDecode(const std::string& input,
                                                                       bool plus_as_space) {
     std::string output;
     output.reserve(input.size());
@@ -374,16 +374,16 @@ ca::core::Result<std::string, std::string> StringUtil::percent_decode(const std:
     return ca::core::Ok(std::move(output));
 }
 
-std::string StringUtil::url_encode_component(const std::string& input) {
-    return percent_encode(input, true);
+std::string StringUtil::urlEncodeComponent(const std::string& input) {
+    return percentEncode(input, true);
 }
 
-ca::core::Result<std::string, std::string> StringUtil::url_decode_component(
+ca::core::Result<std::string, std::string> StringUtil::urlDecodeComponent(
     const std::string& input) {
-    return percent_decode(input, true);
+    return percentDecode(input, true);
 }
 
-std::string StringUtil::base64_url_encode(const std::string& input, bool padding) {
+std::string StringUtil::base64UrlEncode(const std::string& input, bool padding) {
     std::string output;
     output.reserve(((input.size() + 2) / 3) * 4);
 
@@ -409,7 +409,7 @@ std::string StringUtil::base64_url_encode(const std::string& input, bool padding
     return output;
 }
 
-ca::core::Result<std::string, std::string> StringUtil::base64_url_decode(
+ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
     const std::string& input) {
     std::string output;
     output.reserve((input.size() * 3) / 4);
