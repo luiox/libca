@@ -16,14 +16,14 @@ class ScopeGuard {
 public:
     /// @brief 构造一个处于激活状态的作用域守卫。
     explicit ScopeGuard(F func) noexcept(std::is_nothrow_move_constructible<F>::value)
-        : func_(std::move(func)), active_(true) {}
+        : active_(true), func_(std::move(func)) {}
 
     ScopeGuard(const ScopeGuard&) = delete;
     ScopeGuard& operator=(const ScopeGuard&) = delete;
 
     /// @brief 移动构造，转移回调执行权。
     ScopeGuard(ScopeGuard&& other) noexcept(std::is_nothrow_move_constructible<F>::value)
-        : func_(std::move(other.func_)), active_(std::exchange(other.active_, false)) {}
+        : active_(std::exchange(other.active_, false)), func_(std::move(other.func_)) {}
 
     ScopeGuard& operator=(ScopeGuard&&) = delete;
 
@@ -45,8 +45,8 @@ public:
     }
 
 private:
-    F func_;
     bool active_;
+    F func_;
 };
 
 /// @brief 根据可调用对象推导类型并构造 ScopeGuard。
