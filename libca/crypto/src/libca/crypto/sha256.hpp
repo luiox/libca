@@ -1,5 +1,7 @@
 #pragma once
 
+#include "libca/core/bytes.hpp"
+
 #include <cstdint>
 #include <string>
 
@@ -28,5 +30,15 @@ private:
     enum { HashValues = HashBytes / 4 };
     uint32_t hash_[HashValues]{};
 };
+
+/// @brief 计算 SHA-256 digest。
+/// @param data 输入字节视图。
+/// @return 32 字节 SHA-256 digest。
+ca::core::Bytes sha256(ca::core::ByteSlice data);
+
+/// @brief 计算 SHA-256 digest 并返回小写十六进制字符串。
+/// @param data 输入字节视图。
+/// @return 64 字符小写十六进制 digest。
+std::string sha256_hex(ca::core::ByteSlice data);
 
 }
