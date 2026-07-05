@@ -1,6 +1,7 @@
 includes("core")
 includes("crypto")
 includes("fs")
+includes("ini")
 includes("str")
 includes("time")
 includes("collection")
