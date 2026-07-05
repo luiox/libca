@@ -4,6 +4,7 @@
 #include <exception>
 #include <functional>
 #include <type_traits>
+#include <utility>
 
 /// @file result.hpp
 /// @brief Result<T, E> —— 用返回值替代异常的错误处理类型，对齐 Rust std::result。
@@ -570,12 +571,12 @@ struct Storage {
 
     void construct(types::Ok<T> ok)
     {
-        new (&storage_) T(ok.val);
+        new (&storage_) T(std::move(ok.val));
         initialized_ = true;
     }
     void construct(types::Err<E> err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(std::move(err.val));
         initialized_ = true;
     }
 
@@ -626,7 +627,7 @@ struct Storage<void, E> {
 
     void construct(types::Err<E> err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(std::move(err.val));
         initialized_ = true;
     }
 
@@ -977,10 +978,11 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err) {
         auto res = __VA_ARGS__;                                    \
         if (!res.is_ok()) {                                         \
             typedef details::ResultErrType<decltype(res)>::type E; \
-            return types::Err<E>(res.storage().get<E>());          \
+            return types::Err<E>(std::move(                         \
+                res.storage().template get<E>()));                  \
         }                                                          \
         typedef details::ResultOkType<decltype(res)>::type T;      \
-        res.storage().get<T>();                                    \
+        std::move(res.storage().template get<T>());                \
     })
 
 }  // namespace ca::core

@@ -2,6 +2,7 @@
 
 #include "libca/core/result.hpp"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -297,6 +298,40 @@ TEST(ResultTest, TryMacroErr) {
     auto r = try_unwrap_impl(Err(std::string("fail")));
     EXPECT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err(), "fail");
+}
+
+static Result<std::unique_ptr<int>, std::string> make_move_only_ok() {
+    return Ok(std::make_unique<int>(42));
+}
+
+static Result<std::unique_ptr<int>, std::string> try_move_only_ok_impl() {
+    auto val = TRY(make_move_only_ok());
+    return Ok(std::move(val));
+}
+
+TEST(ResultTest, TryMacroMoveOnlyOk) {
+    auto r = try_move_only_ok_impl();
+    ASSERT_TRUE(r.is_ok());
+    auto& val = r.storage().get<std::unique_ptr<int>>();
+    ASSERT_NE(val, nullptr);
+    EXPECT_EQ(*val, 42);
+}
+
+static Result<int, std::unique_ptr<int>> make_move_only_err() {
+    return Err(std::make_unique<int>(7));
+}
+
+static Result<int, std::unique_ptr<int>> try_move_only_err_impl() {
+    auto val = TRY(make_move_only_err());
+    return Ok(val);
+}
+
+TEST(ResultTest, TryMacroMoveOnlyErr) {
+    auto r = try_move_only_err_impl();
+    ASSERT_TRUE(r.is_err());
+    auto& err = r.storage().get<std::unique_ptr<int>>();
+    ASSERT_NE(err, nullptr);
+    EXPECT_EQ(*err, 7);
 }
 
 #endif
