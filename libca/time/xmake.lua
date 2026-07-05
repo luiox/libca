@@ -6,6 +6,7 @@ target("libca_time")
     add_files("src/libca/time/*.cpp")
     add_headerfiles("src/libca/time/*.hpp")
     add_includedirs("src", {public = true})
+    add_deps("libca_core")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
