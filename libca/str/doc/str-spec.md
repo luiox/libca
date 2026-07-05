@@ -104,6 +104,12 @@
 | `compare(other) -> int` | 逐字节字典序 |
 | `equals(other) -> bool` | 内容相等 |
 | `operator==` / `operator!=` | 支持 `Utf8String` / `Utf8StringRef` 互相比较 |
+| `operator<` / `operator>` / `operator<=` / `operator>=` | 按 UTF-8 字节字典序排序 |
+
+比较运算符以 `Utf8StringRef` 作为公共视图层：`Utf8StringRef` 负责视图之间和视图与
+C 字符串的比较，`Utf8String` 作为左操作数时保留成员薄转发，避免 C++ 成员运算符查找
+无法先做左操作数隐式视图转换的问题。`Utf8StringRef` 与 `Utf8String`、`const char*` 与
+`Utf8String` 的右操作数场景复用隐式视图构造，不额外展开重复排序重载。
 
 ### 转换
 

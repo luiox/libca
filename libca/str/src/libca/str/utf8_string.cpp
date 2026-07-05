@@ -832,22 +832,6 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
 }
 
-bool operator<(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
-    return lhs.compare(rhs.ref()) < 0;
-}
-
-bool operator>(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
-    return lhs.compare(rhs.ref()) > 0;
-}
-
-bool operator<=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
-    return lhs.compare(rhs.ref()) <= 0;
-}
-
-bool operator>=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
-    return lhs.compare(rhs.ref()) >= 0;
-}
-
 bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return rhs.equals(lhs);
 }
@@ -856,6 +840,8 @@ bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return !rhs.equals(lhs);
 }
 
+// const char* 作为左操作数时无法调用 Utf8StringRef 成员运算符，
+// 因此保留这组非成员薄包装；Utf8String 右操作数可隐式转为 Utf8StringRef 复用它们。
 bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return rhs.compare(lhs) > 0;
 }
@@ -878,22 +864,6 @@ bool operator==(const char* lhs, const Utf8String& rhs) noexcept {
 
 bool operator!=(const char* lhs, const Utf8String& rhs) noexcept {
     return !rhs.equals(lhs);
-}
-
-bool operator<(const char* lhs, const Utf8String& rhs) noexcept {
-    return rhs.compare(lhs) > 0;
-}
-
-bool operator>(const char* lhs, const Utf8String& rhs) noexcept {
-    return rhs.compare(lhs) < 0;
-}
-
-bool operator<=(const char* lhs, const Utf8String& rhs) noexcept {
-    return rhs.compare(lhs) >= 0;
-}
-
-bool operator>=(const char* lhs, const Utf8String& rhs) noexcept {
-    return rhs.compare(lhs) <= 0;
 }
 
 

@@ -1,6 +1,8 @@
 ---
-version: 1.0
-update: 2026-05-31
+version: 1.1
+update:
+2026-07-06 - 补充比较运算符分层设计说明
+2026-05-31 - 首版
 ---
 
 # libca/str UTF-8 字符串设计文档
@@ -163,6 +165,22 @@ sliceByCp(cpStart, cpCount): 先扫描到第 cpStart 个码点的字节位置，
                              再扫描 cpCount 个码点得到 byteEnd
 ```
 
+### 3.4 比较运算符分层
+
+排序比较统一采用 UTF-8 字节字典序，不做 Unicode 规范化，也不按 locale 规则排序。
+这种选择让比较结果稳定、可预测，并与底层 `memcmp` 风格的实现保持一致。
+
+比较入口分为三层：
+
+- `Utf8StringRef` 是公共视图层，负责视图之间、视图与 C 字符串之间的比较。
+- `Utf8String` 作为左操作数时保留成员运算符，成员内部只转发到 `ref().compare(...)`。
+- `Utf8StringRef` 与 `Utf8String`、`const char*` 与 `Utf8String` 的右操作数场景复用
+  `Utf8String` 到 `Utf8StringRef` 的隐式视图构造，避免重复展开非成员排序重载。
+
+这里不能删除 `Utf8String` 左操作数的成员运算符：C++ 的成员运算符查找不会先把左操作数
+隐式转换成另一个类再查找该类成员，因此 `Utf8String` 自身需要一组薄转发来支持
+`Utf8String("a") < Utf8String("b")` 这类表达式。
+
 ## 4. 架构设计
 
 ### 4.1 架构概览
@@ -182,7 +200,7 @@ libca/str/unittest/utf8_string_test.cpp    ← Google Test 测试
 - `Utf8String` → `Utf8StringRef`（`ref()` 返回 ref）
 - `Utf8StringRef` → `Utf8String`（从 `Utf8String` 构造）
 - 交叉引用通过前向声明解决
-- 跨模块引用使用 `<libca/core/datatype.hpp>` 风格
+- 跨模块引用使用 `"libca/core/datatype.hpp"` 风格
 
 ## 5. 性能考虑
 

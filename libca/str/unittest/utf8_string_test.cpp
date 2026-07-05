@@ -469,6 +469,8 @@ TEST(Utf8StringTest, OrderingOperators) {
     EXPECT_TRUE("ABD" > abc);
     EXPECT_TRUE("ABC" <= abc);
     EXPECT_TRUE("ABD" >= abd);
+    EXPECT_TRUE(static_cast<const char*>("ABC") < abd);
+    EXPECT_TRUE(static_cast<const char*>("ABD") >= abd);
 }
 
 TEST(Utf8StringTest, Equals) {
