@@ -138,6 +138,12 @@ TEST(Utf8CharTest, IsAlphaExtendedLatin) {
     EXPECT_TRUE(Utf8Char(0x00E9).isAlpha());
     // ü = U+00FC
     EXPECT_TRUE(Utf8Char(0x00FC).isAlpha());
+    // Latin Extended-C: Ⱡ = U+2C60
+    EXPECT_TRUE(Utf8Char(0x2C60).isAlpha());
+}
+
+TEST(Utf8CharTest, IsAlphaInvalidCodePointDoesNotTruncateToAscii) {
+    EXPECT_FALSE(Utf8Char(0x110041).isAlpha());
 }
 
 TEST(Utf8CharTest, IsDigitFullwidth) {

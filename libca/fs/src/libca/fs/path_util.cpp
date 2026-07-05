@@ -7,7 +7,7 @@ namespace ca { namespace fs {
 
 std::string PathUtil::normalize(const std::string& path)
 {
-    auto p = std::filesystem::path(path).lexically_normal();
+    auto p = std::filesystem::path(to_unix_separators(path)).lexically_normal();
     auto result = p.generic_string();  // 统一使用 '/' 分隔符
     return result;
 }

@@ -99,12 +99,28 @@ static bool isKatakanaHiragana(u32 cp) noexcept {
            (cp >= 0xFF65 && cp <= 0xFF9F);     // 半角片假名
 }
 
+static bool isLatinAlpha(u32 cp) noexcept {
+    return (cp >= 0x00C0 && cp <= 0x00D6) ||
+           (cp >= 0x00D8 && cp <= 0x00F6) ||
+           (cp >= 0x00F8 && cp <= 0x00FF) ||
+           (cp >= 0x0100 && cp <= 0x017F) ||  // Latin Extended-A
+           (cp >= 0x0180 && cp <= 0x024F) ||  // Latin Extended-B
+           (cp >= 0x1E00 && cp <= 0x1EFF) ||  // Latin Extended Additional
+           (cp >= 0x2C60 && cp <= 0x2C7F) ||  // Latin Extended-C
+           (cp >= 0xA720 && cp <= 0xA7FF) ||  // Latin Extended-D
+           (cp >= 0xAB30 && cp <= 0xAB6F);    // Latin Extended-E
+}
+
 // 判断码点是否为字母（含非拉丁文字）
 bool Utf8Char::isAlpha() const noexcept {
     if (cp_ <= 0x7F)
         return std::isalpha(static_cast<int>(cp_)) != 0;
-    if (isCjk(cp_) || isHangul(cp_) || isKatakanaHiragana(cp_))
+    if (isLatinAlpha(cp_) || isCjk(cp_) || isHangul(cp_) || isKatakanaHiragana(cp_))
         return true;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswalpha(static_cast<wint_t>(cp_)) != 0;
 }
 
