@@ -36,17 +36,23 @@ ca::usize find_inline_comment(const std::string& value,
                               const IniReaderOptions& options) {
     bool in_single_quote = false;
     bool in_double_quote = false;
+    bool escaped = false;
     for (ca::usize i = 0; i < value.size(); ++i) {
         const char ch = value[i];
-        if (ch == '\'' && !in_double_quote) {
+        if (ch == '\\' && !escaped) {
+            escaped = true;
+            continue;
+        }
+        if (ch == '\'' && !in_double_quote && !escaped) {
             in_single_quote = !in_single_quote;
-        } else if (ch == '"' && !in_single_quote) {
+        } else if (ch == '"' && !in_single_quote && !escaped) {
             in_double_quote = !in_double_quote;
-        } else if (!in_single_quote && !in_double_quote &&
+        } else if (!in_single_quote && !in_double_quote && !escaped &&
                    is_comment_marker(ch, options) &&
                    (i == 0 || is_space(value[i - 1]))) {
             return i;
         }
+        escaped = false;
     }
     return value.size();
 }
@@ -195,6 +201,7 @@ ca::Result<IniDocument, std::string> IniReader::read(
         ++line_number;
     }
 
+    document.rebuild_index();
     return ca::Ok(std::move(document));
 }
 

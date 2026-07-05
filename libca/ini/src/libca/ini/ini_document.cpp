@@ -72,6 +72,7 @@ void IniDocument::set(const std::string& section,
     key_record.line.section = section;
     key_record.line.key = key;
     key_record.line.value = value;
+    key_record.key_suffix = " ";
     key_record.separator = "=";
     key_record.value_prefix = " ";
     key_record.line_ending = newline;
@@ -105,12 +106,21 @@ bool IniDocument::remove_section(const std::string& section) {
         return false;
     }
 
-    ca::usize end = it->second + 1;
-    while (end < records_.size() &&
-           records_[end].line.kind != IniLineKind::Section) {
+    const ca::usize start = it->second;
+    ca::usize end = start + 1;
+    while (end < records_.size() && records_[end].line.kind != IniLineKind::Section) {
         ++end;
     }
-    records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(it->second),
+    if (end < records_.size()) {
+        while (end > start + 1) {
+            const auto kind = records_[end - 1].line.kind;
+            if (kind != IniLineKind::Blank && kind != IniLineKind::Comment) {
+                break;
+            }
+            --end;
+        }
+    }
+    records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(start),
                    records_.begin() + static_cast<std::ptrdiff_t>(end));
     rebuild_index();
     return true;
@@ -142,9 +152,12 @@ std::vector<std::string> IniDocument::sections() const {
 
 std::vector<std::string> IniDocument::keys(const std::string& section) const {
     std::vector<std::string> result;
+    std::map<std::string, bool> seen;
     for (const auto& record : records_) {
         if (record.line.kind == IniLineKind::KeyValue &&
-            record.line.section == section) {
+            record.line.section == section &&
+            seen.find(record.line.key) == seen.end()) {
+            seen[record.line.key] = true;
             result.push_back(record.line.key);
         }
     }
@@ -167,7 +180,6 @@ void IniDocument::add_record(LineRecord record) {
         default_line_ending_ = record.line_ending;
     }
     records_.push_back(std::move(record));
-    rebuild_index();
 }
 
 void IniDocument::rebuild_index() {

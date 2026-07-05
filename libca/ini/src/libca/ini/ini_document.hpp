@@ -77,7 +77,7 @@ public:
     /// @return section 名列表；不包含全局空 section。
     std::vector<std::string> sections() const;
 
-    /// @brief 返回指定 section 下的 key 列表，按文件中出现顺序排列。
+    /// @brief 返回指定 section 下的 key 列表，按文件中首次出现顺序排列并去重。
     /// @param section section 名；空字符串表示全局区。
     /// @return key 名列表；section 不存在时返回空列表。
     std::vector<std::string> keys(const std::string& section) const;

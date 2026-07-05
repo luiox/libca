@@ -56,6 +56,19 @@ TEST(IniDocumentTest, SetPreservesInlineCommentAndOrder) {
               "mode = dev\n");
 }
 
+TEST(IniDocumentTest, UpdatingNewKeyPreservesInsertedSpacing) {
+    auto result = IniReader::read("[server]\n");
+    ASSERT_TRUE(result.is_ok());
+    auto document = result.unwrap();
+
+    document.set("server", "mode", "dev");
+    document.set("server", "mode", "prod");
+
+    EXPECT_EQ(IniWriter::write(document),
+              "[server]\n"
+              "mode = prod\n");
+}
+
 TEST(IniDocumentTest, RemoveKeyAndSection) {
     auto result = IniReader::read(
         "[a]\n"
@@ -70,6 +83,55 @@ TEST(IniDocumentTest, RemoveKeyAndSection) {
     EXPECT_TRUE(document.remove_section("b"));
 
     EXPECT_EQ(IniWriter::write(document), "[a]\n");
+}
+
+TEST(IniDocumentTest, RemoveSectionKeepsNextSectionLeadingComments) {
+    auto result = IniReader::read(
+        "[a]\n"
+        "x = 1\n"
+        "\n"
+        "; b docs\n"
+        "[b]\n"
+        "y = 2\n");
+    ASSERT_TRUE(result.is_ok());
+    auto document = result.unwrap();
+
+    EXPECT_TRUE(document.remove_section("a"));
+
+    EXPECT_EQ(IniWriter::write(document),
+              "\n"
+              "; b docs\n"
+              "[b]\n"
+              "y = 2\n");
+}
+
+TEST(IniReaderTest, EscapedQuotesDoNotStartInlineComment) {
+    auto result = IniReader::read(
+        "[quote]\n"
+        "value = \"a \\\" # not comment\" # comment\n"
+        "single = 'a \\' ; not comment' ; comment\n");
+
+    ASSERT_TRUE(result.is_ok());
+    auto document = result.unwrap();
+    EXPECT_EQ(document.get("quote", "value").unwrap(), "\"a \\\" # not comment\"");
+    EXPECT_EQ(document.get("quote", "single").unwrap(), "'a \\' ; not comment'");
+}
+
+TEST(IniDocumentTest, KeysReturnsUniqueNames) {
+    auto result = IniReader::read(
+        "[server]\n"
+        "host = first\n"
+        "port = 1\n"
+        "host = second\n");
+    ASSERT_TRUE(result.is_ok());
+    auto document = result.unwrap();
+
+    auto keys = document.keys("server");
+
+    ASSERT_EQ(keys.size(), 2u);
+    EXPECT_EQ(keys[0], "host");
+    EXPECT_EQ(keys[1], "port");
+    EXPECT_EQ(document.get("server", "host").unwrap(), "second");
 }
 
 TEST(IniIoTest, RoundTripsThroughFile) {
