@@ -80,3 +80,13 @@ core 的测试位于 `libca/core/unittest/`，使用 Google Test。测试重点�
 - RAII 工具是否只执行一次，并支持取消执行。
 
 core 是基础层，新增能力应优先补单元测试；对平台相关行为，应尽量把不可控平台条件隔离并保持 CI 可运行。
+
+## 8. 新人阅读顺序
+
+建议按下面顺序看代码：
+
+1. `datatype.hpp`：理解 libca 的基础类型约定。
+2. `result.hpp` 与 `result-spec.md`：理解错误传播风格。
+3. `bytes.hpp` 与 `bytes-spec.md`：理解字节缓冲模型。
+4. `status.hpp`、`scope_guard.hpp`：理解通用状态返回和作用域清理工具。
+5. `stacktrace.hpp`、`platform.hpp`：仅在调试或平台相关需求中阅读。
