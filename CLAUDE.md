@@ -14,15 +14,13 @@ The two code styles are governed by **different, authoritative rule files** — 
 
 ### libca module inventory (the "is there already a wheel?" index)
 
-Check this table before building anything new under `libca/`. **API usage lives in the header Doxygen comments** (`///`) — read the header to learn how to use a type. The `doc/libca_*_stable_api.md` files are now lean **freeze-status** docs (which tiers are Stable/Experimental/Legacy + cross-cutting conventions), not API references. Per-module design rationale is in `libca/<mod>/doc/`.
-
-> Exception: `str` headers are not yet fully Doxygen-annotated, so `doc/libca_str_utf8_stable_api.md` is still the API reference for `ca::str` until that debt is paid.
+Check this table before building anything new under `libca/`. **API usage lives in the header Doxygen comments** (`///`) — read the header to learn how to use a type. `doc/libca功能索引.md` is only a navigation/index document. Per-module design docs in `libca/<mod>/doc/` explain design ideas, type organization, and tradeoffs; they should not duplicate full API lists or promise compatibility.
 
 | 模块 | 能力一句话 | 关键类型/入口 | 命名空间 | 状态 | 详情文档 |
 |------|-----------|--------------|----------|------|----------|
-| **core** | Result/字节/类型转换/基础类型地基 | `Result<T,E>`, `Bytes`, `cast`, `any`, `i32/u8/usize` | `ca` / `ca::core` | 稳定(依赖根) | `doc/libca_core_stable_api.md` |
-| **str** | UTF-8 字符串与所有权类型 | `Utf8String`, `Utf8StringRef`, `Utf8StringArena` | `ca::str` | 稳定 | `doc/libca_str_utf8_stable_api.md` |
-| **fs** | 文件/路径操作(封装 std::filesystem) | `FileUtil`, `PathUtil`, `FileMode` | `ca::fs` | 稳定 | `doc/libca_fs_stable_api.md` |
+| **core** | Result/字节/类型转换/基础类型地基 | `Result<T,E>`, `Bytes`, `cast`, `any`, `i32/u8/usize` | `ca` / `ca::core` | 主线 | `libca/core/doc/` |
+| **str** | UTF-8 字符串与所有权类型 | `Utf8String`, `Utf8StringRef`, `Utf8StringArena` | `ca::str` | 主线 | `libca/str/doc/` |
+| **fs** | 文件/路径操作(封装 std::filesystem) | `FileUtil`, `PathUtil`, `FileMode` | `ca::fs` | 主线 | `libca/fs/doc/` |
 | **crypto** | 哈希/CRC/base64 | `sha256`, `md5`, `sha1`, `crc`, `base64` | `ca::crypto` | 可用(缺文档/测试薄) | — |
 | **time** | 日期时间 | `DateTime` | `ca::time` | 可用(薄) | — |
 | **collection** | 不可变列表/流 | `immutable_list`, `stream` | `ca` | 雏形(薄,杠杆高) | — |
@@ -30,6 +28,8 @@ Check this table before building anything new under `libca/`. **API usage lives 
 | log / utility | 有码但**未接入构建** | — | — | 暂勿依赖 | — |
 
 只有 `core / crypto / fs / str / time / collection` 接进了 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
+
+Compatibility policy: libca does not maintain separate API freeze lists and does not promise strict long-term API/ABI compatibility. Prefer smooth source evolution, but breaking changes are allowed when they improve ownership semantics, error models, or module boundaries. Document meaningful breakage in README, CHANGELOG, or the relevant module docs.
 
 ## Build & test commands
 
