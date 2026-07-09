@@ -4,6 +4,8 @@
 
 #include "string_util.hpp"
 
+#include "libca/core/datatype.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdarg>
@@ -12,6 +14,37 @@
 #include <sstream>
 
 namespace ca::str {
+
+namespace {
+    constexpr char HEX_DIGITS[] = "0123456789ABCDEF";
+    constexpr char BASE64_URL_ALPHABET[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    bool is_hex_digit(char ch) {
+        return (ch >= '0' && ch <= '9') ||
+               (ch >= 'A' && ch <= 'F') ||
+               (ch >= 'a' && ch <= 'f');
+    }
+
+    ca::i32 hex_value(char ch) {
+        if (ch >= '0' && ch <= '9') return ch - '0';
+        if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+        return ch - 'a' + 10;
+    }
+
+    ca::i32 base64_url_value(char ch) {
+        if (ch >= 'A' && ch <= 'Z') return ch - 'A';
+        if (ch >= 'a' && ch <= 'z') return ch - 'a' + 26;
+        if (ch >= '0' && ch <= '9') return ch - '0' + 52;
+        if (ch == '-') return 62;
+        if (ch == '_') return 63;
+        return -1;
+    }
+
+    std::string byte_position_error(const char* message, std::string::size_type pos) {
+        return std::string(message) + std::to_string(pos);
+    }
+}
 
 // ==================== 大小写转换 ====================
 
@@ -248,6 +281,189 @@ bool StringUtil::isNumeric(const std::string& input) {
         }
     }
     return true;
+}
+
+bool StringUtil::isUnreservedUrlChar(char ch) {
+    return isAsciiAlnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~';
+}
+
+bool StringUtil::isAsciiLower(char ch) {
+    return ch >= 'a' && ch <= 'z';
+}
+
+bool StringUtil::isAsciiUpper(char ch) {
+    return ch >= 'A' && ch <= 'Z';
+}
+
+bool StringUtil::isAsciiAlpha(char ch) {
+    return isAsciiLower(ch) || isAsciiUpper(ch);
+}
+
+bool StringUtil::isAsciiDigit(char ch) {
+    return ch >= '0' && ch <= '9';
+}
+
+bool StringUtil::isAsciiAlnum(char ch) {
+    return isAsciiAlpha(ch) || isAsciiDigit(ch);
+}
+
+char StringUtil::asciiToLower(char ch) {
+    if (isAsciiUpper(ch)) {
+        return static_cast<char>(ch - 'A' + 'a');
+    }
+    return ch;
+}
+
+char StringUtil::asciiToUpper(char ch) {
+    if (isAsciiLower(ch)) {
+        return static_cast<char>(ch - 'a' + 'A');
+    }
+    return ch;
+}
+
+// ==================== URL / percent 编码 ====================
+
+std::string StringUtil::percentEncode(const std::string& input, bool space_as_plus) {
+    std::string output;
+    output.reserve(input.size());
+
+    for (unsigned char byte : input) {
+        char ch = static_cast<char>(byte);
+        if (space_as_plus && ch == ' ') {
+            output.push_back('+');
+        } else if (isUnreservedUrlChar(ch)) {
+            output.push_back(ch);
+        } else {
+            output.push_back('%');
+            output.push_back(HEX_DIGITS[(byte >> 4) & 0x0F]);
+            output.push_back(HEX_DIGITS[byte & 0x0F]);
+        }
+    }
+
+    return output;
+}
+
+ca::core::Result<std::string, std::string> StringUtil::percentDecode(const std::string& input,
+                                                                      bool plus_as_space) {
+    std::string output;
+    output.reserve(input.size());
+
+    for (std::string::size_type i = 0; i < input.size(); ++i) {
+        char ch = input[i];
+        if (plus_as_space && ch == '+') {
+            output.push_back(' ');
+            continue;
+        }
+        if (ch != '%') {
+            output.push_back(ch);
+            continue;
+        }
+        if (i + 2 >= input.size()) {
+            return ca::core::Err(byte_position_error("incomplete percent escape at byte ", i));
+        }
+        char hi = input[i + 1];
+        char lo = input[i + 2];
+        if (!is_hex_digit(hi) || !is_hex_digit(lo)) {
+            return ca::core::Err(byte_position_error("invalid percent escape at byte ", i));
+        }
+        auto value = static_cast<unsigned char>((hex_value(hi) << 4) | hex_value(lo));
+        output.push_back(static_cast<char>(value));
+        i += 2;
+    }
+
+    return ca::core::Ok(std::move(output));
+}
+
+std::string StringUtil::urlEncodeComponent(const std::string& input) {
+    return percentEncode(input, true);
+}
+
+ca::core::Result<std::string, std::string> StringUtil::urlDecodeComponent(
+    const std::string& input) {
+    return percentDecode(input, true);
+}
+
+std::string StringUtil::base64UrlEncode(const std::string& input, bool padding) {
+    std::string output;
+    output.reserve(((input.size() + 2) / 3) * 4);
+
+    ca::u32 buffer = 0;
+    ca::i32 bit_count = 0;
+    for (unsigned char byte : input) {
+        buffer = (buffer << 8) | byte;
+        bit_count += 8;
+        while (bit_count >= 6) {
+            bit_count -= 6;
+            output.push_back(BASE64_URL_ALPHABET[(buffer >> bit_count) & 0x3F]);
+        }
+    }
+    if (bit_count > 0) {
+        output.push_back(BASE64_URL_ALPHABET[(buffer << (6 - bit_count)) & 0x3F]);
+    }
+    if (padding) {
+        while ((output.size() % 4) != 0) {
+            output.push_back('=');
+        }
+    }
+
+    return output;
+}
+
+ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
+    const std::string& input) {
+    std::string output;
+    output.reserve((input.size() * 3) / 4);
+
+    ca::u32 buffer = 0;
+    ca::i32 bit_count = 0;
+    std::string::size_type value_count = 0;
+    std::string::size_type padding_count = 0;
+    bool seen_padding = false;
+
+    for (std::string::size_type i = 0; i < input.size(); ++i) {
+        char ch = input[i];
+        if (ch == '=') {
+            // Padding 只能出现在末尾，且 Base64url 最多需要两个 '='。
+            seen_padding = true;
+            ++padding_count;
+            if (padding_count > 2) {
+                return ca::core::Err(byte_position_error("too much base64url padding at byte ", i));
+            }
+            continue;
+        }
+        if (seen_padding) {
+            return ca::core::Err(byte_position_error("base64url data after padding at byte ", i));
+        }
+
+        ca::i32 value = base64_url_value(ch);
+        if (value < 0) {
+            return ca::core::Err(byte_position_error("invalid base64url character at byte ", i));
+        }
+
+        buffer = (buffer << 6) | static_cast<ca::u32>(value);
+        bit_count += 6;
+        ++value_count;
+        if (bit_count >= 8) {
+            bit_count -= 8;
+            output.push_back(static_cast<char>((buffer >> bit_count) & 0xFF));
+        }
+    }
+
+    if ((value_count % 4) == 1) {
+        return ca::core::Err(std::string("invalid base64url length"));
+    }
+    if (padding_count > 0) {
+        auto expected_padding = (4 - (value_count % 4)) % 4;
+        if (expected_padding == 0 || padding_count != expected_padding) {
+            return ca::core::Err(std::string("invalid base64url padding"));
+        }
+    }
+    // 严格模式：末尾不足 8 bit 的填充位必须全为 0，否则同一字节串会有多个编码形式。
+    if (bit_count > 0 && (buffer & ((static_cast<ca::u32>(1) << bit_count) - 1)) != 0) {
+        return ca::core::Err(std::string("invalid base64url trailing bits"));
+    }
+
+    return ca::core::Ok(std::move(output));
 }
 
 // ==================== 前缀/后缀/包含 ====================

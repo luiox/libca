@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "libca/core/result.hpp"
+
 #include <string>
 #include <vector>
 
@@ -65,6 +67,66 @@ public:
 
     // ==================== 判断 ====================
     static bool isNumeric(const std::string& input);
+
+    /// @brief 判断字符是否属于 RFC 3986 unreserved 集合（A-Z/a-z/0-9/-._~）。
+    static bool isUnreservedUrlChar(char ch);
+
+    /// @brief 判断字符是否为 ASCII 小写字母。
+    static bool isAsciiLower(char ch);
+
+    /// @brief 判断字符是否为 ASCII 大写字母。
+    static bool isAsciiUpper(char ch);
+
+    /// @brief 判断字符是否为 ASCII 字母。
+    static bool isAsciiAlpha(char ch);
+
+    /// @brief 判断字符是否为 ASCII 数字。
+    static bool isAsciiDigit(char ch);
+
+    /// @brief 判断字符是否为 ASCII 字母或数字。
+    static bool isAsciiAlnum(char ch);
+
+    /// @brief 将 ASCII 大写字母转为小写；非 ASCII 大写原样返回。
+    static char asciiToLower(char ch);
+
+    /// @brief 将 ASCII 小写字母转为大写；非 ASCII 小写原样返回。
+    static char asciiToUpper(char ch);
+
+    // ==================== URL / percent 编码 ====================
+    /// @brief 按 RFC 3986 对字符串逐字节百分号编码，unreserved 字符保持原样。
+    /// @param input 输入文本，按 UTF-8 字节序列处理，不校验 UTF-8 合法性。
+    /// @param space_as_plus true 时空格编码为 '+'，用于表单风格编码。
+    /// @return 编码后的字符串，十六进制字母使用大写。
+    static std::string percentEncode(const std::string& input, bool space_as_plus = false);
+
+    /// @brief 解码百分号编码字符串。
+    /// @param input 输入文本。
+    /// @param plus_as_space true 时将 '+' 解码为空格，用于表单风格解码。
+    /// @return 成功返回解码后的字节串；遇到不完整或非法十六进制转义返回错误说明。
+    static ca::core::Result<std::string, std::string> percentDecode(const std::string& input,
+                                                                      bool plus_as_space = false);
+
+    /// @brief URL 表单组件编码：空格编码为 '+'，其它非 unreserved 字节编码为 %HH。
+    /// @param input 输入文本，按字节处理。
+    /// @return 可放入 query/form 组件的编码字符串。
+    static std::string urlEncodeComponent(const std::string& input);
+
+    /// @brief URL 表单组件解码：'+' 解码为空格，并解析 %HH。
+    /// @param input URL 表单组件文本。
+    /// @return 成功返回解码后的字节串；非法 percent escape 返回错误说明。
+    static ca::core::Result<std::string, std::string> urlDecodeComponent(const std::string& input);
+
+    /// @brief Base64url 编码，使用 '-' 和 '_'，默认不输出 '=' padding。
+    /// @param input 原始字节串。
+    /// @param padding true 时补齐 '='，false 时输出无 padding 形式。
+    /// @return Base64url 文本，不插入换行。
+    static std::string base64UrlEncode(const std::string& input, bool padding = false);
+
+    /// @brief Base64url 解码，接受无 padding 或带 '=' padding 的输入。
+    /// @param input Base64url 文本。
+    /// @return 成功返回原始字节串；非法字符、非法长度、非法 padding 或非零尾部填充位返回错误说明。
+    /// @note 解码是严格模式，会拒绝 `Zh` / `Zm9` 这类尾部填充位非零的输入。
+    static ca::core::Result<std::string, std::string> base64UrlDecode(const std::string& input);
 
     // ==================== 前缀/后缀/包含 ====================
     static bool startsWith(const std::string& input, const std::string& prefix);

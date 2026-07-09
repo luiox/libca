@@ -149,6 +149,96 @@ TEST(StringUtilTest, isNumeric) {
     EXPECT_FALSE(StringUtil::isNumeric(""));
 }
 
+TEST(StringUtilTest, asciiClassificationAndCase) {
+    EXPECT_TRUE(StringUtil::isAsciiLower('a'));
+    EXPECT_FALSE(StringUtil::isAsciiLower('A'));
+    EXPECT_TRUE(StringUtil::isAsciiUpper('Z'));
+    EXPECT_FALSE(StringUtil::isAsciiUpper('z'));
+    EXPECT_TRUE(StringUtil::isAsciiAlpha('Q'));
+    EXPECT_TRUE(StringUtil::isAsciiDigit('7'));
+    EXPECT_TRUE(StringUtil::isAsciiAlnum('x'));
+    EXPECT_FALSE(StringUtil::isAsciiAlnum('-'));
+
+    EXPECT_EQ(StringUtil::asciiToLower('A'), 'a');
+    EXPECT_EQ(StringUtil::asciiToLower('!'), '!');
+    EXPECT_EQ(StringUtil::asciiToUpper('z'), 'Z');
+    EXPECT_EQ(StringUtil::asciiToUpper('8'), '8');
+}
+
+TEST(StringUtilTest, urlUnreservedClassification) {
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('A'));
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('9'));
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('-'));
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('.'));
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('_'));
+    EXPECT_TRUE(StringUtil::isUnreservedUrlChar('~'));
+    EXPECT_FALSE(StringUtil::isUnreservedUrlChar(' '));
+    EXPECT_FALSE(StringUtil::isUnreservedUrlChar('/'));
+}
+
+// ============================================================
+// URL / percent 编码
+// ============================================================
+
+TEST(StringUtilTest, percentEncodeUsesUppercaseHex) {
+    EXPECT_EQ(StringUtil::percentEncode("abcXYZ-._~09"), "abcXYZ-._~09");
+    EXPECT_EQ(StringUtil::percentEncode("a b/c?d"), "a%20b%2Fc%3Fd");
+    EXPECT_EQ(StringUtil::percentEncode("你好"), "%E4%BD%A0%E5%A5%BD");
+}
+
+TEST(StringUtilTest, percentDecodeRoundTrip) {
+    auto decoded = StringUtil::percentDecode("a%20b%2Fc%3Fd");
+    ASSERT_TRUE(decoded.is_ok()) << decoded.unwrap_err();
+    EXPECT_EQ(decoded.unwrap(), "a b/c?d");
+
+    auto utf8 = StringUtil::percentDecode("%E4%BD%A0%E5%A5%BD");
+    ASSERT_TRUE(utf8.is_ok()) << utf8.unwrap_err();
+    EXPECT_EQ(utf8.unwrap(), "你好");
+}
+
+TEST(StringUtilTest, percentDecodeRejectsInvalidEscapes) {
+    EXPECT_TRUE(StringUtil::percentDecode("%").is_err());
+    EXPECT_TRUE(StringUtil::percentDecode("%2").is_err());
+    EXPECT_TRUE(StringUtil::percentDecode("%GG").is_err());
+}
+
+TEST(StringUtilTest, urlComponentUsesPlusForSpace) {
+    EXPECT_EQ(StringUtil::urlEncodeComponent("a b+c"), "a+b%2Bc");
+
+    auto decoded = StringUtil::urlDecodeComponent("a+b%2Bc");
+    ASSERT_TRUE(decoded.is_ok()) << decoded.unwrap_err();
+    EXPECT_EQ(decoded.unwrap(), "a b+c");
+}
+
+TEST(StringUtilTest, base64UrlEncodeDecodeWithoutPadding) {
+    EXPECT_EQ(StringUtil::base64UrlEncode(""), "");
+    EXPECT_EQ(StringUtil::base64UrlEncode("f"), "Zg");
+    EXPECT_EQ(StringUtil::base64UrlEncode("fo"), "Zm8");
+    EXPECT_EQ(StringUtil::base64UrlEncode("foo"), "Zm9v");
+    EXPECT_EQ(StringUtil::base64UrlEncode("\xfb\xff", false), "-_8");
+
+    auto decoded = StringUtil::base64UrlDecode("-_8");
+    ASSERT_TRUE(decoded.is_ok()) << decoded.unwrap_err();
+    EXPECT_EQ(decoded.unwrap(), std::string("\xfb\xff", 2));
+}
+
+TEST(StringUtilTest, base64UrlSupportsPaddingAndRejectsInvalidInput) {
+    EXPECT_EQ(StringUtil::base64UrlEncode("f", true), "Zg==");
+
+    auto padded = StringUtil::base64UrlDecode("Zg==");
+    ASSERT_TRUE(padded.is_ok()) << padded.unwrap_err();
+    EXPECT_EQ(padded.unwrap(), "f");
+
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Z").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zh").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm9").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg===").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=A").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm=v").is_err());
+    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm9v!").is_err());
+}
+
 // ============================================================
 // 前缀/后缀/包含
 // ============================================================
