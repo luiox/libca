@@ -1,6 +1,7 @@
 ---
-version: 2.0
+version: 2.1
 update:
+2026-07-06 - 补充原子写入、目录拷贝、glob、元数据与权限的设计说明；更新错误模型为 FsError
 2026-06-18 - 重写为设计文档（API 移至头文件）；对齐 snake_case；修正过时表述
 2026-05-29 - 首版
 ---
@@ -17,7 +18,7 @@ update:
 设计原则：
 
 - **零开销抽象**：内部完全基于 `std::filesystem`，不做额外缓冲或拷贝，仅在接口层提供便利。
-- **错误模型统一**：可能失败的操作返回 `ca::Result<T, std::string>`；绝不会失败的纯查询直接返回裸值（见 §4.2）。
+- **错误模型统一**：可能失败且调用方需要原因的操作返回 `ca::Result<T, FsError>`；只关心成败的便捷操作返回裸 `bool` 或哨兵值（见 §4.2）。
 - **职责分层**：`PathUtil` 只做路径字符串运算、不碰文件系统；`FileUtil` 做文件/目录 IO。
 - **平台透明**：返回路径统一用 `/` 分隔符（`generic_string()`），Windows 盘符保留。
 - **字符串类型**：当前统一 `std::string`（UTF-8 语义），不用 `ca::str`。待 `ca::str` 定稿且有性能测试后再按一致性评估迁移。
@@ -36,16 +37,16 @@ libca/fs/
 └── xmake.lua
 ```
 
-依赖：`FileUtil` 内部用 `PathUtil`（路径拼接/归一化）与 `std::filesystem`；模块依赖 `libca_core`（`datatype.hpp`、`result.hpp`）。命名空间 `ca::fs`。
+依赖：`FileUtil` 内部用 `PathUtil`（路径拼接/归一化）与 `std::filesystem`；模块依赖 `libca_core`（`datatype.hpp`、`bytes.hpp`、`result.hpp`）。命名空间 `ca::fs`。
 
 ## 3. 接口概览（详细签名见头文件）
 
 - **PathUtil**（不碰文件系统、不抛异常）：`normalize` / `to_unix_separators` / `join` / `extension` / `stem` / `filename` / `parent` / `is_absolute` / `to_absolute` / `split`。
 - **FileUtil**（静态方法，按职责分组）：
-  - 读写：`read_all_bytes` / `read_all_text` / `write_bytes` / `write_text`
-  - 查询：`size` / `exists` / `is_file` / `is_directory` / `is_readable` / `is_writable`
-  - 遍历：`list_files` / `list_entries`
-  - 拷贝移动删除：`copy` / `move` / `remove` / `remove_all`
+  - 读写：`read_all_bytes` / `read_all_text` / `write_bytes` / `write_text` / `atomic_write_bytes` / `atomic_write_text` / `read_lines`
+  - 查询：`size` / `exists` / `is_file` / `is_directory` / `metadata` / `permissions` / `is_readable` / `is_writable`
+  - 遍历：`list_files` / `list_entries` / `glob`
+  - 拷贝移动删除：`copy` / `copy_dir` / `move` / `remove` / `remove_all`
   - 创建：`create_file` / `create_directories` / `create_temp_file` / `create_temp_directory`
   - 备份：`backup`
 - **FileMode** 写入模式位标志：`OVERWRITE` / `APPEND` / `CREATE_NEW`。
@@ -64,13 +65,45 @@ libca/fs/
 |---|---|---|
 | 纯查询（`exists`/`is_file`/`is_readable`…） | 裸 `bool` | 调用者只关心是/否，底层 OS 错误吞掉即可 |
 | 大小查询（`size`） | `i64`，失败 `-1` | 单一哨兵值足够表达失败 |
-| IO 操作（`read`/`write`/`copy`/`list`…） | `Result<T, std::string>` 或 `bool` | 用 `try-catch(std::exception)` 包裹，转成 Result/false，绝不向外抛异常 |
+| IO 操作（`read`/`write`/`copy_dir`/`list`…） | `Result<T, FsError>` 或 `bool` | 用 `try-catch(std::exception)` 包裹，转成 Result/false，绝不向外抛异常 |
 
 ### 4.3 写操作自动建父目录
 
 `write_bytes` / `write_text` / `create_file` 在目标父目录不存在时自动创建，省去调用方先 `create_directories` 的样板。
 
-### 4.4 与 Java FileUtil 的差异
+### 4.4 原子写入的失败语义
+
+`atomic_write_bytes` / `atomic_write_text` 采用“同目录临时文件 + rename 提交”的设计：
+
+1. 先在目标文件同目录生成临时文件，保证临时文件和目标位于同一文件系统。
+2. 内容完整写入临时文件后，使用 `std::filesystem::rename` 作为唯一提交点。
+3. 任何失败路径都只清理临时文件，不主动删除、截断或替换旧目标。
+
+这个语义适合配置、缓存、状态文件等“新内容写失败时旧内容必须继续可用”的场景。它不试图跨文件系统移动，也不提供多进程锁；需要锁语义时应由更高层组合文件锁或进程级同步。
+
+### 4.5 目录拷贝与符号链接
+
+`copy_dir` 手动递归遍历源目录，而不是直接把 `std::filesystem::copy` 暴露给调用方。这样可以统一错误模型，并明确符号链接策略：
+
+- 普通目录创建目录。
+- 普通文件调用 `copy_file`。
+- 符号链接复制链接本身，不跟随链接内容。
+- `overwrite=true` 时会先移除目标路径本身，因此 broken symlink 也能被正确替换。
+
+这个策略避免递归拷贝意外穿透符号链接目录，也更符合基础库“行为可预期”的目标。
+
+### 4.6 Glob 的遍历策略
+
+`glob` 先把模式归一化为 `/` 分隔，再转成正则匹配路径。遍历根目录由第一个通配符之前的稳定路径前缀决定。
+
+遍历分两类：
+
+- 模式只在文件名段使用 `*` / `?` 时，仅扫描根目录一层，例如 `dir/*.txt`。
+- 模式包含 `**` 或目录段通配时递归扫描，例如 `dir/**/*.txt`、`dir/*/config.json`。
+
+这样保留常用 glob 语义，同时避免简单模式在大型目录树上无意义地递归全量遍历。遍历时使用 `skip_permission_denied`，尽量让无权限子目录不影响其它匹配结果。
+
+### 4.7 与 Java FileUtil 的差异
 
 | Java | libca 设计 | 原因 |
 |---|---|---|
@@ -82,7 +115,7 @@ libca/fs/
 
 - 文件监控（`FileWatcher`）、文件锁（`FileLock`）
 - 临时文件/目录的 RAII 守卫（当前测试里自行实现了 `TempDirGuard`）
-- 文件属性精细读写（时间戳、权限位）
+- 文件属性写入（修改时间、权限位设置）
 
 ## 6. 测试策略
 

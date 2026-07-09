@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
 #include <fstream>
 
 #include "libca/fs/file_util.hpp"
@@ -199,6 +200,55 @@ TEST(FileUtilTest, WriteBytes_CreatesParentDirectories)
     EXPECT_TRUE(FileUtil::exists(filePath));
 }
 
+TEST(FileUtilTest, AtomicWriteText_ReplacesContent)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto filePath = tmp.make_path("atomic.txt");
+    ASSERT_TRUE(FileUtil::write_text(filePath, "old").is_ok());
+    ASSERT_TRUE(FileUtil::atomic_write_text(filePath, "new content").is_ok());
+
+    auto content = FileUtil::read_all_text(filePath);
+    ASSERT_TRUE(content.is_ok());
+    EXPECT_EQ(content.unwrap(), "new content");
+}
+
+TEST(FileUtilTest, AtomicWriteText_RenameFailurePreservesExistingTarget)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto dirPath = tmp.make_path("atomic_target_dir");
+    ASSERT_TRUE(FileUtil::create_directories(dirPath));
+
+    auto result = FileUtil::atomic_write_text(dirPath, "should not replace directory");
+    ASSERT_TRUE(result.is_err());
+    EXPECT_TRUE(FileUtil::is_directory(dirPath));
+
+    auto entries = FileUtil::list_entries(tmp.path());
+    ASSERT_TRUE(entries.is_ok());
+    for (const auto& entry : entries.unwrap()) {
+        EXPECT_THAT(entry, Not(HasSubstr("atomic_target_dir.tmp.")));
+    }
+}
+
+TEST(FileUtilTest, ReadLines_StripsLineEndings)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto filePath = tmp.make_path("lines.txt");
+    ASSERT_TRUE(FileUtil::write_text(filePath, "a\r\nb\nc").is_ok());
+
+    auto lines = FileUtil::read_lines(filePath);
+    ASSERT_TRUE(lines.is_ok());
+    ASSERT_EQ(lines.unwrap().size(), 3u);
+    EXPECT_EQ(lines.unwrap()[0], "a");
+    EXPECT_EQ(lines.unwrap()[1], "b");
+    EXPECT_EQ(lines.unwrap()[2], "c");
+}
+
 // ==================== getSize ====================
 
 TEST(FileUtilTest, GetSize)
@@ -263,6 +313,26 @@ TEST(FileUtilTest, IsDirectory)
 
     EXPECT_TRUE(FileUtil::is_directory(tmp.path()));
     EXPECT_FALSE(FileUtil::is_file(tmp.path()));
+}
+
+TEST(FileUtilTest, MetadataAndPermissions)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto filePath = tmp.make_path("meta.txt");
+    ASSERT_TRUE(FileUtil::write_text(filePath, "metadata").is_ok());
+
+    auto meta = FileUtil::metadata(filePath);
+    ASSERT_TRUE(meta.is_ok());
+    EXPECT_TRUE(meta.unwrap().exists);
+    EXPECT_TRUE(meta.unwrap().is_file);
+    EXPECT_FALSE(meta.unwrap().is_directory);
+    EXPECT_EQ(meta.unwrap().size, 8);
+
+    auto perms = FileUtil::permissions(filePath);
+    ASSERT_TRUE(perms.is_ok());
+    EXPECT_NE(perms.unwrap(), std::filesystem::perms::none);
 }
 
 // ==================== listFiles / listEntries ====================
@@ -348,6 +418,92 @@ TEST(FileUtilTest, Copy_Directory)
 
     EXPECT_TRUE(FileUtil::copy(srcDir, dstDir));
     EXPECT_TRUE(FileUtil::is_directory(dstDir));
+}
+
+TEST(FileUtilTest, CopyDir_Recursive)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto srcDir = tmp.make_path("copy_src");
+    auto dstDir = tmp.make_path("copy_dst");
+    ASSERT_TRUE(FileUtil::create_directories(srcDir));
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("copy_src/a.txt"), "a").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("copy_src/nested/b.txt"), "b").is_ok());
+
+    auto copied = FileUtil::copy_dir(srcDir, dstDir);
+    ASSERT_TRUE(copied.is_ok());
+
+    auto a = FileUtil::read_all_text(tmp.make_path("copy_dst/a.txt"));
+    auto b = FileUtil::read_all_text(tmp.make_path("copy_dst/nested/b.txt"));
+    ASSERT_TRUE(a.is_ok());
+    ASSERT_TRUE(b.is_ok());
+    EXPECT_EQ(a.unwrap(), "a");
+    EXPECT_EQ(b.unwrap(), "b");
+}
+
+TEST(FileUtilTest, CopyDir_OverwritesBrokenSymlinkTargetWhenSupported)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto srcDir = std::filesystem::path(tmp.make_path("copy_symlink_src"));
+    auto dstDir = std::filesystem::path(tmp.make_path("copy_symlink_dst"));
+    ASSERT_TRUE(FileUtil::create_directories(srcDir.generic_string()));
+    ASSERT_TRUE(FileUtil::create_directories(dstDir.generic_string()));
+
+    auto srcLink = srcDir / "link.txt";
+    std::error_code ec;
+    std::filesystem::create_symlink("target.txt", srcLink, ec);
+    if (ec) {
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    auto dstLink = dstDir / "link.txt";
+    std::filesystem::create_symlink("missing.txt", dstLink, ec);
+    if (ec) {
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    auto copied = FileUtil::copy_dir(srcDir.generic_string(), dstDir.generic_string(), true);
+    ASSERT_TRUE(copied.is_ok()) << to_string(copied.unwrap_err());
+    EXPECT_TRUE(std::filesystem::is_symlink(dstLink));
+    EXPECT_EQ(std::filesystem::read_symlink(dstLink).generic_string(), "target.txt");
+}
+
+TEST(FileUtilTest, Glob_StarAndRecursive)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("a.txt"), "a").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("b.log"), "b").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("nested/c.txt"), "c").is_ok());
+
+    auto flat = FileUtil::glob(PathUtil::join(tmp.path(), "*.txt"));
+    ASSERT_TRUE(flat.is_ok());
+    ASSERT_EQ(flat.unwrap().size(), 1u);
+    EXPECT_THAT(flat.unwrap()[0], HasSubstr("a.txt"));
+
+    auto recursive = FileUtil::glob(PathUtil::join(tmp.path(), "**/*.txt"));
+    ASSERT_TRUE(recursive.is_ok());
+    ASSERT_EQ(recursive.unwrap().size(), 2u);
+    EXPECT_THAT(recursive.unwrap()[0], HasSubstr("a.txt"));
+    EXPECT_THAT(recursive.unwrap()[1], HasSubstr("nested/c.txt"));
+}
+
+TEST(FileUtilTest, Glob_DirectoryWildcardUsesRecursiveWalk)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("nested/c.txt"), "c").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("other/d.txt"), "d").is_ok());
+
+    auto matched = FileUtil::glob(PathUtil::join(tmp.path(), "*/c.txt"));
+    ASSERT_TRUE(matched.is_ok()) << to_string(matched.unwrap_err());
+    ASSERT_EQ(matched.unwrap().size(), 1u);
+    EXPECT_THAT(matched.unwrap()[0], HasSubstr("nested/c.txt"));
 }
 
 // ==================== move ====================
