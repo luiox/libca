@@ -8,6 +8,7 @@
 
 #include "utf8_util.hpp"
 #include "utf8_string.hpp"
+#include "utf16_string.hpp"
 #include "cstring.hpp"
 #include "wstring.hpp"
 #include "char_util.hpp"

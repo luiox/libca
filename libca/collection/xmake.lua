@@ -6,11 +6,13 @@ target("libca_collection")
     set_group("libs")
     add_headerfiles("src/libca/collection/*.hpp")
     add_includedirs("src", {public = true})
+    add_deps("libca_core")
 
 if has_config("with_tests") then
 target("libca_collection_unittest")
     set_kind("binary")
     set_group("libs/test")
+    add_deps("libca_collection")
     add_packages("gtest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")

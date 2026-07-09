@@ -8,5 +8,8 @@
 
 #pragma once
 
+#include "array_list.hpp"
+#include "hash_map.hpp"
+#include "hash_set.hpp"
 #include "stream.hpp"
 #include "immutable_list.hpp"
