@@ -104,6 +104,12 @@
 | `compare(other) -> int` | 逐字节字典序 |
 | `equals(other) -> bool` | 内容相等 |
 | `operator==` / `operator!=` | 支持 `Utf8String` / `Utf8StringRef` 互相比较 |
+| `operator<` / `operator>` / `operator<=` / `operator>=` | 按 UTF-8 字节字典序排序 |
+
+比较运算符以 `Utf8StringRef` 作为公共视图层：排序重载定义为非成员函数，
+`Utf8String` 通过隐式构造为 `Utf8StringRef` 参与比较。这样 `Utf8String`、
+`Utf8StringRef` 和 `const char*` 的常用组合都能复用同一组视图比较逻辑，避免在拥有型
+字符串和视图类型上重复展开成员排序重载。
 
 ### 转换
 

@@ -198,7 +198,6 @@ bool Utf8StringRef::operator!=(const char* cstr) const noexcept {
     return !equals(cstr);
 }
 
-
 // ============================================================================
 // Utf8String
 // ============================================================================
@@ -522,7 +521,6 @@ bool Utf8String::operator!=(const char* cstr) const noexcept {
     return !ref().equals(cstr);
 }
 
-
 // ============================================================================
 // Utf8StringRef — 新增操作
 // ============================================================================
@@ -752,12 +750,61 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
 }
 
+// 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。
+bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+    return lhs.compare(rhs) < 0;
+}
+
+bool operator>(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+    return lhs.compare(rhs) > 0;
+}
+
+bool operator<=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+    return lhs.compare(rhs) <= 0;
+}
+
+bool operator>=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+    return lhs.compare(rhs) >= 0;
+}
+
+bool operator<(const Utf8StringRef& lhs, const char* rhs) noexcept {
+    return lhs.compare(rhs) < 0;
+}
+
+bool operator>(const Utf8StringRef& lhs, const char* rhs) noexcept {
+    return lhs.compare(rhs) > 0;
+}
+
+bool operator<=(const Utf8StringRef& lhs, const char* rhs) noexcept {
+    return lhs.compare(rhs) <= 0;
+}
+
+bool operator>=(const Utf8StringRef& lhs, const char* rhs) noexcept {
+    return lhs.compare(rhs) >= 0;
+}
+
 bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return rhs.equals(lhs);
 }
 
 bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept {
     return !rhs.equals(lhs);
+}
+
+bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) > 0;
+}
+
+bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) < 0;
+}
+
+bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) >= 0;
+}
+
+bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs.compare(lhs) <= 0;
 }
 
 bool operator==(const char* lhs, const Utf8String& rhs) noexcept {

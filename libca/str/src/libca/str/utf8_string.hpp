@@ -396,11 +396,41 @@ private:
 // 非成员比较运算符（对称比较）
 // ============================================================================
 
+/// @brief 提供 `Utf8StringRef == Utf8String` 的对称相等比较。
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+/// @brief 提供 `Utf8StringRef != Utf8String` 的对称不等比较。
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。
+bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。
+bool operator>(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。
+bool operator<=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。
+bool operator>=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较视图和 C 字符串；空指针按空串处理。
+bool operator<(const Utf8StringRef& lhs, const char* rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较视图和 C 字符串；空指针按空串处理。
+bool operator>(const Utf8StringRef& lhs, const char* rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较视图和 C 字符串；空指针按空串处理。
+bool operator<=(const Utf8StringRef& lhs, const char* rhs) noexcept;
+/// @brief 按 UTF-8 字节字典序比较视图和 C 字符串；空指针按空串处理。
+bool operator>=(const Utf8StringRef& lhs, const char* rhs) noexcept;
+/// @brief 提供 `const char* == Utf8StringRef` 的对称相等比较；空指针按空串处理。
 bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* != Utf8StringRef` 的对称不等比较；空指针按空串处理。
 bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* < Utf8StringRef` 的对称字典序比较；空指针按空串处理。
+bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* > Utf8StringRef` 的对称字典序比较；空指针按空串处理。
+bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* <= Utf8StringRef` 的对称字典序比较；空指针按空串处理。
+bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* >= Utf8StringRef` 的对称字典序比较；空指针按空串处理。
+bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `const char* == Utf8String` 的对称相等比较；空指针按空串处理。
 bool operator==(const char* lhs, const Utf8String& rhs) noexcept;
+/// @brief 提供 `const char* != Utf8String` 的对称不等比较；空指针按空串处理。
 bool operator!=(const char* lhs, const Utf8String& rhs) noexcept;
 bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
