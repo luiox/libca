@@ -40,6 +40,15 @@ Command child_command(const char* mode)
     return command;
 }
 
+u64 current_process_id()
+{
+#if defined(_WIN32)
+    return static_cast<u64>(GetCurrentProcessId());
+#else
+    return static_cast<u64>(getpid());
+#endif
+}
+
 TEST(CommandTest, OutputCapturesBothStreams)
 {
     auto command = child_command("--subprocess-success");
@@ -117,10 +126,9 @@ TEST(AnonymousPipeTest, TransfersDataAndSignalsEndOfStream)
     EXPECT_EQ(data.unwrap(), "hello");
 }
 
-#if defined(_WIN32)
 TEST(SharedMemoryTest, CreateAndOpenShareMappedBytes)
 {
-    const std::string name    = "libca_process_shm_" + std::to_string(GetCurrentProcessId());
+    const std::string name    = "libca_process_shm_" + std::to_string(current_process_id());
     auto              created = ipc::SharedMemory::create(name, 64);
     ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
     auto created_memory = std::move(created).unwrap();
@@ -134,7 +142,7 @@ TEST(SharedMemoryTest, CreateAndOpenShareMappedBytes)
 
 TEST(NamedPipeTest, ServerAndClientExchangeBytes)
 {
-    const std::string name   = "libca_process_pipe_" + std::to_string(GetCurrentProcessId());
+    const std::string name   = "libca_process_pipe_" + std::to_string(current_process_id());
     auto              server = ipc::NamedPipeServer::create(name);
     ASSERT_TRUE(server.is_ok()) << server.unwrap_err().to_string();
 
@@ -153,7 +161,38 @@ TEST(NamedPipeTest, ServerAndClientExchangeBytes)
     EXPECT_EQ(std::string(buffer, count.unwrap()), "pong");
     worker.join();
 }
-#endif
 
+TEST(NamedSemaphoreTest, ReleaseMakesTimedAcquireSucceed)
+{
+    const std::string name      = "libca_process_sem_" + std::to_string(current_process_id());
+    auto              semaphore = ipc::NamedSemaphore::create(name, 0);
+    ASSERT_TRUE(semaphore.is_ok()) << semaphore.unwrap_err().to_string();
+    auto value = std::move(semaphore).unwrap();
+
+    auto pending = value.try_acquire_for(std::chrono::milliseconds(1));
+    ASSERT_TRUE(pending.is_ok()) << pending.unwrap_err().to_string();
+    EXPECT_FALSE(pending.unwrap());
+    ASSERT_TRUE(value.release().is_ok());
+    auto acquired = value.try_acquire_for(std::chrono::milliseconds(50));
+    ASSERT_TRUE(acquired.is_ok()) << acquired.unwrap_err().to_string();
+    EXPECT_TRUE(acquired.unwrap());
+}
+
+TEST(MessageQueueTest, SenderDeliversOneWholeMessage)
+{
+    const std::string name     = "libca_process_mq_" + std::to_string(current_process_id());
+    auto              receiver = ipc::MessageQueue::create(name, 64);
+    ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
+    auto sender = ipc::MessageQueue::open(name);
+    ASSERT_TRUE(sender.is_ok()) << sender.unwrap_err().to_string();
+
+    auto receiver_value = std::move(receiver).unwrap();
+    auto sender_value   = std::move(sender).unwrap();
+    ASSERT_TRUE(sender_value.send("message").is_ok());
+    auto received = receiver_value.receive_for(std::chrono::milliseconds(50));
+    ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
+    ASSERT_TRUE(received.unwrap().has_value());
+    EXPECT_EQ(*received.unwrap(), "message");
+}
 }   // namespace
 }   // namespace ca::process::test

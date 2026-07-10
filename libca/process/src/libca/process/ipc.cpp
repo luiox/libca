@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <thread>
 #include <utility>
 
 #if defined(_WIN32)
@@ -12,11 +13,13 @@
 #    include <cerrno>
 #    include <cstring>
 #    include <fcntl.h>
+#    include <mqueue.h>
 #    include <sys/mman.h>
 #    include <semaphore.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
 #    include <sys/un.h>
+#    include <time.h>
 #    include <unistd.h>
 #endif
 
@@ -76,6 +79,14 @@ StatusResult<std::wstring> pipe_name(const std::string& name)
     if (value.compare(0, prefix.size(), prefix) != 0)
         value = prefix + value;
     return Ok(std::move(value));
+}
+
+StatusResult<std::wstring> mailslot_name(const std::string& name)
+{
+    auto converted = utf8_to_utf16(name);
+    if (converted.is_err())
+        return Err(converted.unwrap_err());
+    return Ok(std::wstring(L"\\\\.\\mailslot\\") + std::move(converted).unwrap());
 }
 #endif
 
@@ -617,7 +628,19 @@ StatusResult<bool> NamedSemaphore::try_acquire_for(std::chrono::milliseconds tim
         return Ok(false);
     return Err(windows_error("WaitForSingleObject"));
 #else
-    return Err(ErrStatus(StatusCode::UNIMPLEMENTED, "timed semaphore wait is pending"));
+    timespec deadline{};
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    const i64 nanoseconds = static_cast<i64>(deadline.tv_nsec) + timeout.count() * 1000000;
+    deadline.tv_sec += nanoseconds / 1000000000;
+    deadline.tv_nsec = nanoseconds % 1000000000;
+    while (sem_timedwait(reinterpret_cast<sem_t*>(native_handle_), &deadline) != 0) {
+        if (errno == EINTR)
+            continue;
+        if (errno == ETIMEDOUT)
+            return Ok(false);
+        return Err(posix_error("sem_timedwait"));
+    }
+    return Ok(true);
 #endif
 }
 
@@ -634,6 +657,209 @@ Status NamedSemaphore::release(u32 count)
         if (sem_post(reinterpret_cast<sem_t*>(native_handle_)) != 0)
             return posix_error("sem_post");
     return OkStatus();
+#endif
+}
+
+MessageQueue::MessageQueue(std::intptr_t native_handle, usize max_message_size,
+                           bool receiver) noexcept
+    : native_handle_(native_handle)
+    , max_message_size_(max_message_size)
+    , receiver_(receiver)
+{}
+MessageQueue::~MessageQueue()
+{
+    close();
+}
+MessageQueue::MessageQueue(MessageQueue&& other) noexcept
+    : native_handle_(other.native_handle_)
+    , max_message_size_(other.max_message_size_)
+    , receiver_(other.receiver_)
+{
+    other.native_handle_    = -1;
+    other.max_message_size_ = 0;
+    other.receiver_         = false;
+}
+MessageQueue& MessageQueue::operator=(MessageQueue&& other) noexcept
+{
+    if (this != &other) {
+        close();
+        native_handle_          = other.native_handle_;
+        max_message_size_       = other.max_message_size_;
+        receiver_               = other.receiver_;
+        other.native_handle_    = -1;
+        other.max_message_size_ = 0;
+        other.receiver_         = false;
+    }
+    return *this;
+}
+void MessageQueue::close() noexcept
+{
+    if (native_handle_ == -1)
+        return;
+#if defined(_WIN32)
+    CloseHandle(to_handle(native_handle_));
+#else
+    mq_close(static_cast<mqd_t>(native_handle_));
+#endif
+    native_handle_    = -1;
+    max_message_size_ = 0;
+    receiver_         = false;
+}
+
+StatusResult<MessageQueue> MessageQueue::create(const std::string& name, usize max_message_size)
+{
+    if (max_message_size == 0)
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "message size must be nonzero"));
+#if defined(_WIN32)
+    auto path = mailslot_name(name);
+    if (path.is_err())
+        return Err(path.unwrap_err());
+    HANDLE handle = CreateMailslotW(
+        std::move(path).unwrap().c_str(), static_cast<DWORD>(max_message_size), 0, nullptr);
+    if (handle == INVALID_HANDLE_VALUE)
+        return Err(windows_error("CreateMailslotW"));
+    return Ok(MessageQueue(to_native(handle), max_message_size, true));
+#else
+    auto path = posix_shared_memory_name(name);
+    if (path.is_err())
+        return Err(path.unwrap_err());
+    mq_attr attributes{};
+    attributes.mq_maxmsg  = 10;
+    attributes.mq_msgsize = static_cast<long>(max_message_size);
+    const mqd_t handle =
+        mq_open(std::move(path).unwrap().c_str(), O_CREAT | O_EXCL | O_RDWR, 0600, &attributes);
+    if (handle == static_cast<mqd_t>(-1))
+        return Err(errno == EEXIST
+                       ? ErrStatus(StatusCode::ALREADY_EXISTS, "message queue already exists")
+                       : posix_error("mq_open"));
+    return Ok(MessageQueue(static_cast<std::intptr_t>(handle), max_message_size, true));
+#endif
+}
+
+StatusResult<MessageQueue> MessageQueue::open(const std::string& name)
+{
+#if defined(_WIN32)
+    auto path = mailslot_name(name);
+    if (path.is_err())
+        return Err(path.unwrap_err());
+    HANDLE handle = CreateFileW(std::move(path).unwrap().c_str(),
+                                GENERIC_WRITE,
+                                FILE_SHARE_READ,
+                                nullptr,
+                                OPEN_EXISTING,
+                                0,
+                                nullptr);
+    if (handle == INVALID_HANDLE_VALUE)
+        return Err(windows_error("CreateFileW"));
+    return Ok(MessageQueue(to_native(handle), 0, false));
+#else
+    auto path = posix_shared_memory_name(name);
+    if (path.is_err())
+        return Err(path.unwrap_err());
+    const mqd_t handle = mq_open(std::move(path).unwrap().c_str(), O_RDWR);
+    if (handle == static_cast<mqd_t>(-1))
+        return Err(errno == ENOENT ? ErrStatus(StatusCode::NOT_FOUND, "message queue not found")
+                                   : posix_error("mq_open"));
+    mq_attr attributes{};
+    if (mq_getattr(handle, &attributes) != 0) {
+        const auto error = posix_error("mq_getattr");
+        mq_close(handle);
+        return Err(error);
+    }
+    return Ok(MessageQueue(
+        static_cast<std::intptr_t>(handle), static_cast<usize>(attributes.mq_msgsize), true));
+#endif
+}
+
+Status MessageQueue::send(const void* data, usize length)
+{
+    if (native_handle_ == -1)
+        return ErrStatus(StatusCode::FAILED_PRECONDITION, "send on a closed message queue");
+#if defined(_WIN32)
+    DWORD count = 0;
+    if (!WriteFile(to_handle(native_handle_), data, static_cast<DWORD>(length), &count, nullptr) ||
+        count != length)
+        return windows_error("WriteFile");
+    return OkStatus();
+#else
+    if (length > max_message_size_)
+        return ErrStatus(StatusCode::OUT_OF_RANGE, "message exceeds queue capacity");
+    return mq_send(static_cast<mqd_t>(native_handle_), static_cast<const char*>(data), length, 0) ==
+                   0
+               ? OkStatus()
+               : posix_error("mq_send");
+#endif
+}
+Status MessageQueue::send(const std::string& data)
+{
+    return send(data.data(), data.size());
+}
+
+StatusResult<std::string> MessageQueue::receive()
+{
+    if (native_handle_ == -1 || !receiver_)
+        return Err(
+            ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
+#if defined(_WIN32)
+    DWORD next_size = 0;
+    if (!GetMailslotInfo(to_handle(native_handle_), nullptr, &next_size, nullptr, nullptr))
+        return Err(windows_error("GetMailslotInfo"));
+    if (next_size == MAILSLOT_NO_MESSAGE)
+        return Err(ErrStatus(StatusCode::UNAVAILABLE, "message queue is empty"));
+    std::string result(next_size, '\0');
+    DWORD       count = 0;
+    if (!ReadFile(to_handle(native_handle_), &result[0], next_size, &count, nullptr))
+        return Err(windows_error("ReadFile"));
+    result.resize(count);
+    return Ok(std::move(result));
+#else
+    std::string   result(max_message_size_, '\0');
+    const ssize_t count =
+        mq_receive(static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr);
+    if (count < 0)
+        return Err(posix_error("mq_receive"));
+    result.resize(static_cast<usize>(count));
+    return Ok(std::move(result));
+#endif
+}
+
+StatusResult<std::optional<std::string>> MessageQueue::receive_for(
+    std::chrono::milliseconds timeout)
+{
+    if (native_handle_ == -1 || !receiver_)
+        return Err(
+            ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
+#if defined(_WIN32)
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    do {
+        DWORD next_size = 0;
+        if (!GetMailslotInfo(to_handle(native_handle_), nullptr, &next_size, nullptr, nullptr))
+            return Err(windows_error("GetMailslotInfo"));
+        if (next_size != MAILSLOT_NO_MESSAGE) {
+            auto value = receive();
+            if (value.is_err())
+                return Err(value.unwrap_err());
+            return Ok(std::optional<std::string>(std::move(value).unwrap()));
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    } while (std::chrono::steady_clock::now() < deadline);
+    return Ok(std::optional<std::string>{});
+#else
+    timespec deadline{};
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    const i64 ns = static_cast<i64>(deadline.tv_nsec) + timeout.count() * 1000000;
+    deadline.tv_sec += ns / 1000000000;
+    deadline.tv_nsec = ns % 1000000000;
+    std::string   result(max_message_size_, '\0');
+    const ssize_t count = mq_timedreceive(
+        static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr, &deadline);
+    if (count < 0) {
+        if (errno == ETIMEDOUT)
+            return Ok(std::optional<std::string>{});
+        return Err(posix_error("mq_timedreceive"));
+    }
+    result.resize(static_cast<usize>(count));
+    return Ok(std::optional<std::string>(std::move(result)));
 #endif
 }
 

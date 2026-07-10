@@ -205,13 +205,14 @@ silently removes an object opened by another process.
 | Child termination | `TerminateProcess` | process group `SIGKILL`, then `waitpid` |
 | Named pipe | `CreateNamedPipeW` | `AF_UNIX` stream socket |
 | Shared memory | `CreateFileMappingW` / `MapViewOfFile` | `shm_open` / `mmap` |
-| Message queue | shared-memory ring plus named semaphores | POSIX `mq_open` |
+| Message queue | named mailslot | POSIX `mq_open` |
 | Named semaphore | `CreateSemaphoreW` | `sem_open` |
 
-Windows message queues use a fixed-size framed ring stored in `SharedMemory`
-and synchronized by two `NamedSemaphore` objects and one named mutex. Linux
-uses POSIX message queues directly. Both reject sends larger than
-`max_message_size` and preserve whole-message boundaries.
+Windows message queues use named mailslots; the creator owns the receiving end
+and opened handles are send-only. Linux uses POSIX message queues directly.
+Both preserve whole-message boundaries. Linux rejects sends larger than
+`max_message_size`; Windows delegates that bound to the mailslot configured by
+the creator.
 
 ## Error, Timeout, and Test Semantics
 
