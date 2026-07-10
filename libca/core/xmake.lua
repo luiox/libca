@@ -6,7 +6,12 @@ target("libca_core")
     set_group("libs")
     add_headerfiles("src/libca/core/*.hpp")
     add_files("src/libca/core/bytes.cpp")
+    add_files("src/libca/core/dynamic_library.cpp")
     add_includedirs("src", {public = true})
+
+    if is_plat("linux") then
+        add_syslinks("dl")
+    end
 
 if has_config("with_tests") then
 target("libca_core_unittest")
