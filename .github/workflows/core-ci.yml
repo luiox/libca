@@ -1,6 +1,6 @@
 # libca Core CI（Linux，不含 libca.em）
 #
-# 范围：新 core 子库（libca/{core,str,fs,crypto,time,collection,process,thread}）+ 其 unittest。
+# 范围：新 core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io}）+ 其 unittest。
 # 不编译 libca.em（嵌入式模拟层）。
 #
 # 历史背景：此前本文件的 path filter 写成 libca.core/**（带点，指老 core 目录），
@@ -79,10 +79,10 @@ jobs:
           set -e
           TARGETS=(
             libca_core libca_str libca_fs libca_crypto libca_time libca_collection libca_process
-            libca_thread
+            libca_thread libca_io
             libca_core_unittest libca_str_unittest libca_fs_unittest
             libca_crypto_unittest libca_time_unittest libca_collection_unittest
-            libca_process_unittest libca_thread_unittest
+            libca_process_unittest libca_thread_unittest libca_io_unittest
           )
           for t in "${TARGETS[@]}"; do
             echo "::group::xmake build $t"
@@ -102,6 +102,7 @@ jobs:
             libca_collection_unittest
             libca_process_unittest
             libca_thread_unittest
+            libca_io_unittest
           )
           failed=0
           for t in "${TESTS[@]}"; do
