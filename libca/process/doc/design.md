@@ -1,226 +1,100 @@
-# libca process and IPC design
+# libca process design
 
-## Scope
+## Goal
 
-`libca_process` is a cross-platform process lifecycle and IPC library. It has
-two layers:
+`libca_process` provides cross-platform child-process control and the IPC
+resources needed to communicate with a child or an unrelated process. It is a
+separate library, like `libca_fs`, and depends only on `libca_core`.
 
-1. `ca::process` follows the ownership and builder model of Rust
-   `std::process`: build a command, spawn a child, then interact with its
-   standard streams and lifecycle.
-2. `ca::process::ipc` provides independently usable anonymous pipes, named
-   pipes, shared memory, message queues, and named semaphores. These are not
-   hidden implementation details of a one-shot launcher.
-
-The library supports Windows and Linux. Public types use `CamelCase`; methods
-and fields use `snake_case`.
+The public API follows the ownership shape of Rust `std::process`: configure a
+reusable `Command`, call `spawn()` to obtain a move-only `Child`, then own its
+standard-stream endpoints and lifecycle explicitly. Public types use
+`CamelCase`; methods and fields use `snake_case`.
 
 ## Process API
 
 ```cpp
-namespace ca::process {
+Command command("program");
+command.arg("--flag").stdin(Stdio::piped()).stdout(Stdio::piped());
 
-class Stdio {
-public:
-    static Stdio inherit();
-    static Stdio null();
-    static Stdio piped();
-};
-
-class Command {
-public:
-    explicit Command(std::string program);
-
-    Command& arg(std::string value);
-    Command& args(std::vector<std::string> values);
-    Command& current_dir(std::string path);
-    Command& env(std::string key, std::string value);
-    Command& env_remove(std::string key);
-    Command& env_clear();
-    Command& stdin(Stdio stdio);
-    Command& stdout(Stdio stdio);
-    Command& stderr(Stdio stdio);
-
-    StatusResult<Child> spawn() const;
-    StatusResult<ExitStatus> status() const;
-    StatusResult<Output> output() const;
-};
-
-class Child {
-public:
-    Child(Child&&) noexcept;
-    Child& operator=(Child&&) noexcept;
-    ~Child();
-
-    u64 id() const noexcept;
-    StatusResult<std::optional<ExitStatus>> try_wait();
-    StatusResult<ExitStatus> wait();
-    StatusResult<std::optional<ExitStatus>> wait_for(std::chrono::milliseconds timeout);
-    Status kill();
-
-    std::optional<ChildStdin> take_stdin();
-    std::optional<ChildStdout> take_stdout();
-    std::optional<ChildStderr> take_stderr();
-    StatusResult<Output> wait_with_output();
-};
-
-struct ExitStatus {
-    i32 code = -1;
-    bool success() const noexcept;
-};
-
-struct Output {
-    ExitStatus status;
-    std::string stdout_data;
-    std::string stderr_data;
-};
-
-} // namespace ca::process
-```
-
-`Command` is reusable. Its defaults match Rust: `spawn()` and `status()`
-inherit standard streams, while `output()` overrides stdout and stderr to
-`Stdio::piped()` and closes stdin before waiting.
-
-`Child` is move-only. Its destructor does not silently kill a running child;
-it releases only native handles. Callers that need containment must call
-`kill()` followed by `wait()`. `kill()` terminates the child process group on
-Linux and the child on Windows. The returned stream ownership is explicit:
-`take_stdout()` moves the read end out of `Child`, so it cannot be read twice.
-
-`wait_with_output()` takes the remaining stdout and stderr streams and drains
-them concurrently before returning. This is the safe convenience API for
-commands that can fill pipe buffers. Interactive callers use `take_stdin()`,
-`take_stdout()`, and `take_stderr()` and are responsible for concurrent
-draining when both output streams can be active.
-
-Example:
-
-```cpp
-Command command("ls");
-command.arg("-l").stdout(Stdio::piped()).stderr(Stdio::piped());
 auto child = std::move(command.spawn().unwrap());
+auto input = child.take_stdin();
+input->write_all("request\\n");
+input->close();
 auto output = child.wait_with_output();
 ```
 
-## Anonymous Pipe API
+`Command` owns the executable, arguments, optional current directory, and the
+three `Stdio` configurations. `arg()` appends one exact argument; no shell is
+started and no command-line string is parsed by a shell. A `Command` can be
+used for multiple `spawn()`, `status()`, or `output()` calls.
 
-```cpp
-namespace ca::process::ipc {
+`Stdio::inherit()` is the default. `Stdio::null()` attaches the platform null
+device. `Stdio::piped()` creates an anonymous pipe and makes the parent end
+available through `ChildStdin`, `ChildStdout`, or `ChildStderr`.
 
-class PipeReader {
-public:
-    StatusResult<usize> read(void* buffer, usize capacity);
-    StatusResult<std::string> read_to_end();
-    void close() noexcept;
-};
+`Child` is move-only. `try_wait()` returns an empty optional while the child
+is running; `wait()` reaps it; `wait_for()` returns an empty optional after a
+deadline without killing it. `kill()` terminates the child, and callers then
+call `wait()` to reap it. Destruction closes owned endpoints and native handles
+but does not kill a running child. On Linux, the process is launched in a new
+process group, so `kill()` targets the group. On Windows it targets the child
+process handle.
 
-class PipeWriter {
-public:
-    Status write_all(const void* data, usize length);
-    Status write_all(const std::string& data);
-    void close() noexcept;
-};
+`wait_with_output()` closes any owned stdin and concurrently drains the owned
+stdout and stderr pipes before returning. This avoids a deadlock when a child
+writes enough data to fill either pipe. Interactive users that take both read
+ends must drain them concurrently themselves.
 
-struct AnonymousPipe {
-    PipeReader reader;
-    PipeWriter writer;
-};
+`ExitStatus::code` holds a normal exit code or a platform-derived termination
+code. A nonzero exit code is valid process data, not a `Status` error.
+Operational failures return `StatusResult<T>` or `Status`.
 
-StatusResult<AnonymousPipe> create_anonymous_pipe();
+## IPC API
 
-} // namespace ca::process::ipc
-```
+`ipc::PipeReader` and `ipc::PipeWriter` are move-only anonymous-pipe
+endpoints. `read_to_end()` reads until the last writer closes; `write_all()`
+retries partial writes. These same endpoint types back the standard streams.
 
-`ChildStdin`, `ChildStdout`, and `ChildStderr` are directional wrappers around
-these move-only endpoints. Standard-stream pipes are therefore ordinary IPC
-resources, not an implementation-private `std::string` collector.
+The independent named resources are also move-only:
 
-## Named IPC API
-
-```cpp
-namespace ca::process::ipc {
-
-class NamedPipeServer {
-public:
-    static StatusResult<NamedPipeServer> create(const std::string& name);
-    StatusResult<NamedPipeConnection> accept();
-};
-
-class NamedPipeClient {
-public:
-    static StatusResult<NamedPipeConnection> connect(const std::string& name);
-};
-
-class NamedPipeConnection {
-public:
-    StatusResult<usize> read(void* buffer, usize capacity);
-    Status write_all(const void* data, usize length);
-    void close() noexcept;
-};
-
-class SharedMemory {
-public:
-    static StatusResult<SharedMemory> create(const std::string& name, usize size);
-    static StatusResult<SharedMemory> open(const std::string& name);
-    void* data() noexcept;
-    const void* data() const noexcept;
-    usize size() const noexcept;
-    void close() noexcept;
-};
-
-class MessageQueue {
-public:
-    static StatusResult<MessageQueue> create(const std::string& name, usize max_message_size);
-    static StatusResult<MessageQueue> open(const std::string& name);
-    Status send(const void* data, usize length);
-    StatusResult<std::string> receive();
-    StatusResult<std::optional<std::string>> receive_for(
-        std::chrono::milliseconds timeout);
-    void close() noexcept;
-};
-
-class NamedSemaphore {
-public:
-    static StatusResult<NamedSemaphore> create(const std::string& name, u32 initial_count);
-    static StatusResult<NamedSemaphore> open(const std::string& name);
-    Status acquire();
-    StatusResult<bool> try_acquire_for(std::chrono::milliseconds timeout);
-    Status release(u32 count = 1);
-    void close() noexcept;
-};
-
-} // namespace ca::process::ipc
-```
-
-All named resources are move-only. `close()` releases only the local handle;
-creation/unlink policy is explicit in the platform implementation and never
-silently removes an object opened by another process.
-
-## Platform Mapping
-
-| Primitive | Windows | Linux |
+| API | Windows | Linux |
 | --- | --- | --- |
-| Child and standard pipes | `CreateProcessW`, `CreatePipe`, `ReadFile`, `WriteFile` | `fork`, `execve`, `pipe`, `read`, `write` |
-| Child termination | `TerminateProcess` | process group `SIGKILL`, then `waitpid` |
-| Named pipe | `CreateNamedPipeW` | `AF_UNIX` stream socket |
-| Shared memory | `CreateFileMappingW` / `MapViewOfFile` | `shm_open` / `mmap` |
-| Message queue | shared-memory ring plus named semaphores | POSIX `mq_open` |
-| Named semaphore | `CreateSemaphoreW` | `sem_open` |
+| `NamedPipeServer` / `NamedPipeClient` | Win32 named pipe | Unix-domain stream socket |
+| `SharedMemory` | file mapping and view | `shm_open` and `mmap` |
+| `NamedSemaphore` | named semaphore handle | `sem_open` |
+| `MessageQueue` | mailslot receiver/sender | POSIX message queue |
 
-Windows message queues use a fixed-size framed ring stored in `SharedMemory`
-and synchronized by two `NamedSemaphore` objects and one named mutex. Linux
-uses POSIX message queues directly. Both reject sends larger than
-`max_message_size` and preserve whole-message boundaries.
+All named resource names are simple tokens. The implementation supplies its
+own platform namespace prefix, preventing callers from injecting a filesystem
+path or a Win32 namespace path. `create()` fails with `ALREADY_EXISTS`; `open()`
+fails with `NOT_FOUND` when the resource is absent. `close()` releases only
+the local handle or mapping. It never removes a name that another process may
+still be using.
 
-## Error, Timeout, and Test Semantics
+Message queues preserve one-message boundaries. On Windows they are
+intentionally one-way: `create()` returns the receiver and `open()` returns a
+sender. On Linux an opened queue can send and receive. A message larger than
+the configured maximum is rejected. `receive_for()` returns an empty optional
+on timeout, allowing callers to distinguish it from operational failure.
 
-All fallible operations return existing `StatusResult<T>` or `Status`; process
-nonzero exit remains data in `ExitStatus`, not an API error. `NOT_FOUND`,
-`ALREADY_EXISTS`, `PERMISSION_DENIED`, `RESOURCE_EXHAUSTED`, `DEADLINE_EXCEEDED`
-and `INTERNAL` map platform diagnostics to stable error classes.
+## Error and Platform Rules
 
-Tests must cover command reuse, argument boundaries, interactive stdin/stdout,
-separate stderr draining, nonzero status, timeout/kill/reap, and each IPC
-resource's create/open/read-write/close path. Linux-only and Windows-only
-coverage is separated where native semantics differ.
+Platform diagnostics are converted to `ca::core::Status` with stable codes:
+`INVALID_ARGUMENT`, `NOT_FOUND`, `ALREADY_EXISTS`, `FAILED_PRECONDITION`,
+`DEADLINE_EXCEEDED`, `OUT_OF_RANGE`, and `INTERNAL`. Public APIs do not throw
+for expected operating-system failures.
+
+Windows process creation uses `CreateProcessW` with UTF-8 to UTF-16 conversion
+and correctly quoted arguments. Linux uses `fork`, `execvp`, pipes, and
+`waitpid`. Linux additionally links `pthread` for concurrent stream draining
+and `rt` for POSIX message queues on toolchains that require it.
+
+## Test Strategy
+
+The unit suite covers exact argument boundaries, command reuse, nonzero exit,
+interactive stdin/stdout, timeout observation followed by kill and reap, and
+concurrent stdout/stderr collection. IPC tests cover anonymous-pipe transfer,
+named-pipe exchange, shared-memory visibility, timed semaphore acquisition,
+and whole-message queue delivery. Platform-specific tests remain guarded by
+their native platform conditions.
