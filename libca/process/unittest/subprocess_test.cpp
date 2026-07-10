@@ -244,5 +244,41 @@ TEST(MessageQueueTest, SenderDeliversOneWholeMessage)
     ASSERT_TRUE(received.unwrap().has_value());
     EXPECT_EQ(*received.unwrap(), "message");
 }
+
+TEST(MessageQueueTest, ReceiveBlocksUntilSenderDeliversMessage)
+{
+    const std::string name =
+        "libca_process_mq_blocking_" + std::to_string(current_process_id());
+    auto receiver = ipc::MessageQueue::create(name, 64);
+    ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
+    auto sender = ipc::MessageQueue::open(name);
+    ASSERT_TRUE(sender.is_ok()) << sender.unwrap_err().to_string();
+
+    auto receiver_value = std::move(receiver).unwrap();
+    auto sender_value   = std::move(sender).unwrap();
+    std::thread worker([sender = std::move(sender_value)]() mutable {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        sender.send("blocking");
+    });
+    auto received = receiver_value.receive();
+    worker.join();
+
+    ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
+    EXPECT_EQ(received.unwrap(), "blocking");
+}
+
+TEST(MessageQueueTest, ReceiveForReturnsEmptyOnTimeout)
+{
+    const std::string name =
+        "libca_process_mq_timeout_" + std::to_string(current_process_id());
+    auto receiver = ipc::MessageQueue::create(name, 64);
+    ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
+
+    auto receiver_value = std::move(receiver).unwrap();
+    auto received = receiver_value.receive_for(std::chrono::milliseconds(5));
+
+    ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
+    EXPECT_FALSE(received.unwrap().has_value());
+}
 }   // namespace
 }   // namespace ca::process::test

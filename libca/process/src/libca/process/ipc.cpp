@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <thread>
 #include <utility>
 
 #if defined(_WIN32)
@@ -287,10 +286,15 @@ StatusResult<NamedPipeServer> NamedPipeServer::create(const std::string& name)
     sockaddr_un address{};
     address.sun_family = AF_UNIX;
     std::strncpy(address.sun_path, std::move(path).unwrap().c_str(), sizeof(address.sun_path) - 1);
-    if (bind(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0 ||
-        listen(handle, 1) != 0) {
-        const auto error = posix_error("bind/listen");
+    if (bind(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
+        const auto error = posix_error("bind");
         ::close(handle);
+        return Err(error);
+    }
+    if (listen(handle, 1) != 0) {
+        const auto error = posix_error("listen");
+        ::close(handle);
+        unlink(address.sun_path);
         return Err(error);
     }
     return Ok(NamedPipeServer(handle));
@@ -443,10 +447,11 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
     }
     return Ok(SharedMemory(to_native(handle), view, size));
 #else
-    auto path = posix_shared_memory_name(name);
-    if (path.is_err())
-        return Err(path.unwrap_err());
-    const int handle = shm_open(std::move(path).unwrap().c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+    auto path_result = posix_shared_memory_name(name);
+    if (path_result.is_err())
+        return Err(path_result.unwrap_err());
+    const std::string path = std::move(path_result).unwrap();
+    const int handle = shm_open(path.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
     if (handle < 0) {
         if (errno == EEXIST)
             return Err(ErrStatus(StatusCode::ALREADY_EXISTS, "shared memory already exists"));
@@ -455,12 +460,14 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
     if (ftruncate(handle, static_cast<off_t>(size)) != 0) {
         const auto error = posix_error("ftruncate");
         ::close(handle);
+        shm_unlink(path.c_str());
         return Err(error);
     }
     void* view = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, handle, 0);
     if (view == MAP_FAILED) {
         const auto error = posix_error("mmap");
         ::close(handle);
+        shm_unlink(path.c_str());
         return Err(error);
     }
     return Ok(SharedMemory(handle, view, size));
@@ -711,6 +718,8 @@ StatusResult<MessageQueue> MessageQueue::create(const std::string& name, usize m
     if (max_message_size == 0)
         return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "message size must be nonzero"));
 #if defined(_WIN32)
+    if (max_message_size > static_cast<usize>(std::numeric_limits<DWORD>::max()))
+        return Err(ErrStatus(StatusCode::OUT_OF_RANGE, "message size exceeds DWORD capacity"));
     auto path = mailslot_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
@@ -775,7 +784,11 @@ Status MessageQueue::send(const void* data, usize length)
 {
     if (native_handle_ == -1)
         return ErrStatus(StatusCode::FAILED_PRECONDITION, "send on a closed message queue");
+    if (data == nullptr && length != 0)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "message data must not be null");
 #if defined(_WIN32)
+    if (length > static_cast<usize>(std::numeric_limits<DWORD>::max()))
+        return ErrStatus(StatusCode::OUT_OF_RANGE, "message exceeds DWORD capacity");
     DWORD count = 0;
     if (!WriteFile(to_handle(native_handle_), data, static_cast<DWORD>(length), &count, nullptr) ||
         count != length)
@@ -801,21 +814,24 @@ StatusResult<std::string> MessageQueue::receive()
         return Err(
             ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
 #if defined(_WIN32)
-    DWORD next_size = 0;
-    if (!GetMailslotInfo(to_handle(native_handle_), nullptr, &next_size, nullptr, nullptr))
-        return Err(windows_error("GetMailslotInfo"));
-    if (next_size == MAILSLOT_NO_MESSAGE)
-        return Err(ErrStatus(StatusCode::UNAVAILABLE, "message queue is empty"));
-    std::string result(next_size, '\0');
+    if (!SetMailslotInfo(to_handle(native_handle_), MAILSLOT_WAIT_FOREVER))
+        return Err(windows_error("SetMailslotInfo"));
+    std::string result(max_message_size_, '\0');
     DWORD       count = 0;
-    if (!ReadFile(to_handle(native_handle_), &result[0], next_size, &count, nullptr))
+    if (!ReadFile(to_handle(native_handle_),
+                  &result[0],
+                  static_cast<DWORD>(max_message_size_),
+                  &count,
+                  nullptr))
         return Err(windows_error("ReadFile"));
     result.resize(count);
     return Ok(std::move(result));
 #else
     std::string   result(max_message_size_, '\0');
-    const ssize_t count =
-        mq_receive(static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr);
+    ssize_t count = -1;
+    do {
+        count = mq_receive(static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr);
+    } while (count < 0 && errno == EINTR);
     if (count < 0)
         return Err(posix_error("mq_receive"));
     result.resize(static_cast<usize>(count));
@@ -830,32 +846,43 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
         return Err(
             ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
 #if defined(_WIN32)
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    do {
-        DWORD next_size = 0;
-        if (!GetMailslotInfo(to_handle(native_handle_), nullptr, &next_size, nullptr, nullptr))
-            return Err(windows_error("GetMailslotInfo"));
-        if (next_size != MAILSLOT_NO_MESSAGE) {
-            auto value = receive();
-            if (value.is_err())
-                return Err(value.unwrap_err());
-            return Ok(std::optional<std::string>(std::move(value).unwrap()));
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    } while (std::chrono::steady_clock::now() < deadline);
-    return Ok(std::optional<std::string>{});
+    const auto milliseconds = std::max<i64>(0, timeout.count());
+    const DWORD wait = static_cast<DWORD>(std::min<i64>(
+        milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
+    if (!SetMailslotInfo(to_handle(native_handle_), wait))
+        return Err(windows_error("SetMailslotInfo"));
+    std::string result(max_message_size_, '\0');
+    DWORD       count = 0;
+    if (!ReadFile(to_handle(native_handle_),
+                  &result[0],
+                  static_cast<DWORD>(max_message_size_),
+                  &count,
+                  nullptr)) {
+        if (GetLastError() == ERROR_SEM_TIMEOUT)
+            return Ok(std::optional<std::string>{});
+        return Err(windows_error("ReadFile"));
+    }
+    result.resize(count);
+    return Ok(std::optional<std::string>(std::move(result)));
 #else
     timespec deadline{};
-    clock_gettime(CLOCK_REALTIME, &deadline);
-    const i64 ns = static_cast<i64>(deadline.tv_nsec) + timeout.count() * 1000000;
+    if (clock_gettime(CLOCK_REALTIME, &deadline) != 0)
+        return Err(posix_error("clock_gettime"));
+    const i64 milliseconds = std::max<i64>(0, timeout.count());
+    const i64 ns = static_cast<i64>(deadline.tv_nsec) + milliseconds * 1000000;
     deadline.tv_sec += ns / 1000000000;
     deadline.tv_nsec = ns % 1000000000;
     std::string   result(max_message_size_, '\0');
-    const ssize_t count = mq_timedreceive(
-        static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr, &deadline);
-    if (count < 0) {
+    ssize_t count = -1;
+    for (;;) {
+        count = mq_timedreceive(
+            static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr, &deadline);
+        if (count >= 0)
+            break;
         if (errno == ETIMEDOUT)
             return Ok(std::optional<std::string>{});
+        if (errno == EINTR)
+            continue;
         return Err(posix_error("mq_timedreceive"));
     }
     result.resize(static_cast<usize>(count));

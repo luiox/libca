@@ -19,7 +19,8 @@ StatusResult<std::wstring> utf8_to_utf16(const std::string& value)
     const auto length = MultiByteToWideChar(
         CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), nullptr, 0);
     if (length == 0) {
-        return ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path is not valid UTF-8");
+        return Err(
+            ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path is not valid UTF-8"));
     }
 
     std::wstring converted(static_cast<std::size_t>(length), L'\0');
@@ -29,7 +30,8 @@ StatusResult<std::wstring> utf8_to_utf16(const std::string& value)
                             static_cast<int>(value.size()),
                             &converted[0],
                             length) == 0) {
-        return ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path is not valid UTF-8");
+        return Err(
+            ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path is not valid UTF-8"));
     }
     return Ok(std::move(converted));
 }
@@ -78,7 +80,8 @@ DynamicLibrary& DynamicLibrary::operator=(DynamicLibrary&& other) noexcept
 StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
 {
     if (path.empty()) {
-        return ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path must not be empty");
+        return Err(
+            ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path must not be empty"));
     }
 
 #if defined(_WIN32)
@@ -95,7 +98,7 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
                                         error == ERROR_MOD_NOT_FOUND
                                      ? StatusCode::NOT_FOUND
                                      : StatusCode::INTERNAL;
-        return ErrStatus(code, windows_error_message("LoadLibraryW", error));
+        return Err(ErrStatus(code, windows_error_message("LoadLibraryW", error)));
     }
     return Ok(DynamicLibrary(reinterpret_cast<void*>(handle)));
 #else
@@ -105,7 +108,7 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
     if (handle == nullptr) {
         const char*      error = dlerror();
         const StatusCode code  = errno == ENOENT ? StatusCode::NOT_FOUND : StatusCode::INTERNAL;
-        return ErrStatus(code, loader_error_message("dlopen", error));
+        return Err(ErrStatus(code, loader_error_message("dlopen", error)));
     }
     return Ok(DynamicLibrary(handle));
 #endif
@@ -114,19 +117,20 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
 StatusResult<void*> DynamicLibrary::lookup_raw(const std::string& symbol_name) const
 {
     if (!is_loaded()) {
-        return ErrStatus(StatusCode::FAILED_PRECONDITION,
-                         "cannot look up a symbol in an unloaded dynamic library");
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION,
+                             "cannot look up a symbol in an unloaded dynamic library"));
     }
     if (symbol_name.empty()) {
-        return ErrStatus(StatusCode::INVALID_ARGUMENT,
-                         "dynamic library symbol name must not be empty");
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT,
+                             "dynamic library symbol name must not be empty"));
     }
 
 #if defined(_WIN32)
     FARPROC symbol = GetProcAddress(reinterpret_cast<HMODULE>(handle_), symbol_name.c_str());
     if (symbol == nullptr) {
         const auto error = static_cast<unsigned long>(GetLastError());
-        return ErrStatus(StatusCode::NOT_FOUND, windows_error_message("GetProcAddress", error));
+        return Err(
+            ErrStatus(StatusCode::NOT_FOUND, windows_error_message("GetProcAddress", error)));
     }
     return Ok(reinterpret_cast<void*>(symbol));
 #else
@@ -134,7 +138,7 @@ StatusResult<void*> DynamicLibrary::lookup_raw(const std::string& symbol_name) c
     void*       symbol = dlsym(handle_, symbol_name.c_str());
     const char* error  = dlerror();
     if (error != nullptr) {
-        return ErrStatus(StatusCode::NOT_FOUND, loader_error_message("dlsym", error));
+        return Err(ErrStatus(StatusCode::NOT_FOUND, loader_error_message("dlsym", error)));
     }
     return Ok(symbol);
 #endif

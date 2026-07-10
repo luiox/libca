@@ -75,13 +75,15 @@ bool create_pipe(HANDLE& parent, HANDLE& child, bool parent_reads)
     if (!CreatePipe(&read_handle, &write_handle, &attributes, 0)) {
         return false;
     }
-    parent = parent_reads ? read_handle : write_handle;
-    child  = parent_reads ? write_handle : read_handle;
-    if (!SetHandleInformation(parent, HANDLE_FLAG_INHERIT, 0)) {
+    HANDLE parent_handle = parent_reads ? read_handle : write_handle;
+    HANDLE child_handle  = parent_reads ? write_handle : read_handle;
+    if (!SetHandleInformation(parent_handle, HANDLE_FLAG_INHERIT, 0)) {
         CloseHandle(read_handle);
         CloseHandle(write_handle);
         return false;
     }
+    parent = parent_handle;
+    child  = child_handle;
     return true;
 }
 
@@ -633,26 +635,71 @@ StatusResult<Child> Command::spawn() const
     auto line = command_line(program_, args_);
     if (line.is_err())
         return Err(line.unwrap_err());
+    std::wstring   working;
+    const wchar_t* working_ptr = nullptr;
+    if (current_dir_ && !utf8_to_utf16(*current_dir_, working))
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "current_dir is not valid UTF-8"));
+    if (current_dir_)
+        working_ptr = working.c_str();
+
     HANDLE parent_in = nullptr, parent_out = nullptr, parent_err = nullptr, child_in = nullptr,
            child_out = nullptr, child_err = nullptr;
-    if (stdin_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_in, child_in, false))
-        return Err(system_error("CreatePipe"));
-    if (stdout_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_out, child_out, true)) {
-        if (parent_in)
-            CloseHandle(parent_in);
-        if (child_in)
-            CloseHandle(child_in);
-        return Err(system_error("CreatePipe"));
-    }
-    if (stderr_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_err, child_err, true))
-        return Err(system_error("CreatePipe"));
     HANDLE null_in = nullptr, null_out = nullptr, null_err = nullptr;
-    if (stdin_.mode_ == Stdio::Mode::Null)
+    const auto close_handle = [](HANDLE& handle) {
+        if (handle != nullptr && handle != INVALID_HANDLE_VALUE)
+            CloseHandle(handle);
+        handle = nullptr;
+    };
+    const auto cleanup = [&]() {
+        close_handle(parent_in);
+        close_handle(parent_out);
+        close_handle(parent_err);
+        close_handle(child_in);
+        close_handle(child_out);
+        close_handle(child_err);
+        close_handle(null_in);
+        close_handle(null_out);
+        close_handle(null_err);
+    };
+    if (stdin_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_in, child_in, false)) {
+        const auto error = system_error("CreatePipe");
+        cleanup();
+        return Err(error);
+    }
+    if (stdout_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_out, child_out, true)) {
+        const auto error = system_error("CreatePipe");
+        cleanup();
+        return Err(error);
+    }
+    if (stderr_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_err, child_err, true)) {
+        const auto error = system_error("CreatePipe");
+        cleanup();
+        return Err(error);
+    }
+    if (stdin_.mode_ == Stdio::Mode::Null) {
         null_in = open_null_handle();
-    if (stdout_.mode_ == Stdio::Mode::Null)
+        if (null_in == INVALID_HANDLE_VALUE) {
+            const auto error = system_error("CreateFileW");
+            cleanup();
+            return Err(error);
+        }
+    }
+    if (stdout_.mode_ == Stdio::Mode::Null) {
         null_out = open_null_handle();
-    if (stderr_.mode_ == Stdio::Mode::Null)
+        if (null_out == INVALID_HANDLE_VALUE) {
+            const auto error = system_error("CreateFileW");
+            cleanup();
+            return Err(error);
+        }
+    }
+    if (stderr_.mode_ == Stdio::Mode::Null) {
         null_err = open_null_handle();
+        if (null_err == INVALID_HANDLE_VALUE) {
+            const auto error = system_error("CreateFileW");
+            cleanup();
+            return Err(error);
+        }
+    }
     STARTUPINFOW startup{};
     startup.cb        = sizeof(startup);
     startup.dwFlags   = STARTF_USESTDHANDLES;
@@ -661,12 +708,6 @@ StatusResult<Child> Command::spawn() const
         child_out ? child_out : (null_out ? null_out : GetStdHandle(STD_OUTPUT_HANDLE));
     startup.hStdError =
         child_err ? child_err : (null_err ? null_err : GetStdHandle(STD_ERROR_HANDLE));
-    std::wstring   working;
-    const wchar_t* working_ptr = nullptr;
-    if (current_dir_ && (!utf8_to_utf16(*current_dir_, working)))
-        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "current_dir is not valid UTF-8"));
-    else if (current_dir_)
-        working_ptr = working.c_str();
     std::wstring         text = std::move(line).unwrap();
     std::vector<wchar_t> mutable_line(text.begin(), text.end());
     mutable_line.push_back(L'\0');
@@ -680,20 +721,17 @@ StatusResult<Child> Command::spawn() const
                         nullptr,
                         working_ptr,
                         &startup,
-                        &info))
-        return Err(system_error("CreateProcessW"));
-    if (child_in)
-        CloseHandle(child_in);
-    if (child_out)
-        CloseHandle(child_out);
-    if (child_err)
-        CloseHandle(child_err);
-    if (null_in)
-        CloseHandle(null_in);
-    if (null_out)
-        CloseHandle(null_out);
-    if (null_err)
-        CloseHandle(null_err);
+                        &info)) {
+        const auto error = system_error("CreateProcessW");
+        cleanup();
+        return Err(error);
+    }
+    close_handle(child_in);
+    close_handle(child_out);
+    close_handle(child_err);
+    close_handle(null_in);
+    close_handle(null_out);
+    close_handle(null_err);
     CloseHandle(info.hThread);
     return Ok(Child(
         to_native(info.hProcess),
@@ -711,14 +749,33 @@ StatusResult<Child> Command::spawn() const
     int child_err = -1;
     int exec_read = -1;
     int exec_write = -1;
+    const auto close_descriptor = [](int& descriptor) {
+        if (descriptor >= 0)
+            ::close(descriptor);
+        descriptor = -1;
+    };
+    const auto cleanup = [&]() {
+        close_descriptor(parent_in);
+        close_descriptor(parent_out);
+        close_descriptor(parent_err);
+        close_descriptor(child_in);
+        close_descriptor(child_out);
+        close_descriptor(child_err);
+        close_descriptor(exec_read);
+        close_descriptor(exec_write);
+    };
     if ((stdin_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_in, child_in, false)) ||
         (stdout_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_out, child_out, true)) ||
         (stderr_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_err, child_err, true)) ||
         !create_pipe(exec_read, exec_write, true)) {
-        return Err(system_error("pipe"));
+        const auto error = system_error("pipe");
+        cleanup();
+        return Err(error);
     }
     if (fcntl(exec_write, F_SETFD, FD_CLOEXEC) != 0) {
-        return Err(system_error("fcntl"));
+        const auto error = system_error("fcntl");
+        cleanup();
+        return Err(error);
     }
 
     std::vector<std::string> values;
@@ -731,7 +788,11 @@ StatusResult<Child> Command::spawn() const
     argv.push_back(nullptr);
 
     const pid_t pid = fork();
-    if (pid < 0) return Err(system_error("fork"));
+    if (pid < 0) {
+        const auto error = system_error("fork");
+        cleanup();
+        return Err(error);
+    }
     if (pid == 0) {
         setpgid(0, 0);
         if (current_dir_ && chdir(current_dir_->c_str()) != 0) {
@@ -767,20 +828,31 @@ StatusResult<Child> Command::spawn() const
     }
 
     setpgid(pid, pid);
-    if (child_in >= 0) ::close(child_in);
-    if (child_out >= 0) ::close(child_out);
-    if (child_err >= 0) ::close(child_err);
-    ::close(exec_write);
+    close_descriptor(child_in);
+    close_descriptor(child_out);
+    close_descriptor(child_err);
+    close_descriptor(exec_write);
     int exec_error = 0;
-    const ssize_t exec_result = ::read(exec_read, &exec_error, sizeof(exec_error));
-    ::close(exec_read);
+    ssize_t exec_result = -1;
+    do {
+        exec_result = ::read(exec_read, &exec_error, sizeof(exec_error));
+    } while (exec_result < 0 && errno == EINTR);
+    close_descriptor(exec_read);
     if (exec_result == static_cast<ssize_t>(sizeof(exec_error))) {
-        if (parent_in >= 0) ::close(parent_in);
-        if (parent_out >= 0) ::close(parent_out);
-        if (parent_err >= 0) ::close(parent_err);
+        close_descriptor(parent_in);
+        close_descriptor(parent_out);
+        close_descriptor(parent_err);
         waitpid(pid, nullptr, 0);
         return Err(ErrStatus(StatusCode::NOT_FOUND,
                              std::string("execvp failed: ") + std::strerror(exec_error)));
+    }
+    if (exec_result < 0) {
+        const auto error = system_error("read exec status");
+        ::kill(-pid, SIGKILL);
+        ::kill(pid, SIGKILL);
+        waitpid(pid, nullptr, 0);
+        cleanup();
+        return Err(error);
     }
     return Ok(Child(static_cast<std::intptr_t>(pid), static_cast<u64>(pid),
                     parent_in >= 0 ? std::optional<ChildStdin>(ChildStdin(parent_in)) : std::nullopt,
