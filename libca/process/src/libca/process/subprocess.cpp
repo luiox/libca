@@ -168,12 +168,28 @@ int to_fd(std::intptr_t value)
 bool create_pipe(int& parent, int& child, bool parent_reads)
 {
     int descriptors[2];
-    if (pipe(descriptors) != 0) {
+    if (::pipe(descriptors) != 0) {
         return false;
     }
     parent = parent_reads ? descriptors[0] : descriptors[1];
     child  = parent_reads ? descriptors[1] : descriptors[0];
     return true;
+}
+
+void write_exec_error(int descriptor, int error) noexcept
+{
+    const auto* data   = reinterpret_cast<const u8*>(&error);
+    usize       offset = 0;
+    while (offset < sizeof(error)) {
+        const ssize_t count = ::write(descriptor, data + offset, sizeof(error) - offset);
+        if (count > 0) {
+            offset += static_cast<usize>(count);
+            continue;
+        }
+        if (count < 0 && errno == EINTR)
+            continue;
+        return;
+    }
 }
 #endif
 
@@ -527,7 +543,7 @@ Status Child::kill()
         return system_error("TerminateProcess");
 #else
     const pid_t pid = static_cast<pid_t>(native_process_);
-    if (kill(-pid, SIGKILL) != 0 && kill(pid, SIGKILL) != 0)
+    if (::kill(-pid, SIGKILL) != 0 && ::kill(pid, SIGKILL) != 0)
         return system_error("kill");
 #endif
     return OkStatus();
@@ -797,7 +813,7 @@ StatusResult<Child> Command::spawn() const
         setpgid(0, 0);
         if (current_dir_ && chdir(current_dir_->c_str()) != 0) {
             const int error = errno;
-            ::write(exec_write, &error, sizeof(error));
+            write_exec_error(exec_write, error);
             _exit(127);
         }
         const auto set_stream = [](Stdio::Mode mode, int descriptor, int target, int access) -> bool {
@@ -815,7 +831,7 @@ StatusResult<Child> Command::spawn() const
             !set_stream(stdout_.mode_, child_out, STDOUT_FILENO, O_WRONLY) ||
             !set_stream(stderr_.mode_, child_err, STDERR_FILENO, O_WRONLY)) {
             const int error = errno;
-            ::write(exec_write, &error, sizeof(error));
+            write_exec_error(exec_write, error);
             _exit(127);
         }
         for (int descriptor : {parent_in, parent_out, parent_err, child_in, child_out, child_err, exec_read}) {
@@ -823,7 +839,7 @@ StatusResult<Child> Command::spawn() const
         }
         execvp(argv[0], argv.data());
         const int error = errno;
-        ::write(exec_write, &error, sizeof(error));
+        write_exec_error(exec_write, error);
         _exit(127);
     }
 
