@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cerrno>
-#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <iterator>
 #include <thread>
 #include <utility>
 
@@ -13,9 +13,11 @@
 #    define WIN32_LEAN_AND_MEAN
 #    define NOMINMAX
 #    include <windows.h>
+#    undef stdin
+#    undef stdout
+#    undef stderr
 #else
 #    include <fcntl.h>
-#    include <pthread.h>
 #    include <signal.h>
 #    include <sys/types.h>
 #    include <sys/wait.h>
@@ -23,607 +25,771 @@
 #endif
 
 namespace ca::process {
+template<typename T>
+using StatusResult = ca::core::StatusResult<T>;
+using Status       = ca::core::Status;
+using ca::core::Err;
+using ca::core::ErrStatus;
+using ca::core::Ok;
+using ca::core::OkStatus;
+using ca::core::StatusCode;
+
 namespace {
 
-SubprocessResult start_error(std::string message)
+Status system_error(const char* operation)
 {
-    SubprocessResult result;
-    result.stderr_data = std::move(message);
-    return result;
+#if defined(_WIN32)
+    return ErrStatus(StatusCode::INTERNAL,
+                     std::string(operation) + " failed with Windows error " +
+                         std::to_string(static_cast<unsigned long>(GetLastError())));
+#else
+    return ErrStatus(StatusCode::INTERNAL,
+                     std::string(operation) + " failed: " + std::strerror(errno));
+#endif
+}
+
+Status closed_error(const char* operation)
+{
+    return ErrStatus(StatusCode::FAILED_PRECONDITION,
+                     std::string(operation) + " on a closed handle");
 }
 
 #if defined(_WIN32)
-
-class WindowsHandle
+HANDLE to_handle(std::intptr_t value)
 {
-public:
-    WindowsHandle() = default;
-    explicit WindowsHandle(HANDLE handle)
-        : handle_(handle)
-    {}
+    return reinterpret_cast<HANDLE>(value);
+}
 
-    ~WindowsHandle() { reset(); }
+std::intptr_t to_native(HANDLE handle)
+{
+    return reinterpret_cast<std::intptr_t>(handle);
+}
 
-    WindowsHandle(const WindowsHandle&)            = delete;
-    WindowsHandle& operator=(const WindowsHandle&) = delete;
-
-    WindowsHandle(WindowsHandle&& other) noexcept
-        : handle_(other.release())
-    {}
-
-    WindowsHandle& operator=(WindowsHandle&& other) noexcept
-    {
-        if (this != &other) {
-            reset(other.release());
-        }
-        return *this;
-    }
-
-    HANDLE get() const { return handle_; }
-
-    HANDLE release()
-    {
-        HANDLE handle = handle_;
-        handle_       = nullptr;
-        return handle;
-    }
-
-    void reset(HANDLE handle = nullptr)
-    {
-        if (handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE) {
-            CloseHandle(handle_);
-        }
-        handle_ = handle;
-    }
-
-private:
-    HANDLE handle_{nullptr};
-};
-
-bool create_capture_pipe(WindowsHandle& parent_handle, WindowsHandle& child_handle,
-                         bool parent_reads)
+bool create_pipe(HANDLE& parent, HANDLE& child, bool parent_reads)
 {
     SECURITY_ATTRIBUTES attributes{};
     attributes.nLength        = sizeof(attributes);
     attributes.bInheritHandle = TRUE;
-
-    HANDLE read_handle  = nullptr;
-    HANDLE write_handle = nullptr;
+    HANDLE read_handle        = nullptr;
+    HANDLE write_handle       = nullptr;
     if (!CreatePipe(&read_handle, &write_handle, &attributes, 0)) {
         return false;
     }
-
-    if (parent_reads) {
-        parent_handle.reset(read_handle);
-        child_handle.reset(write_handle);
-    }
-    else {
-        child_handle.reset(read_handle);
-        parent_handle.reset(write_handle);
-    }
-
-    return SetHandleInformation(parent_handle.get(), HANDLE_FLAG_INHERIT, 0) != 0;
-}
-
-std::string windows_error_message(const char* operation)
-{
-    return std::string(operation) + " failed with Windows error " +
-           std::to_string(static_cast<unsigned long>(GetLastError()));
-}
-
-bool utf8_to_utf16(const std::string& value, std::wstring& converted)
-{
-    const auto length = MultiByteToWideChar(
-        CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), nullptr, 0);
-    if (length == 0 && !value.empty()) {
+    parent = parent_reads ? read_handle : write_handle;
+    child  = parent_reads ? write_handle : read_handle;
+    if (!SetHandleInformation(parent, HANDLE_FLAG_INHERIT, 0)) {
+        CloseHandle(read_handle);
+        CloseHandle(write_handle);
         return false;
-    }
-
-    converted.resize(static_cast<std::size_t>(length));
-    return length == 0 || MultiByteToWideChar(CP_UTF8,
-                                              MB_ERR_INVALID_CHARS,
-                                              value.data(),
-                                              static_cast<int>(value.size()),
-                                              converted.data(),
-                                              length) != 0;
-}
-
-std::wstring quote_windows_argument(const std::wstring& argument)
-{
-    std::wstring quoted;
-    quoted.push_back(L'\"');
-
-    std::size_t slash_count = 0;
-    for (wchar_t character : argument) {
-        if (character == L'\\') {
-            ++slash_count;
-            continue;
-        }
-        if (character == L'\"') {
-            quoted.append(slash_count * 2 + 1, L'\\');
-            quoted.push_back(L'\"');
-            slash_count = 0;
-            continue;
-        }
-        quoted.append(slash_count, L'\\');
-        slash_count = 0;
-        quoted.push_back(character);
-    }
-    quoted.append(slash_count * 2, L'\\');
-    quoted.push_back(L'\"');
-    return quoted;
-}
-
-bool build_windows_command_line(const SubprocessOptions& options, std::wstring& command_line)
-{
-    std::wstring executable;
-    if (!utf8_to_utf16(options.executable, executable)) {
-        return false;
-    }
-
-    command_line = quote_windows_argument(executable);
-    for (const std::string& argument : options.args) {
-        std::wstring wide_argument;
-        if (!utf8_to_utf16(argument, wide_argument)) {
-            return false;
-        }
-        command_line.push_back(L' ');
-        command_line += quote_windows_argument(wide_argument);
     }
     return true;
 }
 
-void read_windows_pipe(HANDLE handle, std::string& output)
+bool utf8_to_utf16(const std::string& value, std::wstring& converted)
 {
-    char buffer[4096];
+    const int length = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, value.data(), static_cast<int>(value.size()), nullptr, 0);
+    if (length == 0 && !value.empty()) {
+        return false;
+    }
+    converted.resize(static_cast<usize>(length));
+    return length == 0 || MultiByteToWideChar(CP_UTF8,
+                                              MB_ERR_INVALID_CHARS,
+                                              value.data(),
+                                              static_cast<int>(value.size()),
+                                              &converted[0],
+                                              length) != 0;
+}
+
+std::wstring quote_argument(const std::wstring& value)
+{
+    std::wstring output(L"\"");
+    usize        slashes = 0;
+    for (wchar_t ch : value) {
+        if (ch == L'\\') {
+            ++slashes;
+        }
+        else if (ch == L'\"') {
+            output.append(slashes * 2 + 1, L'\\');
+            output.push_back(ch);
+            slashes = 0;
+        }
+        else {
+            output.append(slashes, L'\\');
+            output.push_back(ch);
+            slashes = 0;
+        }
+    }
+    output.append(slashes * 2, L'\\');
+    output.push_back(L'\"');
+    return output;
+}
+
+StatusResult<std::wstring> command_line(const std::string&              program_value,
+                                        const std::vector<std::string>& args)
+{
+    std::wstring program;
+    if (!utf8_to_utf16(program_value, program)) {
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "program is not valid UTF-8"));
+    }
+    std::wstring result = quote_argument(program);
+    for (const std::string& arg : args) {
+        std::wstring wide_arg;
+        if (!utf8_to_utf16(arg, wide_arg)) {
+            return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "argument is not valid UTF-8"));
+        }
+        result.push_back(L' ');
+        result += quote_argument(wide_arg);
+    }
+    return Ok(std::move(result));
+}
+
+HANDLE open_null_handle()
+{
+    SECURITY_ATTRIBUTES attributes{};
+    attributes.nLength        = sizeof(attributes);
+    attributes.bInheritHandle = TRUE;
+    return CreateFileW(L"NUL",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       &attributes,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       nullptr);
+}
+#else
+int to_fd(std::intptr_t value)
+{
+    return static_cast<int>(value);
+}
+
+bool create_pipe(int& parent, int& child, bool parent_reads)
+{
+    int descriptors[2];
+    if (pipe(descriptors) != 0) {
+        return false;
+    }
+    parent = parent_reads ? descriptors[0] : descriptors[1];
+    child  = parent_reads ? descriptors[1] : descriptors[0];
+    return true;
+}
+#endif
+
+}   // namespace
+
+namespace ipc {
+
+PipeReader::PipeReader(std::intptr_t native_handle) noexcept
+    : native_handle_(native_handle)
+{}
+PipeReader::~PipeReader()
+{
+    close();
+}
+PipeReader::PipeReader(PipeReader&& other) noexcept
+    : native_handle_(other.release())
+{}
+PipeReader& PipeReader::operator=(PipeReader&& other) noexcept
+{
+    if (this != &other) {
+        close();
+        native_handle_ = other.release();
+    }
+    return *this;
+}
+
+StatusResult<usize> PipeReader::read(void* buffer, usize capacity)
+{
+    if (!is_open())
+        return Err(closed_error("read"));
+    if (capacity == 0)
+        return Ok(static_cast<usize>(0));
+#if defined(_WIN32)
+    DWORD count = 0;
+    if (!ReadFile(
+            to_handle(native_handle_), buffer, static_cast<DWORD>(capacity), &count, nullptr)) {
+        const DWORD error = GetLastError();
+        if (error == ERROR_BROKEN_PIPE)
+            return Ok(static_cast<usize>(0));
+        return Err(system_error("ReadFile"));
+    }
+    return Ok(static_cast<usize>(count));
+#else
+    const ssize_t count = ::read(to_fd(native_handle_), buffer, capacity);
+    if (count < 0)
+        return Err(system_error("read"));
+    return Ok(static_cast<usize>(count));
+#endif
+}
+
+StatusResult<std::string> PipeReader::read_to_end()
+{
+    std::string result;
+    char        buffer[4096];
     for (;;) {
-        DWORD read_count = 0;
-        if (!ReadFile(handle, buffer, sizeof(buffer), &read_count, nullptr)) {
-            const DWORD error = GetLastError();
-            if (error == ERROR_BROKEN_PIPE || error == ERROR_NO_DATA) {
-                return;
-            }
-            return;
-        }
-        if (read_count == 0) {
-            return;
-        }
-        output.append(buffer, read_count);
+        auto count = read(buffer, sizeof(buffer));
+        if (count.is_err())
+            return Err(count.unwrap_err());
+        if (count.unwrap() == 0)
+            return Ok(std::move(result));
+        result.append(buffer, count.unwrap());
     }
 }
 
-void write_windows_pipe(HANDLE handle, const std::string& input)
+bool PipeReader::is_open() const noexcept
 {
-    std::size_t offset = 0;
-    while (offset < input.size()) {
-        const auto  remaining = input.size() - offset;
-        const DWORD count     = static_cast<DWORD>(std::min<std::size_t>(
-            remaining, static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
-        DWORD       written   = 0;
-        if (!WriteFile(handle, input.data() + offset, count, &written, nullptr) || written == 0) {
-            return;
-        }
+    return native_handle_ != -1;
+}
+void PipeReader::close() noexcept
+{
+    if (!is_open())
+        return;
+#if defined(_WIN32)
+    CloseHandle(to_handle(native_handle_));
+#else
+    ::close(to_fd(native_handle_));
+#endif
+    native_handle_ = -1;
+}
+std::intptr_t PipeReader::release() noexcept
+{
+    const auto value = native_handle_;
+    native_handle_   = -1;
+    return value;
+}
+
+PipeWriter::PipeWriter(std::intptr_t native_handle) noexcept
+    : native_handle_(native_handle)
+{}
+PipeWriter::~PipeWriter()
+{
+    close();
+}
+PipeWriter::PipeWriter(PipeWriter&& other) noexcept
+    : native_handle_(other.release())
+{}
+PipeWriter& PipeWriter::operator=(PipeWriter&& other) noexcept
+{
+    if (this != &other) {
+        close();
+        native_handle_ = other.release();
+    }
+    return *this;
+}
+
+Status PipeWriter::write_all(const void* data, usize length)
+{
+    if (!is_open())
+        return closed_error("write");
+    usize offset = 0;
+    while (offset < length) {
+#if defined(_WIN32)
+        DWORD       written = 0;
+        const DWORD chunk =
+            static_cast<DWORD>(std::min<usize>(length - offset, std::numeric_limits<DWORD>::max()));
+        if (!WriteFile(to_handle(native_handle_),
+                       static_cast<const char*>(data) + offset,
+                       chunk,
+                       &written,
+                       nullptr) ||
+            written == 0)
+            return system_error("WriteFile");
         offset += written;
+#else
+        const ssize_t written = ::write(
+            to_fd(native_handle_), static_cast<const char*>(data) + offset, length - offset);
+        if (written < 0) {
+            if (errno == EINTR)
+                continue;
+            return system_error("write");
+        }
+        offset += static_cast<usize>(written);
+#endif
     }
+    return OkStatus();
 }
 
-SubprocessResult run_windows(const SubprocessOptions& options)
+Status PipeWriter::write_all(const std::string& data)
 {
-    std::wstring command_line;
-    if (!build_windows_command_line(options, command_line)) {
-        return start_error("executable or argument is not valid UTF-8");
-    }
+    return write_all(data.data(), data.size());
+}
+bool PipeWriter::is_open() const noexcept
+{
+    return native_handle_ != -1;
+}
+void PipeWriter::close() noexcept
+{
+    if (!is_open())
+        return;
+#if defined(_WIN32)
+    CloseHandle(to_handle(native_handle_));
+#else
+    ::close(to_fd(native_handle_));
+#endif
+    native_handle_ = -1;
+}
+std::intptr_t PipeWriter::release() noexcept
+{
+    const auto value = native_handle_;
+    native_handle_   = -1;
+    return value;
+}
 
-    std::wstring   working_dir;
-    const wchar_t* working_dir_ptr = nullptr;
-    if (options.working_dir.has_value()) {
-        if (!utf8_to_utf16(*options.working_dir, working_dir)) {
-            return start_error("working_dir is not valid UTF-8");
+StatusResult<AnonymousPipe> create_anonymous_pipe()
+{
+#if defined(_WIN32)
+    HANDLE reader = nullptr;
+    HANDLE writer = nullptr;
+    if (!create_pipe(reader, writer, true))
+        return Err(system_error("CreatePipe"));
+    return Ok(AnonymousPipe{PipeReader(to_native(reader)), PipeWriter(to_native(writer))});
+#else
+    int reader = -1;
+    int writer = -1;
+    if (!create_pipe(reader, writer, true))
+        return Err(system_error("pipe"));
+    return Ok(AnonymousPipe{PipeReader(reader), PipeWriter(writer)});
+#endif
+}
+
+}   // namespace ipc
+
+Stdio::Stdio(Mode mode) noexcept
+    : mode_(mode)
+{}
+Stdio Stdio::inherit() noexcept
+{
+    return Stdio(Mode::Inherit);
+}
+Stdio Stdio::null() noexcept
+{
+    return Stdio(Mode::Null);
+}
+Stdio Stdio::piped() noexcept
+{
+    return Stdio(Mode::Piped);
+}
+bool ExitStatus::success() const noexcept
+{
+    return code == 0;
+}
+
+Child::Child(std::intptr_t native_process, u64 process_id, std::optional<ChildStdin> stdin,
+             std::optional<ChildStdout> stdout, std::optional<ChildStderr> stderr) noexcept
+    : native_process_(native_process)
+    , process_id_(process_id)
+    , stdin_(std::move(stdin))
+    , stdout_(std::move(stdout))
+    , stderr_(std::move(stderr))
+{}
+Child::~Child()
+{
+    close_process();
+}
+Child::Child(Child&& other) noexcept
+    : native_process_(other.native_process_)
+    , process_id_(other.process_id_)
+    , stdin_(std::move(other.stdin_))
+    , stdout_(std::move(other.stdout_))
+    , stderr_(std::move(other.stderr_))
+{
+    other.native_process_ = -1;
+    other.process_id_     = 0;
+}
+Child& Child::operator=(Child&& other) noexcept
+{
+    if (this != &other) {
+        close_process();
+        native_process_       = other.native_process_;
+        process_id_           = other.process_id_;
+        stdin_                = std::move(other.stdin_);
+        stdout_               = std::move(other.stdout_);
+        stderr_               = std::move(other.stderr_);
+        other.native_process_ = -1;
+        other.process_id_     = 0;
+    }
+    return *this;
+}
+u64 Child::id() const noexcept
+{
+    return process_id_;
+}
+void Child::close_process() noexcept
+{
+    if (native_process_ == -1)
+        return;
+#if defined(_WIN32)
+    CloseHandle(to_handle(native_process_));
+#endif
+    native_process_ = -1;
+}
+
+StatusResult<std::optional<ExitStatus>> Child::try_wait()
+{
+    if (native_process_ == -1)
+        return Err(closed_error("try_wait"));
+#if defined(_WIN32)
+    const DWORD wait = WaitForSingleObject(to_handle(native_process_), 0);
+    if (wait == WAIT_TIMEOUT)
+        return Ok(std::optional<ExitStatus>{});
+    if (wait != WAIT_OBJECT_0)
+        return Err(system_error("WaitForSingleObject"));
+    DWORD code = 0;
+    if (!GetExitCodeProcess(to_handle(native_process_), &code))
+        return Err(system_error("GetExitCodeProcess"));
+    return Ok(std::optional<ExitStatus>(ExitStatus{static_cast<i32>(code)}));
+#else
+    int         status = 0;
+    const pid_t result = waitpid(static_cast<pid_t>(native_process_), &status, WNOHANG);
+    if (result == 0)
+        return Ok(std::optional<ExitStatus>{});
+    if (result < 0)
+        return Err(system_error("waitpid"));
+    return Ok(std::optional<ExitStatus>(
+        ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
+                                     : static_cast<i32>(128 + WTERMSIG(status))}));
+#endif
+}
+
+StatusResult<ExitStatus> Child::wait()
+{
+    stdin_.reset();
+#if defined(_WIN32)
+    if (native_process_ == -1)
+        return Err(closed_error("wait"));
+    if (WaitForSingleObject(to_handle(native_process_), INFINITE) != WAIT_OBJECT_0)
+        return Err(system_error("WaitForSingleObject"));
+    DWORD code = 0;
+    if (!GetExitCodeProcess(to_handle(native_process_), &code))
+        return Err(system_error("GetExitCodeProcess"));
+    return Ok(ExitStatus{static_cast<i32>(code)});
+#else
+    int status = 0;
+    if (waitpid(static_cast<pid_t>(native_process_), &status, 0) < 0)
+        return Err(system_error("waitpid"));
+    return Ok(ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
+                                           : static_cast<i32>(128 + WTERMSIG(status))});
+#endif
+}
+
+StatusResult<std::optional<ExitStatus>> Child::wait_for(std::chrono::milliseconds timeout)
+{
+#if defined(_WIN32)
+    if (native_process_ == -1)
+        return Err(closed_error("wait_for"));
+    const auto count =
+        timeout.count() <= 0
+            ? 0
+            : static_cast<DWORD>(std::min<i64>(timeout.count(), std::numeric_limits<DWORD>::max()));
+    const DWORD wait = WaitForSingleObject(to_handle(native_process_), count);
+    if (wait == WAIT_TIMEOUT)
+        return Ok(std::optional<ExitStatus>{});
+    if (wait != WAIT_OBJECT_0)
+        return Err(system_error("WaitForSingleObject"));
+    DWORD code = 0;
+    if (!GetExitCodeProcess(to_handle(native_process_), &code))
+        return Err(system_error("GetExitCodeProcess"));
+    return Ok(std::optional<ExitStatus>(ExitStatus{static_cast<i32>(code)}));
+#else
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        auto value = try_wait();
+        if (value.is_err() || value.unwrap().has_value())
+            return value;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return try_wait();
+#endif
+}
+
+Status Child::kill()
+{
+    if (native_process_ == -1)
+        return closed_error("kill");
+#if defined(_WIN32)
+    if (!TerminateProcess(to_handle(native_process_), 1))
+        return system_error("TerminateProcess");
+#else
+    const pid_t pid = static_cast<pid_t>(native_process_);
+    if (kill(-pid, SIGKILL) != 0 && kill(pid, SIGKILL) != 0)
+        return system_error("kill");
+#endif
+    return OkStatus();
+}
+
+std::optional<ChildStdin> Child::take_stdin()
+{
+    auto result = std::move(stdin_);
+    stdin_.reset();
+    return result;
+}
+std::optional<ChildStdout> Child::take_stdout()
+{
+    auto result = std::move(stdout_);
+    stdout_.reset();
+    return result;
+}
+std::optional<ChildStderr> Child::take_stderr()
+{
+    auto result = std::move(stderr_);
+    stderr_.reset();
+    return result;
+}
+
+StatusResult<Output> Child::wait_with_output()
+{
+    stdin_.reset();
+    Output      output;
+    Status      stdout_status = OkStatus();
+    Status      stderr_status = OkStatus();
+    auto        stdout        = take_stdout();
+    auto        stderr        = take_stderr();
+    std::thread stdout_thread([&]() {
+        if (stdout) {
+            auto value = stdout->read_to_end();
+            if (value.is_ok())
+                output.stdout_data = value.unwrap();
+            else
+                stdout_status = value.unwrap_err();
         }
-        working_dir_ptr = working_dir.c_str();
-    }
+    });
+    std::thread stderr_thread([&]() {
+        if (stderr) {
+            auto value = stderr->read_to_end();
+            if (value.is_ok())
+                output.stderr_data = value.unwrap();
+            else
+                stderr_status = value.unwrap_err();
+        }
+    });
+    auto        status = wait();
+    stdout_thread.join();
+    stderr_thread.join();
+    if (status.is_err())
+        return Err(status.unwrap_err());
+    if (stdout_status.is_err())
+        return Err(stdout_status);
+    if (stderr_status.is_err())
+        return Err(stderr_status);
+    output.status = status.unwrap();
+    return Ok(std::move(output));
+}
 
-    WindowsHandle stdout_parent;
-    WindowsHandle stdout_child;
-    WindowsHandle stderr_parent;
-    WindowsHandle stderr_child;
-    WindowsHandle stdin_parent;
-    WindowsHandle stdin_child;
+Command::Command(std::string program)
+    : program_(std::move(program))
+{}
+Command& Command::arg(std::string value)
+{
+    args_.push_back(std::move(value));
+    return *this;
+}
+Command& Command::args(std::vector<std::string> values)
+{
+    args_.insert(args_.end(),
+                 std::make_move_iterator(values.begin()),
+                 std::make_move_iterator(values.end()));
+    return *this;
+}
+Command& Command::current_dir(std::string path)
+{
+    current_dir_ = std::move(path);
+    return *this;
+}
+Command& Command::stdin(Stdio stdio)
+{
+    stdin_ = stdio;
+    return *this;
+}
+Command& Command::stdout(Stdio stdio)
+{
+    stdout_ = stdio;
+    return *this;
+}
+Command& Command::stderr(Stdio stdio)
+{
+    stderr_ = stdio;
+    return *this;
+}
 
-    if (options.capture_stdout && !create_capture_pipe(stdout_parent, stdout_child, true)) {
-        return start_error(windows_error_message("CreatePipe for stdout"));
+StatusResult<Child> Command::spawn() const
+{
+    if (program_.empty())
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "program must not be empty"));
+#if defined(_WIN32)
+    auto line = command_line(program_, args_);
+    if (line.is_err())
+        return Err(line.unwrap_err());
+    HANDLE parent_in = nullptr, parent_out = nullptr, parent_err = nullptr, child_in = nullptr,
+           child_out = nullptr, child_err = nullptr;
+    if (stdin_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_in, child_in, false))
+        return Err(system_error("CreatePipe"));
+    if (stdout_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_out, child_out, true)) {
+        if (parent_in)
+            CloseHandle(parent_in);
+        if (child_in)
+            CloseHandle(child_in);
+        return Err(system_error("CreatePipe"));
     }
-    if (options.capture_stderr && !create_capture_pipe(stderr_parent, stderr_child, true)) {
-        return start_error(windows_error_message("CreatePipe for stderr"));
-    }
-    if (options.stdin_data.has_value() && !create_capture_pipe(stdin_parent, stdin_child, false)) {
-        return start_error(windows_error_message("CreatePipe for stdin"));
-    }
-
-    STARTUPINFOW startup_info{};
-    startup_info.cb = sizeof(startup_info);
-    if (options.capture_stdout || options.capture_stderr || options.stdin_data.has_value()) {
-        startup_info.dwFlags |= STARTF_USESTDHANDLES;
-        startup_info.hStdInput =
-            options.stdin_data.has_value() ? stdin_child.get() : GetStdHandle(STD_INPUT_HANDLE);
-        startup_info.hStdOutput =
-            options.capture_stdout ? stdout_child.get() : GetStdHandle(STD_OUTPUT_HANDLE);
-        startup_info.hStdError =
-            options.capture_stderr ? stderr_child.get() : GetStdHandle(STD_ERROR_HANDLE);
-    }
-
-    PROCESS_INFORMATION  process_info{};
-    std::vector<wchar_t> mutable_command_line(command_line.begin(), command_line.end());
-    mutable_command_line.push_back(L'\0');
+    if (stderr_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_err, child_err, true))
+        return Err(system_error("CreatePipe"));
+    HANDLE null_in = nullptr, null_out = nullptr, null_err = nullptr;
+    if (stdin_.mode_ == Stdio::Mode::Null)
+        null_in = open_null_handle();
+    if (stdout_.mode_ == Stdio::Mode::Null)
+        null_out = open_null_handle();
+    if (stderr_.mode_ == Stdio::Mode::Null)
+        null_err = open_null_handle();
+    STARTUPINFOW startup{};
+    startup.cb        = sizeof(startup);
+    startup.dwFlags   = STARTF_USESTDHANDLES;
+    startup.hStdInput = child_in ? child_in : (null_in ? null_in : GetStdHandle(STD_INPUT_HANDLE));
+    startup.hStdOutput =
+        child_out ? child_out : (null_out ? null_out : GetStdHandle(STD_OUTPUT_HANDLE));
+    startup.hStdError =
+        child_err ? child_err : (null_err ? null_err : GetStdHandle(STD_ERROR_HANDLE));
+    std::wstring   working;
+    const wchar_t* working_ptr = nullptr;
+    if (current_dir_ && (!utf8_to_utf16(*current_dir_, working)))
+        return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "current_dir is not valid UTF-8"));
+    else if (current_dir_)
+        working_ptr = working.c_str();
+    std::wstring         text = std::move(line).unwrap();
+    std::vector<wchar_t> mutable_line(text.begin(), text.end());
+    mutable_line.push_back(L'\0');
+    PROCESS_INFORMATION info{};
     if (!CreateProcessW(nullptr,
-                        mutable_command_line.data(),
+                        mutable_line.data(),
                         nullptr,
                         nullptr,
                         TRUE,
                         CREATE_NO_WINDOW,
                         nullptr,
-                        working_dir_ptr,
-                        &startup_info,
-                        &process_info)) {
-        return start_error(windows_error_message("CreateProcessW"));
-    }
-
-    WindowsHandle process_handle(process_info.hProcess);
-    WindowsHandle thread_handle(process_info.hThread);
-    stdout_child.reset();
-    stderr_child.reset();
-    stdin_child.reset();
-
-    SubprocessResult result;
-    std::thread      stdout_thread;
-    std::thread      stderr_thread;
-    std::thread      stdin_thread;
-    if (options.capture_stdout) {
-        stdout_thread =
-            std::thread(read_windows_pipe, stdout_parent.get(), std::ref(result.stdout_data));
-    }
-    if (options.capture_stderr) {
-        stderr_thread =
-            std::thread(read_windows_pipe, stderr_parent.get(), std::ref(result.stderr_data));
-    }
-    if (options.stdin_data.has_value()) {
-        const HANDLE input_handle = stdin_parent.release();
-        stdin_thread              = std::thread([input_handle, input = *options.stdin_data]() {
-            write_windows_pipe(input_handle, input);
-            CloseHandle(input_handle);
-        });
-    }
-
-    DWORD timeout = INFINITE;
-    if (options.timeout.has_value()) {
-        const auto milliseconds = options.timeout->count();
-        timeout =
-            milliseconds <= 0
-                ? 0
-                : static_cast<DWORD>(std::min<std::int64_t>(
-                      milliseconds, static_cast<std::int64_t>(std::numeric_limits<DWORD>::max())));
-    }
-
-    const DWORD wait_result = WaitForSingleObject(process_handle.get(), timeout);
-    std::string supervisor_error;
-    if (wait_result == WAIT_TIMEOUT) {
-        result.timed_out = true;
-        TerminateProcess(process_handle.get(), 1);
-        WaitForSingleObject(process_handle.get(), INFINITE);
-    }
-    else if (wait_result == WAIT_FAILED) {
-        supervisor_error = windows_error_message("WaitForSingleObject");
-        TerminateProcess(process_handle.get(), 1);
-        WaitForSingleObject(process_handle.get(), INFINITE);
-    }
-
-    if (stdout_thread.joinable()) {
-        stdout_thread.join();
-    }
-    if (stderr_thread.joinable()) {
-        stderr_thread.join();
-    }
-    if (stdin_thread.joinable()) {
-        stdin_thread.join();
-    }
-    result.stderr_data += supervisor_error;
-
-    if (result.timed_out) {
-        result.exit_code = -1;
-        return result;
-    }
-
-    DWORD exit_code = 0;
-    if (!GetExitCodeProcess(process_handle.get(), &exit_code)) {
-        result.stderr_data += windows_error_message("GetExitCodeProcess");
-        return result;
-    }
-    result.exit_code = static_cast<i32>(exit_code);
-    return result;
-}
-
+                        working_ptr,
+                        &startup,
+                        &info))
+        return Err(system_error("CreateProcessW"));
+    if (child_in)
+        CloseHandle(child_in);
+    if (child_out)
+        CloseHandle(child_out);
+    if (child_err)
+        CloseHandle(child_err);
+    if (null_in)
+        CloseHandle(null_in);
+    if (null_out)
+        CloseHandle(null_out);
+    if (null_err)
+        CloseHandle(null_err);
+    CloseHandle(info.hThread);
+    return Ok(Child(
+        to_native(info.hProcess),
+        static_cast<u64>(info.dwProcessId),
+        parent_in ? std::optional<ChildStdin>(ChildStdin(to_native(parent_in))) : std::nullopt,
+        parent_out ? std::optional<ChildStdout>(ChildStdout(to_native(parent_out))) : std::nullopt,
+        parent_err ? std::optional<ChildStderr>(ChildStderr(to_native(parent_err)))
+                   : std::nullopt));
 #else
-
-class FileDescriptor
-{
-public:
-    FileDescriptor() = default;
-    explicit FileDescriptor(int descriptor)
-        : descriptor_(descriptor)
-    {}
-
-    ~FileDescriptor() { reset(); }
-
-    FileDescriptor(const FileDescriptor&)            = delete;
-    FileDescriptor& operator=(const FileDescriptor&) = delete;
-
-    int get() const { return descriptor_; }
-
-    int release()
-    {
-        const int descriptor = descriptor_;
-        descriptor_          = -1;
-        return descriptor;
+    int parent_in = -1;
+    int parent_out = -1;
+    int parent_err = -1;
+    int child_in = -1;
+    int child_out = -1;
+    int child_err = -1;
+    int exec_read = -1;
+    int exec_write = -1;
+    if ((stdin_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_in, child_in, false)) ||
+        (stdout_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_out, child_out, true)) ||
+        (stderr_.mode_ == Stdio::Mode::Piped && !create_pipe(parent_err, child_err, true)) ||
+        !create_pipe(exec_read, exec_write, true)) {
+        return Err(system_error("pipe"));
+    }
+    if (fcntl(exec_write, F_SETFD, FD_CLOEXEC) != 0) {
+        return Err(system_error("fcntl"));
     }
 
-    void reset(int descriptor = -1)
-    {
-        if (descriptor_ >= 0) {
-            close(descriptor_);
-        }
-        descriptor_ = descriptor;
-    }
+    std::vector<std::string> values;
+    values.reserve(args_.size() + 1);
+    values.push_back(program_);
+    values.insert(values.end(), args_.begin(), args_.end());
+    std::vector<char*> argv;
+    argv.reserve(values.size() + 1);
+    for (std::string& value : values) argv.push_back(value.data());
+    argv.push_back(nullptr);
 
-private:
-    int descriptor_{-1};
-};
-
-bool create_pipe(FileDescriptor& read_end, FileDescriptor& write_end)
-{
-    int descriptors[2]{};
-    if (pipe(descriptors) != 0) {
-        return false;
-    }
-    read_end.reset(descriptors[0]);
-    write_end.reset(descriptors[1]);
-    return true;
-}
-
-std::string posix_error_message(const char* operation, int error)
-{
-    return std::string(operation) + " failed: " + std::strerror(error);
-}
-
-void read_posix_pipe(int descriptor, std::string& output)
-{
-    char buffer[4096];
-    for (;;) {
-        const ssize_t count = read(descriptor, buffer, sizeof(buffer));
-        if (count > 0) {
-            output.append(buffer, static_cast<std::size_t>(count));
-            continue;
-        }
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        close(descriptor);
-        return;
-    }
-}
-
-void write_posix_pipe(int descriptor, const std::string& input)
-{
-    sigset_t blocked_signals;
-    sigemptyset(&blocked_signals);
-    sigaddset(&blocked_signals, SIGPIPE);
-    pthread_sigmask(SIG_BLOCK, &blocked_signals, nullptr);
-
-    std::size_t offset = 0;
-    while (offset < input.size()) {
-        const ssize_t count = write(descriptor, input.data() + offset, input.size() - offset);
-        if (count > 0) {
-            offset += static_cast<std::size_t>(count);
-            continue;
-        }
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        break;
-    }
-    close(descriptor);
-}
-
-void write_exec_error(int descriptor, int error)
-{
-    const char* bytes  = reinterpret_cast<const char*>(&error);
-    std::size_t offset = 0;
-    while (offset < sizeof(error)) {
-        const ssize_t count = write(descriptor, bytes + offset, sizeof(error) - offset);
-        if (count > 0) {
-            offset += static_cast<std::size_t>(count);
-            continue;
-        }
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        return;
-    }
-}
-
-SubprocessResult run_posix(const SubprocessOptions& options)
-{
-    FileDescriptor stdout_read;
-    FileDescriptor stdout_write;
-    FileDescriptor stderr_read;
-    FileDescriptor stderr_write;
-    FileDescriptor stdin_read;
-    FileDescriptor stdin_write;
-    FileDescriptor exec_error_read;
-    FileDescriptor exec_error_write;
-
-    if ((options.capture_stdout && !create_pipe(stdout_read, stdout_write)) ||
-        (options.capture_stderr && !create_pipe(stderr_read, stderr_write)) ||
-        (options.stdin_data.has_value() && !create_pipe(stdin_read, stdin_write)) ||
-        !create_pipe(exec_error_read, exec_error_write)) {
-        return start_error(posix_error_message("pipe", errno));
-    }
-    if (fcntl(exec_error_write.get(), F_SETFD, FD_CLOEXEC) != 0) {
-        return start_error(posix_error_message("fcntl", errno));
-    }
-
-    std::vector<std::string> command;
-    command.reserve(options.args.size() + 1);
-    command.push_back(options.executable);
-    command.insert(command.end(), options.args.begin(), options.args.end());
-    std::vector<char*> arguments;
-    arguments.reserve(command.size() + 1);
-    for (std::string& argument : command) {
-        arguments.push_back(argument.data());
-    }
-    arguments.push_back(nullptr);
-
-    const pid_t child_pid = fork();
-    if (child_pid < 0) {
-        return start_error(posix_error_message("fork", errno));
-    }
-    if (child_pid == 0) {
+    const pid_t pid = fork();
+    if (pid < 0) return Err(system_error("fork"));
+    if (pid == 0) {
         setpgid(0, 0);
-        if (options.working_dir.has_value() && chdir(options.working_dir->c_str()) != 0) {
-            write_exec_error(exec_error_write.get(), errno);
+        if (current_dir_ && chdir(current_dir_->c_str()) != 0) {
+            const int error = errno;
+            ::write(exec_write, &error, sizeof(error));
             _exit(127);
         }
-        if (options.stdin_data.has_value() && dup2(stdin_read.get(), STDIN_FILENO) < 0) {
-            write_exec_error(exec_error_write.get(), errno);
+        const auto set_stream = [](Stdio::Mode mode, int descriptor, int target, int access) -> bool {
+            if (mode == Stdio::Mode::Piped) return dup2(descriptor, target) >= 0;
+            if (mode == Stdio::Mode::Null) {
+                const int null_fd = open("/dev/null", access);
+                if (null_fd < 0) return false;
+                const bool ok = dup2(null_fd, target) >= 0;
+                ::close(null_fd);
+                return ok;
+            }
+            return true;
+        };
+        if (!set_stream(stdin_.mode_, child_in, STDIN_FILENO, O_RDONLY) ||
+            !set_stream(stdout_.mode_, child_out, STDOUT_FILENO, O_WRONLY) ||
+            !set_stream(stderr_.mode_, child_err, STDERR_FILENO, O_WRONLY)) {
+            const int error = errno;
+            ::write(exec_write, &error, sizeof(error));
             _exit(127);
         }
-        if (options.capture_stdout && dup2(stdout_write.get(), STDOUT_FILENO) < 0) {
-            write_exec_error(exec_error_write.get(), errno);
-            _exit(127);
+        for (int descriptor : {parent_in, parent_out, parent_err, child_in, child_out, child_err, exec_read}) {
+            if (descriptor >= 0 && descriptor > STDERR_FILENO) ::close(descriptor);
         }
-        if (options.capture_stderr && dup2(stderr_write.get(), STDERR_FILENO) < 0) {
-            write_exec_error(exec_error_write.get(), errno);
-            _exit(127);
-        }
-
-        stdout_read.reset();
-        stdout_write.reset();
-        stderr_read.reset();
-        stderr_write.reset();
-        stdin_read.reset();
-        stdin_write.reset();
-        exec_error_read.reset();
-        execvp(arguments[0], arguments.data());
-        write_exec_error(exec_error_write.get(), errno);
+        execvp(argv[0], argv.data());
+        const int error = errno;
+        ::write(exec_write, &error, sizeof(error));
         _exit(127);
     }
 
-    setpgid(child_pid, child_pid);
-    stdout_write.reset();
-    stderr_write.reset();
-    stdin_read.reset();
-    exec_error_write.reset();
-
-    SubprocessResult result;
-    std::thread      stdout_thread;
-    std::thread      stderr_thread;
-    std::thread      stdin_thread;
-    if (options.capture_stdout) {
-        stdout_thread =
-            std::thread(read_posix_pipe, stdout_read.release(), std::ref(result.stdout_data));
+    setpgid(pid, pid);
+    if (child_in >= 0) ::close(child_in);
+    if (child_out >= 0) ::close(child_out);
+    if (child_err >= 0) ::close(child_err);
+    ::close(exec_write);
+    int exec_error = 0;
+    const ssize_t exec_result = ::read(exec_read, &exec_error, sizeof(exec_error));
+    ::close(exec_read);
+    if (exec_result == static_cast<ssize_t>(sizeof(exec_error))) {
+        if (parent_in >= 0) ::close(parent_in);
+        if (parent_out >= 0) ::close(parent_out);
+        if (parent_err >= 0) ::close(parent_err);
+        waitpid(pid, nullptr, 0);
+        return Err(ErrStatus(StatusCode::NOT_FOUND,
+                             std::string("execvp failed: ") + std::strerror(exec_error)));
     }
-    if (options.capture_stderr) {
-        stderr_thread =
-            std::thread(read_posix_pipe, stderr_read.release(), std::ref(result.stderr_data));
-    }
-    if (options.stdin_data.has_value()) {
-        stdin_thread = std::thread(write_posix_pipe, stdin_write.release(), *options.stdin_data);
-    }
-
-    int         wait_status = 0;
-    bool        reaped      = false;
-    std::string supervisor_error;
-    const auto  deadline = options.timeout.has_value()
-                               ? std::chrono::steady_clock::now() + *options.timeout
-                               : std::chrono::steady_clock::time_point::max();
-    while (!reaped) {
-        const pid_t wait_result = waitpid(child_pid, &wait_status, WNOHANG);
-        if (wait_result == child_pid) {
-            reaped = true;
-            break;
-        }
-        if (wait_result < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            supervisor_error = posix_error_message("waitpid", errno);
-            break;
-        }
-        if (std::chrono::steady_clock::now() >= deadline) {
-            result.timed_out = true;
-            if (kill(-child_pid, SIGKILL) != 0) {
-                const int kill_error = errno;
-                if (kill(child_pid, SIGKILL) != 0 && errno != ESRCH) {
-                    supervisor_error = posix_error_message("kill", kill_error);
-                }
-            }
-            while (waitpid(child_pid, &wait_status, 0) < 0 && errno == EINTR) {}
-            reaped = true;
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-
-    if (stdout_thread.joinable()) {
-        stdout_thread.join();
-    }
-    if (stderr_thread.joinable()) {
-        stderr_thread.join();
-    }
-    if (stdin_thread.joinable()) {
-        stdin_thread.join();
-    }
-    result.stderr_data += supervisor_error;
-
-    int           exec_error       = 0;
-    const ssize_t exec_error_count = read(exec_error_read.get(), &exec_error, sizeof(exec_error));
-    if (exec_error_count == static_cast<ssize_t>(sizeof(exec_error))) {
-        result.stderr_data += posix_error_message("execvp", exec_error);
-        result.exit_code = -1;
-        return result;
-    }
-    if (result.timed_out) {
-        result.exit_code = -1;
-        return result;
-    }
-    if (reaped && WIFEXITED(wait_status)) {
-        result.exit_code = static_cast<i32>(WEXITSTATUS(wait_status));
-    }
-    else if (reaped && WIFSIGNALED(wait_status)) {
-        result.exit_code = static_cast<i32>(128 + WTERMSIG(wait_status));
-    }
-    return result;
+    return Ok(Child(static_cast<std::intptr_t>(pid), static_cast<u64>(pid),
+                    parent_in >= 0 ? std::optional<ChildStdin>(ChildStdin(parent_in)) : std::nullopt,
+                    parent_out >= 0 ? std::optional<ChildStdout>(ChildStdout(parent_out)) : std::nullopt,
+                    parent_err >= 0 ? std::optional<ChildStderr>(ChildStderr(parent_err)) : std::nullopt));
+#endif
 }
 
-#endif
-
-}   // namespace
-
-bool SubprocessResult::succeeded() const noexcept
+StatusResult<ExitStatus> Command::status() const
 {
-    return !timed_out && exit_code == 0;
+    auto child = spawn();
+    if (child.is_err())
+        return Err(child.unwrap_err());
+    return std::move(child).unwrap().wait();
 }
-
-SubprocessResult run(const SubprocessOptions& options)
+StatusResult<Output> Command::output() const
 {
-    if (options.executable.empty()) {
-        return start_error("executable must not be empty");
-    }
-
-#if defined(_WIN32)
-    return run_windows(options);
-#else
-    return run_posix(options);
-#endif
+    Command copy(*this);
+    copy.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    auto child = copy.spawn();
+    if (child.is_err())
+        return Err(child.unwrap_err());
+    return std::move(child).unwrap().wait_with_output();
 }
 
 }   // namespace ca::process
