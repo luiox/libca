@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "libca/core/status.hpp"
@@ -103,6 +104,33 @@ public:
 private:
     explicit NamedSemaphore(std::intptr_t native_handle) noexcept;
     std::intptr_t native_handle_{-1};
+};
+
+class MessageQueue
+{
+public:
+    MessageQueue() = default;
+    ~MessageQueue();
+    MessageQueue(const MessageQueue&)            = delete;
+    MessageQueue& operator=(const MessageQueue&) = delete;
+    MessageQueue(MessageQueue&& other) noexcept;
+    MessageQueue& operator=(MessageQueue&& other) noexcept;
+
+    static ca::core::StatusResult<MessageQueue>        create(const std::string& name,
+                                                              usize              max_message_size);
+    static ca::core::StatusResult<MessageQueue>        open(const std::string& name);
+    ca::core::Status                                   send(const void* data, usize length);
+    ca::core::Status                                   send(const std::string& data);
+    ca::core::StatusResult<std::string>                receive();
+    ca::core::StatusResult<std::optional<std::string>> receive_for(
+        std::chrono::milliseconds timeout);
+    void close() noexcept;
+
+private:
+    MessageQueue(std::intptr_t native_handle, usize max_message_size, bool receiver) noexcept;
+    std::intptr_t native_handle_{-1};
+    usize         max_message_size_{0};
+    bool          receiver_{false};
 };
 
 }   // namespace ca::process::ipc

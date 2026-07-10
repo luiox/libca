@@ -9,7 +9,7 @@ target("libca_process")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     elseif is_plat("linux") then
-        add_syslinks("pthread")
+        add_syslinks("pthread", "rt")
     end
 
 if has_config("with_tests") then
