@@ -27,7 +27,7 @@ StatusResult<std::wstring> utf8_to_utf16(const std::string& value)
                             MB_ERR_INVALID_CHARS,
                             value.data(),
                             static_cast<int>(value.size()),
-                            converted.data(),
+                            &converted[0],
                             length) == 0) {
         return ErrStatus(StatusCode::INVALID_ARGUMENT, "dynamic library path is not valid UTF-8");
     }
@@ -87,7 +87,8 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
         return Err(wide_path.unwrap_err());
     }
 
-    HMODULE handle = LoadLibraryW(wide_path.unwrap().c_str());
+    std::wstring library_path = std::move(wide_path).unwrap();
+    HMODULE      handle       = LoadLibraryW(library_path.c_str());
     if (handle == nullptr) {
         const auto       error = static_cast<unsigned long>(GetLastError());
         const StatusCode code  = error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND ||
@@ -99,6 +100,7 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
     return Ok(DynamicLibrary(reinterpret_cast<void*>(handle)));
 #else
     dlerror();
+    errno        = 0;
     void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (handle == nullptr) {
         const char*      error = dlerror();
