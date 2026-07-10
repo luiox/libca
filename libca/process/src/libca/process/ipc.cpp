@@ -313,7 +313,7 @@ StatusResult<NamedPipeConnection> NamedPipeServer::accept()
     native_handle_ = -1;
     return Ok(NamedPipeConnection(to_native(handle)));
 #else
-    const int handle = accept(to_fd(native_handle_), nullptr, nullptr);
+    const int handle = ::accept(to_fd(native_handle_), nullptr, nullptr);
     if (handle < 0)
         return Err(posix_error("accept"));
     close();
@@ -347,7 +347,7 @@ StatusResult<NamedPipeConnection> NamedPipeClient::connect(const std::string& na
     sockaddr_un address{};
     address.sun_family = AF_UNIX;
     std::strncpy(address.sun_path, std::move(path).unwrap().c_str(), sizeof(address.sun_path) - 1);
-    if (connect(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
+    if (::connect(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
         const auto error = posix_error("connect");
         ::close(handle);
         return Err(error);
