@@ -169,6 +169,10 @@ Running --shutdown(Drain)--------> ShuttingDownDrain --join()--> Joined
 `join()` 要求先调用 `shutdown()`，并且自身幂等。析构函数作为兜底执行
 `shutdown(Drain)` 和 `join()`，但业务代码应显式关闭以处理返回状态。
 
+`join()` 不能从本线程池的 worker 内调用，否则返回 `FAILED_PRECONDITION`。worker 不能
+等待自身退出；从外部生命周期控制线程调用 `shutdown()` 和 `join()` 才能保持完整的
+结构化等待语义。
+
 ## 4. 并发与错误模型
 
 - `StopSource`、`StopToken`、`BoundedQueue` 的公开操作可被多个线程并发调用。
