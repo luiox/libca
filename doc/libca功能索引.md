@@ -75,6 +75,33 @@ UTF-8 字符串与所有权模型模块。
 设计文档：
 - `libca/fs/doc/fs设计文档.md`
 
+## io
+
+同步字节流协议、缓冲读写和原生 handle/fd RAII 模块。
+
+入口头文件：
+- `<libca/io/io.hpp>`
+- `<libca/io/error.hpp>`
+- `<libca/io/reader.hpp>`
+- `<libca/io/writer.hpp>`
+- `<libca/io/seek.hpp>`
+- `<libca/io/buffered.hpp>`
+- `<libca/io/native_handle.hpp>`
+- `<libca/io/native_stream.hpp>`
+
+功能：
+- `IoError` / `IoResult`：保留稳定错误类别、原生错误码和操作上下文。
+- `Reader`：统一 EOF、短读、精确读取和限长读取到末尾。
+- `Writer`：统一短写、完整写入和 flush 语义。
+- `Seek` / `SeekFrom`：从起点、当前位置或末尾定位字节流。
+- `BufReader` / `BufWriter`：拥有底层流的固定容量缓冲适配器。
+- `OwnedHandle`：Windows HANDLE 或 POSIX fd 的 move-only RAII 所有者。
+- `NativeStream`：基于原生 handle/fd 的 Reader、Writer 和 Seek 实现。
+
+设计与使用文档：
+- `libca/io/doc/design.md`
+- `libca/io/doc/io使用文档.md`
+
 ## crypto
 
 哈希、编码、校验和基础密码学工具。

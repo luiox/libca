@@ -56,6 +56,9 @@ auto count = reader.read_until(static_cast<u8>('\n'), line);
 `fill_buf()` 返回非拥有视图。调用 `consume()`、再次读取、移动或销毁 BufReader 后，不得再
 访问旧视图。
 
+`into_inner()` 会返回底层 Reader，但会丢弃尚未消费的预读字节。只有确认缓冲为空，或
+调用方明确不再需要这些字节时才能使用。
+
 ## 使用缓冲写入
 
 ```cpp

@@ -173,7 +173,8 @@ public:
 - Windows 保存可由 `CloseHandle()` 关闭的 `HANDLE`。
 - POSIX 保存可由 `close()` 关闭的 fd，fd 0 是有效值。
 - `adopt()` 明确表示接管外部原生资源。
-- `duplicate()` 使用 `DuplicateHandle()` / `dup()` 创建独立所有权。
+- `duplicate()` 使用 `DuplicateHandle()` / `fcntl(F_DUPFD_CLOEXEC)` 创建独立所有权；
+  缺少该 fcntl 命令的平台回退到 `dup()` 后设置 `FD_CLOEXEC`。
 - `close()` 显式关闭并返回 `IoError`；析构执行 noexcept best-effort close。
 - `release()` 放弃 RAII 并把原生值交还调用方。
 
