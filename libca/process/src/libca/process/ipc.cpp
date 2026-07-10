@@ -108,7 +108,7 @@ StatusResult<std::string> unix_socket_path(const std::string& name)
         return Err(
             ErrStatus(StatusCode::INVALID_ARGUMENT, "named pipe name must be a simple token"));
     const std::string path = "/tmp/libca_process_" + name + ".sock";
-    if (path.size() >= sizeof(sockaddr_un::sun_path))
+    if (path.size() >= sizeof(sockaddr_un{}.sun_path))
         return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "named pipe name is too long"));
     return Ok(path);
 }
