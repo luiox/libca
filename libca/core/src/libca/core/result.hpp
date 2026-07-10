@@ -898,9 +898,24 @@ struct Result {
         !std::is_same<U, void>::value,
         U
     >::type
-    unwrap() const {
+    unwrap() const & {
         if (is_ok()) {
             return storage().template get<U>();
+        }
+
+        std::fprintf(stderr, "Attempting to unwrap an error Result\n");
+        std::terminate();
+    }
+
+    /// @brief 成功则移动取值；失败则 std::terminate。适用于移动专属的成功值。
+    template<typename U = T>
+    typename std::enable_if<
+        !std::is_same<U, void>::value,
+        U
+    >::type
+    unwrap() && {
+        if (is_ok()) {
+            return std::move(storage().template get<U>());
         }
 
         std::fprintf(stderr, "Attempting to unwrap an error Result\n");
