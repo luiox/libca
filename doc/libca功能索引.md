@@ -124,6 +124,26 @@ UTF-8 字符串与所有权模型模块。
 - `ImmutableList`：不可变列表。
 - `Stream`：链式数据处理接口。
 
+## thread
+
+结构化线程、协作取消、有界队列与线程池模块。
+
+入口头文件：
+- `<libca/thread/stop_token.hpp>`
+- `<libca/thread/thread.hpp>`
+- `<libca/thread/bounded_queue.hpp>`
+- `<libca/thread/thread_pool.hpp>`
+
+功能：
+- `StopSource` / `StopToken`：共享、幂等的协作停止状态，支持等待停止请求。
+- `Thread`：类似 `std::jthread` 的 move-only 结构化线程，析构时请求停止并 join。
+- `BoundedQueue<T>`：多生产者、多消费者有界队列，支持阻塞、立即和限时背压。
+- `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
+
+设计与使用文档：
+- `libca/thread/doc/design.md`
+- `libca/thread/doc/thread使用文档.md`
+
 ## 暂未作为主线使用的代码
 
 - `libca.core/`：旧 C++ 桌面代码，作为 legacy 参考，新增 C++ 工作优先放在 `libca/`。
