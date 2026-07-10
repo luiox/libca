@@ -20,75 +20,98 @@ std::string test_executable_path()
 #if defined(_WIN32)
     char        path[MAX_PATH]{};
     const DWORD length = GetModuleFileNameA(nullptr, path, sizeof(path));
-    if (length == 0 || length == sizeof(path)) {
-        return {};
-    }
-    return std::string(path, length);
+    return length == 0 || length == sizeof(path) ? std::string{} : std::string(path, length);
 #else
     char          path[PATH_MAX]{};
     const ssize_t length = readlink("/proc/self/exe", path, sizeof(path));
-    if (length <= 0 || length == static_cast<ssize_t>(sizeof(path))) {
-        return {};
-    }
-    return std::string(path, static_cast<std::size_t>(length));
+    return length <= 0 || length == static_cast<ssize_t>(sizeof(path))
+               ? std::string{}
+               : std::string(path, static_cast<usize>(length));
 #endif
 }
 
-SubprocessOptions child_options(const char* mode)
+Command child_command(const char* mode)
 {
-    SubprocessOptions options;
-    options.executable = test_executable_path();
-    options.args       = {mode};
-    return options;
+    Command command(test_executable_path());
+    command.arg(mode);
+    return command;
 }
 
-TEST(SubprocessTest, CapturesStdoutStderrAndExitCode)
+TEST(CommandTest, OutputCapturesBothStreams)
 {
-    auto options = child_options("--subprocess-success");
+    auto command = child_command("--subprocess-success");
+    auto result  = command.output();
 
-    const auto result = run(options);
-
-    EXPECT_EQ(result.exit_code, 0) << result.stderr_data;
-    EXPECT_TRUE(result.succeeded());
-    EXPECT_FALSE(result.timed_out);
-    EXPECT_NE(result.stdout_data.find("stdout"), std::string::npos);
-    EXPECT_NE(result.stderr_data.find("stderr"), std::string::npos);
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    const auto output = result.unwrap();
+    EXPECT_TRUE(output.status.success());
+    EXPECT_EQ(output.stdout_data, "stdout");
+    EXPECT_EQ(output.stderr_data, "stderr");
 }
 
-TEST(SubprocessTest, TerminatesOnTimeout)
+TEST(CommandTest, ChildExposesInteractiveStandardPipes)
 {
-    auto options    = child_options("--subprocess-timeout");
-    options.timeout = std::chrono::milliseconds(50);
+    auto command = child_command("--subprocess-echo");
+    command.stdin(Stdio::piped()).stdout(Stdio::piped());
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
 
-    const auto result = run(options);
+    auto child  = std::move(spawned).unwrap();
+    auto input  = child.take_stdin();
+    auto output = child.take_stdout();
+    ASSERT_TRUE(input.has_value());
+    ASSERT_TRUE(output.has_value());
+    ASSERT_TRUE(input->write_all("ping\n").is_ok());
+    input->close();
 
-    EXPECT_TRUE(result.timed_out) << result.stderr_data;
-    EXPECT_EQ(result.exit_code, -1);
-    EXPECT_FALSE(result.succeeded());
+    auto echoed = output->read_to_end();
+    ASSERT_TRUE(echoed.is_ok()) << echoed.unwrap_err().to_string();
+    EXPECT_EQ(echoed.unwrap(), "ping");
+
+    auto status = child.wait();
+    ASSERT_TRUE(status.is_ok()) << status.unwrap_err().to_string();
+    EXPECT_TRUE(status.unwrap().success());
 }
 
-TEST(SubprocessTest, ReturnsNonzeroExitCode)
+TEST(CommandTest, StatusReturnsChildExitCode)
 {
-    auto options = child_options("--subprocess-failure");
+    auto command = child_command("--subprocess-failure");
+    auto status  = command.status();
 
-    const auto result = run(options);
-
-    EXPECT_FALSE(result.timed_out);
-    EXPECT_EQ(result.exit_code, 7) << result.stderr_data;
-    EXPECT_FALSE(result.succeeded());
+    ASSERT_TRUE(status.is_ok()) << status.unwrap_err().to_string();
+    EXPECT_EQ(status.unwrap().code, 7);
+    EXPECT_FALSE(status.unwrap().success());
 }
 
-TEST(SubprocessTest, ReportsLaunchFailure)
+TEST(ChildTest, WaitForThenKillAndReap)
 {
-    SubprocessOptions options;
-    options.executable = "libca_missing_subprocess_503";
+    auto command = child_command("--subprocess-timeout");
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
 
-    const auto result = run(options);
+    auto child   = std::move(spawned).unwrap();
+    auto pending = child.wait_for(std::chrono::milliseconds(20));
+    ASSERT_TRUE(pending.is_ok()) << pending.unwrap_err().to_string();
+    EXPECT_FALSE(pending.unwrap().has_value());
 
-    EXPECT_FALSE(result.timed_out);
-    EXPECT_EQ(result.exit_code, -1);
-    EXPECT_FALSE(result.stderr_data.empty());
-    EXPECT_FALSE(result.succeeded());
+    ASSERT_TRUE(child.kill().is_ok());
+    auto status = child.wait();
+    ASSERT_TRUE(status.is_ok()) << status.unwrap_err().to_string();
+    EXPECT_FALSE(status.unwrap().success());
+}
+
+TEST(AnonymousPipeTest, TransfersDataAndSignalsEndOfStream)
+{
+    auto pipe = ipc::create_anonymous_pipe();
+    ASSERT_TRUE(pipe.is_ok()) << pipe.unwrap_err().to_string();
+
+    auto endpoints = std::move(pipe).unwrap();
+    ASSERT_TRUE(endpoints.writer.write_all("hello").is_ok());
+    endpoints.writer.close();
+
+    auto data = endpoints.reader.read_to_end();
+    ASSERT_TRUE(data.is_ok()) << data.unwrap_err().to_string();
+    EXPECT_EQ(data.unwrap(), "hello");
 }
 
 }   // namespace
