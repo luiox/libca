@@ -75,8 +75,9 @@ still be using.
 Message queues preserve one-message boundaries. On Windows they are
 intentionally one-way: `create()` returns the receiver and `open()` returns a
 sender. On Linux an opened queue can send and receive. A message larger than
-the configured maximum is rejected. `receive_for()` returns an empty optional
-on timeout, allowing callers to distinguish it from operational failure.
+the configured maximum is rejected on Linux; Windows enforces the configured
+bound at the receiver. `receive_for()` returns an empty optional on timeout,
+allowing callers to distinguish it from operational failure.
 
 ## Error and Platform Rules
 
