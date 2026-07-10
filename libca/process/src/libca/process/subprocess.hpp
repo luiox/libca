@@ -151,6 +151,7 @@ private:
 
     std::intptr_t              native_process_{-1};
     u64                        process_id_{0};
+    std::optional<ExitStatus>  exit_status_;
     std::optional<ChildStdin>  stdin_;
     std::optional<ChildStdout> stdout_;
     std::optional<ChildStderr> stderr_;

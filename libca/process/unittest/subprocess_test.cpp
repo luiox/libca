@@ -95,6 +95,31 @@ TEST(CommandTest, StatusReturnsChildExitCode)
     EXPECT_FALSE(status.unwrap().success());
 }
 
+TEST(CommandTest, ReusesCommandAndPreservesArgumentBoundaries)
+{
+    auto command = child_command("--subprocess-args");
+    command.arg("contains spaces").arg("");
+
+    auto first = command.output();
+    ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
+    EXPECT_EQ(first.unwrap().stdout_data, "contains spaces|");
+
+    auto second = command.output();
+    ASSERT_TRUE(second.is_ok()) << second.unwrap_err().to_string();
+    EXPECT_EQ(second.unwrap().stdout_data, "contains spaces|");
+}
+
+TEST(CommandTest, WaitWithOutputDrainsLargeStandardStreams)
+{
+    auto command = child_command("--subprocess-large-output");
+    auto result  = command.output();
+
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    EXPECT_TRUE(result.unwrap().status.success());
+    EXPECT_EQ(result.unwrap().stdout_data.size(), 256U * 1024U);
+    EXPECT_EQ(result.unwrap().stderr_data.size(), 256U * 1024U);
+}
+
 TEST(ChildTest, WaitForThenKillAndReap)
 {
     auto command = child_command("--subprocess-timeout");
@@ -110,6 +135,31 @@ TEST(ChildTest, WaitForThenKillAndReap)
     auto status = child.wait();
     ASSERT_TRUE(status.is_ok()) << status.unwrap_err().to_string();
     EXPECT_FALSE(status.unwrap().success());
+}
+
+TEST(ChildTest, WaitReturnsCachedStatusAfterTryWaitReapsChild)
+{
+    auto command = child_command("--subprocess-success");
+    command.stdout(Stdio::null()).stderr(Stdio::null());
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
+
+    auto child = std::move(spawned).unwrap();
+    std::optional<ExitStatus> status;
+    for (usize index = 0; index < 100 && !status.has_value(); ++index) {
+        auto result = child.try_wait();
+        ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+        status = result.unwrap();
+        if (!status.has_value())
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    ASSERT_TRUE(status.has_value());
+    EXPECT_TRUE(status->success());
+
+    auto waited = child.wait();
+    ASSERT_TRUE(waited.is_ok()) << waited.unwrap_err().to_string();
+    EXPECT_EQ(waited.unwrap().code, status->code);
+    EXPECT_TRUE(child.kill().is_err());
 }
 
 TEST(AnonymousPipeTest, TransfersDataAndSignalsEndOfStream)

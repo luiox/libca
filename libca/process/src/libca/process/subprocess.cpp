@@ -389,12 +389,14 @@ Child::~Child()
 Child::Child(Child&& other) noexcept
     : native_process_(other.native_process_)
     , process_id_(other.process_id_)
+    , exit_status_(std::move(other.exit_status_))
     , stdin_(std::move(other.stdin_))
     , stdout_(std::move(other.stdout_))
     , stderr_(std::move(other.stderr_))
 {
     other.native_process_ = -1;
     other.process_id_     = 0;
+    other.exit_status_.reset();
 }
 Child& Child::operator=(Child&& other) noexcept
 {
@@ -402,11 +404,13 @@ Child& Child::operator=(Child&& other) noexcept
         close_process();
         native_process_       = other.native_process_;
         process_id_           = other.process_id_;
+        exit_status_          = std::move(other.exit_status_);
         stdin_                = std::move(other.stdin_);
         stdout_               = std::move(other.stdout_);
         stderr_               = std::move(other.stderr_);
         other.native_process_ = -1;
         other.process_id_     = 0;
+        other.exit_status_.reset();
     }
     return *this;
 }
@@ -426,6 +430,8 @@ void Child::close_process() noexcept
 
 StatusResult<std::optional<ExitStatus>> Child::try_wait()
 {
+    if (exit_status_.has_value())
+        return Ok(exit_status_);
     if (native_process_ == -1)
         return Err(closed_error("try_wait"));
 #if defined(_WIN32)
@@ -437,7 +443,8 @@ StatusResult<std::optional<ExitStatus>> Child::try_wait()
     DWORD code = 0;
     if (!GetExitCodeProcess(to_handle(native_process_), &code))
         return Err(system_error("GetExitCodeProcess"));
-    return Ok(std::optional<ExitStatus>(ExitStatus{static_cast<i32>(code)}));
+    exit_status_ = ExitStatus{static_cast<i32>(code)};
+    return Ok(exit_status_);
 #else
     int         status = 0;
     const pid_t result = waitpid(static_cast<pid_t>(native_process_), &status, WNOHANG);
@@ -445,38 +452,44 @@ StatusResult<std::optional<ExitStatus>> Child::try_wait()
         return Ok(std::optional<ExitStatus>{});
     if (result < 0)
         return Err(system_error("waitpid"));
-    return Ok(std::optional<ExitStatus>(
-        ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
-                                     : static_cast<i32>(128 + WTERMSIG(status))}));
+    exit_status_ = ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
+                                                 : static_cast<i32>(128 + WTERMSIG(status))};
+    return Ok(exit_status_);
 #endif
 }
 
 StatusResult<ExitStatus> Child::wait()
 {
     stdin_.reset();
-#if defined(_WIN32)
+    if (exit_status_.has_value())
+        return Ok(*exit_status_);
     if (native_process_ == -1)
         return Err(closed_error("wait"));
+#if defined(_WIN32)
     if (WaitForSingleObject(to_handle(native_process_), INFINITE) != WAIT_OBJECT_0)
         return Err(system_error("WaitForSingleObject"));
     DWORD code = 0;
     if (!GetExitCodeProcess(to_handle(native_process_), &code))
         return Err(system_error("GetExitCodeProcess"));
-    return Ok(ExitStatus{static_cast<i32>(code)});
+    exit_status_ = ExitStatus{static_cast<i32>(code)};
+    return Ok(*exit_status_);
 #else
     int status = 0;
     if (waitpid(static_cast<pid_t>(native_process_), &status, 0) < 0)
         return Err(system_error("waitpid"));
-    return Ok(ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
-                                           : static_cast<i32>(128 + WTERMSIG(status))});
+    exit_status_ = ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
+                                                 : static_cast<i32>(128 + WTERMSIG(status))};
+    return Ok(*exit_status_);
 #endif
 }
 
 StatusResult<std::optional<ExitStatus>> Child::wait_for(std::chrono::milliseconds timeout)
 {
-#if defined(_WIN32)
+    if (exit_status_.has_value())
+        return Ok(exit_status_);
     if (native_process_ == -1)
         return Err(closed_error("wait_for"));
+#if defined(_WIN32)
     const auto count =
         timeout.count() <= 0
             ? 0
@@ -489,7 +502,8 @@ StatusResult<std::optional<ExitStatus>> Child::wait_for(std::chrono::millisecond
     DWORD code = 0;
     if (!GetExitCodeProcess(to_handle(native_process_), &code))
         return Err(system_error("GetExitCodeProcess"));
-    return Ok(std::optional<ExitStatus>(ExitStatus{static_cast<i32>(code)}));
+    exit_status_ = ExitStatus{static_cast<i32>(code)};
+    return Ok(exit_status_);
 #else
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     while (std::chrono::steady_clock::now() < deadline) {
@@ -504,7 +518,7 @@ StatusResult<std::optional<ExitStatus>> Child::wait_for(std::chrono::millisecond
 
 Status Child::kill()
 {
-    if (native_process_ == -1)
+    if (native_process_ == -1 || exit_status_.has_value())
         return closed_error("kill");
 #if defined(_WIN32)
     if (!TerminateProcess(to_handle(native_process_), 1))
