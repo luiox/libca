@@ -34,9 +34,6 @@ public:
     Command& arg(std::string value);
     Command& args(std::vector<std::string> values);
     Command& current_dir(std::string path);
-    Command& env(std::string key, std::string value);
-    Command& env_remove(std::string key);
-    Command& env_clear();
     Command& stdin(Stdio stdio);
     Command& stdout(Stdio stdio);
     Command& stderr(Stdio stdio);
