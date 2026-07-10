@@ -1,8 +1,11 @@
 #include <gmock/gmock.h>
 
 #include <chrono>
+#include <cstring>
+#include <thread>
 
 #include "libca/process/subprocess.hpp"
+#include "libca/process/ipc.hpp"
 
 #if defined(_WIN32)
 #    define WIN32_LEAN_AND_MEAN
@@ -113,6 +116,44 @@ TEST(AnonymousPipeTest, TransfersDataAndSignalsEndOfStream)
     ASSERT_TRUE(data.is_ok()) << data.unwrap_err().to_string();
     EXPECT_EQ(data.unwrap(), "hello");
 }
+
+#if defined(_WIN32)
+TEST(SharedMemoryTest, CreateAndOpenShareMappedBytes)
+{
+    const std::string name    = "libca_process_shm_" + std::to_string(GetCurrentProcessId());
+    auto              created = ipc::SharedMemory::create(name, 64);
+    ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    auto created_memory = std::move(created).unwrap();
+    auto opened         = ipc::SharedMemory::open(name);
+    ASSERT_TRUE(opened.is_ok()) << opened.unwrap_err().to_string();
+    auto opened_memory = std::move(opened).unwrap();
+
+    std::memcpy(created_memory.data(), "shared", 7);
+    EXPECT_STREQ(static_cast<const char*>(opened_memory.data()), "shared");
+}
+
+TEST(NamedPipeTest, ServerAndClientExchangeBytes)
+{
+    const std::string name   = "libca_process_pipe_" + std::to_string(GetCurrentProcessId());
+    auto              server = ipc::NamedPipeServer::create(name);
+    ASSERT_TRUE(server.is_ok()) << server.unwrap_err().to_string();
+
+    std::thread worker([server = std::move(server).unwrap()]() mutable {
+        auto connection = server.accept();
+        if (!connection.is_ok())
+            return;
+        std::move(connection).unwrap().write_all("pong");
+    });
+    auto        client = ipc::NamedPipeClient::connect(name);
+    ASSERT_TRUE(client.is_ok()) << client.unwrap_err().to_string();
+    auto connection = std::move(client).unwrap();
+    char buffer[5]{};
+    auto count = connection.read(buffer, 4);
+    ASSERT_TRUE(count.is_ok()) << count.unwrap_err().to_string();
+    EXPECT_EQ(std::string(buffer, count.unwrap()), "pong");
+    worker.join();
+}
+#endif
 
 }   // namespace
 }   // namespace ca::process::test
