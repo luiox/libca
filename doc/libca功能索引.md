@@ -102,6 +102,32 @@ UTF-8 字符串与所有权模型模块。
 - `libca/io/doc/design.md`
 - `libca/io/doc/io使用文档.md`
 
+## net
+
+建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。
+
+入口头文件：
+- `<libca/net/net.hpp>`
+- `<libca/net/address.hpp>`
+- `<libca/net/socket.hpp>`
+- `<libca/net/dns.hpp>`
+- `<libca/net/tcp.hpp>`
+- `<libca/net/udp.hpp>`
+
+功能：
+- `IpAddress` / `SocketAddress`：IPv4、IPv6、端口、flow info 和 scope id 值类型。
+- `OwnedSocket`：Windows SOCKET 或 POSIX socket fd 的 move-only RAII 所有者。
+- `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选。
+- `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时和非阻塞。
+- `TcpListener`：TCP bind、accept、临时端口、非阻塞和 clone。
+- `UdpSocket`：保留数据报边界的 send/receive API、超时、非阻塞和 broadcast。
+
+TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展。
+
+设计与使用文档：
+- `libca/net/doc/design.md`
+- `libca/net/doc/net使用文档.md`
+
 ## crypto
 
 哈希、编码、校验和基础密码学工具。
