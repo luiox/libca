@@ -19,6 +19,7 @@ target("libca_str_unittest")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
     add_deps("libca_str")
+    add_links("libca_str", "libca_core")
     set_rundir("$(projectdir)")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
