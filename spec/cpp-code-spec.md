@@ -56,7 +56,7 @@ update:
 
 ## 字符串约定
 
-- UTF-8 是内部唯一编码，类型族见 `libca/str/doc/str-spec.md`。
+- UTF-8 是内部唯一编码，类型族见 `libca/str/doc/str设计文档.md`。
 - **`ca::str` 定稿前，新模块默认用 `std::string`**（UTF-8 语义）。`ca::str` 主要为一致性服务，待其稳定且有性能测试后再按一致性迁移下游，当前不在新接口上叠加 `ca::str` 依赖。
 
 ## 依赖分层

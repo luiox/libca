@@ -1,13 +1,16 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-07-13 - 合并 str-spec.md 的设计性内容（所有权分层、Pool/Arena/Twine 选型与生命周期契约），删除逐接口清单
 2026-07-06 - 首版，补充 str 模块职责、UTF-8 类型族与 StringUtil 字节工具边界
 ---
 
 # libca::str 设计文档
 
-> 本文讲 str 模块的架构和设计边界。具体 API 使用请看头文件：
-> `utf8_string.hpp`、`string_util.hpp`、`char_util.hpp`、`conversion.hpp`、`cstring.hpp`、`wstring.hpp`。
+> 本文讲 str 模块的架构、设计边界与选型。**具体接口签名与逐方法说明见各头文件的 Doxygen 注释**，
+> 本文不重复 API 清单。涉及的头文件：
+> `utf8_string.hpp`、`utf8_string_pool.hpp`、`utf8_string_arena.hpp`、`utf8_twine.hpp`、
+> `utf16_string.hpp`、`cstring.hpp`、`wstring.hpp`、`conversion.hpp`、`char_util.hpp`、`string_util.hpp`。
 
 ## 1. 模块定位
 
@@ -20,16 +23,75 @@ str 模块分成两类能力：
 
 ## 2. UTF-8 类型族
 
-UTF-8 是 libca 的内部文本编码。`Utf8String` 负责拥有和校验 UTF-8 字节，`Utf8StringRef` 负责非拥有视图，二者共同提供码点长度、切片、比较和查找。
+UTF-8 是 libca 的内部文本编码。这一族类型围绕**所有权**组织，回答"这块 UTF-8 字节归谁管、活多久"：
 
-设计重点：
+```
+拥有型（分配并持有字节）
+  ├─ Utf8String        独立拥有，移动语义，clone() 为唯一深拷贝
+  ├─ Utf8StringArena   整批共存共死：一批字符串有共同死亡点，整块释放
+  └─ Utf8StringPool    条目寿命各异：引用计数，refcount 归零真删
 
-- `Utf8String` 不可变，避免隐式共享和写时复制的复杂度。
-- 码点数量在构造时缓存，`length()` 为 O(1)。
-- 视图不持有内存，适合参数传递和零拷贝切片。
-- 比较采用字节字典序，不做 locale collation。
+非拥有视图（借用，不分配）
+  ├─ Utf8StringRef     通用视图，不保证 \0（中段切片可能无 \0）
+  ├─ ZUtf8StringRef    保证 \0 的视图，专为字面量/全局常量（from_static 带 intern 缓存）
+  └─ Utf8StringPooledPtr  Pool 的引用计数句柄（8 字节），可降级为 Utf8StringRef 借用
 
-更细的 UTF-8 类型设计见 `utf8_string_design.md` 和 `str-spec.md`。
+惰性拼接（不持有，仅 materialize 时一次性产出）
+  └─ Utf8Twine         LLVM Twine 风格二叉拼接树，拼接零分配
+
+构建器（拥有可变缓冲，临时）
+  └─ Utf8StringBuilder 追加写入，build() 校验并产出 Utf8String
+```
+
+### 2.1 拥有与不可变
+
+- `Utf8String` 一旦构造完成内容不可变，所有"修改"操作（substr、大小写转换等）返回新实例。不可变意味着天然线程安全，且无需 COW、扩容等可变字符串的复杂度。
+- 码点数量在构造时缓存，`length()` 为 O(1)；按码点访问为 O(n) 扫描，按字节访问为 O(1)。
+- 深拷贝必须显式 `clone()`，拷贝构造/赋值已删除，避免意外深拷贝。
+- 比较与查找按 UTF-8 字节字典序，不做 Unicode 规范化、不按 locale collation，结果稳定可预测。
+
+### 2.2 视图与借用纪律
+
+`Utf8StringRef` 是公共视图层，所有比较运算符最终都落在视图上。`Utf8String` 可隐式构造为视图参与比较。
+
+视图不持有内存，**借用纪律由调用方保证**：原串销毁、移动，或 arena/pool 释放后，由它派生的视图失效。这是 Rust `&str` 的同款约束——视图是借用，不是所有权。
+
+`Utf8StringRef` 不保证结尾 `\0`（因为可能是某串的中段切片），故**不提供 `c_str()`**。需要 `\0` 保证的场景用 `ZUtf8StringRef`（字面量/全局常量，经 `from_static` 走全局 intern 缓存避免重复算码点）或直接用 `Utf8String`（内部始终 `\0` 结尾）。
+
+### 2.3 Arena vs Pool —— 两种池化策略
+
+批量场景下逐个 `Utf8String` 分配开销大，提供两种池化去重方案，**按死亡点选型**：
+
+| | Utf8StringArena | Utf8StringPool |
+|---|---|---|
+| 死亡模型 | 同生共死，整批释放 | 各条目寿命不同 |
+| 句柄 | 返回 `Utf8StringRef`（借用 arena） | 返回 `Utf8StringPooledPtr`（引用计数） |
+| 回收 | arena 析构/clear 时整块释放 | refcount 归零真删（非墓碑） |
+| 典型场景 | 编译器符号表、配置解析 | 跨作用域共享的常量字符串 |
+
+两者都做内容去重（intern），且**返回的视图/句柄绑定池的生命周期**：
+
+- **Arena**：arena 析构 / `clear()` / 移动赋值后，所有派生 `Utf8StringRef` 失效。内存不挪动（固定块链式扩展），故指针稳定。
+- **Pool 的生命周期契约（核心）**：
+  - **真删**：`PooledPtr` refcount 归零即 delete 该 entry，不是墓碑标记。
+  - **outlive 是软契约**：Pool 先于 PooledPtr 析构 / `clear()` / move-assign 时**不会 UAF**（走 disown fail-safe，存活句柄转为自管释放），但失去去重收益。遵守 outlive 则享真删+去重，违反则退化自管，仍安全。
+  - **Ref 由借用纪律保证**：`PooledPtr` 析构后，由它 `.ref()` 派生的 `Utf8StringRef` 失效。
+
+### 2.4 惰性拼接 Utf8Twine
+
+`Utf8Twine` 是 LLVM Twine 风格的二叉拼接树，拼接（`operator+`/`concat`）零分配，只在真正需要时经 `to_string()`（独立拥有）/ `materialize(arena)`（intern 进 arena）/ `materialize(pool)`（intern 进 pool）一次性产出。
+
+借用语义同 `Utf8StringRef`：**只在单表达式内作参数使用，绝不存成员、绝不跨语句**——子 Twine 按指针存，指向表达式内的栈临时量，跨语句即悬空。
+
+```cpp
+pool.intern(a + "/" + b);              // → PooledPtr，拼接零分配
+arena.intern(Utf8Twine(x) + y);        // → Utf8StringRef
+(a + b).to_string();                   // → Utf8String（独立拥有）
+```
+
+### 2.5 标准库互操作
+
+UTF-8 字符串族可零拷贝接入标准库：`Utf8String` / `Utf8StringRef` / `ZUtf8StringRef` 均提供 `operator std::string_view()`（空后端安全回落，不触发 UB）。需要分配拷贝时用 `to_std_string()`。
 
 ## 3. StringUtil 的边界
 
