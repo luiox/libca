@@ -38,6 +38,8 @@ int send_flags() noexcept
 
 io::IoResult<void> configure_stream_socket(RawSocket socket)
 {
+    // 禁 SIGPIPE 双保险：send_flags() 里 Linux 用 MSG_NOSIGNAL，macOS/BSD 用 socket 选项
+    // SO_NOSIGPIPE；Windows 不产生 SIGPIPE 故无操作。
 #if defined(SO_NOSIGPIPE)
     return detail::set_bool_option(
         socket, SOL_SOCKET, SO_NOSIGPIPE, true, "setsockopt(SO_NOSIGPIPE)");
@@ -50,6 +52,8 @@ io::IoResult<void> configure_stream_socket(RawSocket socket)
 bool connect_is_in_progress(i64 code) noexcept
 {
 #if defined(_WIN32)
+    // 必须把 WSAEINVAL 算作"连接进行中"——某些 WinSock 版本在非阻塞 socket 首次 connect
+    // 时返回 WSAEINVAL 而非 WSAEWOULDBLOCK。
     return code == WSAEWOULDBLOCK || code == WSAEINPROGRESS || code == WSAEINVAL;
 #else
     return code == EINPROGRESS || code == EALREADY;
@@ -96,6 +100,7 @@ io::IoResult<void> wait_for_connect(RawSocket                             socket
         FD_SET(native, &writable);
         FD_SET(native, &errors);
 #if defined(_WIN32)
+        // Windows 的 select 忽略第一参数（传 0）；POSIX 必须传最大 fd + 1。
         const int ready = select(0, nullptr, &writable, &errors, &timeout);
 #else
         const int ready = select(native + 1, nullptr, &writable, &errors, &timeout);
@@ -104,6 +109,7 @@ io::IoResult<void> wait_for_connect(RawSocket                             socket
             return ca::core::Err(
                 io::IoError::from_kind(io::IoErrorKind::TimedOut, "TCP connect timed out"));
         if (ready < 0) {
+            // select 被信号中断时不应误报 connect 超时，按 Interrupted 重试。
             auto error = detail::last_socket_error("select(connect)");
             if (error.kind() == io::IoErrorKind::Interrupted)
                 continue;

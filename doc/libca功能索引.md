@@ -123,7 +123,7 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 
 设计与使用文档：
 - `libca/net/doc/design.md`
-- `libca/net/doc/net使用文档.md`
+- `libca/net/README.md`（快速示例）
 
 ## crypto
 
