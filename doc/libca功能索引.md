@@ -97,7 +97,7 @@ UTF-8 字符串与所有权模型模块。
 
 设计与使用文档：
 - `libca/io/doc/design.md`
-- `libca/io/doc/io使用文档.md`
+- `libca/io/README.md`（快速示例）
 
 ## net
 
