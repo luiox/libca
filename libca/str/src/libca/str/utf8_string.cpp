@@ -77,8 +77,10 @@ const u8* Utf8StringRef::data() const noexcept {
 }
 
 Utf8StringRef::operator std::string_view() const noexcept {
-    return std::string_view(reinterpret_cast<const char*>(data_),
-                            static_cast<std::string_view::size_type>(byte_length_));
+    // nullptr 传给 string_view(const CharT*, n) 是 UB（即便 n==0），空视图须回落默认构造。
+    return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
+                                    static_cast<std::string_view::size_type>(byte_length_))
+                 : std::string_view{};
 }
 
 std::string Utf8StringRef::to_std_string() const {

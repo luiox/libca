@@ -905,6 +905,16 @@ TEST(Utf8StringRefStringViewTest, EmptyRefConvertsToEmptyView)
     Utf8StringRef ref;
     std::string_view sv = ref;
     EXPECT_TRUE(sv.empty());
+    // 默认构造的 ref 内部 data 为 nullptr；nullptr 传 string_view 是 UB，须安全回落空视图。
+    EXPECT_EQ(sv.data(), nullptr);
+}
+
+TEST(Utf8StringRefStringViewTest, NullPtrBackedRefIsSafe)
+{
+    // 明确覆盖 nullptr 后端：from_data 传入空输入也产生空视图，确保转换无 UB。
+    Utf8StringRef ref = Utf8StringRef::from_cstr(nullptr);
+    std::string_view sv = ref;
+    EXPECT_TRUE(sv.empty());
 }
 
 TEST(Utf8StringRefStringViewTest, SliceProducesIndependentView)
@@ -984,6 +994,14 @@ TEST(ZUtf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
     std::string_view sv = z;
     EXPECT_EQ(sv.size(), 6u);
     EXPECT_EQ(sv, "你好");
+}
+
+TEST(ZUtf8StringRefStringViewTest, NullPtrBackedIsSafe)
+{
+    // from_static(nullptr) 产生 data_ 为 nullptr 的句柄；转换须安全回落，不能触发 UB。
+    auto z = ZUtf8StringRef::from_static(nullptr);
+    std::string_view sv = z;
+    EXPECT_TRUE(sv.empty());
 }
 
 }  // namespace ca::str

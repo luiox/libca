@@ -33,6 +33,10 @@ public:
             if (m_pInstance == nullptr)
                 m_pInstance = new T(std::forward<Args>(args)...);
         }
+        // 强制 ODR-use 静态成员 m_autoRelease：类模板的静态成员只有在被
+        // odr-used 时才会隐式实例化，否则其析构（负责 delete m_pInstance）不会被
+        // 纳入程序，会导致实例内存泄漏。
+        (void)m_autoRelease;
         return m_pInstance;
     }
 
