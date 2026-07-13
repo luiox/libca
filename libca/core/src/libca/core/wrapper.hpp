@@ -8,16 +8,20 @@
 /// @note **Legacy**：Singleton 用手写 double-checked locking + 裸指针，风险较高，且位于
 ///       `ca` 而非 `ca::core`，风格不统一。新代码优先用函数内 static 局部变量或依赖注入；
 ///       需要单例时用 MeyersSingleton。保留仅为兼容，不作为推广接口。
+/// @warning `Singleton` 已标记 `[[deprecated]]`（见 issue #123）：库内零使用，未来版本可能移除。
+///          新代码请改用 `MeyersSingleton` 或依赖注入。
 
 namespace ca {
 
 // ============================================================================
-// Singleton — 线程安全的懒汉单例（double-checked locking）
+// Singleton — 线程安全的懒汉单例（double-checked locking，Legacy，已弃用）
 // ============================================================================
 
 /// @brief 线程安全懒汉单例（double-checked locking）。@see wrapper.hpp 的 Legacy 说明。
+/// @deprecated 已弃用（issue #123）。手写 double-checked locking + 裸指针，风险较高；
+///             请改用 `MeyersSingleton`（C++11 静态局部变量，线程安全）或依赖注入。
 template<class T>
-class Singleton
+class [[deprecated("Use MeyersSingleton or dependency injection instead")]] Singleton
 {
 public:
     /// 首次调用时用 args 构造实例，之后返回同一实例指针。
@@ -27,7 +31,7 @@ public:
         if (m_pInstance == nullptr) {
             std::lock_guard<std::mutex> lg(m_mutex);
             if (m_pInstance == nullptr)
-                m_pInstance = new T(std::forward<Args>(args)...), m_autoRelease;
+                m_pInstance = new T(std::forward<Args>(args)...);
         }
         return m_pInstance;
     }
