@@ -54,7 +54,8 @@ UTF-8 字符串与所有权模型模块。
 - C 字符串、宽字符串、编码转换、字符分类和字符串工具函数。
 
 设计文档：
-- `libca/str/doc/str-spec.md`
+- `libca/str/doc/str设计文档.md`
+- `libca/str/doc/design.md`
 - `libca/str/doc/utf8_string_design.md`
 
 ## fs
