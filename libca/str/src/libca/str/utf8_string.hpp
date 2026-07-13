@@ -17,6 +17,7 @@
 #include <functional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace ca::str {
@@ -52,6 +53,10 @@ public:
     /// @warning 输入必须是合法 UTF-8；非法时码点数可能为 0，后续码点语义不再保证。调用方负责。
     static Utf8StringRef from_data(const u8* data, usize byte_len, usize cp_len = -1);
 
+    /// @brief 从 std::string_view 构造视图，不复制。O(n) 计算码点数；空视图返回空视图。
+    /// @warning 输入必须是合法 UTF-8；数据生命周期由调用方保证。
+    static Utf8StringRef from_string_view(std::string_view sv) noexcept;
+
     /// 查找未命中 / 默认未知码点长度的哨兵值。
     static constexpr usize npos = usize(-1);
 
@@ -68,6 +73,11 @@ public:
 
     // 原始字节数据指针（非空终止）
     const u8* data() const noexcept;
+
+    // ---- 标准库互操作（零拷贝） ----
+
+    // 隐式转换为 std::string_view（零拷贝，不保证 \0 终止）
+    operator std::string_view() const noexcept;
 
     // 不提供c_str的根本原因是 拿到原始的c风格字符串，如果UTF8字符串内部有\0，那么不能保证可用性，
     // 其次如果只为了方便提供一个const char*版本的原始字符串，而且因为是ref，所以如果是别人字符串的中间切片的ref，也不能随意修改加\0
@@ -222,6 +232,9 @@ public:
 
     // C 风格字符串（O(1)，内部已有 '\0' 终止符）
     const char* c_str() const noexcept;
+
+    // 隐式转换为 std::string_view（零拷贝，内部 \0 终止符不计入长度）
+    operator std::string_view() const noexcept;
 
     // ---- 访问 ----
 
@@ -472,6 +485,10 @@ public:
     const char* c_str() const { return reinterpret_cast<const char*>(data_); } // 安全，保证 \0
     Utf8StringRef ref() const noexcept;
     operator Utf8StringRef() const noexcept;
+    operator std::string_view() const noexcept {
+        return std::string_view(reinterpret_cast<const char*>(data_),
+                                static_cast<std::string_view::size_type>(byte_length_));
+    }
 
     int compare(const Utf8StringRef& other) const noexcept;
     int compare(const char* cstr) const noexcept;

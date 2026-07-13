@@ -12,6 +12,13 @@
 | `ZUtf8StringRef` | 非拥有（视图） | 不可变 | 是 | 字面量/全局常量的缓存视图 |
 | `Utf8StringBuilder` | 拥有 | 可变 | — | 增量构建字符串 |
 | `Utf8Iterator` | — | 前向迭代器 | — | 遍历码点，配合范围 for |
+| `Utf8StringArena` | 拥有（整批） | — | 否 | 追加式去重池，整批共存共死 |
+| `Utf8StringPool` | 拥有（按引用计数回收） | — | 否 | 引用计数字符串池，条目寿命各异 |
+| `Utf8StringPooledPtr` | 共享（引用计数句柄） | 不可变 | 否 | `Utf8StringPool::intern()` 的返回，8 字节 |
+| `Utf8Twine` | — | 不可变 | 否 | 惰性拼接二叉树，materialize 时一次性产出 |
+
+> **所有权分层**：拥有型（`Utf8String`/池）→ 非拥有视图（`Utf8StringRef`/`ZUtf8StringRef`）→
+> 惰性拼接（`Utf8Twine`）。详见各类型章节与 `utf8_string_design.md`。
 
 ## Utf8String — 拥有所有权的不可变字符串
 
@@ -115,7 +122,8 @@
 
 | 方法 | 说明 |
 |------|------|
-| `to_std_string() -> std::string` | 创建标准库字符串 |
+| `to_std_string() -> std::string` | 创建标准库字符串（分配） |
+| `operator std::string_view() -> std::string_view` | 零拷贝转换为标准库视图 |
 
 ## Utf8StringRef — 非拥有字符串视图
 
@@ -128,6 +136,7 @@
 | `Utf8StringRef(const Utf8String&)` | 从 `Utf8String` 构造 |
 | `from_cstr(cstr) -> Utf8StringRef` | 从 C 字符串（O(n) 计算码点） |
 | `from_data(data, byte_len, cp_len) -> Utf8StringRef` | 从字节数据 |
+| `from_string_view(sv) -> Utf8StringRef` | 从 `std::string_view`（不复制，O(n) 计算码点） |
 
 ### 方法
 
@@ -136,6 +145,13 @@
 - **不提供** `c_str()` — 视图不保证 \0 终止
 - `slice()` / `substr()` 均以视图形式返回
 - `substr()` 返回 `Utf8String`（分配）
+
+### 标准库互操作
+
+| 方法 | 说明 |
+|------|------|
+| `operator std::string_view() -> std::string_view` | 零拷贝转换；视图不保证 \0，但 `string_view` 只看 `[data, data+size)` 无需 \0 |
+| `to_std_string() -> std::string` | 创建标准库字符串（分配） |
 
 ### 常量
 
@@ -156,6 +172,8 @@ static constexpr usize npos = usize(-1);  // 查找未找到
 | `c_str() -> const char*` | C 风格字符串（\0 保证） |
 | `byte_length() -> usize` | 字节长度 |
 | `length() -> usize` | 码点个数 |
+| `operator std::string_view()` | 零拷贝转换 |
+| `operator Utf8StringRef()` | 隐式降级为普通视图（丢弃 \0 保证） |
 
 > 建议将 `ZUtf8StringRef` 声明为 `static` / 全局变量，避免重复计算码点。
 
@@ -194,13 +212,146 @@ for (u32 cp : str) {
 | `operator++()` | 前进一个码点 |
 | `byte_ptr() -> const u8*` | 当前位置的字节指针 |
 
+## Utf8StringArena — 追加式去重池
+
+> **Provisional**，**非线程安全**。固定块链式扩展，内存不挪动。
+
+### 构造
+
+| 方法 | 说明 |
+|------|------|
+| `Utf8StringArena()` | 空池，分配初始 64KB chunk |
+| `Utf8StringArena(Utf8StringArena&&)` | 移动构造 |
+| 拷贝构造/赋值 | 已删除 |
+
+### intern（复制入池、去重，返回池内副本视图）
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `intern(const u8*, usize)` | `Utf8StringRef` | 校验 UTF-8 复制入池；空/非法返回空视图 |
+| `intern(const char* cstr)` | `Utf8StringRef` | intern C 字符串 |
+| `intern(const Utf8StringRef&)` | `Utf8StringRef` | intern 视图内容 |
+| `intern(const Utf8String&)` | `Utf8StringRef` | intern 拥有字符串内容 |
+
+### 统计 / 管理
+
+| 方法 | 说明 |
+|------|------|
+| `size() -> usize` | 唯一字符串数量 |
+| `total_bytes() -> usize` | 已分配 chunk 总容量（含未用空间） |
+| `clear()` | 释放所有 chunk，回到空池（此后所有 ref 失效） |
+
+> **生命周期契约**：返回的 `Utf8StringRef` 绑定 arena——arena 析构 / `clear()` / 移动赋值后全部失效。
+> 选型：一批字符串有共同死亡点用 arena；寿命各异用 `Utf8StringPool`。
+
+## Utf8StringPool — 引用计数字符串池
+
+> **Provisional**，**非线程安全**。条目堆分配、指针稳定，按引用计数**真删**（非墓碑）。
+
+### 构造
+
+| 方法 | 说明 |
+|------|------|
+| `Utf8StringPool()` | 空池 |
+| `Utf8StringPool(Utf8StringPool&&)` | 移动构造 |
+| 拷贝构造/赋值 | 已删除 |
+
+### intern（复制入池、去重，返回引用计数句柄）
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `intern(const u8*, usize)` | `Utf8StringPooledPtr` | 校验 UTF-8 复制入池；空/非法返回空句柄 |
+| `intern(const char* cstr)` | `Utf8StringPooledPtr` | intern C 字符串 |
+| `intern(const Utf8StringRef&)` | `Utf8StringPooledPtr` | intern 视图内容 |
+
+### 查找（不分配、不改 ref_count）
+
+| 方法 | 说明 |
+|------|------|
+| `find(const Utf8StringRef&) -> Utf8StringPooledPtr` | 命中返回持有该条目的句柄（refcount++），未命中返回空句柄 |
+
+### 统计 / 管理
+
+| 方法 | 说明 |
+|------|------|
+| `size() -> usize` | 唯一条目数（真删后 == 活条目数） |
+| `active_entries() -> usize` | 活跃条目数（ref_count > 0） |
+| `total_bytes() -> usize` | 活条目字节和 |
+| `clear()` | disown_all fail-safe，回到空池（残留句柄转自管，不 UAF） |
+
+> **生命周期契约（核心）**：
+> - **真删**：`PooledPtr` refcount 归零即 delete 该 entry（非墓碑）。
+> - **outlive 是软契约**：Pool 先于 PooledPtr 析构 / `clear()` / move-assign 时**不会 UAF**（走 disown fail-safe，存活句柄自管释放），但失去去重收益。
+> - **Ref 由借用纪律保证**：`PooledPtr` 析构后，由它 `.ref()` 派生的 `Utf8StringRef` 失效。
+
+## Utf8StringPooledPtr — 引用计数池化句柄
+
+> 8 字节（一个 `Utf8PoolEntry*`）。拷贝/赋值 refcount++，析构 refcount--，归零真删或（被 disown 时）自管释放。
+
+### 特殊成员函数
+
+| 方法 | 说明 |
+|------|------|
+| 默认构造 | 空句柄 |
+| 拷贝构造 / 赋值 | refcount++ |
+| 移动构造 / 赋值 | 转移所有权，不改变 refcount |
+| 析构 | refcount--，到 0 释放 |
+
+### 访问 / 转换
+
+| 方法 | 说明 |
+|------|------|
+| `data() -> const u8*` | 原始字节 |
+| `byte_length() / length() / is_empty()` | 字节长度 / 码点数 / 是否空 |
+| `explicit operator bool()` | 是否持有条目 |
+| `ref() -> Utf8StringRef` | 转视图（PooledPtr 须存活） |
+| `operator Utf8StringRef() const&` | 隐式转视图（仅左值；右值已 `delete` 防 UAF） |
+
+### 比较
+
+| 运算符 | 说明 |
+|--------|------|
+| `operator== / != (Utf8StringPooledPtr)` | 指针相等语义 |
+| `operator== / != (Utf8StringRef)` | 内容比较（非成员对称重载） |
+
+## Utf8Twine — 惰性拼接
+
+> LLVM Twine 风格二叉拼接树，拼接零分配。**借用语义同 `Utf8StringRef`**：只在单表达式内作参数，绝不存成员、绝不跨语句；仅 `materialize()` / `to_string()` 时一次性产出。
+
+### 叶子构造（隐式，使 `"a" + ref` 等表达式成立）
+
+| 构造 | 说明 |
+|------|------|
+| `Utf8Twine()` | 空 |
+| `Utf8Twine(const char*)` | C 字面量 |
+| `Utf8Twine(const Utf8StringRef&)` | 视图（PooledPtr/ZUtf8StringRef 经隐式转换走这里） |
+| `Utf8Twine(const Utf8String&)` | 取其视图 |
+
+### 拼接 / 查询
+
+| 方法 | 说明 |
+|------|------|
+| `concat(rhs) -> Utf8Twine` | 拼接（产生新节点） |
+| `operator+(Utf8Twine, Utf8Twine)` | 非成员，两侧经隐式转换 |
+| `is_empty() -> bool` | 是否为空 |
+| `byte_length() -> usize` | 各片段字节和（O(片段数)） |
+
+### 一次性产出
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| `to_string()` | `Utf8String` | 独立拥有者 |
+| `materialize(Utf8StringArena&)` | `Utf8StringRef` | intern 进 arena |
+| `materialize(Utf8StringPool&)` | `Utf8StringPooledPtr` | intern 进 pool（含单叶子快速路径） |
+
 ## 非成员函数
 
 | 函数 | 说明 |
 |------|------|
 | `split(str, delimiter) -> vector<Utf8StringRef>` | 按分隔符拆分 |
 | `join(parts, separator) -> Utf8String` | 用分隔符连接 |
-| `operator<<(os, s) -> ostream&` | 流输出 |
+| `operator<<(os, s) -> ostream&` | 流输出（Utf8StringRef / Utf8String） |
+| `operator+(Utf8Twine, Utf8Twine) -> Utf8Twine` | Twine 拼接 |
 
 ## 设计决策
 
