@@ -53,8 +53,6 @@ UTF-8 字符串与所有权模型模块。
 
 设计文档：
 - `libca/str/doc/str设计文档.md`
-- `libca/str/doc/design.md`
-- `libca/str/doc/utf8_string_design.md`
 
 ## fs
 
