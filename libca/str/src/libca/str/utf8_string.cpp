@@ -52,6 +52,14 @@ Utf8StringRef Utf8StringRef::from_data(const u8* data, usize byte_len, usize cp_
     return Utf8StringRef(data, byte_len, cp);
 }
 
+Utf8StringRef Utf8StringRef::from_string_view(std::string_view sv) noexcept {
+    if (sv.empty())
+        return Utf8StringRef();
+    auto data = reinterpret_cast<const u8*>(sv.data());
+    auto byte_len = static_cast<usize>(sv.size());
+    return Utf8StringRef(data, byte_len, utf8_count_code_points(data, byte_len));
+}
+
 usize Utf8StringRef::length() const noexcept {
     return length_;
 }
@@ -66,6 +74,11 @@ bool Utf8StringRef::is_empty() const noexcept {
 
 const u8* Utf8StringRef::data() const noexcept {
     return data_;
+}
+
+Utf8StringRef::operator std::string_view() const noexcept {
+    return std::string_view(reinterpret_cast<const char*>(data_),
+                            static_cast<std::string_view::size_type>(byte_length_));
 }
 
 std::string Utf8StringRef::to_std_string() const {
@@ -439,6 +452,11 @@ const u8* Utf8String::data() const noexcept {
 
 const char* Utf8String::c_str() const noexcept {
     return reinterpret_cast<const char*>(data_);
+}
+
+Utf8String::operator std::string_view() const noexcept {
+    return std::string_view(reinterpret_cast<const char*>(data_),
+                            static_cast<std::string_view::size_type>(byte_length_));
 }
 
 std::string Utf8String::to_std_string() const {

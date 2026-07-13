@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <cstring>
 
 namespace ca::str {
@@ -876,6 +877,113 @@ TEST(ZUtf8StringRef, EqualityWithCStrWithoutOwningString)
 
     Utf8StringRef ref = Utf8StringRef::from_cstr("你好");
     EXPECT_TRUE(z == ref);
+}
+
+// ============================================================================
+// string_view 互操作（issue #113 第一档）
+// ============================================================================
+
+TEST(Utf8StringRefStringViewTest, ConvertsToStringViewAscii)
+{
+    Utf8StringRef ref = Utf8StringRef::from_cstr("hello");
+    std::string_view sv = ref;  // 隐式转换，零拷贝
+    EXPECT_EQ(sv, "hello");
+    EXPECT_EQ(sv.size(), 5u);
+}
+
+TEST(Utf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
+{
+    Utf8StringRef ref = Utf8StringRef::from_cstr("你好😀");
+    std::string_view sv = ref;
+    EXPECT_EQ(sv.size(), ref.byte_length());  // 字节数，非码点数
+    EXPECT_EQ(sv.size(), 10u);                // 3 + 3 + 4
+    EXPECT_EQ(sv, "你好😀");
+}
+
+TEST(Utf8StringRefStringViewTest, EmptyRefConvertsToEmptyView)
+{
+    Utf8StringRef ref;
+    std::string_view sv = ref;
+    EXPECT_TRUE(sv.empty());
+}
+
+TEST(Utf8StringRefStringViewTest, SliceProducesIndependentView)
+{
+    // Utf8StringRef 不保证 \0，但 string_view 只看 [data, data+size)，无需 \0
+    Utf8StringRef whole = Utf8StringRef::from_cstr("hello world");
+    Utf8StringRef mid   = whole.slice(6, 11);  // "world"
+    std::string_view sv = mid;
+    EXPECT_EQ(sv, "world");
+    EXPECT_EQ(sv.size(), 5u);
+}
+
+TEST(Utf8StringRefStringViewTest, FromStringViewRoundtrip)
+{
+    std::string original = "测试test";
+    std::string_view sv(original);
+    Utf8StringRef ref = Utf8StringRef::from_string_view(sv);
+    EXPECT_EQ(ref.byte_length(), original.size());
+    EXPECT_EQ(ref.length(), 6u);  // 2 中文 + 4 ASCII
+    EXPECT_TRUE(ref == "测试test");
+    // 数据指针指向同一块内存（零拷贝）
+    EXPECT_EQ(ref.data(), reinterpret_cast<const u8*>(sv.data()));
+}
+
+TEST(Utf8StringRefStringViewTest, FromEmptyStringView)
+{
+    std::string_view sv;
+    Utf8StringRef ref = Utf8StringRef::from_string_view(sv);
+    EXPECT_TRUE(ref.is_empty());
+}
+
+TEST(Utf8StringRefStringViewTest, UsableWithStdStringViewConsumer)
+{
+    // 证明可作为接受 string_view 的标准库/用户 API 的实参
+    Utf8StringRef ref = Utf8StringRef::from_cstr("hello");
+    auto find_in_view = [](std::string_view v, char c) {
+        return v.find(c);
+    };
+    EXPECT_EQ(find_in_view(ref, 'l'), 2u);
+}
+
+TEST(Utf8StringStringViewTest, ConvertsToStringView)
+{
+    Utf8String s = Utf8String::from_cstr("hello");
+    std::string_view sv = s;  // 隐式转换
+    EXPECT_EQ(sv, "hello");
+    EXPECT_EQ(sv.size(), 5u);
+}
+
+TEST(Utf8StringStringViewTest, ConvertsToStringViewMultibyte)
+{
+    Utf8String s = Utf8String::from_cstr("你好😀");
+    std::string_view sv = s;
+    EXPECT_EQ(sv.size(), s.byte_length());
+    EXPECT_EQ(sv, "你好😀");
+}
+
+TEST(Utf8StringStringViewTest, UsableWithStdStringViewConsumer)
+{
+    Utf8String s = Utf8String::from_cstr("abcabc");
+    std::string_view sv = s;
+    EXPECT_EQ(sv.find('b'), 1u);
+    EXPECT_EQ(sv.substr(3), "abc");
+}
+
+TEST(ZUtf8StringRefStringViewTest, ConvertsToStringView)
+{
+    auto z = ZUtf8StringRef::from_static("hello");
+    std::string_view sv = z;
+    EXPECT_EQ(sv, "hello");
+    EXPECT_EQ(sv.size(), 5u);
+}
+
+TEST(ZUtf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
+{
+    auto z = ZUtf8StringRef::from_static("你好");
+    std::string_view sv = z;
+    EXPECT_EQ(sv.size(), 6u);
+    EXPECT_EQ(sv, "你好");
 }
 
 }  // namespace ca::str
