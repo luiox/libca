@@ -486,8 +486,10 @@ public:
     Utf8StringRef ref() const noexcept;
     operator Utf8StringRef() const noexcept;
     operator std::string_view() const noexcept {
-        return std::string_view(reinterpret_cast<const char*>(data_),
-                                static_cast<std::string_view::size_type>(byte_length_));
+        // nullptr 传给 string_view(const CharT*, n) 是 UB（即便 n==0），空句柄须回落默认构造。
+        return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
+                                        static_cast<std::string_view::size_type>(byte_length_))
+                     : std::string_view{};
     }
 
     int compare(const Utf8StringRef& other) const noexcept;
