@@ -26,9 +26,7 @@
 - 平台检测、导出宏、栈追踪等基础工具。
 
 设计文档：
-- `libca/core/doc/result-spec.md`
-- `libca/core/doc/bytes-spec.md`
-- `libca/core/doc/cast_design.md`
+- `libca/core/doc/core设计文档.md`
 
 ## str
 

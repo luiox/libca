@@ -53,7 +53,7 @@ update:
 - **错误处理用 `Result<T, E>` 而非异常。** 两类约定：
   - 可能失败且调用方需知原因 → `Result<T, std::string>`（`is_ok/is_err/unwrap/unwrap_err`）。
   - 纯查询或只关心成败 → 裸 `bool` 或哨兵值（如 `size()` 失败返回 `-1`），不抛异常。
-  - 方法签名约定见 `libca/core/doc/result-spec.md`。
+  - 方法签名约定见 `libca/core/doc/core设计文档.md`。
 
 ## 字符串约定
 
