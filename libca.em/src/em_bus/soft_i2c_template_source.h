@@ -1,13 +1,12 @@
-/**
- * @file soft_i2c_template_source.h
- * @author canrad (1517807724@qq.com)
- * @brief 软件iic驱动模板实现文件
- * @version 1.3
- * @date 2026-01-29
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+///
+/// @file soft_i2c_template_source.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 软件iic驱动模板实现文件
+/// @version 1.3
+/// @date 2026-01-29
+///
+/// @copyright Copyright (c) 2026
+///
 
 #ifndef I2C_SCL_H
 #error "Please define I2C_SCL_H macro before including soft_i2c_template_source.h"

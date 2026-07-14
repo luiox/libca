@@ -1,17 +1,16 @@
-/**
- * @file soft_i2c.h
- * @author canrad (1517807724@qq.com)
- * @brief 软件I2C
- * 注意目前暂时不支持从机模式的软件I2C
- * @version 1.3
- * @date 2024-05-12 原始移植
- * update
- * v1.2: 2025-08-1 修复delay错误
- * v1.3: 2026-01-29 重构为port机制实现
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+///
+/// @file soft_i2c.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 软件I2C
+/// 注意目前暂时不支持从机模式的软件I2C
+/// @version 1.3
+/// @date 2024-05-12 原始移植
+/// update
+/// v1.2: 2025-08-1 修复delay错误
+/// v1.3: 2026-01-29 重构为port机制实现
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_BUS_SOFT_I2C_H
 #define LIBCA_EM_BUS_SOFT_I2C_H
 

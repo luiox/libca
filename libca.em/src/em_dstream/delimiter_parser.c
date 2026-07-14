@@ -4,15 +4,14 @@
 /* 无效匹配位置标记 */
 #define DELIM_NO_MATCH ((usize)-1)
 
-/**
- * @brief 计算字节可能作为定界符新的起始匹配位置
- * @param delim 定界符
- * @param delim_len 定界符长度
- * @param byte 待检查字节
- * @return 新的匹配位置（0表示可以重新开始匹配，DELIM_NO_MATCH表示无法匹配）
- * @note 处理部分匹配失败后的回溯，例如匹配 "\r\n" 时遇到 "\r\r"，
- *       第一个 \r 失败后，第二个 \r 可以作为新的起始
- */
+///
+/// @brief 计算字节可能作为定界符新的起始匹配位置
+/// @param delim 定界符
+/// @param delim_len 定界符长度
+/// @param byte 待检查字节
+/// @return 新的匹配位置（0表示可以重新开始匹配，DELIM_NO_MATCH表示无法匹配）
+/// @note 处理部分匹配失败后的回溯，例如匹配 "\r\n" 时遇到 "\r\r"，
+///       第一个 \r 失败后，第二个 \r 可以作为新的起始
 static usize find_new_match_pos(const u8* delim, usize delim_len, u8 byte)
 {
     if (delim == NULL || delim_len == 0) {

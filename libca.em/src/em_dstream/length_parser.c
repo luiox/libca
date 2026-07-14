@@ -1,12 +1,11 @@
 #include "length_parser.h"
 #include <em_base/debug.h>
 
-/**
- * @brief 从流中读取长度字段（支持部分读取）
- * @param self 解析器对象
- * @param available 当前可用数据长度
- * @return true 继续读取，false 需要更多数据或完成
- */
+///
+/// @brief 从流中读取长度字段（支持部分读取）
+/// @param self 解析器对象
+/// @param available 当前可用数据长度
+/// @return true 继续读取，false 需要更多数据或完成
 static bool read_len_field(length_parser_t* self, usize available)
 {
     while (self->partial_count < self->len_field_size) {
@@ -26,14 +25,13 @@ static bool read_len_field(length_parser_t* self, usize available)
     return true;
 }
 
-/**
- * @brief 计算数据的校验值
- * @param self 解析器对象
- * @param data 数据指针
- * @param len 数据长度
- * @param prev 上一次计算的校验值
- * @return 新的校验值
- */
+///
+/// @brief 计算数据的校验值
+/// @param self 解析器对象
+/// @param data 数据指针
+/// @param len 数据长度
+/// @param prev 上一次计算的校验值
+/// @return 新的校验值
 static u32 calc_checksum(length_parser_t* self, const void* data, usize len, u32 prev)
 {
     switch (self->cksum_type) {
@@ -48,12 +46,11 @@ static u32 calc_checksum(length_parser_t* self, const void* data, usize len, u32
     }
 }
 
-/**
- * @brief 从流中读取校验值
- * @param self 解析器对象
- * @param offset 校验字段在流中的偏移
- * @return 校验值
- */
+///
+/// @brief 从流中读取校验值
+/// @param self 解析器对象
+/// @param offset 校验字段在流中的偏移
+/// @return 校验值
 static u32 read_checksum_from_stream(length_parser_t* self, usize offset)
 {
     u32 checksum = 0;
@@ -68,9 +65,8 @@ static u32 read_checksum_from_stream(length_parser_t* self, usize offset)
     return checksum;
 }
 
-/**
- * @brief 错误恢复：跳过一字节并重置状态
- */
+///
+/// @brief 错误恢复：跳过一字节并重置状态
 static void recover_from_error(length_parser_t* self)
 {
     dstream_skip(self->ds, 1);

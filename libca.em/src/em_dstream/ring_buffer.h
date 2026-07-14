@@ -1,16 +1,15 @@
-/**
- * @file ring_buffer.h
- * @author canrad (1517807724@qq.com)
- * @brief 一个简单的环形缓冲区实现
- *
- * @version 0.3
- * @date   2024.05.31
- * @update 0.2 2026-02-11 完善代码和注释
- * @update 0.3 2026-03-15 根据标准优化和规范代码
- *
- * @copyright Copyright (c) 2026
- *
- */
+///
+/// @file ring_buffer.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 一个简单的环形缓冲区实现
+///
+/// @version 0.3
+/// @date   2024.05.31
+/// @update 0.2 2026-02-11 完善代码和注释
+/// @update 0.3 2026-03-15 根据标准优化和规范代码
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_DSTREAM_RING_BUFFER_H
 #define LIBCA_EM_DSTREAM_RING_BUFFER_H
 
@@ -33,67 +32,59 @@ typedef struct ring_buffer
     volatile usize write;    // 写指针的位置
 } ring_buffer_t;
 
-/**
- * @brief 初始化环形缓冲区.
- * @param rb 环形缓冲区指针
- * @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
- * @param size 缓冲区大小
- */
+///
+/// @brief 初始化环形缓冲区.
+/// @param rb 环形缓冲区指针
+/// @param buffer 缓冲区，要求是可用的内存，且大小为2的幂次方
+/// @param size 缓冲区大小
 void ring_buf_init(ring_buffer_t* rb, u8* buffer, usize size);
 
-/**
- * @brief 重置环形缓冲区.
- * @param rb 环形缓冲区指针
- */
+///
+/// @brief 重置环形缓冲区.
+/// @param rb 环形缓冲区指针
 void ring_buf_reset(ring_buffer_t* rb);
 
-/**
- * @brief 往环形缓冲区里写数据.
- * @param rb 环形缓冲区指针
- * @param data 指向数据的指针
- * @param size 期望写入的数据大小
- * @return position_size_t 实际写入的数据大小
- */
+///
+/// @brief 往环形缓冲区里写数据.
+/// @param rb 环形缓冲区指针
+/// @param data 指向数据的指针
+/// @param size 期望写入的数据大小
+/// @return position_size_t 实际写入的数据大小
 usize ring_buf_write(ring_buffer_t* rb, const u8* data, usize size);
 
-/**
- * @brief 从环形缓冲区里读数据.
- * @param rb 环形缓冲区指针
- * @param buf 指向读取缓冲区的指针
- * @param size 期望读取的数据大小
- * @return position_size_t 实际读取的数据大小
- */
+///
+/// @brief 从环形缓冲区里读数据.
+/// @param rb 环形缓冲区指针
+/// @param buf 指向读取缓冲区的指针
+/// @param size 期望读取的数据大小
+/// @return position_size_t 实际读取的数据大小
 usize ring_buf_read(ring_buffer_t* rb, u8* buf, usize size);
 
-/**
- * @brief 预览环形缓冲区里的数据（不弹出）.
- * @param rb 环形缓冲区指针
- * @param buf 指向读取缓冲区的指针
- * @param size 期望预览的数据大小
- * @return position_size_t 实际预览的数据大小
- */
+///
+/// @brief 预览环形缓冲区里的数据（不弹出）.
+/// @param rb 环形缓冲区指针
+/// @param buf 指向读取缓冲区的指针
+/// @param size 期望预览的数据大小
+/// @return position_size_t 实际预览的数据大小
 usize ring_buf_peek(const ring_buffer_t* rb, u8* buf, usize size);
 
-/**
- * @brief 跳过（丢弃）环形缓冲区里的数据.
- * @param rb 环形缓冲区指针
- * @param size 期望跳过的数据大小
- * @return position_size_t 实际跳过的数据大小
- */
+///
+/// @brief 跳过（丢弃）环形缓冲区里的数据.
+/// @param rb 环形缓冲区指针
+/// @param size 期望跳过的数据大小
+/// @return position_size_t 实际跳过的数据大小
 usize ring_buf_skip(ring_buffer_t* rb, usize size);
 
-/**
- * @brief 获取环形缓冲区里的数据大小.
- * @param rb 环形缓冲区指针
- * @return position_size_t 已使用的大小
- */
+///
+/// @brief 获取环形缓冲区里的数据大小.
+/// @param rb 环形缓冲区指针
+/// @return position_size_t 已使用的大小
 usize ring_buf_used(const ring_buffer_t* rb);
 
-/**
- * @brief 获取环形缓冲区里的空闲大小.
- * @param rb 环形缓冲区指针
- * @return position_size_t 空闲大小
- */
+///
+/// @brief 获取环形缓冲区里的空闲大小.
+/// @param rb 环形缓冲区指针
+/// @return position_size_t 空闲大小
 usize ring_buf_free(const ring_buffer_t* rb);
 
 
