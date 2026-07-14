@@ -60,7 +60,7 @@ L3  业务 / 上层
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
 | **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 可用（测试待补） | — |
-| **time** | 日期时间 | `datetime.hpp`(`DateTime`) | `ca::time` | 可用（薄） | — |
+| **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
 | **collection** | 不可变列表 / 流 | `immutable_list.hpp`、`stream.hpp` | `ca` | 雏形 | — |
 | opt / reflect / zip | 规划中 | — | — | **空** | — |
 | log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |

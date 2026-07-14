@@ -156,10 +156,19 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 日期时间工具模块。
 
 入口头文件：
+- `<libca/time/duration.hpp>`
+- `<libca/time/timestamp.hpp>`
 - `<libca/time/datetime.hpp>`
+- `<libca/time/time_util.hpp>`
 
 功能：
-- `DateTime`：日期时间表示、解析、格式化和基础计算。
+- `Duration`：纳秒精度时间间隔，纯值类型，支持 constexpr 算术与 chrono 互转。
+- `Timestamp`：Unix epoch 纳秒时间戳，与 `Duration` 做加减、与 `system_clock` 互转。
+- `Date` / `Time` / `DateTime`：面向日历展示与简单解析的轻量类型。
+- `TimeUtil`：时钟工具，对齐 Java `currentTimeMillis` / `nanoTime` 语义。
+
+设计文档：
+- `libca/time/doc/time设计文档.md`
 
 ## collection
 
