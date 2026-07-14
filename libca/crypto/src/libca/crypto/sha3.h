@@ -21,18 +21,17 @@ typedef unsigned __int64 uint64_t;
 
 
 /// compute SHA3 hash
-/** Usage:
-    SHA3 sha3;
-    std::string myHash  = sha3("Hello World");     // std::string
-    std::string myHash2 = sha3("How are you", 11); // arbitrary data, 11 bytes
-
-    // or in a streaming fashion:
-
-    SHA3 sha3;
-    while (more data available)
-      sha3.add(pointer to fresh data, number of new bytes);
-    std::string myHash3 = sha3.getHash();
-  */
+/// Usage:
+///     SHA3 sha3;
+///     std::string myHash  = sha3("Hello World");     // std::string
+///     std::string myHash2 = sha3("How are you", 11); // arbitrary data, 11 bytes
+///
+///     // or in a streaming fashion:
+///
+///     SHA3 sha3;
+///     while (more data available)
+///       sha3.add(pointer to fresh data, number of new bytes);
+///     std::string myHash3 = sha3.getHash();
 namespace ca::crypto {
 
 class SHA3 //: public Hash
