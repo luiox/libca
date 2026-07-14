@@ -1,8 +1,6 @@
 ﻿#include "string_util.h"
 
-/**
- * @brief 字符转小写（私有函数）
- */
+// 字符转小写（私有函数）
 static char private_char_to_lower(char c)
 {
     if (c >= 'A' && c <= 'Z') {
@@ -11,9 +9,7 @@ static char private_char_to_lower(char c)
     return c;
 }
 
-/**
- * @brief 判断字符是否为空白字符（空格、制表、换行、回车）
- */
+// 判断字符是否为空白字符（空格、制表、换行、回车）
 static inline bool private_char_is_space(char c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';

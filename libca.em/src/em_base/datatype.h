@@ -1,16 +1,14 @@
-/**
- * @file datatype.h
- * @author canrad (1517807724@qq.com)
- * @brief 基础类型的定义
- * 位，字节，字节序相关的操作
- * @version 0.2
- * @date 2025-07-21
- * @update
- * 2026-01-31 第一次明确datatype的类型标准
- *
- * @copyright Copyright (c) 2025
- *
- */
+/// @file datatype.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 基础类型的定义
+/// 位，字节，字节序相关的操作
+/// @version 0.2
+/// @date 2025-07-21
+/// @update
+/// 2026-01-31 第一次明确datatype的类型标准
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef LIBCA_EM_BASE_DATATYPE_H
 #define LIBCA_EM_BASE_DATATYPE_H
 
@@ -18,11 +16,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/**
- * @brief 自动探测 64 位支持
- * 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
- * 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
- */
+// 自动探测 64 位支持:
+// 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
+// 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
 #ifndef HAS_INT64
     #if defined(UINTPTR_MAX) && (UINTPTR_MAX > 0xFFFFFFFFU)
         #define HAS_INT64 1
