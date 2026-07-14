@@ -1,14 +1,12 @@
-/**
- * @file vhil.h
- * @author canrad (1517807724@qq.com)
- * @brief 虚拟硬件接口层，Virtual Hardware Interface Layer
- * 提供简答的硬件接口的定义
- * @version 0.1
- * @date 2025-08-14
- *
- * @copyright Copyright (c) 2025
- *
- */
+/// @file vhil.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 虚拟硬件接口层，Virtual Hardware Interface Layer
+/// 提供简答的硬件接口的定义
+/// @version 0.1
+/// @date 2025-08-14
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef VHIL_H
 #define VHIL_H
 

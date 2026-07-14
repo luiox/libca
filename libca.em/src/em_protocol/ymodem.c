@@ -46,12 +46,10 @@ enum ymodem_state_enum
     S_RX_WAIT_END_PACKET,
 };
 
-/**
- * @brief 发送单个控制字节到传输层
- * @param ym YMODEM 实例指针
- * @param ch 要发送的字节
- * @return 无
- */
+/// @brief 发送单个控制字节到传输层
+/// @param ym YMODEM 实例指针
+/// @param ch 要发送的字节
+/// @return 无
 static void ymodem_send_char(ymodem_t* ym, u8 ch)
 {
     if (ym->io != NULL && ym->io->write != NULL) {
@@ -59,11 +57,9 @@ static void ymodem_send_char(ymodem_t* ym, u8 ch)
     }
 }
 
-/**
- * @brief 重置协议状态与计时器
- * @param ym YMODEM 实例指针
- * @return 无
- */
+/// @brief 重置协议状态与计时器
+/// @param ym YMODEM 实例指针
+/// @return 无
 static void ymodem_reset(ymodem_t* ym)
 {
     acumulate_timer_init(&ym->retry_timer, 0);
@@ -87,11 +83,9 @@ static void ymodem_reset(ymodem_t* ym)
     }
 }
 
-/**
- * @brief 判断是否超过最大重试次数
- * @param ym YMODEM 实例指针
- * @return true 表示超过上限，false 表示未超过或允许无限重试
- */
+/// @brief 判断是否超过最大重试次数
+/// @param ym YMODEM 实例指针
+/// @return true 表示超过上限，false 表示未超过或允许无限重试
 static bool ymodem_retry_exceeded(ymodem_t* ym)
 {
     i32 max_retries = (i32)ym->config->max_retries;
@@ -102,14 +96,12 @@ static bool ymodem_retry_exceeded(ymodem_t* ym)
     return ym->retry_count > (u8)max_retries;
 }
 
-/**
- * @brief 解析 YMODEM 的文件信息包（Block0）
- * @param ym YMODEM 实例指针
- * @param data 数据区指针
- * @param data_len 数据区长度
- * @param is_end 是否为结束包（空文件名）输出标志
- * @return true 解析成功，false 解析失败
- */
+/// @brief 解析 YMODEM 的文件信息包（Block0）
+/// @param ym YMODEM 实例指针
+/// @param data 数据区指针
+/// @param data_len 数据区长度
+/// @param is_end 是否为结束包（空文件名）输出标志
+/// @return true 解析成功，false 解析失败
 static bool ymodem_parse_file_info(ymodem_t* ym, const u8* data, usize data_len, bool* is_end)
 {
     *is_end = false;
@@ -156,12 +148,10 @@ static bool ymodem_parse_file_info(ymodem_t* ym, const u8* data, usize data_len,
     return true;
 }
 
-/**
- * @brief 进入错误状态并回调通知上层
- * @param ym YMODEM 实例指针
- * @param err 错误码
- * @return 无
- */
+/// @brief 进入错误状态并回调通知上层
+/// @param ym YMODEM 实例指针
+/// @param err 错误码
+/// @return 无
 static void ymodem_handle_error(ymodem_t* ym, i32 err)
 {
     ym->state = S_ERROR;
@@ -229,22 +219,18 @@ i32 ymodem_tick(void* self, u32 ms_delta)
     return 0;
 }
 
-/**
- * @brief 发送 ACK 并请求 CRC 模式
- * @param ym YMODEM 实例指针
- * @return 无
- */
+/// @brief 发送 ACK 并请求 CRC 模式
+/// @param ym YMODEM 实例指针
+/// @return 无
 static void ymodem_send_ack_and_c(ymodem_t* ym)
 {
     ymodem_send_char(ym, YMODEM_ACK);
     ymodem_send_char(ym, YMODEM_CRC);
 }
 
-/**
- * @brief 处理已接收完成的一个包
- * @param ym YMODEM 实例指针
- * @return 无
- */
+/// @brief 处理已接收完成的一个包
+/// @param ym YMODEM 实例指针
+/// @return 无
 static void ymodem_handle_packet(ymodem_t* ym)
 {
     u8 header = ym->config->recv_buffer[0];

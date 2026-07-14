@@ -38,9 +38,7 @@ static shell_t *g_shell_current = NULL;
 
 /* ========== 工具函数 ========== */
 
-/**
- * @brief 向 shell 端口写入数据
- */
+/// @brief 向 shell 端口写入数据
 static i32 shell_write_data(shell_t *shell, const void *buf, usize len)
 {
     if (!shell || !shell->port || !shell->port->write_bytes) {
@@ -49,9 +47,7 @@ static i32 shell_write_data(shell_t *shell, const void *buf, usize len)
     return shell->port->write_bytes(shell->port->priv, (void *)buf, len);
 }
 
-/**
- * @brief 从参数列表中解析参数，支持格式："-key" "value"
- */
+/// @brief 从参数列表中解析参数，支持格式："-key" "value"
 static i32 find_argument_index(i32 argc, char *argv[], const char *key)
 {
     param_check(key);
@@ -65,9 +61,7 @@ static i32 find_argument_index(i32 argc, char *argv[], const char *key)
 
 /* ========== 内置命令实现 ========== */
 
-/**
- * @brief help 命令实现
- */
+/// @brief help 命令实现
 static i32 shell_help(i32 argc, char *argv[])
 {
     (void)argc;
@@ -104,9 +98,7 @@ static i32 shell_help(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief clear 命令实现
- */
+/// @brief clear 命令实现
 static i32 shell_clear(i32 argc, char *argv[])
 {
     (void)argc;
@@ -163,9 +155,7 @@ i32 shell_print(shell_t *shell, const char *fmt, ...)
     return n;
 }
 
-/**
- * @brief 参数分割：将字符串按空格分割成 argv
- */
+/// @brief 参数分割：将字符串按空格分割成 argv
 static void split_args(char *line, char *argv[], i32 *argc)
 {
     i32 a = 0;
@@ -187,9 +177,7 @@ static void split_args(char *line, char *argv[], i32 *argc)
     *argc = a;
 }
 
-/**
- * @brief 树形命令递归分发
- */
+/// @brief 树形命令递归分发
 static i32 shell_execute_tree(const shell_cmd_t *root, u16 count, i32 argc, char *argv[])
 {
     if (argc == 0 || !argv[0]) return -1;
@@ -256,9 +244,7 @@ i32 shell_run_command_by_name(const char *line, char *buf, u16 buf_size)
     return ret;
 }
 
-/**
- * @brief 字符处理主函数
- */
+/// @brief 字符处理主函数
 void shell_handler(shell_t *shell, char data)
 {
     if (!shell || !shell->buffer) return;
