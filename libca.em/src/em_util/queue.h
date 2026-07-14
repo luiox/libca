@@ -1,10 +1,8 @@
-/*********************************************************************
- * @file   doubly_linked_list.h
- * @brief  一个简单的双向链表实现
- *
- * @author Canrad
- * @date   2024.06.02
- *********************************************************************/
+/// @file   doubly_linked_list.h
+/// @brief  一个简单的双向链表实现
+///
+/// @author Canrad
+/// @date   2024.06.02
 
 #ifndef QUEUE_H
 #define QUEUE_H

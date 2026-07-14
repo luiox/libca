@@ -1,13 +1,11 @@
-/**
- * @file singly_list.h
- * @author canrad (1517807724@qq.com)
- * @brief 侵入式单向链表
- * @version 0.1
- * @date 2026-03-03
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file singly_list.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 侵入式单向链表
+/// @version 0.1
+/// @date 2026-03-03
+/// 
+/// @copyright Copyright (c) 2026
+/// 
 #ifndef LIBCA_EM_UTIL_SINGLY_LIST_H
 #define LIBCA_EM_UTIL_SINGLY_LIST_H
 

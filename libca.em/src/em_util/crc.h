@@ -1,9 +1,7 @@
-/**
- * @file crc.h
- * @brief 常用的CRC校验算法实现。
- * 不带 _fast 后缀的函数为朴素实现（多项式计算），带 _fast 后缀的为查表实现。
- * 参数均为 (data, size)，返回计算得到的 CRC 值。
- */
+/// @file crc.h
+/// @brief 常用的CRC校验算法实现。
+/// 带 _fast 前缀的函数为查表实现（空间换时间），不带 _fast 前缀的为直接计算实现。
+/// 接口形式为 (data, size)，返回计算得到的 CRC 值。
 #ifndef LIBCA_EM_UTIL_CRC_H
 #define LIBCA_EM_UTIL_CRC_H
 
