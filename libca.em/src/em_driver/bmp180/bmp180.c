@@ -63,18 +63,16 @@ static i32 bmp180_read_reg(bmp180_t* self, u8 reg, u8* val) {
     return bmp180_read_regs(self, reg, val, 1);
 }
 
-/**
- * @brief 计算 B5 中间量 (与温度相关)
- */
+/// @brief 计算 B5 中间量 (与温度相关)
+///  
 static void bmp180_update_b5(bmp180_t* self, u16 ut) {
     i32 x1 = ((i32)ut - (i32)self->calib.AC6) * (i32)self->calib.AC5 >> 15;
     i32 x2 = ((i32)self->calib.MC << 11) / (x1 + (i32)self->calib.MD);
     self->calib.B5 = x1 + x2;
 }
 
-/**
- * @brief 根据原始压力值计算实际压力 (需要先更新 B5)
- */
+/// @brief 根据原始压力值计算实际压力 (需要先更新 B5)
+///  
 static i32 bmp180_calc_pressure(bmp180_t* self, u32 up, bmp180_oss_t oss) {
     i32 b6 = self->calib.B5 - 4000;
     i32 x1 = ((i32)self->calib.B2 * (b6 * b6 >> 12)) >> 11;

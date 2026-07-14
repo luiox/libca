@@ -1,14 +1,13 @@
-/**
- * @file atkms53l1m.h
- * @author canrad (1517807724@qq.com)
- * @brief ATK-MS53L1M模块驱动代码
- * @version 0.2
- * @date 2026-02-03
- * @update 0.2 添加extern外部依赖注入模式
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file atkms53l1m.h
+/// @author canrad (1517807724@qq.com)
+/// @brief ATK-MS53L1M模块驱动代码
+/// @version 0.2
+/// @date 2026-02-03
+/// @update 0.2 添加extern外部依赖注入模式
+///
+/// @copyright Copyright (c) 2026
+///
+///  
 #ifndef LIBCA_EM_DRIVER_ATKMS53L1M_H
 #define LIBCA_EM_DRIVER_ATKMS53L1M_H
 
@@ -29,40 +28,34 @@ extern "C" {
 
 #if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN)
 
-/**
- * @brief UART 初始化
- * @param baudrate 波特率
- */
+/// @brief UART 初始化
+/// @param baudrate 波特率
+///  
 extern void port_atk_ms53l1m_uart_init(u32 baudrate);
 
-/**
- * @brief UART 发送数据
- * @param buf 数据缓冲区
- * @param len 数据长度
- */
+/// @brief UART 发送数据
+/// @param buf 数据缓冲区
+/// @param len 数据长度
+///  
 extern void port_atk_ms53l1m_uart_send(u8* buf, u16 len);
 
-/**
- * @brief 获取 UART 接收到的一帧数据
- * @return 帧数据指针
- */
+/// @brief 获取 UART 接收到的一帧数据
+/// @return 帧数据指针
+///  
 extern u8* port_atk_ms53l1m_uart_rx_get_frame(void);
 
-/**
- * @brief 获取 UART 接收帧的长度
- * @return 帧长度
- */
+/// @brief 获取 UART 接收帧的长度
+/// @return 帧长度
+///  
 extern u16 port_atk_ms53l1m_uart_rx_get_frame_len(void);
 
-/**
- * @brief 重新开始 UART 接收
- */
+/// @brief 重新开始 UART 接收
+///  
 extern void port_atk_ms53l1m_uart_rx_restart(void);
 
-/**
- * @brief 毫秒延时
- * @param ms 延时时间（ms）
- */
+/// @brief 毫秒延时
+/// @param ms 延时时间（ms）
+///  
 extern void port_atk_ms53l1m_delay_ms(u32 ms);
 
 #elif (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
@@ -114,32 +107,29 @@ typedef struct atk_ms53l1m
     atk_ms53l1m_mode_t work_mode; /* 工作模式 */
 } atk_ms53l1m_t;
 
-/**
- * @brief       ATK-MS53L1M初始化
- * @param       self: atk_ms53l1m对象
- *              baudrate: ATK-MS53L1M UART通讯波特率
- *              work_mode: 工作模式
- * @retval      ATK_MS53L1M_OK  : ATK-MS53L1M初始化成功
- *              ATK_MS53L1M_ERR: ATK-MS53L1M初始化失败
- */
+/// @brief       ATK-MS53L1M初始化
+/// @param       self: atk_ms53l1m对象
+///              baudrate: ATK-MS53L1M UART通讯波特率
+///              work_mode: 工作模式
+/// @retval      ATK_MS53L1M_OK  : ATK-MS53L1M初始化成功
+///              ATK_MS53L1M_ERR: ATK-MS53L1M初始化失败
+///  
 i32 atk_ms53l1m_init(atk_ms53l1m_t* self, u32 baudrate, atk_ms53l1m_mode_t work_mode);
 
-/**
- * @brief       ATK-MS53L1M Normal工作模式获取测量值
- * @param       self: atk_ms53l1m对象
- *              dat: 获取到的测量值
- * @retval      ATK_MS53L1M_OK : 获取测量值成功
- *              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
- */
+/// @brief       ATK-MS53L1M Normal工作模式获取测量值
+/// @param       self: atk_ms53l1m对象
+///              dat: 获取到的测量值
+/// @retval      ATK_MS53L1M_OK : 获取测量值成功
+///              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
+///  
 i32 atk_ms53l1m_normal_get_data(atk_ms53l1m_t* self, u16* dat);
 
-/**
- * @brief       ATK-MS53L1M Modbus工作模式获取测量值
- * @param       self: atk_ms53l1m对象
- *              dat: 获取到的测量值
- * @retval      ATK_MS53L1M_OK : 获取测量值成功
- *              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
- */
+/// @brief       ATK-MS53L1M Modbus工作模式获取测量值
+/// @param       self: atk_ms53l1m对象
+///              dat: 获取到的测量值
+/// @retval      ATK_MS53L1M_OK : 获取测量值成功
+///              ATK_MS53L1M_ERR: UART未接收到数据，获取测量值失败
+///  
 i32 atk_ms53l1m_modbus_get_data(atk_ms53l1m_t* self, u16* dat);
 
 #ifdef __cplusplus

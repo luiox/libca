@@ -1,9 +1,8 @@
 #include "atk_ms53l1m.h"
 #include <em_base/compiler_compat.h>
 
-/**
- * @brief 外部隐式注入的弱符号接口实现
- */
+/// @brief 外部隐式注入的弱符号接口实现
+///  
 
 CA_WEAK void port_atk_ms53l1m_uart_init(u32 baudrate)
 {

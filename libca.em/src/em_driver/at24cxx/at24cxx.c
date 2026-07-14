@@ -46,12 +46,11 @@ bool at24cxx_port_is_registered(void)
 
 #define calc_need_byte(bit_size) ((bit_size + 7) / 8)
 
-/**
- * @brief 获取at24cxx的容量
- *
- * @param type 类型
- * @return u32 位数
- */
+/// @brief 获取at24cxx的容量
+///
+/// @param type 类型
+/// @return u32 位数
+///  
 static u32 at24cxx_get_mem_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -69,12 +68,11 @@ static u32 at24cxx_get_mem_size(at24cxx_type_t type)
     }
 }
 
-/**
- * @brief 根据类型获取地址大小
- *
- * @param type 类型
- * @return u8 地址的位数
- */
+/// @brief 根据类型获取地址大小
+///
+/// @param type 类型
+/// @return u8 地址的位数
+///  
 static u8 at24cxx_get_mem_addr_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -92,12 +90,11 @@ static u8 at24cxx_get_mem_addr_size(at24cxx_type_t type)
     }
 }
 
-/**
- * @brief 获得页的数量
- *
- * @param type
- * @return u16
- */
+/// @brief 获得页的数量
+///
+/// @param type
+/// @return u16
+///  
 static u16 at24cxx_get_page_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -114,12 +111,11 @@ static u16 at24cxx_get_page_size(at24cxx_type_t type)
     }
 }
 
-/**
- * @brief 获得一页有多少字节数
- *
- * @param type
- * @return u8
- */
+/// @brief 获得一页有多少字节数
+///
+/// @param type
+/// @return u8
+///  
 static u8 at24cxx_get_page_bytes(at24cxx_type_t type)
 {
     switch (type) {

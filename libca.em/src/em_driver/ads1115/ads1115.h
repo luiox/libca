@@ -1,14 +1,13 @@
-/**
- * @file ads1115.h
- * @author canrad (1517807724@qq.com)
- * @brief ADS1115 16位ADC驱动
- * @version 0.2
- * @date 2026-01-23
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file ads1115.h
+/// @author canrad (1517807724@qq.com)
+/// @brief ADS1115 16位ADC驱动
+/// @version 0.2
+/// @date 2026-01-23
+/// @update 0.2 添加extern外部依赖注入模式
+///
+/// @copyright Copyright (c) 2026
+///
+///  
 #ifndef LIBCA_EM_DRIVER_ADS1115_H
 #define LIBCA_EM_DRIVER_ADS1115_H
 
@@ -29,35 +28,32 @@ extern "C" {
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
 
-/**
- * @brief I2C 写操作
- * 
- * @param hi2c I2C 句柄
- * @param dev_addr 设备 7 位地址
- * @param reg_addr 寄存器地址
- * @param data 数据缓冲区
- * @param size 数据长度
- * @return i32 返回 0 表示成功，非 0 表示失败
- */
+/// @brief I2C 写操作
+///
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备 7 位地址
+/// @param reg_addr 寄存器地址
+/// @param data 数据缓冲区
+/// @param size 数据长度
+/// @return i32 返回 0 表示成功，非 0 表示失败
+///  
 extern i32 port_ads1115_i2c_write(void* hi2c, u8 dev_addr, u8 reg_addr, const u8* data, u16 size);
 
-/**
- * @brief I2C 读操作
- * 
- * @param hi2c I2C 句柄
- * @param dev_addr 设备 7 位地址
- * @param reg_addr 寄存器地址
- * @param data 数据缓冲区
- * @param size 数据长度
- * @return i32 返回 0 表示成功，非 0 表示失败
- */
+/// @brief I2C 读操作
+///
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备 7 位地址
+/// @param reg_addr 寄存器地址
+/// @param data 数据缓冲区
+/// @param size 数据长度
+/// @return i32 返回 0 表示成功，非 0 表示失败
+///  
 extern i32 port_ads1115_i2c_read(void* hi2c, u8 dev_addr, u8 reg_addr, u8* data, u16 size);
 
-/**
- * @brief 毫秒延时
- * 
- * @param ms 毫秒数
- */
+/// @brief 毫秒延时
+///
+/// @param ms 毫秒数
+///  
 extern void port_ads1115_delay_ms(u32 ms);
 
 #elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
@@ -68,18 +64,16 @@ typedef struct ads1115_port {
     void (*delay_ms)(u32 ms);
 } ads1115_port_t;
 
-/**
- * @brief 显式模式下绑定硬件接口
- * 
- * @param port 接口结构体
- */
+/// @brief 显式模式下绑定硬件接口
+///
+/// @param port 接口结构体
+///  
 void ads1115_bind_port(const ads1115_port_t* port);
 
-/**
- * @brief 显式模式下检查接口是否已注册
- * 
- * @return bool true 为已注册
- */
+/// @brief 显式模式下检查接口是否已注册
+///
+/// @return bool true 为已注册
+///  
 bool ads1115_port_is_registered(void);
 
 #else
@@ -92,9 +86,8 @@ bool ads1115_port_is_registered(void);
 #define ADS1115_ERR_I2C                 (-2)
 #define ADS1115_ERR_TIMEOUT             (-3)
 
-/**
- * @brief 输入通道枚举
- */
+/// @brief 输入通道枚举
+///  
 typedef enum ads1115_mux_enum{
     ADS1115_MUX_DIFF_0_1 = 0x00, // AIN0 - AIN1 (默认)
     ADS1115_MUX_DIFF_0_3 = 0x01, // AIN0 - AIN3
@@ -106,9 +99,8 @@ typedef enum ads1115_mux_enum{
     ADS1115_MUX_SINGLE_3  = 0x07  // AIN3 - GND
 } ads1115_mux;
 
-/**
- * @brief 增益量程枚举 (PGA)
- */
+/// @brief 增益量程枚举 (PGA)
+///  
 typedef enum ads1115_pga_enum{
     ADS1115_PGA_6144 = 0x00, // ±6.144V
     ADS1115_PGA_4096 = 0x01, // ±4.096V
@@ -118,17 +110,15 @@ typedef enum ads1115_pga_enum{
     ADS1115_PGA_0256 = 0x05  // ±0.256V
 } ads1115_pga;
 
-/**
- * @brief 工作模式枚举
- */
+/// @brief 工作模式枚举
+///  
 typedef enum ads1115_mode_enum {
     ADS1115_MODE_CONTINUOUS = 0x00, // 连续转换
     ADS1115_MODE_SINGLE     = 0x01  // 单次转换 (默认)
 } ads1115_mode;
 
-/**
- * @brief 采样率枚举 (SPS)
- */
+/// @brief 采样率枚举 (SPS)
+///  
 typedef enum ads1115_rate_enum {
     ADS1115_RATE_8   = 0x00, // 8 SPS
     ADS1115_RATE_16  = 0x01, // 16 SPS
@@ -140,9 +130,8 @@ typedef enum ads1115_rate_enum {
     ADS1115_RATE_860 = 0x07  // 860 SPS
 } ads1115_rate;
 
-/**
- * @brief ADS1115 对象结构体
- */
+/// @brief ADS1115 对象结构体
+///  
 typedef struct ads1115 {
     void*        hi2c;
     u8           dev_addr;   // 7 位地址
@@ -153,43 +142,39 @@ typedef struct ads1115 {
     ads1115_rate rate;       // 存储当前采样率
 } ads1115_t;
 
-/**
- * @brief 初始化 ADS1115 对象
- * 
- * @param self 对象指针
- * @param hi2c I2C 句柄
- * @param dev_addr 设备 7 位地址（通常为 0x48）
- */
+/// @brief 初始化 ADS1115 对象
+///
+/// @param self 对象指针
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备 7 位地址（通常为 0x48）
+///  
 void ads1115_init(ads1115_t* self, void* hi2c, u8 dev_addr);
 
-/**
- * @brief 配置 ADS1115
- * 
- * @param self 对象指针
- * @param mux 输入通道选择
- * @param pga 增益量程选择
- * @param mode 工作模式选择
- * @param rate 采样速率选择
- * @return i32 错误码
- */
+/// @brief 配置 ADS1115
+///
+/// @param self 对象指针
+/// @param mux 输入通道选择
+/// @param pga 增益量程选择
+/// @param mode 工作模式选择
+/// @param rate 采样速率选择
+/// @return i32 错误码
+///  
 i32 ads1115_config(ads1115_t* self, ads1115_mux mux, ads1115_pga pga, ads1115_mode mode, ads1115_rate rate);
 
-/**
- * @brief 读取 ADC 电压值
- * 
- * @param self 对象指针
- * @param voltage 返回的电压值指针
- * @return i32 错误码
- */
+/// @brief 读取 ADC 电压值
+///
+/// @param self 对象指针
+/// @param voltage 返回的电压值指针
+/// @return i32 错误码
+///  
 i32 ads1115_read_voltage(ads1115_t* self, f32* voltage);
 
-/**
- * @brief 读取 ADC 原始原始值
- * 
- * @param self 对象指针
- * @param raw_val 原始值指针
- * @return i32 错误码
- */
+/// @brief 读取 ADC 原始原始值
+///
+/// @param self 对象指针
+/// @param raw_val 原始值指针
+/// @return i32 错误码
+///  
 i32 ads1115_read_raw(ads1115_t* self, i16* raw_val);
 
 #ifdef __cplusplus

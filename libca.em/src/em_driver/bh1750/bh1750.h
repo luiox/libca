@@ -1,15 +1,14 @@
-/**
- * @file bh1750.h
- * @author canrad (1517807724@qq.com)
- * @brief BH1750是一款数字型光照强度传感器
- * 此驱动实现对BH1750的驱动支持，参考文章：https://www.cnblogs.com/jefften/p/18613437
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file bh1750.h
+/// @author canrad (1517807724@qq.com)
+/// @brief BH1750是一款数字型光照强度传感器
+/// 此驱动实现对BH1750的驱动支持，参考文章：https://www.cnblogs.com/jefften/p/18613437
+/// @version 0.1
+/// @date 2026-01-22
+/// @update 0.2 添加extern外部依赖注入模式
+///
+/// @copyright Copyright (c) 2026
+///
+///  
 #ifndef LIBCA_EM_DRIVER_BH1750_H
 #define LIBCA_EM_DRIVER_BH1750_H
 
@@ -30,30 +29,28 @@ extern "C" {
 
 #if (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_EXTERN)
 
-/**
- * @brief I2C 写操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功，其他表示失败
- */
+/// @brief I2C 写操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功，其他表示失败
+///  
 extern i32 port_bh1750_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
-/**
- * @brief I2C 读操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功，其他表示失败
- */
+/// @brief I2C 读操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功，其他表示失败
+///  
 extern i32 port_bh1750_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
 #elif (LIBCA_BH1750_PORT_MODE == LIBCA_BH1750_PORT_MODE_DYNAMIC)

@@ -1,14 +1,13 @@
-/**
- * @file bmc050.h
- * @author canrad (1517807724@qq.com)
- * @brief BMC050 三轴加速度 + 磁力计 驱动
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file bmc050.h
+/// @author canrad (1517807724@qq.com)
+/// @brief BMC050 三轴加速度 + 磁力计 驱动
+/// @version 0.1
+/// @date 2026-01-22
+/// @update 0.2 添加extern外部依赖注入模式
+///
+/// @copyright Copyright (c) 2026
+///
+///  
 #ifndef LIBCA_EM_DRIVER_BMC050_H
 #define LIBCA_EM_DRIVER_BMC050_H
 
@@ -29,36 +28,33 @@ extern "C" {
 
 #if (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_EXTERN)
 
-/**
- * @brief I2C 写操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功，其他表示失败
- */
+/// @brief I2C 写操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功，其他表示失败
+///  
 extern i32 port_bmc050_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, const u8* data, u16 data_size, u32 timeout);
 
-/**
- * @brief I2C 读操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功，其他表示失败
- */
+/// @brief I2C 读操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功，其他表示失败
+///  
 extern i32 port_bmc050_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
 
-/**
- * @brief 微秒延时
- * @param us 延时时间（微秒）
- */
+/// @brief 微秒延时
+/// @param us 延时时间（微秒）
+///  
 extern void port_bmc050_delay_us(u32 us);
 
 #elif (LIBCA_BMC050_PORT_MODE == LIBCA_BMC050_PORT_MODE_DYNAMIC)
@@ -229,33 +225,28 @@ typedef struct bmc050 {
     u16   dev_addr; // 设备 8-bit 地址（例如 0x36）
 } bmc050_t;
 
-/**
- * @brief 初始化 bmc050 对象
- * @param self 对象
- * @param hi2c 底层 i2c 句柄
- * @param dev_addr 设备 8-bit 地址（例如 0x36）
- */
+/// @brief 初始化 bmc050 对象
+/// @param self 对象
+/// @param hi2c 底层 i2c 句柄
+/// @param dev_addr 设备 8-bit 地址（例如 0x36）
+///  
 void bmc050_init(bmc050_t* self, void* hi2c, u16 dev_addr);
 
-/**
- * @brief 读取加速度芯片 ID
- * @return BMC050_OK 或 错误码
- */
+/// @brief 读取加速度芯片 ID
+/// @return BMC050_OK 或 错误码
+///  
 i32 bmc050_get_device_id(bmc050_t* self, u8* id);
 
-/**
- * @brief 读取温度，单位：0.1°C（例如 245 表示 24.5°C）
- */
+/// @brief 读取温度，单位：0.1°C（例如 245 表示 24.5°C）
+///  
 i32 bmc050_read_temperature(bmc050_t* self, int16_t* temp10);
 
-/**
- * @brief 设置加速度量程
- */
+/// @brief 设置加速度量程
+///  
 i32 bmc050_set_range(bmc050_t* self, bmc050_acc_fs range);
 
-/**
- * @brief 设置带宽
- */
+/// @brief 设置带宽
+///  
 i32 bmc050_set_bandwidth(bmc050_t* self, bmc050_acc_bw bw);
 
 i32 bmc050_soft_reset(bmc050_t* self);
@@ -263,17 +254,15 @@ i32 bmc050_power_normal(bmc050_t* self);
 i32 bmc050_suspend(bmc050_t* self);
 i32 bmc050_low_power(bmc050_t* self, bmc050_acc_sleep sleep_duration);
 
-/**
- * @brief 读取单轴/三轴数据
- */
+/// @brief 读取单轴/三轴数据
+///  
 i32 bmc050_get_x(bmc050_t* self, int16_t* x);
 i32 bmc050_get_y(bmc050_t* self, int16_t* y);
 i32 bmc050_get_z(bmc050_t* self, int16_t* z);
 i32 bmc050_get_xyz(bmc050_t* self, int16_t* x, int16_t* y, int16_t* z);
 
-/**
- * @brief 中断配置接口
- */
+/// @brief 中断配置接口
+///  
 i32 bmc050_set_irq(bmc050_t* self, bmc050_acc_ie irqs);
 i32 bmc050_get_irq_status(bmc050_t* self, bmc050_acc_irq* status);
 i32 bmc050_set_irq_mode(bmc050_t* self, bmc050_acc_im mode);
@@ -283,9 +272,8 @@ i32 bmc050_interface_config(bmc050_t* self, bmc050_acc_if mode);
 i32 bmc050_int_pin_config(bmc050_t* self, bmc050_acc_intconfig mode);
 i32 bmc050_int_pin_map(bmc050_t* self, bmc050_acc_intmap map);
 
-/**
- * @brief 磁力计 ID 读取
- */
+/// @brief 磁力计 ID 读取
+///  
 i32 bmc050_mag_get_device_id(bmc050_t* self, u8* id);
 
 #ifdef __cplusplus
