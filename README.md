@@ -62,10 +62,13 @@ L3  业务 / 上层
 | **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 可用（测试待补） | — |
 | **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
 | **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
+| **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
+| **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
+| **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
 | opt / reflect / zip | 规划中 | — | — | **空** | — |
 | log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / crypto / fs / str / time / collection）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / process / csv / ini / io / net）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定

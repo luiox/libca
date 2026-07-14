@@ -1,4 +1,14 @@
-# libca process design
+---
+version: 1.1
+update:
+2026-07-14 - 由 design.md 改名补 YAML 头，本文成为 process 唯一设计文档
+---
+
+# libca::process 设计文档
+
+> 本文讲 process 模块的设计边界与平台差异。具体 API 签名见 `subprocess.hpp`、`ipc.hpp`
+> 的 Doxygen 注释。进程控制对齐 Rust `std::process` 的所有权形状：可复用的 `Command`、
+> `spawn()` 得到 move-only `Child`，IPC 提供命名管道 / 共享内存 / 命名信号量 / 消息队列。
 
 ## Goal
 

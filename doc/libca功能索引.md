@@ -211,6 +211,26 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 - `libca/thread/doc/thread设计文档.md`
 - `libca/thread/README.md`（快速示例）
 
+## process
+
+跨平台子进程控制与进程间通信模块。进程控制对齐 Rust `std::process`。
+
+入口头文件：
+- `<libca/process/subprocess.hpp>`
+- `<libca/process/ipc.hpp>`
+
+功能：
+- `Command`：可复用的子进程启动配置，`spawn()`/`status()`/`output()` 三种启动方式。
+- `Child`：move-only 子进程句柄，`try_wait`/`wait`/`wait_for`/`kill`，标准流经 `take_*` 取出。
+- `Stdio`：标准流配置（inherit / null / piped）。
+- `ipc::NamedPipeServer` / `NamedPipeClient` / `NamedPipeConnection`：命名管道（Windows Win32 管道 / Linux Unix-domain socket）。
+- `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。
+- `ipc::NamedSemaphore`：命名信号量。
+- `ipc::MessageQueue`：保序消息队列（Windows mailslot / Linux POSIX mqueue）。
+
+设计文档：
+- `libca/process/doc/process设计文档.md`
+
 ## 暂未作为主线使用的代码
 
 - `libca.core/`：旧 C++ 桌面代码，作为 legacy 参考，新增 C++ 工作优先放在 `libca/`。
