@@ -1,6 +1,7 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-07-14 - 删除冗余英文摘要 design.md 与使用文档（并入 README），本文成为 ini 唯一设计文档
 2026-07-06 - 首版，说明 INI 独立模块的保格式模型、Reader/Writer 分层与注释保留策略
 ---
 

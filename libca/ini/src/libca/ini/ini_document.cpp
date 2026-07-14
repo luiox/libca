@@ -37,6 +37,8 @@ ca::Result<std::string, std::string> IniDocument::get(
 void IniDocument::set(const std::string& section,
                       const std::string& key,
                       const std::string& value) {
+    // 已存在的 key：只改 value，复用解析时保存的格式片段（key 前缩进、分隔符、
+    // 行内注释）重建该行，不扰动文件其余部分。
     auto section_it = key_index_.find(section);
     if (section_it != key_index_.end()) {
         auto key_it = section_it->second.find(key);
@@ -50,6 +52,8 @@ void IniDocument::set(const std::string& section,
     }
 
     const auto newline = line_ending_for_new_line();
+    // 新 key 落在尚不存在的 section：先建 section 头。若上一行非空则补一个空行分隔，
+    // 保持人工配置文件常见的 section 间空行习惯。
     if (!section.empty() && section_index_.find(section) == section_index_.end()) {
         if (!records_.empty() && !records_.back().raw.empty()) {
             LineRecord blank;
@@ -67,6 +71,7 @@ void IniDocument::set(const std::string& section,
         rebuild_index();
     }
 
+    // 新增 key 行用统一的 "key = value" 格式；格式片段留默认值，后续编辑沿用。
     LineRecord key_record;
     key_record.line.kind = IniLineKind::KeyValue;
     key_record.line.section = section;
@@ -111,6 +116,7 @@ bool IniDocument::remove_section(const std::string& section) {
     while (end < records_.size() && records_[end].line.kind != IniLineKind::Section) {
         ++end;
     }
+    // 回收 section 末尾紧跟的空行/注释，避免删除后留下孤立空行。
     if (end < records_.size()) {
         while (end > start + 1) {
             const auto kind = records_[end - 1].line.kind;
