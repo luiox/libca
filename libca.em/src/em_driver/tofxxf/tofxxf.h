@@ -1,17 +1,15 @@
-/**
- * @file tofxxf.h
- * @author canrad (1517807724@qq.com)
- * @brief TOFxxF系列传感器 Modbus RTU 驱动 已实物验证
- * 
- * 支持 TOF050F/TOF200F/TOF400F，使用标准 Modbus RTU 协议通信。
- * 串口参数：115200bps, 8N1
- * 
- * @version 0.1
- * @date 2026-02-08
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- */
+ /// @file tofxxf.h
+ /// @author canrad (1517807724@qq.com)
+ /// @brief TOFxxF系列传感器 Modbus RTU 驱动 已实物验证
+ ///
+ /// 支持 TOF050F/TOF200F/TOF400F，使用标准 Modbus RTU 协议通信。
+ /// 串口参数：115200bps, 8N1
+ ///
+ /// @version 0.1
+ /// @date 2026-02-08
+ /// @update 0.2 添加extern外部依赖注入模式
+ ///
+ /// @copyright Copyright (c) 2026
 #ifndef LIBCA_EM_DRIVER_TOFXF_H
 #define LIBCA_EM_DRIVER_TOFXF_H
 
@@ -74,22 +72,18 @@ extern "C" {
 /* ========== Port层 ========== */
 
 #if (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_EXTERN)
-/**
- * @brief UART发送
- * @param huart UART句柄
- * @param data 数据缓冲
- * @param len 长度
- * @return 发送长度或错误码
- */
+ /// @brief UART发送
+ /// @param huart UART句柄
+ /// @param data 数据缓冲
+ /// @param len 长度
+ /// @return 发送长度或错误码
 extern i32 port_tofxxf_uart_send(void* huart, const u8* data, usize len);
-/**
- * @brief UART接收
- * @param huart UART句柄
- * @param buf 输出缓冲
- * @param len 长度
- * @param timeout_ms 超时毫秒
- * @return 接收长度或错误码
- */
+ /// @brief UART接收
+ /// @param huart UART句柄
+ /// @param buf 输出缓冲
+ /// @param len 长度
+ /// @param timeout_ms 超时毫秒
+ /// @return 接收长度或错误码
 extern i32 port_tofxxf_uart_recv(void* huart, u8* buf, usize len, u32 timeout_ms);
 
 #elif (LIBCA_TOFXXF_PORT_MODE == LIBCA_TOFXXF_PORT_MODE_DYNAMIC)
@@ -113,73 +107,57 @@ typedef struct tofxxf {
 
 void tofxxf_init(tofxxf_t* self, void* huart, u8 slave_addr);
 
-/**
- * @brief 读取保持寄存器 (功能码 0x03)
- * @param self 设备实例
- * @param reg_addr 寄存器地址
- * @param count 读取寄存器数量
- * @param out_buf 输出缓冲区（大端格式）
- * @param out_buf_size 输出缓冲区大小
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 读取保持寄存器 (功能码 0x03)
+ /// @param self 设备实例
+ /// @param reg_addr 寄存器地址
+ /// @param count 读取寄存器数量
+ /// @param out_buf 输出缓冲区（大端格式）
+ /// @param out_buf_size 输出缓冲区大小
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_read_reg(tofxxf_t* self, u16 reg_addr, 
                      u16 count, u8* out_buf, usize out_buf_size);
 
-/**
- * @brief 写入单个保持寄存器 (功能码 0x06)
- * @param self 设备实例
- * @param reg_addr 寄存器地址
- * @param value 写入值
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 写入单个保持寄存器 (功能码 0x06)
+ /// @param self 设备实例
+ /// @param reg_addr 寄存器地址
+ /// @param value 写入值
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_write_reg(tofxxf_t* self, u16 reg_addr, u16 value);
 
-/**
- * @brief 读取距离值（mm）
- * @param self 设备实例
- * @param distance 输出距离值
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 读取距离值（mm）
+ /// @param self 设备实例
+ /// @param distance 输出距离值
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_get_distance(tofxxf_t* self, u16* distance);
 
-/**
- * @brief 设置量程模式
- * @param self 设备实例
- * @param mode 模式（TOFXF_MODE_*）
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 设置量程模式
+ /// @param self 设备实例
+ /// @param mode 模式（TOFXF_MODE_*）
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_set_mode(tofxxf_t* self, u16 mode);
 
-/**
- * @brief 设置设备地址
- * @param self 设备实例
- * @param addr 新地址
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 设置设备地址
+ /// @param self 设备实例
+ /// @param addr 新地址
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_set_address(tofxxf_t* self, u8 addr);
 
-/**
- * @brief 设置波特率
- * @param self 设备实例
- * @param baud 波特率代码（TOFXF_BAUD_*）
- * @return 成功返回0，失败返回错误码
- * @note 设置后需要重启设备生效
- */
+ /// @brief 设置波特率
+ /// @param self 设备实例
+ /// @param baud 波特率代码（TOFXF_BAUD_*）
+ /// @return 成功返回0，失败返回错误码
+ /// @note 设置后需要重启设备生效
 i32 tofxxf_set_baudrate(tofxxf_t* self, u16 baud);
 
-/**
- * @brief 设置自动输出间隔
- * @param self 设备实例
- * @param interval_ms 间隔时间（毫秒）
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 设置自动输出间隔
+ /// @param self 设备实例
+ /// @param interval_ms 间隔时间（毫秒）
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_set_auto_output(tofxxf_t* self, u16 interval_ms);
 
-/**
- * @brief 恢复出厂设置
- * @param self 设备实例
- * @return 成功返回0，失败返回错误码
- */
+ /// @brief 恢复出厂设置
+ /// @param self 设备实例
+ /// @return 成功返回0，失败返回错误码
 i32 tofxxf_restore_default(tofxxf_t* self);
 
 #ifdef __cplusplus

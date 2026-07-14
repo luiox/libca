@@ -1,13 +1,11 @@
-/**
- * @file mq_x.c
- * @author GitHub Copilot
- * @brief MQ 系列气体传感器驱动实现
- * @version 0.1
- * @date 2026-01-23
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+ /// @file mq_x.c
+ /// @author GitHub Copilot
+ /// @brief MQ 系列气体传感器驱动实现
+ /// @version 0.1
+ /// @date 2026-01-23
+ ///
+ /// @copyright Copyright (c) 2026
+ ///
 
 #include "mq_x.h"
 #include <em_base/debug.h>
