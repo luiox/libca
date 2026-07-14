@@ -52,21 +52,17 @@ bool ds1302_port_is_registered(void) { return g_ds1302_port != NULL; }
 #define DS1302_MASK_WEEK        0x07
 #define DS1302_MASK_YEAR        0xFF
 
-/**
- * @brief BCD码转十进制数
- * @param bcd BCD格式数据 (0x00-0x99)
- * @return 十进制数值 (0-99)
- */
+/// @brief BCD码转十进制数
+/// @param bcd BCD格式数据 (0x00-0x99)
+/// @return 十进制数值 (0-99)
 static inline u8 bcd_to_dec(u8 bcd) {
     return (bcd >> 4) * 10 + (bcd & 0x0F);
 }
 
-/**
- * @brief 十进制数转BCD码
- * 请确保dec不超过99，以免出错
- * @param dec 十进制数值 (0-99)
- * @return BCD格式数据 (0x00-0x99)
- */
+/// @brief 十进制数转BCD码
+/// 请确保dec不超过99，以免出错
+/// @param dec 十进制数值 (0-99)
+/// @return BCD格式数据 (0x00-0x99)
 static inline u8 dec_to_bcd(u8 dec) {
     // 利用恒等式：x = (x/10)*10 + (x%10)
     // 这里 (dec / 10) 直接作为高 nibble
@@ -102,12 +98,10 @@ void ds1302_write_byte(ds1302_t* self, u8 data) {
     }
 }
 
-/**
- * @brief 从DS1302读取一字节数据 (私有辅助函数)
- * 
- * @param self 驱动对象
- * @return u8 读取到的字节
- */
+/// @brief 从DS1302读取一字节数据 (私有辅助函数)
+/// 
+/// @param self 驱动对象
+/// @return u8 读取到的字节
 static u8 ds1302_read_byte(ds1302_t* self) {
     param_check(self != NULL);
     u8 data = 0;

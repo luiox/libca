@@ -49,9 +49,7 @@ void hc_sr04_init(hc_sr04_t* self, void* trig_port, u16 trig_pin, void* echo_por
     self->distance  = 0.0;
 } 
 
-/**
- * 发射一次触发脉冲（至少 10 us）
- */
+/// 发射一次触发脉冲（至少 10 us）
 static void hc_sr04_start_trig(hc_sr04_t* self)
 {
     HC_WRITE_PIN(self, 1);
@@ -59,10 +57,8 @@ static void hc_sr04_start_trig(hc_sr04_t* self)
     HC_WRITE_PIN(self, 0);
 } 
 
-/**
- * 发起测量并返回错误码（HC_SR04_OK 或 错误码）
- * 注意：定时器须配置为微秒计数单位
- */
+/// 发起测量并返回错误码（HC_SR04_OK 或 错误码）
+/// 注意：定时器须配置为微秒计数单位
 i32 hc_sr04_measure(hc_sr04_t* self)
 {
     if (!self) {

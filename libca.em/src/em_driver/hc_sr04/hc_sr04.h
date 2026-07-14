@@ -1,14 +1,12 @@
-/**
- * @file hc_sr04.h
- * @author canrad (1517807724@qq.com)
- * @brief HC-SR04 超声波测距驱动
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file hc_sr04.h
+/// @author canrad (1517807724@qq.com)
+/// @brief HC-SR04 超声波测距驱动
+/// @version 0.1
+/// @date 2026-01-22
+/// @update 0.2 添加extern外部依赖注入模式
+/// 
+/// @copyright Copyright (c) 2026
+/// 
 #ifndef LIBCA_EM_DRIVER_HC_SR04_H
 #define LIBCA_EM_DRIVER_HC_SR04_H
 
@@ -28,50 +26,36 @@ extern "C" {
 #endif
 
 #if (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_EXTERN)
-/**
- * @brief 写引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚号
- * @param value 电平值
- */
+/// @brief 写引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚号
+/// @param value 电平值
 extern void port_hc_sr04_write_pin(void* gpio, u16 pin, u8 value);
-/**
- * @brief 读引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚号
- * @return 当前电平值
- */
+/// @brief 读引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚号
+/// @return 当前电平值
 extern u8 port_hc_sr04_read_pin(void* gpio, u16 pin);
-/**
- * @brief 微秒延时
- * @param us 延时时间（微秒）
- */
+/// @brief 微秒延时
+/// @param us 延时时间（微秒）
 extern void port_hc_sr04_delay_us(u32 us);
-/**
- * @brief 设置定时器计数值
- * @param tim 定时器句柄
- * @param val 计数值
- */
+/// @brief 设置定时器计数值
+/// @param tim 定时器句柄
+/// @param val 计数值
 extern void port_hc_sr04_tim_set_counter(void* tim, u32 val);
-/**
- * @brief 启动定时器
- * @param tim 定时器句柄
- */
+/// @brief 启动定时器
+/// @param tim 定时器句柄
 extern void port_hc_sr04_tim_start(void* tim);
-/**
- * @brief 停止定时器
- * @param tim 定时器句柄
- */
+/// @brief 停止定时器
+/// @param tim 定时器句柄
 extern void port_hc_sr04_tim_stop(void* tim);
-/**
- * @brief 读取定时器计数值（单位微秒）
- * @param tim 定时器句柄
- * @return 计数值
- */
+/// @brief 读取定时器计数值（单位微秒）
+/// @param tim 定时器句柄
+/// @return 计数值
 extern u32 port_hc_sr04_tim_get_counter(void* tim);
-/** @brief 互斥量等待（可选，弱符号默认为空实现） */
+/// @brief 互斥量等待（可选，弱符号默认为空实现）
 extern void port_hc_sr04_mutex_pend(void);
-/** @brief 互斥量释放（可选，弱符号默认为空实现） */
+/// @brief 互斥量释放（可选，弱符号默认为空实现）
 extern void port_hc_sr04_mutex_post(void);
 
 #elif (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
