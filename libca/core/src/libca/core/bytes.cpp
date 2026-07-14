@@ -42,7 +42,7 @@ Bytes Bytes::slice(usize begin, usize end) const {
     return b;
 }
 
-// ── 类型化读（Byes） ──
+// ── 类型化读（Bytes） ──
 
 u16 Bytes::get_u16_be() {
     if (pos_ + 2 > len_) throw std::out_of_range("Bytes::get_u16 underflow");
@@ -352,7 +352,8 @@ f64 BytesMut::get_f64_be() {
 
 Bytes BytesMut::freeze() {
     if (len_ == 0) return {};
-    // transfer ownership from unique_ptr to shared_ptr
+    // 把独占的所有权移交给共享引用：unique_ptr → shared_ptr，零拷贝产出不可变 Bytes。
+    // 冻结后 this 清空，避免双份所有权。
     auto shared = std::shared_ptr<u8>(data_.release(), std::default_delete<u8[]>());
     auto* raw = shared.get();
     Bytes b(raw, len_, std::move(shared));
@@ -380,6 +381,7 @@ void BytesMut::ensure_writable(usize needed) {
 }
 
 void BytesMut::grow(usize min_capacity) {
+    // 扩容策略：翻倍，但至少满足请求量，且不低于 32 字节下限（避免小缓冲频繁扩容）。
     usize new_cap = capacity_ * 2;
     if (new_cap < min_capacity) new_cap = min_capacity;
     if (new_cap < 32) new_cap = 32;

@@ -1,13 +1,16 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-07-13 - 合并 dynamic_library 设计要点，删除逐接口 spec 引用，本文成为 core 唯一设计文档
 2026-07-06 - 首版，补充 core 模块职责、错误模型、字节设施、RAII 辅助与平台边界
 ---
 
 # libca::core 设计文档
 
-> 本文只讲 core 模块的设计思路和边界。具体 API 用法请查看各头文件：
-> `result.hpp`、`status.hpp`、`bytes.hpp`、`scope_guard.hpp`、`cast.hpp`、`any.hpp`、`platform.hpp`、`stacktrace.hpp`。
+> 本文只讲 core 模块的设计思路和边界。**具体 API 签名与逐方法说明见各头文件的 Doxygen 注释，本文不重复 API 清单。**
+> 涉及的头文件：
+> `datatype.hpp`、`result.hpp`、`status.hpp`、`bytes.hpp`、`scope_guard.hpp`、`cast.hpp`、`any.hpp`、
+> `wrapper.hpp`、`dynamic_library.hpp`、`platform.hpp`、`stacktrace.hpp`、`math_util.hpp`、`array_util.hpp`、`dllexport.hpp`。
 
 ## 1. 模块定位
 
@@ -19,7 +22,8 @@ core 的职责是提供跨模块共享的基础语义：
 - 返回值错误模型：`Result<T, E>`、`Status`
 - 字节序列与缓冲：`Bytes`、`BytesMut`、`ByteSlice`
 - RAII 与作用域工具：`ScopeGuard`、`DEFER`
-- 轻量运行时设施：`Any`、类型转换、平台识别、栈帧采集
+- 轻量运行时设施：`Any`、类型转换（`cast.hpp`）、平台识别、栈帧采集、动态库加载
+- 对齐 Java Math/Arrays 的无状态工具：`MathUtil`、`ArrayUtil`
 
 core 不负责业务策略，也不包含文件系统、字符串、时间、加密等上层能力。
 
@@ -70,7 +74,16 @@ core 以 `Result<T, E>` 作为主要错误传播机制，对齐 Rust `Result` �
 
 `stacktrace.hpp` 提供调试辅助，不承诺在所有平台上都有同等符号质量。平台相关实现必须隔离在源文件或平台保护分支中，不能把系统头污染到公共头文件的调用方编译单元。
 
-## 7. 测试策略
+## 7. 动态库加载
+
+`DynamicLibrary` 是插件宿主等场景需要的跨平台运行时加载原语：从 UTF-8 路径加载、查找导出符号、显式或自动释放原生句柄。
+
+- **所有权**：move-only，析构调用 `unload()`，句柄始终单一所有者。`lookup<T>` 要求 `T` 为函数类型，返回的函数指针生命周期绑定库实例，`unload()` 或析构后不可调用。
+- **错误模型**：失败操作返回 `StatusResult<T>`，复用既有 `Status` 码归类——`NOT_FOUND`（库文件或符号不存在）、`FAILED_PRECONDITION`（`unload()` 后或 moved-from 对象上 `lookup()`）、`INVALID_ARGUMENT`（路径/符号名为空）、`INTERNAL`（其余平台加载器错误）。
+- **平台映射**：Windows 走 `LoadLibraryW`（加载前 UTF-8→UTF-16 转换）/`GetProcAddress`/`FreeLibrary`，错误码 `ERROR_FILE_NOT_FOUND` 等映射为 `NOT_FOUND`；Linux 走 `dlopen(RTLD_NOW|RTLD_LOCAL)`/`dlsym`/`dlclose`，加载前清空 `dlerror`，`lookup` 后用 `dlerror()` 而非 `dlsym` 返回值判错（`dlsym` 合法返回 null）。
+- **并发**：不同实例可跨线程使用；单实例不可在 `unload()` 与 `lookup()` 间并发（加载器可能在另一线程使用符号时释放它）。
+
+## 8. 测试策略
 
 core 的测试位于 `libca/core/unittest/`，使用 Google Test。测试重点是：
 
@@ -81,12 +94,13 @@ core 的测试位于 `libca/core/unittest/`，使用 Google Test。测试重点�
 
 core 是基础层，新增能力应优先补单元测试；对平台相关行为，应尽量把不可控平台条件隔离并保持 CI 可运行。
 
-## 8. 新人阅读顺序
+## 9. 新人阅读顺序
 
 建议按下面顺序看代码：
 
 1. `datatype.hpp`：理解 libca 的基础类型约定。
-2. `result.hpp` 与 `result-spec.md`：理解错误传播风格。
-3. `bytes.hpp` 与 `bytes-spec.md`：理解字节缓冲模型。
+2. `result.hpp`：理解错误传播风格（`Result<T,E>` + `Ok`/`Err` + `TRY`）。
+3. `bytes.hpp`：理解字节缓冲模型（`ByteSlice`/`Bytes`/`BytesMut`）。
 4. `status.hpp`、`scope_guard.hpp`：理解通用状态返回和作用域清理工具。
-5. `stacktrace.hpp`、`platform.hpp`：仅在调试或平台相关需求中阅读。
+5. `cast.hpp`、`any.hpp`：理解轻量 RTTI 与类型擦除。
+6. `dynamic_library.hpp`、`stacktrace.hpp`、`platform.hpp`：仅在动态加载、调试或平台相关需求中阅读。

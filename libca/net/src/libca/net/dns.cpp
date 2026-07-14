@@ -17,12 +17,15 @@ io::IoError dns_error(int code, const std::string& host)
     case EAI_MEMORY: kind = io::IoErrorKind::OutOfMemory; break;
     case EAI_NONAME: kind = io::IoErrorKind::NotFound; break;
 #if defined(EAI_NODATA) && EAI_NODATA != EAI_NONAME
+    // 部分平台 EAI_NODATA 与 EAI_NONAME 同值（如 Linux glibc），直接加 case 会触发
+    // duplicate case 编译错误，故用预处理守卫。
     case EAI_NODATA: kind = io::IoErrorKind::NotFound; break;
 #endif
     default: break;
     }
 
 #if defined(_WIN32)
+    // Windows 只暴露 ANSI 版 gai_strerrorA，避免宽字符转换。
     const char* message = gai_strerrorA(code);
 #else
     const char* message = gai_strerror(code);

@@ -93,6 +93,7 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
     std::wstring library_path = std::move(wide_path).unwrap();
     HMODULE      handle       = LoadLibraryW(library_path.c_str());
     if (handle == nullptr) {
+        // 把"文件/路径/模块未找到"三类 Windows 错误归为 NOT_FOUND，其余归 INTERNAL。
         const auto       error = static_cast<unsigned long>(GetLastError());
         const StatusCode code  = error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND ||
                                         error == ERROR_MOD_NOT_FOUND
@@ -102,6 +103,7 @@ StatusResult<DynamicLibrary> DynamicLibrary::load(const std::string& path)
     }
     return Ok(DynamicLibrary(reinterpret_cast<void*>(handle)));
 #else
+    // 加载前清空 dlerror/errno，确保后续错误诊断准确（dlopen 失败靠 dlerror 取因）。
     dlerror();
     errno        = 0;
     void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
@@ -134,6 +136,7 @@ StatusResult<void*> DynamicLibrary::lookup_raw(const std::string& symbol_name) c
     }
     return Ok(reinterpret_cast<void*>(symbol));
 #else
+    // dlsym 合法返回 null（如符号值为 0），故必须用加载后的 dlerror() 判错，不能靠返回值。
     dlerror();
     void*       symbol = dlsym(handle_, symbol_name.c_str());
     const char* error  = dlerror();

@@ -103,6 +103,9 @@ bool utf8_to_utf16(const std::string& value, std::wstring& converted)
                                               length) != 0;
 }
 
+// 按 Microsoft「Parsing C++ Command-Line Arguments」规则转义单个参数：总是用双引号
+// 包裹，引号前的反斜杠翻倍，紧跟引号的反斜杠再额外翻倍（故 *2+1），尾部反斜杠翻倍
+// （故结尾 *2）。CreateProcessW 不做 shell 解析，子进程靠 CRT 按此规则还原 argv。
 std::wstring quote_argument(const std::wstring& value)
 {
     std::wstring output(L"\"");
@@ -539,9 +542,12 @@ Status Child::kill()
     if (native_process_ == -1 || exit_status_.has_value())
         return closed_error("kill");
 #if defined(_WIN32)
+    // Windows 上没有进程组概念，直接终止单个子进程句柄。
     if (!TerminateProcess(to_handle(native_process_), 1))
         return system_error("TerminateProcess");
 #else
+    // Linux 子进程在新进程组内启动（见 spawn 的 setpgid），先对负 pid（整个进程组）
+    // 发 SIGKILL，失败再回退到单 pid，覆盖子进程自己再 fork 的孙进程。
     const pid_t pid = static_cast<pid_t>(native_process_);
     if (::kill(-pid, SIGKILL) != 0 && ::kill(pid, SIGKILL) != 0)
         return system_error("kill");
@@ -788,6 +794,8 @@ StatusResult<Child> Command::spawn() const
         cleanup();
         return Err(error);
     }
+    // exec 错误自管道：子进程 execvp 失败时把 errno 写进 exec_write，父进程从 exec_read
+    // 读到即说明 exec 失败；exec 成功则 exec_write 因 FD_CLOEXEC 自动关闭，read 返回 0。
     if (fcntl(exec_write, F_SETFD, FD_CLOEXEC) != 0) {
         const auto error = system_error("fcntl");
         cleanup();
@@ -810,6 +818,7 @@ StatusResult<Child> Command::spawn() const
         return Err(error);
     }
     if (pid == 0) {
+        // 子进程放入独立进程组，使父进程 kill() 能针对整个组（覆盖孙进程），避免孤儿。
         setpgid(0, 0);
         if (current_dir_ && chdir(current_dir_->c_str()) != 0) {
             const int error = errno;

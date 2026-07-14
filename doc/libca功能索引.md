@@ -26,9 +26,7 @@
 - 平台检测、导出宏、栈追踪等基础工具。
 
 设计文档：
-- `libca/core/doc/result-spec.md`
-- `libca/core/doc/bytes-spec.md`
-- `libca/core/doc/cast_design.md`
+- `libca/core/doc/core设计文档.md`
 
 ## str
 
@@ -55,8 +53,6 @@ UTF-8 字符串与所有权模型模块。
 
 设计文档：
 - `libca/str/doc/str设计文档.md`
-- `libca/str/doc/design.md`
-- `libca/str/doc/utf8_string_design.md`
 
 ## fs
 
@@ -101,7 +97,7 @@ UTF-8 字符串与所有权模型模块。
 
 设计与使用文档：
 - `libca/io/doc/design.md`
-- `libca/io/doc/io使用文档.md`
+- `libca/io/README.md`（快速示例）
 
 ## net
 
@@ -127,7 +123,7 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 
 设计与使用文档：
 - `libca/net/doc/design.md`
-- `libca/net/doc/net使用文档.md`
+- `libca/net/README.md`（快速示例）
 
 ## crypto
 
@@ -160,23 +156,40 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 日期时间工具模块。
 
 入口头文件：
+- `<libca/time/duration.hpp>`
+- `<libca/time/timestamp.hpp>`
 - `<libca/time/datetime.hpp>`
+- `<libca/time/time_util.hpp>`
 
 功能：
-- `DateTime`：日期时间表示、解析、格式化和基础计算。
+- `Duration`：纳秒精度时间间隔，纯值类型，支持 constexpr 算术与 chrono 互转。
+- `Timestamp`：Unix epoch 纳秒时间戳，与 `Duration` 做加减、与 `system_clock` 互转。
+- `Date` / `Time` / `DateTime`：面向日历展示与简单解析的轻量类型。
+- `TimeUtil`：时钟工具，对齐 Java `currentTimeMillis` / `nanoTime` 语义。
+
+设计文档：
+- `libca/time/doc/time设计文档.md`
 
 ## collection
 
-集合与函数式处理雏形。
+集合与函数式处理容器，以 Rust-like API 包装 STL 存储。
 
 入口头文件：
+- `<libca/collection/array_list.hpp>`
+- `<libca/collection/hash_map.hpp>`
+- `<libca/collection/hash_set.hpp>`
 - `<libca/collection/immutable_list.hpp>`
 - `<libca/collection/stream.hpp>`
 - `<libca/collection/collection.hpp>`
 
 功能：
-- `ImmutableList`：不可变列表。
-- `Stream`：链式数据处理接口。
+- `ArrayList<T>`：基于 `std::vector` 的拥有型可变顺序容器。
+- `HashMap<K, V>` / `HashSet<T>`：基于 `std::unordered_map` / `std::unordered_set` 的哈希容器。
+- `ImmutableList<T>`：构造后不可修改的列表，支持范围 for 与随机访问。
+- `Stream`：基于迭代器范围的惰性 `filter/map/forEach/collect`。
+
+设计文档：
+- `libca/collection/doc/collection设计文档.md`
 
 ## thread
 
@@ -195,8 +208,28 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 - `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
 
 设计与使用文档：
-- `libca/thread/doc/design.md`
-- `libca/thread/doc/thread使用文档.md`
+- `libca/thread/doc/thread设计文档.md`
+- `libca/thread/README.md`（快速示例）
+
+## process
+
+跨平台子进程控制与进程间通信模块。进程控制对齐 Rust `std::process`。
+
+入口头文件：
+- `<libca/process/subprocess.hpp>`
+- `<libca/process/ipc.hpp>`
+
+功能：
+- `Command`：可复用的子进程启动配置，`spawn()`/`status()`/`output()` 三种启动方式。
+- `Child`：move-only 子进程句柄，`try_wait`/`wait`/`wait_for`/`kill`，标准流经 `take_*` 取出。
+- `Stdio`：标准流配置（inherit / null / piped）。
+- `ipc::NamedPipeServer` / `NamedPipeClient` / `NamedPipeConnection`：命名管道（Windows Win32 管道 / Linux Unix-domain socket）。
+- `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。
+- `ipc::NamedSemaphore`：命名信号量。
+- `ipc::MessageQueue`：保序消息队列（Windows mailslot / Linux POSIX mqueue）。
+
+设计文档：
+- `libca/process/doc/process设计文档.md`
 
 ## 暂未作为主线使用的代码
 

@@ -28,6 +28,8 @@ RawHandle from_handle(HANDLE handle) noexcept
 
 bool is_valid_handle(RawHandle handle) noexcept
 {
+    // Windows 上无效句柄有两个哨兵：NULL(0) 和 INVALID_HANDLE_VALUE(-1)，
+    // 不同 Win32 API 返回不同，需同时排除。
     return handle != 0 && handle != -1;
 }
 #else

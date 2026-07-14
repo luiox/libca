@@ -18,6 +18,8 @@ namespace ca::net::detail {
 io::IoResult<void> ensure_socket_runtime()
 {
 #if defined(_WIN32)
+    // Windows 必须在首次使用任何 socket API 前调用一次 WSAStartup；
+    // 用 call_once 保证进程级单次初始化并缓存失败码。POSIX 上是 no-op。
     static std::once_flag init_flag;
     static int            init_error = 0;
     std::call_once(init_flag, []() {
@@ -32,6 +34,8 @@ io::IoResult<void> ensure_socket_runtime()
 
 i64 last_socket_error_code() noexcept
 {
+    // 关键约定：Windows socket 错误码取自 WSAGetLastError() 而非 errno
+    // （errno 不会被 winsock 设置）；POSIX 用 errno。
 #if defined(_WIN32)
     return static_cast<i64>(WSAGetLastError());
 #else
@@ -100,6 +104,8 @@ io::IoResult<OwnedSocket> create_socket(IpVersion version, int type, int protoco
     if (!native_socket_is_valid(socket))
         return ca::core::Err(last_socket_error("WSASocket"));
 #else
+    // 原子地置 CLOEXEC 以避开 fork 竞态；老内核不支持 SOCK_CLOEXEC 会返回 EINVAL，
+    // 此时退回 fcntl 设置（有竞态但保证语义正确）。
     int  native_type     = type;
     bool cloexec_applied = false;
 #    if defined(SOCK_CLOEXEC)
@@ -217,6 +223,7 @@ io::IoResult<void> set_nonblocking(RawSocket socket, bool enabled)
 io::IoResult<void> set_timeout(RawSocket socket, int option,
                                std::optional<std::chrono::milliseconds> timeout)
 {
+    // timeout<=0 直接拒绝：setsockopt 中 0 表示"用系统默认值"而非"禁用超时"，会被误解。
     if (timeout.has_value() && timeout->count() <= 0)
         return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::InvalidInput,
                                                     "socket timeout must be greater than zero"));

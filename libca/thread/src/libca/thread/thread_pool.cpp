@@ -175,23 +175,28 @@ ca::core::Status ThreadPool::shutdown(ShutdownMode mode)
     std::deque<details::PoolTask> pending;
     {
         std::lock_guard<std::mutex> lock(impl_->state_mutex);
+        // shutdown 幂等：已 Joined 直接返回成功。
         if (impl_->state == PoolState::Joined)
             return ca::core::OkStatus();
         if (impl_->state == PoolState::Running) {
             impl_->state         = PoolState::ShuttingDown;
             impl_->shutdown_mode = mode;
             if (mode == ShutdownMode::CancelPending) {
+                // CancelPending：请求共享停止令牌，把队列里尚未开始的任务全部取出，
+                // 让在跑的任务可协作退出、待跑的任务直接以 TaskCancelled 完成 future。
                 impl_->stop_source.request_stop();
                 for (auto& worker : impl_->workers)
                     worker.request_stop();
                 pending = impl_->queue->close_and_take();
             }
             else {
+                // Drain：只关队列生产端，worker 继续消费已排队任务后自然退出。
                 impl_->queue->close();
             }
         }
         else if (impl_->shutdown_mode == ShutdownMode::Drain &&
                  mode == ShutdownMode::CancelPending) {
+            // 允许从 Drain 升级为 CancelPending（紧急中止），反向降级无效。
             impl_->shutdown_mode = ShutdownMode::CancelPending;
             impl_->stop_source.request_stop();
             for (auto& worker : impl_->workers)
@@ -200,6 +205,7 @@ ca::core::Status ThreadPool::shutdown(ShutdownMode mode)
         }
     }
 
+    // 在锁外完成 future，避免 cancel 回调里持锁导致死锁。
     for (auto& task : pending)
         task.cancel();
     return ca::core::OkStatus();
@@ -210,6 +216,7 @@ ca::core::Status ThreadPool::join()
     if (impl_ == nullptr)
         return empty_pool_error("join");
 
+    // join_mutex 串行化多个控制线程的 join 调用，避免并发 join 同一组 worker。
     std::lock_guard<std::mutex> join_lock(impl_->join_mutex);
     {
         std::lock_guard<std::mutex> state_lock(impl_->state_mutex);
@@ -220,6 +227,7 @@ ca::core::Status ThreadPool::join()
             return impl_->join_status;
     }
 
+    // 禁止 worker 从池内任务中 join 自己的池，否则会死锁。
     for (const auto& worker : impl_->workers) {
         if (worker.joinable() && worker.id() == std::this_thread::get_id())
             return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,

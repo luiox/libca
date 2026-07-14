@@ -29,6 +29,7 @@ int send_flags() noexcept
 
 u8* writable_datagram_buffer(u8* buffer, usize length) noexcept
 {
+    // send/recv 的缓冲区指针不能为 null，对零长度数据报用静态占位字节蒙混过去。
     static u8 empty_buffer = 0;
     return length == 0 ? &empty_buffer : buffer;
 }
@@ -135,6 +136,8 @@ io::IoResult<usize> UdpSocket::receive(u8* buffer, usize capacity)
                 nullptr,
                 nullptr) == SOCKET_ERROR) {
         const i64 code = detail::last_socket_error_code();
+        // Windows 收到超过缓冲区的报文时返回 WSAEMSGSIZE 但数据仍然投递（被截断）；
+        // 此处忽略该错以匹配 POSIX recvfrom 的截断语义，返回实际读到的字节数。
         if (code != WSAEMSGSIZE)
             return ca::core::Err(detail::socket_error_from_code(code, "receive UDP"));
     }

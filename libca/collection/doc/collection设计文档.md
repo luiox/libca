@@ -1,6 +1,7 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-07-14 - 删除冗余英文摘要 design.md，本文成为 collection 唯一设计文档
 2026-07-06 - 首版，补充 collection 模块职责与模板组件边界
 ---
 

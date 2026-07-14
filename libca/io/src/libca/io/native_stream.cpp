@@ -52,12 +52,14 @@ IoResult<usize> NativeStream::read(u8* buffer, usize capacity)
         std::min<usize>(capacity, static_cast<usize>(std::numeric_limits<DWORD>::max())));
     DWORD count = 0;
     if (!ReadFile(to_handle(handle_.get()), buffer, request, &count, nullptr)) {
+        // 管道读端收到 ERROR_BROKEN_PIPE 表示写端已关闭，作为干净 EOF（0 字节）上报而非错误。
         if (GetLastError() == ERROR_BROKEN_PIPE)
             return ca::core::Ok(static_cast<usize>(0));
         return ca::core::Err(IoError::last_os_error("ReadFile"));
     }
     return ca::core::Ok(static_cast<usize>(count));
 #else
+    // POSIX read/write 的长度参数若超过 SSIZE_MAX 行为未定义（可能被误判为错误返回负值），先封顶。
     const usize request =
         std::min<usize>(capacity, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
     const ssize_t count = ::read(static_cast<int>(handle_.get()), buffer, request);
@@ -107,6 +109,9 @@ IoResult<u64> NativeStream::seek(const SeekFrom& position)
         return ca::core::Err(closed_stream_error("seek"));
 
 #if defined(_WIN32)
+    // GetFileType 成功时不保证清错误码，故调用前手动 SetLastError(ERROR_SUCCESS)，
+    // 才能区分"真的 UNKNOWN 类型"和"上次残留错误"。seek 只对磁盘文件有效，
+    // 管道/字符设备/控制台一律 Unsupported。
     SetLastError(ERROR_SUCCESS);
     const DWORD file_type = GetFileType(to_handle(handle_.get()));
     if (file_type == FILE_TYPE_UNKNOWN && GetLastError() != ERROR_SUCCESS)

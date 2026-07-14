@@ -17,6 +17,9 @@ namespace ca::io {
 namespace {
 
 #if defined(_WIN32)
+// Windows 原生错误码 → IoErrorKind。同时匹配 ERROR_*（Win32，来自 GetLastError）
+// 与 WSA_*（Winsock，来自 WSAGetLastError）两套常量，因为二者共用错误码空间，
+// 调用方可能经任一接口拿到错误。
 IoErrorKind classify_native_error(i64 native_code) noexcept
 {
     switch (static_cast<DWORD>(native_code)) {
@@ -37,10 +40,13 @@ IoErrorKind classify_native_error(i64 native_code) noexcept
     case WSAEADDRINUSE: return IoErrorKind::AddrInUse;
     case ERROR_INVALID_ADDRESS:
     case WSAEADDRNOTAVAIL: return IoErrorKind::AddrNotAvailable;
+    // 管道读端遇到 ERROR_BROKEN_PIPE 表示对端写端已关闭（语义等同 POSIX EPIPE / EOF）。
     case ERROR_BROKEN_PIPE:
     case ERROR_PIPE_NOT_CONNECTED: return IoErrorKind::BrokenPipe;
     case ERROR_ALREADY_EXISTS:
     case ERROR_FILE_EXISTS: return IoErrorKind::AlreadyExists;
+    // ERROR_IO_PENDING 表示重叠 I/O 尚未完成（异步），WSAEWOULDBLOCK 表示非阻塞 socket
+    // 暂不可用；二者都映射为 WouldBlock 让调用方重试。
     case ERROR_IO_PENDING:
     case WSAEWOULDBLOCK: return IoErrorKind::WouldBlock;
     case ERROR_INVALID_HANDLE:
@@ -94,6 +100,7 @@ IoErrorKind classify_native_error(i64 native_code) noexcept
     case EADDRNOTAVAIL: return IoErrorKind::AddrNotAvailable;
     case EPIPE: return IoErrorKind::BrokenPipe;
     case EEXIST: return IoErrorKind::AlreadyExists;
+    // Linux 上 EAGAIN 与 EWOULDBLOCK 同值，直接写两个 case 会重复标签编译失败，故用预处理守卫。
 #    if EAGAIN != EWOULDBLOCK
     case EAGAIN:
 #    endif
@@ -119,6 +126,8 @@ std::string native_error_message(i64 native_code)
 
 ca::core::StatusCode status_code_for(IoErrorKind kind) noexcept
 {
+    // 瞬时类 I/O 错误（WouldBlock、连接中断、管道断裂等）统一归到 UNAVAILABLE，
+    // 对齐 gRPC 重试语义，与永久性的 InvalidInput/NotFound 区分，便于上层决定是否重试。
     using ca::core::StatusCode;
     switch (kind) {
     case IoErrorKind::NotFound: return StatusCode::NOT_FOUND;

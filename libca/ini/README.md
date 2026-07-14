@@ -1,10 +1,11 @@
----
-version: 1.0
-update:
-2026-07-06 - 首版，补充 INI Reader/Writer 和保注释改写示例
----
+# libca_ini
 
-# libca/ini 使用文档
+独立 INI 配置读写模块。命名空间 `ca::ini`，构建目标 `libca_ini`。
+
+核心目标是支持「读入、修改少量 key、写回」时保留人工维护的注释、空行和顺序，而不是只把
+INI 读成 map。
+
+> 设计与保格式策略见 `doc/ini设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入
 

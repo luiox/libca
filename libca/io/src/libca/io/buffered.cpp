@@ -94,6 +94,7 @@ IoResult<usize> BufReader::read(u8* buffer, usize capacity)
 
     position_ = 0;
     filled_   = 0;
+    // 当请求量 >= 缓冲容量时跳过自身缓冲，直接读进调用方缓冲区，省一次拷贝。
     if (capacity >= buffer_.size()) {
         auto result = inner_->read(buffer, capacity);
         if (result.is_ok() && result.unwrap() > capacity)
@@ -271,6 +272,7 @@ IoResult<usize> BufWriter::write(const u8* data, usize length)
             return ca::core::Err(flushed.unwrap_err());
     }
 
+    // 写入量 >= 缓冲容量时绕过缓冲直接写底层，避免"先填满再立即 flush"的无谓拷贝。
     if (length >= buffer_.size()) {
         auto result = inner_->write(data, length);
         if (result.is_ok() && result.unwrap() > length)
@@ -326,6 +328,8 @@ IoResult<void> BufWriter::flush_buffer()
     if (inner_ == nullptr)
         return ca::core::Err(invalid_buffered_stream("flush_buffer"));
 
+    // Writer 可能短写，需循环直到全部冲刷；Interrupted 重试，返回 0 视作 WriteZero 错误，
+    // 超报算 InvalidData。失败时经 discard_written_prefix 只丢弃已确认写出的前缀，保留剩余数据。
     usize written = 0;
     while (written < used_) {
         auto result = inner_->write(buffer_.data() + written, used_ - written);

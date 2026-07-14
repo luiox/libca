@@ -1,4 +1,9 @@
-# libca_thread 使用文档
+# libca_thread
+
+结构化并发基础设施：协作取消、作用域 join、有界背压队列与线程池。命名空间 `ca::thread`，
+构建目标 `libca_thread`。
+
+> 设计与关闭协议见 `doc/thread设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 启动可取消线程
 
