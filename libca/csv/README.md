@@ -1,10 +1,8 @@
----
-version: 1.0
-update:
-2026-07-06 - 首版，补充 CSV Reader/Writer 常用用法
----
+# libca_csv
 
-# libca/csv 使用文档
+独立 CSV 文本读写模块。命名空间 `ca::csv`，构建目标 `libca_csv`。
+
+> 设计与格式策略见 `doc/csv设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入
 
@@ -45,7 +43,7 @@ options.line_ending = "\r\n";
 auto text = CsvWriter::write(document, options);
 ```
 
-Writer 会自动处理逗号、引号和字段内换行。上面的 `note` 字段会按 CSV 规则加引号，
+Writer 默认只在必要时加引号：字段含分隔符、引号、换行，或首尾有空格/制表符时自动加引号，
 字段里的 `"` 会写成 `""`。
 
 ## 读写文件
@@ -64,8 +62,7 @@ if (read_result.is_err()) {
 
 ## 兼容旧 trim 行为
 
-旧 `utility/CsvFile` 会修剪逗号拆分后的字段空白。新模块默认保留未加引号字段原文；
-如果要兼容旧行为，可以打开：
+新模块默认保留未加引号字段原文（旧 `utility/CsvFile` 会修剪两侧空白）。需要兼容旧行为时：
 
 ```cpp
 CsvReaderOptions options;
