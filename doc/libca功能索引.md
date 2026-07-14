@@ -172,16 +172,24 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 
 ## collection
 
-集合与函数式处理雏形。
+集合与函数式处理容器，以 Rust-like API 包装 STL 存储。
 
 入口头文件：
+- `<libca/collection/array_list.hpp>`
+- `<libca/collection/hash_map.hpp>`
+- `<libca/collection/hash_set.hpp>`
 - `<libca/collection/immutable_list.hpp>`
 - `<libca/collection/stream.hpp>`
 - `<libca/collection/collection.hpp>`
 
 功能：
-- `ImmutableList`：不可变列表。
-- `Stream`：链式数据处理接口。
+- `ArrayList<T>`：基于 `std::vector` 的拥有型可变顺序容器。
+- `HashMap<K, V>` / `HashSet<T>`：基于 `std::unordered_map` / `std::unordered_set` 的哈希容器。
+- `ImmutableList<T>`：构造后不可修改的列表，支持范围 for 与随机访问。
+- `Stream`：基于迭代器范围的惰性 `filter/map/forEach/collect`。
+
+设计文档：
+- `libca/collection/doc/collection设计文档.md`
 
 ## thread
 

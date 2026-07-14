@@ -61,7 +61,7 @@ L3  业务 / 上层
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
 | **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 可用（测试待补） | — |
 | **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
-| **collection** | 不可变列表 / 流 | `immutable_list.hpp`、`stream.hpp` | `ca` | 雏形 | — |
+| **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
 | opt / reflect / zip | 规划中 | — | — | **空** | — |
 | log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |
 
