@@ -19,10 +19,10 @@
        SAFE_NAME(using_ptr)++ == NULL ? ((__on_enter_expr), 1) : 0; \
        (__on_leave_expr))
 
-// 局部变量
-// @param __declare 局部变量
-// @param __on_enter_expr 进入操作 [可选]
-// @param __on_leave_expr 离开操作 [可选]
+/// @brief 局部变量
+/// @param __declare 局部变量
+/// @param __on_enter_expr 进入操作 [可选]
+/// @param __on_leave_expr 离开操作 [可选]
 #define USING(...) EVAL(__USING_, __VA_ARGS__)(__VA_ARGS__)
 
 // 编译时断言验证特定表达式。

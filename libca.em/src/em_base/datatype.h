@@ -16,9 +16,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// 自动探测 64 位支持:
-// 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
-// 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
+/// @brief 自动探测 64 位支持
+/// 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
+/// 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
 #ifndef HAS_INT64
     #if defined(UINTPTR_MAX) && (UINTPTR_MAX > 0xFFFFFFFFU)
         #define HAS_INT64 1

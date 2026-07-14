@@ -8,12 +8,10 @@
  * le/be 仅影响 value 的装载顺序: le 从 LSB 先写/读, be 从 MSB 先写/读。
  */
 
-/**
- * @brief 从 MSB-first bitstream 读取单个位
- * @param data 源缓冲区
- * @param bit_index bitstream 索引
- * @return 0 或 1
- */
+/// @brief 从 MSB-first bitstream 读取单个位
+/// @param data 源缓冲区
+/// @param bit_index bitstream 索引
+/// @return 0 或 1
 static u8 bits_read_bit_msb(const u8* data, usize bit_index)
 {
     usize byte_index = bit_index >> 3;
@@ -21,12 +19,10 @@ static u8 bits_read_bit_msb(const u8* data, usize bit_index)
     return (u8)((data[byte_index] >> bit_in_byte) & 0x01u);
 }
 
-/**
- * @brief 写入单个位到 MSB-first bitstream
- * @param data 目标缓冲区
- * @param bit_index bitstream 索引
- * @param bit_value 0 或 1
- */
+/// @brief 写入单个位到 MSB-first bitstream
+/// @param data 目标缓冲区
+/// @param bit_index bitstream 索引
+/// @param bit_value 0 或 1
 static void bits_write_bit_msb(u8* data, usize bit_index, u8 bit_value)
 {
     usize byte_index = bit_index >> 3;
@@ -40,15 +36,13 @@ static void bits_write_bit_msb(u8* data, usize bit_index, u8 bit_value)
     }
 }
 
-/**
- * @brief 校验 bit 读写的公共参数
- * @param data 源/目标缓冲区
- * @param data_size 缓冲区长度 (字节)
- * @param start_bit 起始 bit 索引
- * @param length bit 长度
- * @param max_len 支持的最大 bit 长度
- * @return 0 成功, 负数错误码
- */
+/// @brief 校验 bit 读写的公共参数
+/// @param data 源/目标缓冲区
+/// @param data_size 缓冲区长度 (字节)
+/// @param start_bit 起始 bit 索引
+/// @param length bit 长度
+/// @param max_len 支持的最大 bit 长度
+/// @return 0 成功, 负数错误码
 static i32 bits_validate_params(const u8* data, usize data_size, usize start_bit, u8 length, usize max_len)
 {
     if (data == NULL) {
@@ -72,11 +66,9 @@ static i32 bits_validate_params(const u8* data, usize data_size, usize start_bit
     return BITS_UTIL_OK;
 }
 
-/**
- * @brief 生成 u32 低位掩码
- * @param length 掩码位数
- * @return 低 length 位为 1 的掩码
- */
+/// @brief 生成 u32 低位掩码
+/// @param length 掩码位数
+/// @return 低 length 位为 1 的掩码
 static u32 bits_mask_low_u32(u8 length)
 {
     if (length >= 32) {
@@ -86,11 +78,9 @@ static u32 bits_mask_low_u32(u8 length)
 }
 
 #ifdef HAS_INT64
-/**
- * @brief 生成 u64 低位掩码
- * @param length 掩码位数
- * @return 低 length 位为 1 的掩码
- */
+/// @brief 生成 u64 低位掩码
+/// @param length 掩码位数
+/// @return 低 length 位为 1 的掩码
 static u64 bits_mask_low_u64(u8 length)
 {
     if (length >= 64) {
