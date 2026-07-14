@@ -1,13 +1,11 @@
-/**
- * @file inverted_pendulum.c
- * @author canrad (1517807724@qq.com)
- * @brief 倒立摆控制与重力补偿基础实现
- * @version 0.1
- * @date 2026-03-16
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file inverted_pendulum.c
+/// @author canrad (1517807724@qq.com)
+/// @brief 倒立摆控制与重力补偿基础实现
+/// @version 0.1
+/// @date 2026-03-16
+///
+/// @copyright Copyright (c) 2026
+///
 
 #include "inverted_pendulum.h"
 

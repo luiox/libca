@@ -1,20 +1,18 @@
-/**
- * @file kin_omni.h
- * @author canrad (1517807724@qq.com)
- * @brief 全向轮（3轮）运动学接口
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- * 三轮全向轮布局（俯视）：
- *       W2 (后方)
- *        |
- *   W0 /   \ W1
- *     /_____\
- *     前方
- * 轮子方向：垂直于到圆心的连线，正方向为逆时针切向
- */
+/// @file kin_omni.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 全向轮（3轮）运动学接口
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
+/// 三轮全向轮布局（俯视）：
+///       W2 (后方)
+///        |
+///   W0 /   \ W1
+///     /_____\
+///     前方
+/// 轮子方向：垂直于到圆心的连线，正方向为逆时针切向
 
 #ifndef LIBCA_EM_MOTION_KIN_OMNI_H
 #define LIBCA_EM_MOTION_KIN_OMNI_H

@@ -1,13 +1,11 @@
-/**
- * @file s_curve.c
- * @author canrad (1517807724@qq.com)
- * @brief S 曲线轨迹规划实现
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file s_curve.c
+/// @author canrad (1517807724@qq.com)
+/// @brief S 曲线轨迹规划实现
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
 
 #include "s_curve.h"
 #include <math.h>

@@ -1,13 +1,11 @@
-/**
- * @file kin_omni.c
- * @author canrad (1517807724@qq.com)
- * @brief 全向轮（3轮）运动学实现
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file kin_omni.c
+/// @author canrad (1517807724@qq.com)
+/// @brief 全向轮（3轮）运动学实现
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
 
 #define _USE_MATH_DEFINES
 #include "kin_omni.h"

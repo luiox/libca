@@ -1,13 +1,11 @@
-/**
- * @file kin_mecanum.c
- * @author canrad (1517807724@qq.com)
- * @brief 麦克纳姆底盘运动学实现
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file kin_mecanum.c
+/// @author canrad (1517807724@qq.com)
+/// @brief 麦克纳姆底盘运动学实现
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
 
 #define _USE_MATH_DEFINES
 #include "kin_mecanum.h"

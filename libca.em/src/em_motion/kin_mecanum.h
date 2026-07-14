@@ -1,17 +1,15 @@
-/**
- * @file kin_mecanum.h
- * @author canrad (1517807724@qq.com)
- * @brief 麦克纳姆底盘运动学接口
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- * 四轮麦克纳姆布局（俯视）：
- *   FL  FR  (前)
- *   RL  RR  (后)
- * 轮子辊子方向：FL/RR 指向右后，FR/RL 指向左后
- */
+/// @file kin_mecanum.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 麦克纳姆底盘运动学接口
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
+/// 四轮麦克纳姆布局（俯视）：
+///   FL  FR  (前)
+///   RL  RR  (后)
+/// 轮子辊子方向：FL/RR 指向右后，FR/RL 指向左后
 
 #ifndef LIBCA_EM_MOTION_KIN_MECANUM_H
 #define LIBCA_EM_MOTION_KIN_MECANUM_H
