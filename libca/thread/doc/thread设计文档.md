@@ -1,3 +1,9 @@
+---
+version: 1.1
+update:
+2026-07-14 - 由 design.md 改名补 YAML 头，删除使用文档（并入 README），本文成为 thread 唯一设计文档
+---
+
 # libca_thread 设计文档
 
 ## 1. 目标与边界

@@ -120,11 +120,13 @@ ca::core::Status Thread::join()
     if (!started_)
         return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,
                                    "join on an empty Thread");
+    // 幂等：已 join 过的 Thread 重复调用返回缓存的完成状态，避免二次 join。
     if (joined_)
         return join_status_;
     if (!native_.joinable())
         return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,
                                    "thread is not joinable");
+    // 防止线程从内部 join 自身，否则 std::thread::join 会死锁。
     if (native_.get_id() == std::this_thread::get_id())
         return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,
                                    "a thread cannot join itself");
@@ -147,6 +149,8 @@ void Thread::finish_noexcept() noexcept
     if (!native_.joinable())
         return;
 
+    // 析构兜底：先发协作停止请求。若是从线程内部析构（自己 join 自己），只能 detach，
+    // 否则 join 会死锁；这种情况一般发生在 lambda 捕获了 Thread 自身。
     request_stop();
     if (native_.get_id() == std::this_thread::get_id()) {
         native_.detach();
@@ -156,6 +160,8 @@ void Thread::finish_noexcept() noexcept
         native_.join();
     }
     catch (...) {
+        // join 抛异常时回退 detach，保证析构不抛且不遗留 joinable 线程（否则
+        // std::thread 析构会 std::terminate）。
         try {
             native_.detach();
         }

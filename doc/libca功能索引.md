@@ -191,8 +191,8 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 - `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
 
 设计与使用文档：
-- `libca/thread/doc/design.md`
-- `libca/thread/doc/thread使用文档.md`
+- `libca/thread/doc/thread设计文档.md`
+- `libca/thread/README.md`（快速示例）
 
 ## 暂未作为主线使用的代码
 
