@@ -11,8 +11,8 @@ namespace ca { namespace fs { namespace test {
 
 using namespace testing;
 
-/// 测试辅助：比较 ca::core::Bytes 与裸字节序列内容是否一致。
-/// Bytes 无 operator==，这里取其底层指针与期望字节做 memcmp。
+// 测试辅助：比较 ca::core::Bytes 与裸字节序列内容是否一致。
+// Bytes 无 operator==，这里取其底层指针与期望字节做 memcmp。
 ::testing::AssertionResult bytes_match(const ca::core::Bytes& actual, const ca::u8* expected,
                                        ca::usize expected_len)
 {
@@ -27,7 +27,7 @@ using namespace testing;
     return ::testing::AssertionSuccess();
 }
 
-/// 测试辅助：临时目录 RAII 守卫
+// 测试辅助：临时目录 RAII 守卫
 class TempDirGuard
 {
 public:

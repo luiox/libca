@@ -15,7 +15,7 @@
 
 namespace ca::crypto {
 
-/// same as reset()
+// same as reset()
 SHA3::SHA3(Bits bits)
 : m_blockSize(200 - 2 * (bits / 8)),
   m_bits(bits)
@@ -24,7 +24,7 @@ SHA3::SHA3(Bits bits)
 }
 
 
-/// restart
+// restart
 void SHA3::reset()
 {
   for (size_t i = 0; i < StateSize; i++)
@@ -35,7 +35,7 @@ void SHA3::reset()
 }
 
 
-/// constants and local helper functions
+// constants and local helper functions
 namespace
 {
   const unsigned int Rounds = 24;
@@ -51,13 +51,13 @@ namespace
     0x8000000000008080ULL, 0x0000000080000001ULL, 0x8000000080008008ULL
   };
 
-  /// rotate left and wrap around to the right
+  // rotate left and wrap around to the right
   inline uint64_t rotateLeft(uint64_t x, uint8_t numBits)
   {
     return (x << numBits) | (x >> (64 - numBits));
   }
 
-  /// convert litte vs big endian
+  // convert litte vs big endian
   inline uint64_t swap(uint64_t x)
   {
 #if defined(__GNUC__) || defined(__clang__)
@@ -78,7 +78,7 @@ namespace
   }
 
 
-  /// return x % 5 for 0 <= x <= 9
+  // return x % 5 for 0 <= x <= 9
   unsigned int mod5(unsigned int x)
   {
     if (x < 5)
@@ -89,7 +89,7 @@ namespace
 }
 
 
-/// process a full block
+// process a full block
 void SHA3::processBlock(const void* data)
 {
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER != 0) && (__BYTE_ORDER == __BIG_ENDIAN)
@@ -171,7 +171,7 @@ void SHA3::processBlock(const void* data)
 }
 
 
-/// add arbitrary number of bytes
+// add arbitrary number of bytes
 void SHA3::add(const void* data, size_t numBytes)
 {
   const uint8_t* current = (const uint8_t*) data;
@@ -216,7 +216,7 @@ void SHA3::add(const void* data, size_t numBytes)
 }
 
 
-/// process everything left in the internal buffer
+// process everything left in the internal buffer
 void SHA3::processBuffer()
 {
   // add padding
@@ -234,7 +234,7 @@ void SHA3::processBuffer()
 }
 
 
-/// return latest hash as 16 hex characters
+// return latest hash as 16 hex characters
 std::string SHA3::getHash()
 {
   // save hash state
@@ -283,7 +283,7 @@ std::string SHA3::getHash()
 }
 
 
-/// compute SHA3 of a memory block
+// compute SHA3 of a memory block
 std::string SHA3::operator()(const void* data, size_t numBytes)
 {
   reset();
@@ -292,7 +292,7 @@ std::string SHA3::operator()(const void* data, size_t numBytes)
 }
 
 
-/// compute SHA3 of a string, excluding final zero
+// compute SHA3 of a string, excluding final zero
 std::string SHA3::operator()(const std::string& text)
 {
   reset();

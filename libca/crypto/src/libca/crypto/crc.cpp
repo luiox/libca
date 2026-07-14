@@ -1,6 +1,6 @@
-///
-/// @brief CRC 校验实现
-///
+//
+// @brief CRC 校验实现
+//
 
 #include "crc.hpp"
 #include <cstring>

@@ -17,7 +17,7 @@ namespace ca { namespace fs {
 
 namespace {
 
-/// 把 std::error_code 归类为 FsError。无错误映射时退回 Unknown。
+// 把 std::error_code 归类为 FsError。无错误映射时退回 Unknown。
 FsError classify_fs_error(const std::error_code& ec) noexcept
 {
     if (!ec) return FsError::Unknown;
@@ -41,11 +41,11 @@ void remove_if_exists(const std::filesystem::path& path) noexcept
     std::filesystem::remove(path, ec);
 }
 
-/// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
-/// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
-/// 失败时返回具体 FsError（out_* 未定义）。
-/// size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
-/// 防止后续 buffer 分配截断导致缓冲区溢出。
+// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
+// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
+// 失败时返回具体 FsError（out_* 未定义）。
+// size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
+// 防止后续 buffer 分配截断导致缓冲区溢出。
 FsError open_for_read(const std::string& path, std::ifstream& out_file, std::streamoff& out_size)
 {
     auto p = std::filesystem::path(path);
