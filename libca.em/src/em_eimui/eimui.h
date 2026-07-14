@@ -1,14 +1,12 @@
-/**
- * @file eimui.h
- * @author canrad (1517807724@qq.com)
- * @brief 数据驱动的MCU下的菜单系统 (eimui)
- * 保证对RAM的使用尽可能小，无动画，支持子菜单、翻页，选项行为
- * @version 0.1
- * @date 2026-01-24
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file eimui.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 数据驱动的MCU下的菜单系统 (eimui)
+/// 保证对RAM的使用尽可能小，无动画，支持子菜单、翻页，选项行为
+/// @version 0.1
+/// @date 2026-01-24
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_EIMUI_H
 #define LIBCA_EM_EIMUI_H
 
@@ -71,42 +69,28 @@ typedef struct eimui{
     void* user_data;
 }eimui_t;
 
-/**
- * @brief 初始化UI
- */
+/// @brief 初始化UI
 void eimui_init(eimui_t* ui, u16 w, u16 h);
 
-/**
- * @brief 执行一次UI逻辑 (Tick)
- */
+/// @brief 执行一次UI逻辑 (Tick)
 void eimui_tick(eimui_context_t* ctx, eimui_t* self);
 
-/**
- * @brief 设置当前页面
- */
+/// @brief 设置当前页面
 void eimui_set_page(eimui_t* self, page_t page_id);
 
-/**
- * @brief 退出UI
- */
+/// @brief 退出UI
 void eimui_exit(eimui_t* self);
 
-/**
- * @brief 重绘
- */
+/// @brief 重绘
 void eimui_repaint(eimui_t* self);
 
-/**
- * @brief 输入事件
- */
+/// @brief 输入事件
 void eimui_input_event(eimui_t* self, eimui_event_t event);
 
-/**
- * @brief handler分发器，由router.c实现
- * 
- * @param dops 
- * @param self 
- */
+/// @brief handler分发器，由router.c实现
+///
+/// @param dops 
+/// @param self 
 void eimui_route_handler(void* dops, eimui_t* self);
 
 

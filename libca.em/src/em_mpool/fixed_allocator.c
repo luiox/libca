@@ -3,55 +3,45 @@
 #include <em_base/debug.h>
 #include <em_base/memory_util.h>
 
-/**
- * @brief 判断一个值是否为 2 的幂
- * @param value 待判断值
- * @return true 是 2 的幂，false 不是
- */
+/// @brief 判断一个值是否为 2 的幂
+/// @param value 待判断值
+/// @return true 是 2 的幂，false 不是
 static bool fixed_allocator_is_power_of_two(usize value)
 {
     return value != 0U && (value & (value - 1U)) == 0U;
 }
 
-/**
- * @brief 将数值向上按 alignment 对齐
- * @param value 原值
- * @param alignment 对齐值（2 的幂）
- * @return 对齐后的值
- */
+/// @brief 将数值向上按 alignment 对齐
+/// @param value 原值
+/// @param alignment 对齐值（2 的幂）
+/// @return 对齐后的值
 static usize fixed_allocator_align_up(usize value, usize alignment)
 {
     return (value + alignment - 1U) & ~(alignment - 1U);
 }
 
-/**
- * @brief 将地址按 alignment 向上对齐
- * @param ptr 原始地址
- * @param alignment 对齐值（2 的幂）
- * @return 对齐后的地址
- */
+/// @brief 将地址按 alignment 向上对齐
+/// @param ptr 原始地址
+/// @param alignment 对齐值（2 的幂）
+/// @return 对齐后的地址
 static u8 *fixed_allocator_align_ptr_up(u8 *ptr, usize alignment)
 {
     return (u8 *)fixed_allocator_align_up((usize)ptr, alignment);
 }
 
-/**
- * @brief 计算块在池中的索引
- * @param self 分配器对象
- * @param block 块地址
- * @return 块索引
- */
+/// @brief 计算块在池中的索引
+/// @param self 分配器对象
+/// @param block 块地址
+/// @return 块索引
 static usize fixed_allocator_block_index(const fixed_allocator_t *self, const void *block)
 {
     return ((usize)((const u8 *)block - (const u8 *)self->memory)) / self->block_stride;
 }
 
-/**
- * @brief 读取分配位图中的一个 bit
- * @param self 分配器对象
- * @param index 块索引
- * @return true 表示已分配，false 表示空闲
- */
+/// @brief 读取分配位图中的一个 bit
+/// @param self 分配器对象
+/// @param index 块索引
+/// @return true 表示已分配，false 表示空闲
 static bool fixed_allocator_bitmap_get(const fixed_allocator_t *self, usize index)
 {
     usize byte_index = index >> 3;
@@ -59,11 +49,9 @@ static bool fixed_allocator_bitmap_get(const fixed_allocator_t *self, usize inde
     return (self->alloc_bitmap[byte_index] & mask) != 0U;
 }
 
-/**
- * @brief 将分配位图中的一个 bit 置 1
- * @param self 分配器对象
- * @param index 块索引
- */
+/// @brief 将分配位图中的一个 bit 置 1
+/// @param self 分配器对象
+/// @param index 块索引
 static void fixed_allocator_bitmap_set(fixed_allocator_t *self, usize index)
 {
     usize byte_index = index >> 3;
@@ -71,11 +59,9 @@ static void fixed_allocator_bitmap_set(fixed_allocator_t *self, usize index)
     self->alloc_bitmap[byte_index] = (u8)(self->alloc_bitmap[byte_index] | mask);
 }
 
-/**
- * @brief 将分配位图中的一个 bit 清 0
- * @param self 分配器对象
- * @param index 块索引
- */
+/// @brief 将分配位图中的一个 bit 清 0
+/// @param self 分配器对象
+/// @param index 块索引
 static void fixed_allocator_bitmap_clear(fixed_allocator_t *self, usize index)
 {
     usize byte_index = index >> 3;
@@ -83,12 +69,10 @@ static void fixed_allocator_bitmap_clear(fixed_allocator_t *self, usize index)
     self->alloc_bitmap[byte_index] = (u8)(self->alloc_bitmap[byte_index] & (u8)(~mask));
 }
 
-/**
- * @brief 判断指针是否是当前池中的合法块起始地址
- * @param self 分配器对象
- * @param block 待检查块地址
- * @return true 合法，false 非法
- */
+/// @brief 判断指针是否是当前池中的合法块起始地址
+/// @param self 分配器对象
+/// @param block 待检查块地址
+/// @return true 合法，false 非法
 static bool fixed_allocator_is_block_in_pool(const fixed_allocator_t *self, const void *block)
 {
     const u8 *start = (const u8 *)self->memory;

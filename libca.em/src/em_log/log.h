@@ -1,15 +1,13 @@
-/**
- * @file log.h
- * @author canrad (1517807724@qq.com)
- * @brief 实现一个异步的日志，仅适用于单核MCU
- * 依赖soft_timer的时间获取接口以及可选的async异步工作队列
- * 实现多后端，tag可以过滤，解耦耗时IO输出到异步实现
- * @version 0.1
- * @date 2026-01-07
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file log.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 实现一个异步的日志，仅适用于单核MCU
+/// 依赖soft_timer的时间获取接口以及可选的async异步工作队列
+/// 实现多后端，tag可以过滤，解耦耗时IO输出到异步实现
+/// @version 0.1
+/// @date 2026-01-07
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_LOG_LOG_H
 #define LIBCA_EM_LOG_LOG_H
 
@@ -20,9 +18,7 @@
 extern "C" {
 #endif
 
-/**
- * @brief Log levels
- */
+/// @brief Log levels
 // 枚举值越大表示越严重（例如 INFO=1 < WARN=2 < ERROR=3）
 typedef enum {
     LOG_LEVEL_NONE = 0,
@@ -31,9 +27,7 @@ typedef enum {
     LOG_LEVEL_ERROR,
 } log_level_t;
 
-/**
- * @brief Log record structure passed to backends
- */
+/// @brief Log record structure passed to backends
 typedef struct {
     log_level_t level;
     u32 time_sec;
@@ -49,9 +43,7 @@ typedef struct {
 
 typedef struct log_backend log_backend_t;
 
-/**
- * @brief Log backend interface
- */
+/// @brief Log backend interface
 struct log_backend {
     const char* name;
     // 该backend的最低日志级别（消息级别 >= min_level 将被输出；枚举值越大表示越严重）
