@@ -27,9 +27,7 @@ bool lcd1602_port_is_registered(void) { return g_lcd1602_port != NULL; }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/**
- * @brief 电平使能触发
- */
+ /// @brief 电平使能触发
 static void lcd1602_strobe(lcd1602_t* self) {
     param_check(self != NULL);
     LCD1602_WRITE_PIN(self->e_port, self->e_pin, 1);
@@ -38,9 +36,7 @@ static void lcd1602_strobe(lcd1602_t* self) {
     LCD1602_DELAY_US(2);
 }
 
-/**
- * @brief 发送底层的 4位 或 8位 数据
- */
+ /// @brief 发送底层的 4位 或 8位 数据
 static void lcd1602_out(lcd1602_t* self, u8 data) {
     param_check(self != NULL);
     if (self->mode == LCD1602_MODE_8BIT) {

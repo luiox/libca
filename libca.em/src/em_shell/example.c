@@ -1,12 +1,10 @@
-/**
- * @file example.c
- * @brief em_shell 使用示例
- * 
- * 演示：
- * 1. 定义 shell_port_t 接口实现
- * 2. 构建树形命令结构（包含分支和叶子节点）
- * 3. 短参数解析（-key value 格式）
- */
+/// @file example.c
+/// @brief em_shell 使用示例
+///
+/// 演示：
+/// 1. 定义 shell_port_t 接口实现
+/// 2. 构建树形命令结构（包含分支和叶子节点）
+/// 3. 短参数解析（-key value 格式）
 
 #include "shell.h"
 #include <stdio.h>
@@ -14,9 +12,7 @@
 
 /* ========== 示例 1：实现串口 I/O 端口 ========== */
 
-/**
- * @brief 模拟的串口端口结构
- */
+/// @brief 模拟的串口端口结构
 typedef struct {
     char rx_buffer[256];
     char tx_buffer[256];
@@ -26,9 +22,7 @@ typedef struct {
 
 static uart_port_t g_uart_port = {0};
 
-/**
- * @brief UART 读取函数
- */
+/// @brief UART 读取函数
 static i32 uart_read(void *self, void *buf, usize size)
 {
     uart_port_t *uart = (uart_port_t *)self;
@@ -46,9 +40,7 @@ static i32 uart_read(void *self, void *buf, usize size)
     return to_read;
 }
 
-/**
- * @brief UART 写入函数
- */
+/// @brief UART 写入函数
 static i32 uart_write(void *self, const void *buf, usize size)
 {
     uart_port_t *uart = (uart_port_t *)self;
@@ -69,9 +61,7 @@ static i32 uart_write(void *self, const void *buf, usize size)
 
 /* ========== 示例 2：定义自定义命令处理函数 ========== */
 
-/**
- * @brief mem read 子命令 - 读内存
- */
+/// @brief mem read 子命令 - 读内存
 static i32 cmd_mem_read(i32 argc, char *argv[])
 {
     shell_t *shell = shell_get_current();
@@ -91,9 +81,7 @@ static i32 cmd_mem_read(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief mem write 子命令 - 写内存
- */
+/// @brief mem write 子命令 - 写内存
 static i32 cmd_mem_write(i32 argc, char *argv[])
 {
     shell_t *shell = shell_get_current();
@@ -113,9 +101,7 @@ static i32 cmd_mem_write(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief mem dump 子命令 - 转储内存
- */
+/// @brief mem dump 子命令 - 转储内存
 static i32 cmd_mem_dump(i32 argc, char *argv[])
 {
     shell_t *shell = shell_get_current();
@@ -142,9 +128,7 @@ static i32 cmd_mem_dump(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief ota start 子命令 - 启动 OTA
- */
+/// @brief ota start 子命令 - 启动 OTA
 static i32 cmd_ota_start(i32 argc, char *argv[])
 {
     shell_t *shell = shell_get_current();
@@ -161,9 +145,7 @@ static i32 cmd_ota_start(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief ota status 子命令 - OTA 状态
- */
+/// @brief ota status 子命令 - OTA 状态
 static i32 cmd_ota_status(i32 argc, char *argv[])
 {
     (void)argc;
@@ -177,9 +159,7 @@ static i32 cmd_ota_status(i32 argc, char *argv[])
     return 0;
 }
 
-/**
- * @brief reboot 命令 - 重启系统
- */
+/// @brief reboot 命令 - 重启系统
 static i32 cmd_reboot(i32 argc, char *argv[])
 {
     (void)argc;
@@ -195,9 +175,7 @@ static i32 cmd_reboot(i32 argc, char *argv[])
 
 /* ========== 示例 3：构建分层命令树 ========== */
 
-/**
- * @brief mem 命令的子命令数组
- */
+/// @brief mem 命令的子命令数组
 static const shell_cmd_t g_mem_subcmds[] = {
     {
         .name = "read",
@@ -222,9 +200,7 @@ static const shell_cmd_t g_mem_subcmds[] = {
     },
 };
 
-/**
- * @brief ota 命令的子命令数组
- */
+/// @brief ota 命令的子命令数组
 static const shell_cmd_t g_ota_subcmds[] = {
     {
         .name = "start",
@@ -242,9 +218,7 @@ static const shell_cmd_t g_ota_subcmds[] = {
     },
 };
 
-/**
- * @brief 顶级命令数组
- */
+/// @brief 顶级命令数组
 static const shell_cmd_t g_commands[] = {
     {
         .name = "mem",

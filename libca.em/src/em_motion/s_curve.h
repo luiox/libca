@@ -1,16 +1,14 @@
-/**
- * @file s_curve.h
- * @author canrad (1517807724@qq.com)
- * @brief S 曲线轨迹规划接口
- * @version 0.2
- * @date 2026-03-21
- *
- * @copyright Copyright (c) 2026
- *
- * S曲线是一种七段速度规划方法，通过限制加加速度(Jerk)实现平滑运动。
- * 七段分别为：加加速、匀加速、减加速、匀速、加减速、匀减速、减减速。
- * 当位移不足时，会自动退化为梯形或三角曲线。
- */
+/// @file s_curve.h
+/// @author canrad (1517807724@qq.com)
+/// @brief S 曲线轨迹规划接口
+/// @version 0.2
+/// @date 2026-03-21
+///
+/// @copyright Copyright (c) 2026
+///
+/// S曲线是一种七段速度规划方法，通过限制加加速度(Jerk)实现平滑运动。
+/// 七段分别为：加加速、匀加速、减加速、匀速、加减速、匀减速、减减速。
+/// 当位移不足时，会自动退化为梯形或三角曲线。
 
 #ifndef LIBCA_EM_MOTION_S_CURVE_H
 #define LIBCA_EM_MOTION_S_CURVE_H

@@ -1,19 +1,18 @@
-/**
- * @file pingpong_buffer.h
- * @author canrad (1517807724@qq.com)
- * @brief 乒乓缓冲区，即双缓冲区，主要是配合 DMA 使用。
- *        乒乓缓冲区的原理是有两个缓冲区，交替使用，当一个缓冲区正在被处理时，另一个缓冲区可以被填充数据。
- *        这样可以减少数据处理的延迟，提高数据传输效率。
- * DMA 场景：
- * DMA 向 write_buffer 填充数据时，调用 pingpong_buf_start_write 设置写入标志
- * DMA 传输完成后，调用 pingpong_buf_end_write 清除标志
- * 应用程序处理 read_buffer 中的数据，处理完成后安全地调用 pingpong_buf_switch 切换缓冲区角色
- * @version 0.1
- * @date 2025-07-27
- *
- * @copyright Copyright (c) 2025
- *
- */
+///
+/// @file pingpong_buffer.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 乒乓缓冲区，即双缓冲区，主要是配合 DMA 使用。
+///        乒乓缓冲区的原理是有两个缓冲区，交替使用，当一个缓冲区正在被处理时，另一个缓冲区可以被填充数据。
+///        这样可以减少数据处理的延迟，提高数据传输效率。
+/// DMA 场景：
+/// DMA 向 write_buffer 填充数据时，调用 pingpong_buf_start_write 设置写入标志
+/// DMA 传输完成后，调用 pingpong_buf_end_write 清除标志
+/// 应用程序处理 read_buffer 中的数据，处理完成后安全地调用 pingpong_buf_switch 切换缓冲区角色
+/// @version 0.1
+/// @date 2025-07-27
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef PINGPONG_BUFFER_H
 #define PINGPONG_BUFFER_H
 

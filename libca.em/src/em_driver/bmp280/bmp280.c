@@ -1,10 +1,9 @@
-/**
- * @file bmp280.c
- * @author canrad (1517807724@qq.com)
- * @brief BMP280 气压计传感器驱动实现 (Port 绑定风格)
- * @version 0.1
- * @date 2026-01-22
- */
+/// @file bmp280.c
+/// @author canrad (1517807724@qq.com)
+/// @brief BMP280 气压计传感器驱动实现 (Port 绑定风格)
+/// @version 0.1
+/// @date 2026-01-22
+///  
 
 #include "bmp280.h"
 #include <em_base/debug.h>
@@ -57,11 +56,10 @@ static i32 bmp280_read_reg(bmp280_t* self, u8 reg, u8* val) {
     return bmp280_read_regs(self, reg, val, 1);
 }
 
-/**
- * @brief 补偿温度 (Bosch 官方算法)
- * @param ut 原始温度
- * @return 摄氏度 (f32)
- */
+/// @brief 补偿温度 (Bosch 官方算法)
+/// @param ut 原始温度
+/// @return 摄氏度 (f32)
+///  
 static f32 bmp280_compensate_T(bmp280_t* self, i32 ut) {
 #if BMP280_CALC_MODE == 1
     i32 v_x1, v_x2;
@@ -79,11 +77,10 @@ static f32 bmp280_compensate_T(bmp280_t* self, i32 ut) {
 #endif
 }
 
-/**
- * @brief 补偿压力 (Bosch 官方算法)
- * @param up 原始压力
- * @return 帕斯卡 (f32)
- */
+/// @brief 补偿压力 (Bosch 官方算法)
+/// @param up 原始压力
+/// @return 帕斯卡 (f32)
+///  
 static f32 bmp280_compensate_P(bmp280_t* self, i32 up) {
 #if BMP280_CALC_MODE == 1
     i64 v1, v2, p;

@@ -47,11 +47,9 @@ bool sgp30_port_is_registered(void)
     SGP30_PORT_I2C_READ((self)->hi2c, SGP30_ADDR_READ, 0, 0, (u8*)(buf), (u16)(len), 0xFFFF)
 #define SGP30_DELAY_MS(ms) SGP30_PORT_DELAY_MS(ms)
 
-/**
- * @brief	向SGP30发送一条指令(16bit)
- * @param	cmd SGP30指令
- * @retval	成功返回HAL_OK
- */
+ /// @brief	向SGP30发送一条指令(16bit)
+ /// @param	cmd SGP30指令
+ /// @retval	成功返回HAL_OK
 static i32 sgp30_send_cmd(sgp30_t* self, u16 cmd)
 {
     u8 cmd_buffer[2];
@@ -66,22 +64,18 @@ static i32 sgp30_send_cmd(sgp30_t* self, u16 cmd)
     return SGP30_OK;
 }
 
-/**
- * @brief	软复位SGP30
- * @param	none
- * @retval	成功返回HAL_OK
- */
+ /// @brief	软复位SGP30
+ /// @param	none
+ /// @retval	成功返回HAL_OK
 static i32 sgp30_soft_reset(sgp30_t* self)
 {
     // Soft reset CMD = 0x0006
     return sgp30_send_cmd(self, 0x0006);
 }
 
-/**
- * @brief	初始化SGP30空气质量测量模式
- * @param	none
- * @retval	成功返回0，失败返回-1
- */
+ /// @brief	初始化SGP30空气质量测量模式
+ /// @param	none
+ /// @retval	成功返回0，失败返回-1
 void sgp30_init(sgp30_t* self, void* hi2c)
 {
     self->hi2c = hi2c;
@@ -103,11 +97,9 @@ void sgp30_init(sgp30_t* self, void* hi2c)
     SGP30_DELAY_MS(100);
 }
 
-/**
- * @brief	初始化SGP30空气质量测量模式
- * @param	none
- * @retval	成功返回HAL_OK
- */
+ /// @brief	初始化SGP30空气质量测量模式
+ /// @param	none
+ /// @retval	成功返回HAL_OK
 static i32 sgp30_start(sgp30_t* self)
 {
     return sgp30_send_cmd(self, SGP30_CMD_MEASURE_AIR_QUALITY);
@@ -141,11 +133,9 @@ static uint8_t CheckCrc8(uint8_t* const message, uint8_t initial_value)
     return remainder;
 }
 
-/**
- * @brief	读取一次空气质量数据
- * @param	none
- * @retval	成功返回0，失败返回-1
- */
+ /// @brief	读取一次空气质量数据
+ /// @param	none
+ /// @retval	成功返回0，失败返回-1
 i32 sgp30_read(sgp30_t* self, sgp30_data_t* out)
 {
     if (!self || !out)

@@ -1,11 +1,9 @@
-/**
- * @file ds18b20.h
- * @author canrad
- * @brief DS18B20 温度传感器驱动（port 绑定风格）
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- */
+/// @file ds18b20.h
+/// @author canrad
+/// @brief DS18B20 温度传感器驱动（port 绑定风格）
+/// @version 0.1
+/// @date 2026-01-22
+/// @update 0.2 添加extern外部依赖注入模式
 #ifndef LIBCA_EM_DRIVER_DS18B20_H
 #define LIBCA_EM_DRIVER_DS18B20_H
 
@@ -25,36 +23,26 @@ extern "C" {
 #endif
 
 #if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_EXTERN)
-/**
- * @brief 写引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚号
- * @param value 电平值
- */
+/// @brief 写引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚号
+/// @param value 电平值
 extern void port_ds18b20_write_pin(void* gpio, u16 pin, u8 value);
-/**
- * @brief 读引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚号
- * @return 当前电平值
- */
+/// @brief 读引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚号
+/// @return 当前电平值
 extern u8 port_ds18b20_read_pin(void* gpio, u16 pin);
-/**
- * @brief 设置引脚为输出模式
- * @param gpio GPIO端口
- * @param pin 引脚号
- */
+/// @brief 设置引脚为输出模式
+/// @param gpio GPIO端口
+/// @param pin 引脚号
 extern void port_ds18b20_set_output_mode(void* gpio, u16 pin);
-/**
- * @brief 设置引脚为输入模式
- * @param gpio GPIO端口
- * @param pin 引脚号
- */
+/// @brief 设置引脚为输入模式
+/// @param gpio GPIO端口
+/// @param pin 引脚号
 extern void port_ds18b20_set_input_mode(void* gpio, u16 pin);
-/**
- * @brief 微秒延时
- * @param us 延时时间（微秒）
- */
+/// @brief 微秒延时
+/// @param us 延时时间（微秒）
 extern void port_ds18b20_delay_us(u32 us);
 
 #elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)

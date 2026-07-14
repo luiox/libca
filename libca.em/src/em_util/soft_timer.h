@@ -1,13 +1,11 @@
-/**
- * @file soft_timer.h
- * @author canrad (1517807724@qq.com)
- * @brief 嵌入式时间管理与软件定时器基础组件
- * @version 0.1
- * @date 2025-12-28
- * 
- * @copyright Copyright (c) 2025
- * 
- */
+/// @file soft_timer.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 嵌入式时间管理与软件定时器基础组件
+/// @version 0.1
+/// @date 2025-12-28
+/// 
+/// @copyright Copyright (c) 2025
+/// 
 #ifndef LIBCA_EM_UTIL_SOFT_TIMER_H
 #define LIBCA_EM_UTIL_SOFT_TIMER_H
 

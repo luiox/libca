@@ -1,13 +1,11 @@
-/**
- * @file kin_ackermann.c
- * @author canrad (1517807724@qq.com)
- * @brief 阿克曼模型运动学基础实现
- * @version 0.1
- * @date 2026-03-16
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file kin_ackermann.c
+/// @author canrad (1517807724@qq.com)
+/// @brief 阿克曼模型运动学基础实现
+/// @version 0.1
+/// @date 2026-03-16
+///
+/// @copyright Copyright (c) 2026
+///
 
 #define _USE_MATH_DEFINES
 #include "kin_ackermann.h"

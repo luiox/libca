@@ -1,13 +1,11 @@
-/**
- * @file pid.c
- * @author canrad (1517807724@qq.com)
- * @brief pid算法，包含位置式和增量式pid计算
- * @version 0.1
- * @date 2024-08-12
- * 
- * @copyright Copyright (c) 2024
- * 
- */
+/// @file pid.c
+/// @author canrad (1517807724@qq.com)
+/// @brief pid算法，包含位置式和增量式pid计算
+/// @version 0.1
+/// @date 2024-08-12
+/// 
+/// @copyright Copyright (c) 2024
+///
 
 #include "pid.h"
 

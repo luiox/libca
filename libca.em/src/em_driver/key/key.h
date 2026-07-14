@@ -1,15 +1,13 @@
-/**
- * @file key.h
- * @author canrad (1517807724@qq.com)
- * @brief 硬件按键的常用代码，包括按键去抖动，按键长按、短按、双击检测等
- * @version 0.1
- * @date 2025-04-12
- * @update 0.2 添加extern外部依赖注入模式
- * update 2026-01-11 重新以OOP方式实现 
- *
- * @copyright Copyright (c) 2025
- *
- */
+/// @file key.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 硬件按键的常用代码，包括按键去抖动，按键长按、短按、双击检测等
+/// @version 0.1
+/// @date 2025-04-12
+/// @update 0.2 添加extern外部依赖注入模式
+/// update 2026-01-11 重新以OOP方式实现 
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef LIBCA_EM_DRIVER_KEY_H
 #define LIBCA_EM_DRIVER_KEY_H
 
@@ -29,12 +27,10 @@ extern "C" {
 #endif
 
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
-/**
- * @brief 读取按键引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚编号
- * @return 电平值
- */
+/// @brief 读取按键引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚编号
+/// @return 电平值
 extern u8 port_key_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)

@@ -1,11 +1,10 @@
-/**
- * @file bmp280.h
- * @author canrad (1517807724@qq.com)
- * @brief BMP280 气压计传感器驱动
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- */
+/// @file bmp280.h
+/// @author canrad (1517807724@qq.com)
+/// @brief BMP280 气压计传感器驱动
+/// @version 0.1
+/// @date 2026-01-22
+/// @update 0.2 添加extern外部依赖注入模式
+///  
 
 #ifndef LIBCA_EM_DRIVER_BMP280_H
 #define LIBCA_EM_DRIVER_BMP280_H
@@ -27,38 +26,35 @@ extern "C" {
 
 #if (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_EXTERN)
 
-/**
- * @brief I2C 读操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功
- */
+/// @brief I2C 读操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功
+///  
 extern i32 port_bmp280_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size,
                                 u32 timeout);
 
-/**
- * @brief I2C 写操作
- * @param hi2c I2C 句柄
- * @param dev_addr 设备地址
- * @param mem_addr 内存地址
- * @param mem_addr_size 地址字节数
- * @param data 数据缓冲区
- * @param data_size 数据长度
- * @param timeout 超时（ms）
- * @return 0 表示成功
- */
+/// @brief I2C 写操作
+/// @param hi2c I2C 句柄
+/// @param dev_addr 设备地址
+/// @param mem_addr 内存地址
+/// @param mem_addr_size 地址字节数
+/// @param data 数据缓冲区
+/// @param data_size 数据长度
+/// @param timeout 超时（ms）
+/// @return 0 表示成功
+///  
 extern i32 port_bmp280_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
                                  u16 data_size, u32 timeout);
 
-/**
- * @brief 毫秒延时
- * @param ms 延时时间（ms）
- */
+/// @brief 毫秒延时
+/// @param ms 延时时间（ms）
+///  
 extern void port_bmp280_delay_ms(u32 ms);
 
 #elif (LIBCA_BMP280_PORT_MODE == LIBCA_BMP280_PORT_MODE_DYNAMIC)
@@ -104,9 +100,8 @@ bool bmp280_port_is_registered(void);
 
 /* --- 枚举与结构体 --- */
 
-/**
- * @brief BMP280 校准参数
- */
+/// @brief BMP280 校准参数
+///  
 typedef struct {
     u16 dig_T1;
     i16 dig_T2;
@@ -123,27 +118,24 @@ typedef struct {
     i32 t_fine; // 中间计算值
 } bmp280_calib_t;
 
-/**
- * @brief BMP280 设备实例
- */
+/// @brief BMP280 设备实例
+///  
 typedef struct {
     void* hi2c;             // I2C 句柄
     u16 dev_addr;           // 设备 8 位地址
     bmp280_calib_t calib;   // 校准数据
 } bmp280_t;
 
-/**
- * @brief 测量模式
- */
+/// @brief 测量模式
+///  
 typedef enum {
     BMP280_MODE_SLEEP  = 0x00,
     BMP280_MODE_FORCED = 0x01,
     BMP280_MODE_NORMAL = 0x03
 } bmp280_mode_t;
 
-/**
- * @brief 过采样率
- */
+/// @brief 过采样率
+///  
 typedef enum {
     BMP280_OSRS_SKIP = 0x00,
     BMP280_OSRS_1X   = 0x01,
@@ -153,9 +145,8 @@ typedef enum {
     BMP280_OSRS_16X  = 0x05
 } bmp280_osrs_t;
 
-/**
- * @brief 滤波器系数
- */
+/// @brief 滤波器系数
+///  
 typedef enum {
     BMP280_FILTER_OFF = 0x00,
     BMP280_FILTER_2   = 0x01,
@@ -164,9 +155,8 @@ typedef enum {
     BMP280_FILTER_16  = 0x04
 } bmp280_filter_t;
 
-/**
- * @brief 正常模式下的等待时间
- */
+/// @brief 正常模式下的等待时间
+///  
 typedef enum {
     BMP280_STBY_0_5MS  = 0x00,
     BMP280_STBY_62_5MS = 0x01,
@@ -180,64 +170,53 @@ typedef enum {
 
 /* --- 接口函数 --- */
 
-/**
- * @brief 初始化 BMP280
- */
+/// @brief 初始化 BMP280
+///  
 i32 bmp280_init(bmp280_t* self, void* hi2c, u16 dev_addr);
 
-/**
- * @brief 检查设备是否在线
- */
+/// @brief 检查设备是否在线
+///  
 i32 bmp280_check(bmp280_t* self);
 
-/**
- * @brief 软件复位
- */
+/// @brief 软件复位
+///  
 i32 bmp280_reset(bmp280_t* self);
 
-/**
- * @brief 配置传感器参数
- */
+/// @brief 配置传感器参数
+///  
 i32 bmp280_config(bmp280_t* self, bmp280_osrs_t osrs_t, bmp280_osrs_t osrs_p, 
                   bmp280_filter_t filter, bmp280_standby_t standby);
 
-/**
- * @brief 设置工作模式
- */
+/// @brief 设置工作模式
+///  
 i32 bmp280_set_mode(bmp280_t* self, bmp280_mode_t mode);
 
-/**
- * @brief 是否正在测量
- */
+/// @brief 是否正在测量
+///  
 bool bmp280_is_measuring(bmp280_t* self);
 
-/**
- * @brief 读取温度
- * @param temperature 摄氏度
- */
+/// @brief 读取温度
+/// @param temperature 摄氏度
+///  
 i32 bmp280_read_temp(bmp280_t* self, f32* temperature);
 
-/**
- * @brief 读取压力
- * @param pressure 帕斯卡 (Pa)
- */
+/// @brief 读取压力
+/// @param pressure 帕斯卡 (Pa)
+///  
 i32 bmp280_read_press(bmp280_t* self, f32* pressure);
 
-/**
- * @brief 同时读取温度和压力
- */
+/// @brief 同时读取温度和压力
+///  
 i32 bmp280_read_all(bmp280_t* self, f32* temperature, f32* pressure);
 
 /* --- 工具函数 (Stateless) --- */
 
-/**
- * @brief 帕斯卡转毫米汞柱
- */
+/// @brief 帕斯卡转毫米汞柱
+///  
 f32 bmp280_pa_to_mmhg(f32 pa);
 
-/**
- * @brief 帕斯卡转海拔
- */
+/// @brief 帕斯卡转海拔
+///  
 f32 bmp280_pa_to_alt(f32 pa);
 
 #ifdef __cplusplus

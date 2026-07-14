@@ -41,10 +41,8 @@ void tofxxf_init(tofxxf_t* self, void* huart, u8 slave_addr)
     self->slave_addr = slave_addr;
 }
 
-/**
- * @brief 构建 Modbus RTU 请求帧
- * 帧格式：地址(1) + 功能码(1) + 数据(N) + CRC(2)
- */
+ /// @brief 构建 Modbus RTU 请求帧
+ /// 帧格式：地址(1) + 功能码(1) + 数据(N) + CRC(2)
 static usize build_request_frame(u8 slave_addr, u8 func, 
                                   const u8* data, usize data_len,
                                   u8* out_buf, usize out_buf_size)
@@ -68,9 +66,7 @@ static usize build_request_frame(u8 slave_addr, u8 func,
     return 4 + data_len;
 }
 
-/**
- * @brief 清空串口接收缓冲区
- */
+ /// @brief 清空串口接收缓冲区
 static void uart_flush_rx(void* huart)
 {
     u8 dummy;
@@ -80,9 +76,7 @@ static void uart_flush_rx(void* huart)
     }
 }
 
-/**
- * @brief 验证 Modbus RTU 响应帧
- */
+ /// @brief 验证 Modbus RTU 响应帧
 static i32 validate_response(const u8* frame, usize len, 
                               u8 expected_addr, u8 expected_func)
 {

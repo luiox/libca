@@ -1,16 +1,14 @@
-/**
- * @file nrf24.h
- * @author canrad (1517807724@qq.com)
- * @brief NRF24L01 2.4G无线模块
- * 参考文章：https://blog.csdn.net/weixin_43772810/article/details/123811245
- * 可以参考的代码：https://github.com/AFeng-Studio/NRF24L01plus_test/blob/main/Core/Src/NRF24L01.c
- * @version 0.1
- * @date 2026-01-22
- * @update 0.2 添加extern外部依赖注入模式
- *
- * @copyright Copyright (c) 2026
- *
- */
+ /// @file nrf24.h
+ /// @author canrad (1517807724@qq.com)
+ /// @brief NRF24L01 2.4G无线模块
+ /// 参考文章：https://blog.csdn.net/weixin_43772810/article/details/123811245
+ /// 可以参考的代码：https://github.com/AFeng-Studio/NRF24L01plus_test/blob/main/Core/Src/NRF24L01.c
+ /// @version 0.1
+ /// @date 2026-01-22
+ /// @update 0.2 添加extern外部依赖注入模式
+ ///
+ /// @copyright Copyright (c) 2026
+ ///
 #ifndef LIBCA_EM_DRIVER_NRF24_H
 #define LIBCA_EM_DRIVER_NRF24_H
 
@@ -30,48 +28,34 @@ extern "C" {
 #endif
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
-/**
- * @brief 写引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚编号
- * @param value 电平值
- */
+ /// @brief 写引脚电平
+ /// @param gpio GPIO端口
+ /// @param pin 引脚编号
+ /// @param value 电平值
 extern void port_nrf24_write_pin(void* gpio, u16 pin, u8 value);
-/**
- * @brief 读引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚编号
- * @return 引脚电平
- */
+ /// @brief 读引脚电平
+ /// @param gpio GPIO端口
+ /// @param pin 引脚编号
+ /// @return 引脚电平
 extern u8 port_nrf24_read_pin(void* gpio, u16 pin);
-/**
- * @brief 设置引脚为输出模式
- * @param gpio GPIO端口
- * @param pin 引脚编号
- */
+ /// @brief 设置引脚为输出模式
+ /// @param gpio GPIO端口
+ /// @param pin 引脚编号
 extern void port_nrf24_set_output_mode(void* gpio, u16 pin);
-/**
- * @brief 设置引脚为输入模式
- * @param gpio GPIO端口
- * @param pin 引脚编号
- */
+ /// @brief 设置引脚为输入模式
+ /// @param gpio GPIO端口
+ /// @param pin 引脚编号
 extern void port_nrf24_set_input_mode(void* gpio, u16 pin);
-/**
- * @brief 微秒延时
- * @param us 延时时间（微秒）
- */
+ /// @brief 微秒延时
+ /// @param us 延时时间（微秒）
 extern void port_nrf24_delay_us(u32 us);
-/**
- * @brief 毫秒延时
- * @param ms 延时时间（毫秒）
- */
+ /// @brief 毫秒延时
+ /// @param ms 延时时间（毫秒）
 extern void port_nrf24_delay_ms(u32 ms);
-/**
- * @brief SPI收发一个字节
- * @param hspi SPI句柄
- * @param data 发送字节
- * @return 接收字节
- */
+ /// @brief SPI收发一个字节
+ /// @param hspi SPI句柄
+ /// @param data 发送字节
+ /// @return 接收字节
 extern u8 port_nrf24_spi_send_recv(void* hspi, u8 data);
 
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)

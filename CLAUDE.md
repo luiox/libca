@@ -72,7 +72,7 @@ Rule precedence: **`prompt/` > user instructions > `doc/`**. The `prompt/*_code_
   - **No bare `int`/`long`/`size_t`/`uintptr_t`** — use `datatype.h` fixed-width types (`u8/i32/usize/f32/...`). `char` only for characters/strings. Index/length/capacity → `usize`; signed diffs → `i32`. Avoid `i64` (some targets lack it).
   - Cross-module includes use angle brackets `#include <em_xxx/yyy.h>`; same-module uses quotes `#include "yyy.h"`. Never `#include "em_xxx/yyy.h"`.
   - `self`-pointer / driver hot-path null checks use the contract macro `param_check` (from `em_base/debug.h`), not `if`. User-facing/non-hot-path checks use `if` + error code.
-  - Doxygen on every public API in the `.h`; do **not** re-copy it onto the `.c` definition. `static` internal funcs get Doxygen at the definition.
+  - Doxygen on every public API in the header, always using `/// ` lines; do **not** re-copy it onto the source definition. Internal/file/implementation comments use ordinary `//` or `/* */`, never `///`.
 - **non-em series (C++)** — `prompt/code_rule.md`. C++17 in `.cpp/.hpp`; C99 in `.c/.h` with `extern "C"` wrappers for C-callable interfaces.
 - **Naming (whole repo, per `memory`):** functions/vars `snake_case`, types `CamelCase`, constants `UPPER_SNAKE`, globals `g_` prefix, em macros `CA_`-prefixed `UPPER_SNAKE` (user-facing function-like macros may be `snake_case`). Style: 4-space indent, K&R braces, 120-col, Chinese comments (don't translate English technical terms). `.clang-format` is the formatter; the rule file wins on conflict.
 

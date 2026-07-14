@@ -83,10 +83,8 @@ static i32 ds18b20_check_ready_single(ds18b20_t* self)
     return DS18B20_OK;
 }
 
-/**
- * 检查设备是否存在
- * 返回：DS18B20_OK 表示存在，1/2 表示不同的超时错误（参见 ds18b20 内部实现），-1 表示 port 未注册
- */
+/// 检查设备是否存在
+/// 返回：DS18B20_OK 表示存在，1/2 表示不同的超时错误（参见 ds18b20 内部实现），-1 表示 port 未注册
 i32 ds18b20_check_device(ds18b20_t* self)
 {
     ds18b20_send_reset_single(self);
@@ -141,11 +139,9 @@ static uint8_t ds18b20_read_byte(ds18b20_t* self)
     return data;
 }
 
-/**
- * 读取温度
- * 输出：*temp 为原始 16 位温度值，单位为 1/16 °C（即低 4 位为小数部分）
- * 返回：0 成功，负值为错误码
- */
+/// 读取温度
+/// 输出：*temp 为原始 16 位温度值，单位为 1/16 °C（即低 4 位为小数部分）
+/// 返回：0 成功，负值为错误码
 i32 ds18b20_read_temperature(ds18b20_t* self, u16* temp)
 {
     u8 temp_L, temp_H;

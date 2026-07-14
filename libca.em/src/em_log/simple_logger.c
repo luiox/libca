@@ -10,9 +10,7 @@ static slog_output_fn_t g_out_fn = NULL;
 static u8 g_runtime_level = LOG_LEVEL_DEBUG;
 #endif
 
-/**
- * @brief 统一格式化入口，可在标准 vsnprintf 与 fast_vsnprintf 之间切换
- */
+/// @brief 统一格式化入口，可在标准 vsnprintf 与 fast_vsnprintf 之间切换
 static i32 slog_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
 {
 #if SLOG_USE_FAST_VSNPRINTF

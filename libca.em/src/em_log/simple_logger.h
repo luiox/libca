@@ -1,14 +1,12 @@
-/**
- * @file simple_logger.h
- * @author canrad (1517807724@qq.com)
- * @brief 一个简单可以配置的的日志库
- * 是对em_log标准下的log语义的简单实现
- * @version 0.1
- * @date 2026-02-22
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file simple_logger.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 一个简单可以配置的的日志库
+/// 是对em_log标准下的log语义的简单实现
+/// @version 0.1
+/// @date 2026-02-22
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_LOG_SIMPLE_LOGGER_H
 #define LIBCA_EM_LOG_SIMPLE_LOGGER_H
 
@@ -91,42 +89,32 @@ extern "C" {
 // 输出函数类型定义
 typedef void (*slog_output_fn_t)(const u8 *buf, usize len);
 
-/**
- * @brief 初始化 simple logger 的底层输出函数
- *
- * @param out_fn 底层输出回调，传入 NULL 表示关闭输出
- */
+/// @brief 初始化 simple logger 的底层输出函数
+///
+/// @param out_fn 底层输出回调，传入 NULL 表示关闭输出
 void slog_init(slog_output_fn_t out_fn);
 
-/**
- * @brief simple logger 的底层格式化输出函数
- *
- * @param fmt printf 风格格式字符串
- * @param ... 格式参数
- */
+/// @brief simple logger 的底层格式化输出函数
+///
+/// @param fmt printf 风格格式字符串
+/// @param ... 格式参数
 void _slog_printf(const char *fmt, ...);
 
 #if SLOG_ENABLE_RUNTIME_LEVEL
-/**
- * @brief 设置运行时日志过滤等级
- *
- * @param level 运行时等级，范围见 LOG_LEVEL_*
- */
+/// @brief 设置运行时日志过滤等级
+///
+/// @param level 运行时等级，范围见 LOG_LEVEL_*
 void slog_set_runtime_level(u8 level);
 
-/**
- * @brief 获取当前运行时日志过滤等级
- *
- * @return u8 当前等级
- */
+/// @brief 获取当前运行时日志过滤等级
+///
+/// @return u8 当前等级
 u8 slog_get_runtime_level(void);
 
-/**
- * @brief 判断某等级日志在当前运行时配置下是否允许输出
- *
- * @param level 待判断等级
- * @return bool true 表示允许输出
- */
+/// @brief 判断某等级日志在当前运行时配置下是否允许输出
+///
+/// @param level 待判断等级
+/// @return bool true 表示允许输出
 bool slog_should_log(u8 level);
 #endif
 

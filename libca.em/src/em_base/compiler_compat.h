@@ -1,15 +1,13 @@
-/**
- * @file compiler_compat.h
- * @author canrad (1517807724@qq.com)
- * @brief 负责编译器宏相关的兼容层定义
- * @version 0.1
- * @date 2025-11-02
- * @update
- * 2026-01-31 第一次明确编译器统一宏的标准
- *
- * @copyright Copyright (c) 2026
- *
- */
+/// @file compiler_compat.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 负责编译器宏相关的兼容层定义
+/// @version 0.1
+/// @date 2025-11-02
+/// @update
+/// 2026-01-31 第一次明确编译器统一宏的标准
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_BASE_COMPILER_COMPAT_H
 #define LIBCA_EM_BASE_COMPILER_COMPAT_H
 

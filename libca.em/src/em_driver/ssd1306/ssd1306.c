@@ -18,31 +18,25 @@ bool ssd1306_port_is_registered(void)
 
 void* g_hi2c = NULL;
 
-/**
- * @function: void ssd1306_write_command(u8 cmd)
- * @description: 向设备写控制命令
- * @param {u8} cmd 芯片手册规定的命令
- * @return {*}
- */
+ /// @function: void ssd1306_write_command(u8 cmd)
+ /// @description: 向设备写控制命令
+ /// @param {u8} cmd 芯片手册规定的命令
+ /// @return {*}
 void ssd1306_write_command(u8 cmd)
 {
     g_ssd1306_port->i2c_mem_write(g_hi2c, OLED_I2C_ADDRESS, 0x00, 1, &cmd, 1, OLED_I2C_TIMEOUT);
 }
 
-/**
- * @function: void ssd1306_write_data(u8 data)
- * @description: 向设备写控制数据
- * @param {u8} data 数据
- * @return {*}
- */
+ /// @function: void ssd1306_write_data(u8 data)
+ /// @description: 向设备写控制数据
+ /// @param {u8} data 数据
+ /// @return {*}
 void ssd1306_write_data(u8 data)
 {
     g_ssd1306_port->i2c_mem_write(g_hi2c, OLED_I2C_ADDRESS, 0x40, 1, &data, 1, OLED_I2C_TIMEOUT);
 }
 
-/**********************************************************
- * 初始化命令,根据芯片手册书写，详细步骤见上图以及注意事项
- ***********************************************************/
+ /// 初始化命令,根据芯片手册书写，详细步骤见上图以及注意事项
 u8 g_init_cmds[] = {0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40, 0xA1, 0xC8, 0xDA, 0x12,
                          0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0x8D, 0x14, 0xAF};
 

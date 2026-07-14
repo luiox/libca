@@ -1,14 +1,12 @@
-/**
- * @file ir_track.h
- * @author canrad (1517807724@qq.com)
- * @brief 反射式寻迹的驱动
- * @version 0.1
- * @date 2026-01-23
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file ir_track.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 反射式寻迹的驱动
+/// @version 0.1
+/// @date 2026-01-23
+/// @update 0.2 添加extern外部依赖注入模式
+/// 
+/// @copyright Copyright (c) 2026
+/// 
 #ifndef LIBCA_EM_DRIVER_IR_TRACK_H
 #define LIBCA_EM_DRIVER_IR_TRACK_H
 
@@ -28,12 +26,10 @@ extern "C" {
 #endif
 
 #if (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_EXTERN)
-/**
- * @brief 读引脚电平
- * @param gpio GPIO端口
- * @param pin 引脚号
- * @return 当前电平值
- */
+/// @brief 读引脚电平
+/// @param gpio GPIO端口
+/// @param pin 引脚号
+/// @return 当前电平值
 extern u8 port_ir_track_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_IR_TRACK_PORT_MODE == LIBCA_IR_TRACK_PORT_MODE_DYNAMIC)

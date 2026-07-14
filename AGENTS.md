@@ -12,6 +12,7 @@
 - 禁止裸 `int`/`long`/`size_t`，必须用 `datatype.h` 定长类型 (u8/i32/usize)
 - 禁止 `#include "em_xxx/yyy.h"`，跨模块必须用 `#include <em_xxx/yyy.h>`
 - 禁止在 .c 文件内重复 .h 的 Doxygen 注释
+- 禁止非 API 注释使用 `///`（包括文件说明、章节分隔、实现细节、测试、内部函数等）
 
 ## 测试约定
 - libca.em: 测试写在源文件末尾 `#if TEST_ENABLE` 内，断言用 `TEST_EXPECT_EQ_U32` 等

@@ -1,13 +1,11 @@
-/**
- * @file math_util.h
- * @author canrad (1517807724@qq.com)
- * @brief 数学相关的工具函数，补充标准库的不足
- * @version 0.1
- * @date 2025-07-25
- *
- * @copyright Copyright (c) 2025
- *
- */
+/// @file math_util.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 数学相关的工具函数，补充标准库的不足
+/// @version 0.1
+/// @date 2025-07-25
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef MATH_UTIL_H
 #define MATH_UTIL_H
 
@@ -43,22 +41,16 @@ typedef struct
 // 向下对齐
 #define math_align_down(x, align) ((x) & ~((align) - 1))
 
-/**
- * @brief 计算整数的幂
- *
- * @param base 底数
- * @param exp 指数
- * @return int32_t 底数的指数次幂
- */
+/// @brief 计算整数的幂
+/// @param base 底数
+/// @param exp 指数
+/// @return int32_t 底数的指数次幂
 i32 math_pow_s32(i32 base, i32 exp);
-/**
- * @brief 限幅函数，将输入值限制在min和max之间
- *
- * @param value 输入值
- * @param min 最大值
- * @param max 最小值
- * @return 限幅后的值
- */
+/// @brief 限幅函数，将输入值限制在min和max之间
+/// @param value 输入值
+/// @param min 最大值
+/// @param max 最小值
+/// @return 限幅后的值
 float clampf(float value, float min, float max);
 
 // 快速sin(x)（5阶泰勒展开法）
@@ -165,9 +157,7 @@ static void ieee754_check(void)
 
 
 
-/**
- * @brief 原子操作代码块
- */
+/// @brief 原子操作代码块
 #define SAFE_ATOM_CODE                                 \
   using(uint32_t SAFE_NAME(temp) = ({                  \
           uint32_t SAFE_NAME(temp2) = __get_PRIMASK(); \
@@ -181,11 +171,9 @@ static void ieee754_check(void)
 
 #define __dim_of_1(__array) (sizeof(__array) / sizeof(__array[0]))
 #define __dim_of_2(__array, __type) (sizeof(__array) / sizeof(__type))
-/**
- * @brief 获取数组长度
- * @param __array 数组
- * @param __type 元素类型 (可选)
- */
+/// @brief 获取数组长度
+/// @param __array 数组
+/// @param __type 元素类型 (可选)
 #define dimof(...) EVAL(__dim_of_, __VA_ARGS__)(__VA_ARGS__)
 
 #define __foreach_2(__array, __type)                              \
@@ -211,25 +199,19 @@ static void ieee754_check(void)
                         1) for (uint_fast32_t SAFE_NAME(cnt) = \
                                     dimof(__array, __type);    \
                                 SAFE_NAME(cnt) > 0; __pt--, SAFE_NAME(cnt)--)
-/**
- * @brief 遍历数组
- * @param __array 数组
- * @param __type 元素类型 (可选)
- * @param __pt 元素指针名 (可选)
- */
+/// @brief 遍历数组
+/// @param __array 数组
+/// @param __type 元素类型 (可选)
+/// @param __pt 元素指针名 (可选)
 #define foreach(...) EVAL(__foreach_, __VA_ARGS__)(__VA_ARGS__)
 
-/**
- * @brief 反向遍历数组
- * @param __array 数组
- * @param __type 元素类型 (可选)
- * @param __pt 元素指针名 (可选)
- */
+/// @brief 反向遍历数组
+/// @param __array 数组
+/// @param __type 元素类型 (可选)
+/// @param __pt 元素指针名 (可选)
 #define foreach_reverse(...) EVAL(__foreach_reverse_, __VA_ARGS__)(__VA_ARGS__)
 
-/**
- * @brief Get the absolute value of the specified value
- */
+/// @brief Get the absolute value of the specified value
 #define CABS(x) ((x) >= 0 ? (x) : -(x))
 
 #define __MIN_2(__a, __b) ((__a) < (__b) ? (__a) : (__b))
@@ -237,9 +219,7 @@ static void ieee754_check(void)
 #define __MIN_4(__a, __b, __c, __d) \
   __MIN_2(__MIN_2(__a, __b), __MIN_2(__c, __d))
 
-/**
- * @brief Get the minimum value of the specified values
- */
+/// @brief Get the minimum value of the specified values
 #define CMIN(...) EVAL(__MIN_, __VA_ARGS__)(__VA_ARGS__)
 
 #define __MAX_2(__a, __b) ((__a) > (__b) ? (__a) : (__b))
@@ -247,36 +227,24 @@ static void ieee754_check(void)
 #define __MAX_4(__a, __b, __c, __d) \
   __MAX_2(__MAX_2(__a, __b), __MAX_2(__c, __d))
 
-/**
- * @brief Get the maximum value of the specified values
- */
+/// @brief Get the maximum value of the specified values
 #define CMAX(...) EVAL(__MAX_, __VA_ARGS__)(__VA_ARGS__)
 
-/**
- * @brief Round a float to the nearest integer
- */
+/// @brief Round a float to the nearest integer
 #define ROUND(__f) ((int)((__f) + 0.5f))
 
-/**
- * @brief Clamp a value to the specified range
- */
+/// @brief Clamp a value to the specified range
 #define CLAMP(__x, __min, __max) CMIN(CMAX(__x, __min), __max)
 
-/**
- * @brief Linear mapping input to the specified range
- */
+/// @brief Linear mapping input to the specified range
 #define MAP(__x, __in_min, __in_max, __out_min, __out_max)              \
   ((__x - __in_min) * (__out_max - __out_min) / (__in_max - __in_min) + \
    __out_min)
 
-/**
- * @brief make compiler know the expression is likely to be true
- */
+/// @brief make compiler know the expression is likely to be true
 #define likeyly(x) __builtin_expect(!!(x), 1)
 
-/**
- * @brief make compiler know the expression is likely to be false
- */
+/// @brief make compiler know the expression is likely to be false
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 #endif   // !MATH_UTIL_H

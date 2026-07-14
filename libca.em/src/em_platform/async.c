@@ -1,8 +1,6 @@
 #include "async.h"
 
-/**
- * @brief 检查是否为2的幂
- */
+/// @brief 检查是否为2的幂
 static inline bool is_power_of_two(usize n) {
     return (n > 0) && ((n & (n - 1)) == 0);
 }

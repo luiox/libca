@@ -1,14 +1,13 @@
-/**
- * @file scoroutine.h
- * @author canrad (1517807724@qq.com)
- * @brief 一个基于状态机实现的无栈协程框架
- * scoroutine即simple coroutine，简单协程，基于状态机实现，无栈，无锁，无内存分配
- * @version 0.1
- * @date 2025-08-07
- *
- * @copyright Copyright (c) 2025
- *
- */
+///
+/// @file scoroutine.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 一个基于状态机实现的无栈协程框架
+/// scoroutine即simple coroutine，简单协程，基于状态机实现，无栈，无锁，无内存分配
+/// @version 0.1
+/// @date 2025-08-07
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef LIBCA_SCOROUTINE_H
 #define LIBCA_SCOROUTINE_H
 
@@ -59,9 +58,8 @@ struct scoroutine
 
 #define SC_YIELD_EXPAND(id) SC_YIELD_WITH_ID(id)
 
-/**
- * @brief 标签模式 (GCC/Clang): 彻底解决嵌套 switch 冲突
- */
+///
+/// @brief 标签模式 (GCC/Clang): 彻底解决嵌套 switch 冲突
 #define sc_begin(ctx)                                                          \
     scoroutine_t *_sc = (ctx);                                                 \
     if (_sc->state == (void *)SC_STATE_FINISHED) return;                       \
@@ -79,9 +77,8 @@ struct scoroutine
 
 #else
 
-/**
- * @brief Switch 模式 (通用): 兼容性好，但内部不能嵌套 switch
- */
+///
+/// @brief Switch 模式 (通用): 兼容性好，但内部不能嵌套 switch
 #define sc_begin(ctx)                                                          \
     scoroutine_t *_sc = (ctx);                                                 \
     if (_sc->state == SC_STATE_FINISHED) return;                               \
@@ -110,9 +107,8 @@ struct scoroutine
         sc_yield();                                                            \
     } while (0)
 
-/**
- * @brief 等待子协程完成 (嵌套支持)
- */
+///
+/// @brief 等待子协程完成 (嵌套支持)
 #define sc_await(child_func, child_ctx)                                        \
     do {                                                                       \
         while (!sc_is_finished(child_ctx)) {                                   \

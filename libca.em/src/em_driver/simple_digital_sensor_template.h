@@ -1,13 +1,11 @@
-/**
- * @file simple_digital_sensor_template.h
- * @author canrad (1517807724@qq.com)
- * @brief 简单读取io的驱动模板生成宏工具
- * @version 0.1
- * @date 2026-01-23
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file simple_digital_sensor_template.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 简单读取io的驱动模板生成宏工具
+/// @version 0.1
+/// @date 2026-01-23
+/// 
+/// @copyright Copyright (c) 2026
+/// 
 #ifndef LIBCA_EM_DRIVER_SIMPLE_DIGITAL_SENSOR_TEMPLATE_H
 #define LIBCA_EM_DRIVER_SIMPLE_DIGITAL_SENSOR_TEMPLATE_H
 

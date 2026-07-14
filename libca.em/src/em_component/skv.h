@@ -1,14 +1,13 @@
-/**
- * @file skv.h
- * @author canrad (1517807724@qq.com)
- * @brief 无文件系统的eeprom下的键值存储
- *  
- * @version 0.1
- * @date 2026-01-11
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+///
+/// @file skv.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 无文件系统的eeprom下的键值存储
+///
+/// @version 0.1
+/// @date 2026-01-11
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef SKV_H
 #define SKV_H
 

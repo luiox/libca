@@ -1,15 +1,13 @@
-/**
- * @file macro_util.h
- * @author canrad (1517807724@qq.com)
- * @brief 宏工具的封装
- * 注意，如果仅仅是用于应用层开发，建议不要使用这些宏，仅仅用于基础组件开发
- * @version 0.2
- * @date 2026-01-18
- * @update 2026-01-31 明确已有的宏，统一添加 CA_ 前缀
- *
- * @copyright Copyright (c) 2026
- * 
- */
+/// @file macro_util.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 宏工具的封装
+/// 注意，如果仅仅是用于应用层开发，建议不要使用这些宏，仅仅用于基础组件开发
+/// @version 0.2
+/// @date 2026-01-18
+/// @update 2026-01-31 明确已有的宏，统一添加 CA_ 前缀
+///
+/// @copyright Copyright (c) 2026
+///
 #ifndef LIBCA_EM_BASE_MACRO_UTIL_H
 #define LIBCA_EM_BASE_MACRO_UTIL_H 
 
@@ -17,16 +15,10 @@
 
 #define CA_MAKE_STRING(a) #a
 
-/**
- * @brief 单行内唯一的ID
- * 
- */
+/// @brief 单行内唯一的ID
 #define CA_UNIQUE_ID __LINE__
 
-/**
- * @brief 如果有__COUNTER__的情况下，做到真正的唯一ID，不会有局限于不同行
- * 
- */
+/// @brief 如果有__COUNTER__的情况下，做到真正的唯一ID，不会有局限于不同行
 #ifdef __COUNTER__
 #define CA_REAL_UNIQUE_ID __COUNTER__
 #else
@@ -70,34 +62,23 @@
   CA_EXPAND(__CA_PLOOC_VA_NUM_ARGS_IMPL(0, __VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, \
                            7, 6, 5, 4, 3, 2, 1, 0))
 
-/**
- * @brief 获取可变参数个数
- */
+/// @brief 获取可变参数个数
 #define CA_VA_NUM_ARGS(...) __CA_PLOOC_VA_NUM_ARGS(__VA_ARGS__)
 
-/**
- * @brief 安全的局部标识符
- */
+/// @brief 安全的局部标识符
 #define CA_SAFE_NAME(__NAME) CA_CONNECT3(__, __NAME, CA_UNIQUE_ID)
 
-/**
- * @brief 连接宏
- */
+/// @brief 连接宏
 #define CA_CONNECT_IMPL(N, ...) CA_EXPAND(CA_CONNECT##N(__VA_ARGS__))
 #define CA_CONNECT_DISPATCH(N, ...) CA_CONNECT_IMPL(N, __VA_ARGS__)
 #define CA_CONNECT(...) CA_CONNECT_DISPATCH(CA_VA_NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
 
-/**
- * @brief 选择宏, 根据参数个数N调用对应的__FUNC_N
- */
+/// @brief 选择宏, 根据参数个数N调用对应的__FUNC_N
 #define CA_EVAL_IMPL(Func, N, ...) CA_EXPAND(Func##N(__VA_ARGS__))
 #define CA_EVAL_DISPATCH(Func, N, ...) CA_EVAL_IMPL(Func, N, __VA_ARGS__)
 #define CA_EVAL(Func, ...) CA_EVAL_DISPATCH(Func, CA_VA_NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
 
-/**
- * @brief 给用户用的一些工具 container_of、offsetof等
- * 
- */
+/// @brief 给用户用的一些工具 container_of、offsetof等
 #ifndef offsetof
 #include <stddef.h>
 #endif

@@ -1,13 +1,12 @@
-/**
- * @file ini.h
- * @author canrad (1517807724@qq.com)
- * @brief 纯内存式的ini文件读写，适用于嵌入式环境
- * @version 0.1
- * @date 2025-07-28
- * 
- * @copyright Copyright (c) 2025
- * 
- */
+///
+/// @file ini.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 纯内存式的ini文件读写，适用于嵌入式环境
+/// @version 0.1
+/// @date 2025-07-28
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef INI_H
 #define INI_H 
 

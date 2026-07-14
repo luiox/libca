@@ -1,24 +1,22 @@
-/**
- * @file mq_x.h
- * @author canrad (1517807724@qq.com)
- * @brief MQ 系列气体传感器驱动（如 MQ-3, MQ-135 等）
- * 参考文档如下
- *   mq_2 烟雾传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-2-sensor.html
- *   mq_3 酒精检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-3-sensor.html
- *   mq_4 甲烷检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-4-sensor.html
- *   mq_5 液化气检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-5-sensor.html
- *   mq_6 丙烷检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-6-sensor.html
- *   mq_7 一氧化碳检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-7-sensor.html
- *   mq_8 氢气检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-8-sensor.html
- *   mq_9 可燃气体检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-9-sensor.html
- *   mq_135 空气质量传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-135-sensor.html
- * @version 0.1
- * @date 2026-01-23
- * @update 0.2 添加extern外部依赖注入模式
- * 
- * @copyright Copyright (c) 2026
- * 
- */
+ /// @file mq_x.h
+ /// @author canrad (1517807724@qq.com)
+ /// @brief MQ 系列气体传感器驱动（如 MQ-3, MQ-135 等）
+ /// 参考文档如下
+ ///   mq_2 烟雾传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-2-sensor.html
+ ///   mq_3 酒精检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-3-sensor.html
+ ///   mq_4 甲烷检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-4-sensor.html
+ ///   mq_5 液化气检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-5-sensor.html
+ ///   mq_6 丙烷检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-6-sensor.html
+ ///   mq_7 一氧化碳检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-7-sensor.html
+ ///   mq_8 氢气检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-8-sensor.html
+ ///   mq_9 可燃气体检测传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-9-sensor.html
+ ///   mq_135 空气质量传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-135-sensor.html
+ /// @version 0.1
+ /// @date 2026-01-23
+ /// @update 0.2 添加extern外部依赖注入模式
+ ///
+ /// @copyright Copyright (c) 2026
+ ///
 #ifndef LIBCA_EM_DRIVER_MQ_X_H
 #define LIBCA_EM_DRIVER_MQ_X_H
 
@@ -74,19 +72,15 @@ extern "C" {
 #endif
 
 #if (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_EXTERN)
-/**
- * @brief 读取ADC值
- * @param adc ADC句柄
- * @param channel 通道号
- * @return ADC值
- */
+ /// @brief 读取ADC值
+ /// @param adc ADC句柄
+ /// @param channel 通道号
+ /// @return ADC值
 extern u16 port_mqx_read_adc(void* adc, u8 channel);
-/**
- * @brief 读取数字引脚
- * @param gpio GPIO句柄
- * @param pin 引脚号
- * @return 引脚电平
- */
+ /// @brief 读取数字引脚
+ /// @param gpio GPIO句柄
+ /// @param pin 引脚号
+ /// @return 引脚电平
 extern u8 port_mqx_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_MQ_X_PORT_MODE == LIBCA_MQ_X_PORT_MODE_DYNAMIC)
@@ -101,9 +95,7 @@ bool mqx_port_is_registered(void);
 #error "Invalid MQ_X port mode"
 #endif
 
-/**
- * @brief mqx 对象结构体
- */
+ /// @brief mqx 对象结构体
 typedef struct mqx {
     void* adc_hdl;
     u8    adc_ch;
@@ -114,41 +106,33 @@ typedef struct mqx {
     u8  samples; // 采样平均次数
 } mqx_t;
 
-/**
- * @brief 初始化 mqx 对象
- * 
- * @param self 对象指针
- * @param adc_hdl ADC 句柄
- * @param adc_ch ADC 通道
- * @param do_gpio DO 引脚的 GPIO 句柄
- * @param do_pin DO 引脚编号
- * @param adc_resolution ADC 分辨率位数（如 12）
- * @param samples 采样平均次数
- */
+ /// @brief 初始化 mqx 对象
+ ///
+ /// @param self 对象指针
+ /// @param adc_hdl ADC 句柄
+ /// @param adc_ch ADC 通道
+ /// @param do_gpio DO 引脚的 GPIO 句柄
+ /// @param do_pin DO 引脚编号
+ /// @param adc_resolution ADC 分辨率位数（如 12）
+ /// @param samples 采样平均次数
 void mqx_init(mqx_t* self, void* adc_hdl, u8 adc_ch, void* do_gpio, u16 do_pin, u8 adc_resolution, u8 samples);
 
-/**
- * @brief 获取 ADC 平均值
- * 
- * @param self 对象指针
- * @return u16 ADC 原始值
- */
+ /// @brief 获取 ADC 平均值
+ ///
+ /// @param self 对象指针
+ /// @return u16 ADC 原始值
 u16 mqx_get_adc(mqx_t* self);
 
-/**
- * @brief 获取气体浓度百分比值 (0-100)
- * 
- * @param self 对象指针
- * @return u8 百分比值 (0-100)
- */
+ /// @brief 获取气体浓度百分比值 (0-100)
+ ///
+ /// @param self 对象指针
+ /// @return u8 百分比值 (0-100)
 u8 mqx_get_percentage(mqx_t* self);
 
-/**
- * @brief 获取数字输出引脚状态
- * 
- * @param self 对象指针
- * @return u8 引脚电平
- */
+ /// @brief 获取数字输出引脚状态
+ ///
+ /// @param self 对象指针
+ /// @return u8 引脚电平
 u8 mqx_get_do_state(mqx_t* self);
 
 #if MQ_X_ENABLE_MQ2

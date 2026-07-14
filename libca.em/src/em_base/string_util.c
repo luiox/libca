@@ -1,8 +1,6 @@
 ﻿#include "string_util.h"
 
-/**
- * @brief 字符转小写（私有函数）
- */
+/// @brief 字符转小写（私有函数）
 static char private_char_to_lower(char c)
 {
     if (c >= 'A' && c <= 'Z') {
@@ -11,9 +9,7 @@ static char private_char_to_lower(char c)
     return c;
 }
 
-/**
- * @brief 判断字符是否为空白字符（空格、制表、换行、回车）
- */
+/// @brief 判断字符是否为空白字符（空格、制表、换行、回车）
 static inline bool private_char_is_space(char c)
 {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -400,22 +396,18 @@ bool str_ends_with_i(const char* str, const char* suffix)
 // 十六进制转换
 char* to_hex(const void* data, u32 data_len, char* buf, u32 buf_len);
 
-/**
- * @brief 十六进制字符串转整数
- * 
- * @param str 字符串
- * @param out_value 输出值
- * @return bool 成功返回 true
- */
+/// @brief 十六进制字符串转整数
+/// 
+/// @param str 字符串
+/// @param out_value 输出值
+/// @return bool 成功返回 true
 bool hex_str_to_uint(const char* str, u32* out_value);
 
-/**
- * @brief 整数转十六进制字符串
- * 
- * @param value 整数
- * @param out_str 输出缓冲区
- * @param out_size 缓冲区大小
- */
+/// @brief 整数转十六进制字符串
+/// 
+/// @param value 整数
+/// @param out_str 输出缓冲区
+/// @param out_size 缓冲区大小
 void uint_to_hex_str(u32 value, char* out_str, usize out_size);
 
 #endif

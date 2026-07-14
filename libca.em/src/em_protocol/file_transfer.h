@@ -1,13 +1,11 @@
-/**
- * @file file_transfer.h
- * @author canrad (1517807724@qq.com)
- * @brief 定义文件传输协议相关的接口
- * @version 0.1
- * @date 2025-12-27
- *
- * @copyright Copyright (c) 2025
- *
- */
+/// @file file_transfer.h
+/// @author canrad (1517807724@qq.com)
+/// @brief 定义文件传输协议相关的接口
+/// @version 0.1
+/// @date 2025-12-27
+///
+/// @copyright Copyright (c) 2025
+///
 #ifndef LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 #define LIBCA_EM_PROTOCOL_FILE_TRANSFER_H
 
@@ -85,105 +83,85 @@
 // 文件传输协议的回调集
 typedef struct
 {
-    /**
-     * @brief 数据接收回调 数据从Protocol -> App
-     * 数据流：Serial -> Protocol -> [on_recv] -> App
-     * @param offset 当前文件偏移量
-     * @param data   解包后的纯净数据 (不需要关心 SOH/SEQ/CRC)
-     * @param len    数据长度
-     * @return 0 成功, 非 0 失败(比如 Flash 写错了)
-     */
+    /// @brief 数据接收回调 数据从Protocol -> App
+    /// 数据流：Serial -> Protocol -> [on_recv] -> App
+    /// @param offset 当前文件偏移量
+    /// @param data   解包后的纯净数据 (不需要关心 SOH/SEQ/CRC)
+    /// @param len    数据长度
+    /// @return 0 成功, 非 0 失败(比如 Flash 写错了)
     i32 (*on_recv)(void *user_data, u32 offset, const u8* data, usize len);
 
-    /**
-     * @brief 数据发送回调（供发送模式使用）：协议层向应用层读数据 App -> Protocol
-     * 数据流：Serial <- Protocol <- [on_send] <- App
-     * 
-     * @param offset 当前文件偏移量
-     * @param buf 缓冲区
-     * @note 关于填充(Padding):
-     * 应用层只需拷贝实际存在的有效数据到 buf 中，并返回实际拷贝的字节数。
-     * 如果返回的字节数 < len，协议层(Ops)负责根据协议规范（如XMODEM）填充剩余字节(如0x1A)。
-     * 应用层不需关心协议的包大小对齐问题。
-     */
+    /// @brief 数据发送回调（供发送模式使用）：协议层向应用层读数据 App -> Protocol
+    /// 数据流：Serial <- Protocol <- [on_send] <- App
+    ///
+    /// @param offset 当前文件偏移量
+    /// @param buf 缓冲区
+    /// @note 关于填充(Padding):
+    /// 应用层只需拷贝实际存在的有效数据到 buf 中，并返回实际拷贝的字节数。
+    /// 如果返回的字节数 < len，协议层(Ops)负责根据协议规范（如XMODEM）填充剩余字节(如0x1A)。
+    /// 应用层不需关心协议的包大小对齐问题。
     i32 (*on_send)(void *user_data, u32 offset, u8* buf, usize len);
- 
-    /**
-     * @brief 传输开始回调
-     * @param total_size 文件总大小 (如果是 0 表示未知)
-     * @param filename   文件名
-     */
+
+    /// @brief 传输开始回调
+    /// @param total_size 文件总大小 (如果是 0 表示未知)
+    /// @param filename   文件名
     void (*on_start)(void *user_data, u32 total_size, const char* filename);
 
-    /**
-     * @brief 传输结束回调 (成功或失败)
-     * @param status 状态码
-     */
+    /// @brief 传输结束回调 (成功或失败)
+    /// @param status 状态码
     void (*on_finish)(void *user_data, i32 status);
 } file_transfer_cbs_t;
 
 // 文件传输协议接口
 typedef struct file_transfer_ops
 {
-    /**
-     * @brief 初始化协议对象
-     * @param self 协议实例 (如 xmodem_t)
-     * @param io 底层传输通道
-     * @param cbs 上层业务回调
-     * @param config 协议配置数据，其中第一个一定是void* user_data，config由协议实例拥有，在回调时候会将user_data传递给上层
-     */
+    /// @brief 初始化协议对象
+    /// @param self 协议实例 (如 xmodem_t)
+    /// @param io 底层传输通道
+    /// @param cbs 上层业务回调
+    /// @param config 协议配置数据，其中第一个一定是void* user_data，config由协议实例拥有，在回调时候会将user_data传递给上层
     i32 (*init)(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* config);
 
-    /**
-     * @brief 核心处理：驱动定时器
-     *
-     * 用于处理协议内部的超时逻辑（如 XModem 等待起始信号超时、重传超时等）。
-     * 调用者应以固定频率（如 10ms 或 100ms）调用此接口。
-     *
-     * @param self 协议对象实例指针
-     * @param ms_delta 距离上次调用过去的时间（毫秒）
-     * @return i32 错误码
-     */
+    /// @brief 核心处理：驱动定时器
+    ///
+    /// 用于处理协议内部的超时逻辑（如 XModem 等待起始信号超时、重传超时等）。
+    /// 调用者应以固定频率（如 10ms 或 100ms）调用此接口。
+    ///
+    /// @param self 协议对象实例指针
+    /// @param ms_delta 距离上次调用过去的时间（毫秒）
+    /// @return i32 错误码
     i32 (*tick)(void* self, u32 ms_delta);
 
-    /**
-     * @brief 核心处理：输入字节流
-     *
-     * 调用者将从底层（如串口）接收到的原始数据喂入此接口。
-     * 协议内部会进行状态机解析、拆包、校验。
-     *
-     * @param self 协议对象实例指针 (如 xmodem_t*)
-     * @param in_buf 接收到的数据缓冲区
-     * @param in_len 数据长度
-     * @return i32 错误码
-     */
+    /// @brief 核心处理：输入字节流
+    ///
+    /// 调用者将从底层（如串口）接收到的原始数据喂入此接口。
+    /// 协议内部会进行状态机解析、拆包、校验。
+    ///
+    /// @param self 协议对象实例指针 (如 xmodem_t*)
+    /// @param in_buf 接收到的数据缓冲区
+    /// @param in_len 数据长度
+    /// @return i32 错误码
     i32 (*process)(void* self, const u8* in_buf, usize in_len);
 
-    /**
-     * @brief 请求开始接收 (发送 'C' 或者握手信号) ，因为接受一般来说需要给发送端发送一个开始信号
-     * 调用此函数后，协议层将主动发送初始握手信号（如 YMODEM 发 'C'），
-     * 并进入等待数据状态。接收方需调用此接口。
-     *
-     * @param self 协议对象实例指针 (如 xmodem_t*)
-     */
+    /// @brief 请求开始接收 (发送 'C' 或者握手信号) ，因为接受一般来说需要给发送端发送一个开始信号
+    /// 调用此函数后，协议层将主动发送初始握手信号（如 YMODEM 发 'C'），
+    /// 并进入等待数据状态。接收方需调用此接口。
+    ///
+    /// @param self 协议对象实例指针 (如 xmodem_t*)
     void (*start_recv)(void *self);
 
-    /**
-     * @brief 启动发送模式
-     * 
-     * 调用此函数后，协议层将主动发起传输（如发送初始 SOH 包头），
-     * 并等待对方响应（ACK/NAK/C）。发送方需调用此接口。
-     * 
-     * @note 接收方无需调用此接口。
-     */
+    /// @brief 启动发送模式
+    ///
+    /// 调用此函数后，协议层将主动发起传输（如发送初始 SOH 包头），
+    /// 并等待对方响应（ACK/NAK/C）。发送方需调用此接口。
+    ///
+    /// @note 接收方无需调用此接口。
     void (*start_send)(void *self, const char* filename, u32 file_size);
 
-    /**
-     * @brief 获取当前传输的字节数
-     *
-     * @param self 协议对象实例指针 (如 xmodem_t*)
-     * @return i32 成功则返回已传输的字节数 (>=0)，失败则返回负数错误码。
-     */
+    /// @brief 获取当前传输的字节数
+    ///
+    /// @param self 协议对象实例指针 (如 xmodem_t*)
+    /// @return i32 成功则返回已传输的字节数 (>=0)，失败则返回负数错误码。
     i32 (*get_transferred_size)(void *self);
 } file_transfer_ops_t;
 
