@@ -49,6 +49,14 @@ public:
     /// intern 拥有字符串内容。
     Utf8StringRef intern(const Utf8String& str);
 
+    /// @brief 不校验 UTF-8，按原始字节复制入池（码点数取保守值 = 字节长度）。
+    ///
+    /// 用于字节流载体（如 JVM 字节码混淆的密文载体）：这类数据不是合法 UTF-8，
+    /// 但 JVM 的 modified UTF-8 编解码能 1:1 往返 0x00-0xFF 字节，ClassWriter 会按
+    /// modified UTF-8 重新编码写入常量池。本方法跳过校验，让任意字节入池。
+    /// @note 码点数 length 取 byte_length（保守上界），调用方若需精确码点数应自行计算。
+    Utf8StringRef intern_raw(const u8* data, usize byte_length);
+
     // ---- 统计 ----
 
     /// 唯一字符串数量。
