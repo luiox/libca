@@ -148,6 +148,45 @@ Utf8StringRef Utf8StringArena::intern(const u8* data, usize byte_length) {
     return Utf8StringRef(dest, byte_length, cp_count);
 }
 
+Utf8StringRef Utf8StringArena::intern_raw(const u8* data, usize byte_length) {
+    // 不校验 UTF-8：用于字节流载体（非合法 UTF-8 但 JVM modified UTF-8 可往返）。
+    // 码点数 length 取保守值 byte_length（上界）。
+    if (data == nullptr || byte_length == 0)
+        return Utf8StringRef();
+
+    auto hash = compute_hash(data, byte_length);
+
+    // 去重查找（与 intern 相同）
+    auto it = hash_index_.find(hash);
+    if (it != hash_index_.end()) {
+        for (auto idx : it->second) {
+            auto& e = entries_[idx];
+            if (e.byte_length == byte_length &&
+                std::memcmp(chunks_[e.chunk_idx].data + e.chunk_offset, data, byte_length) == 0) {
+                return Utf8StringRef(
+                    chunks_[e.chunk_idx].data + e.chunk_offset,
+                    e.byte_length, e.length);
+            }
+        }
+    }
+
+    // 跳过 utf8_count_code_points，length 取 byte_length
+    u8* dest = alloc_in_chunk(byte_length);
+    std::memcpy(dest, data, byte_length);
+
+    Entry e;
+    e.hash         = hash;
+    e.byte_length  = byte_length;
+    e.length       = byte_length;
+    e.chunk_idx    = next_chunk_idx_;
+    e.chunk_offset = static_cast<usize>(dest - chunks_[next_chunk_idx_].data);
+    entries_.push_back(e);
+
+    hash_index_[hash].push_back(entries_.size() - 1);
+
+    return Utf8StringRef(dest, byte_length, byte_length);
+}
+
 Utf8StringRef Utf8StringArena::intern(const char* cstr) {
     if (cstr == nullptr)
         return Utf8StringRef();

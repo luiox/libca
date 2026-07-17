@@ -124,6 +124,41 @@ TEST(Utf8StringArenaTest, InternInvalidUtf8) {
 }
 
 // ============================================================================
+// intern_raw：不校验 UTF-8，按原始字节入池
+// ============================================================================
+
+TEST(Utf8StringArenaTest, InternRawAcceptsInvalidUtf8) {
+    // intern 对非法 UTF-8 返回空，intern_raw 应原样入池。
+    Utf8StringArena arena;
+    u8 carrier[] = {0xFF, 0xFE, 0x80, 0x00, 0xC0};   // 非 UTF-8
+    auto r = arena.intern_raw(carrier, 5);
+    EXPECT_FALSE(r.is_empty());
+    EXPECT_EQ(r.byte_length(), 5u);
+    EXPECT_EQ(r.length(), 5u);   // 保守值 = 字节长度
+    // 字节逐位保持
+    for (usize i = 0; i < 5; ++i) {
+        EXPECT_EQ(r.byte_at(i), carrier[i]);
+    }
+}
+
+TEST(Utf8StringArenaTest, InternRawDedup) {
+    Utf8StringArena arena;
+    u8 a[] = {0xC2, 0x80, 0xFF};
+    u8 b[] = {0xC2, 0x80, 0xFF};
+    auto r1 = arena.intern_raw(a, 3);
+    auto r2 = arena.intern_raw(b, 3);
+    EXPECT_EQ(r1.data(), r2.data());   // 同内容去重，指向同一池内副本
+    EXPECT_EQ(arena.size(), 1u);
+}
+
+TEST(Utf8StringArenaTest, InternRawHandlesEmptyAndNull) {
+    Utf8StringArena arena;
+    EXPECT_TRUE(arena.intern_raw(nullptr, 0).is_empty());
+    u8 x[] = {0x01};
+    EXPECT_TRUE(arena.intern_raw(x, 0).is_empty());
+}
+
+// ============================================================================
 // intern(const Utf8String&)
 // ============================================================================
 
