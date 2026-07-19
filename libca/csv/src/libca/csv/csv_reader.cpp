@@ -2,6 +2,8 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <utility>
 
 namespace ca::csv {
 namespace {
@@ -22,19 +24,27 @@ std::string trim_ascii_space(const std::string& value) {
     return value.substr(begin, end - begin);
 }
 
-std::string parse_error(ca::usize line, ca::usize column, const char* message) {
-    return std::string("CSV parse error at line ") + std::to_string(line) +
-           ", column " + std::to_string(column) + ": " + message;
+// 构造 ParseError（line/column + 消息）。
+ParseError make_error(ca::usize line, ca::usize column, const std::string& message) {
+    ParseError err;
+    err.location = SourceLocation{line, column};
+    err.message = ca::str::Utf8String(reinterpret_cast<const ca::u8*>(message.data()),
+                                      message.size());
+    return err;
 }
 
 }  // namespace
 
-ca::Result<CsvDocument, std::string> CsvReader::read(
-    const std::string& text,
+ca::Result<CsvDocument, ParseError> CsvReader::read(
+    const ca::str::Utf8StringRef& input,
     const CsvReaderOptions& options) {
     if (options.delimiter == options.quote) {
-        return ca::Err(std::string("CSV delimiter and quote must be different"));
+        return ca::Err(make_error(1, 1, "CSV delimiter and quote must be different"));
     }
+
+    // 内部用 std::string 做字符扫描（CSV 字段不一定是合法 UTF-8，按字节处理更稳妥）。
+    const std::string text(reinterpret_cast<const char*>(input.data()),
+                           reinterpret_cast<const char*>(input.data()) + input.byte_length());
 
     std::vector<CsvRow> parsed_rows;
     std::vector<std::string> current_row;
@@ -49,7 +59,7 @@ ca::Result<CsvDocument, std::string> CsvReader::read(
         if (!field_was_quoted && options.trim_unquoted_space) {
             current_row.push_back(trim_ascii_space(current_field));
         } else {
-            current_row.push_back(current_field);
+            current_row.push_back(std::move(current_field));
         }
         current_field.clear();
         field_was_quoted = false;
@@ -100,7 +110,8 @@ ca::Result<CsvDocument, std::string> CsvReader::read(
             ++line;
             column = 0;
         } else if (field_was_quoted) {
-            return ca::Err(parse_error(line, column, "unexpected character after closing quote"));
+            return ca::Err(make_error(line, column,
+                                      "unexpected character after closing quote"));
         } else {
             current_field.push_back(ch);
         }
@@ -108,12 +119,13 @@ ca::Result<CsvDocument, std::string> CsvReader::read(
     }
 
     if (in_quotes) {
-        return ca::Err(parse_error(line, column, "unterminated quoted field"));
+        return ca::Err(make_error(line, column, "unterminated quoted field"));
     }
 
     // 文件末尾没有换行时补最后一行；被引号包裹的空字段也应形成一行。
     if (saw_any_char && (!current_field.empty() || !current_row.empty() ||
-                         text.back() == options.delimiter || field_was_quoted)) {
+                         (!text.empty() && text.back() == options.delimiter) ||
+                         field_was_quoted)) {
         finish_row();
     }
 
@@ -132,17 +144,22 @@ ca::Result<CsvDocument, std::string> CsvReader::read(
     return ca::Ok(std::move(document));
 }
 
-ca::Result<CsvDocument, std::string> CsvReader::read_file(
-    const std::string& path,
+ca::Result<CsvDocument, ParseError> CsvReader::read_file(
+    const ca::str::Utf8StringRef& path,
     const CsvReaderOptions& options) {
-    std::ifstream input(path, std::ios::binary);
+    std::string path_str(reinterpret_cast<const char*>(path.data()),
+                         reinterpret_cast<const char*>(path.data()) + path.byte_length());
+    std::ifstream input(path_str, std::ios::binary);
     if (!input.is_open()) {
-        return ca::Err(std::string("failed to open CSV file: ") + path);
+        return ca::Err(make_error(1, 1, "failed to open CSV file: " + path_str));
     }
 
     std::ostringstream buffer;
     buffer << input.rdbuf();
-    return read(buffer.str(), options);
+    std::string text = buffer.str();
+    // text 是局部 std::string，Utf8StringRef 在解析期间必须有效；read() 同步完成。
+    return read(ca::str::Utf8StringRef::from_string_view(
+        std::string_view(text.data(), text.size())), options);
 }
 
 }  // namespace ca::csv
