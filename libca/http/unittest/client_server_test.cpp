@@ -184,18 +184,23 @@ TEST(HttpClientServerTest, RunsMiddlewareBeforeRoutingAndCanShortCircuit)
     ASSERT_TRUE(address_result.is_ok());
     const auto address = address_result.unwrap();
 
+    std::mutex               order_mutex;
     std::vector<std::string> order;
     std::atomic<usize>       after_auth_calls{0};
     std::atomic<usize>       route_calls{0};
     ASSERT_TRUE(server
                     .add_middleware([&](const HttpServerRequestContext&) {
+                        std::lock_guard<std::mutex> lock(order_mutex);
                         order.push_back("audit");
                         return ca::core::Ok(std::optional<HttpServerResponse>{});
                     })
                     .is_ok());
     ASSERT_TRUE(server
                     .add_middleware([&](const HttpServerRequestContext& context) {
-                        order.push_back("auth");
+                        {
+                            std::lock_guard<std::mutex> lock(order_mutex);
+                            order.push_back("auth");
+                        }
                         if (context.request().headers.get("Authorization") != "Bearer secret")
                             return ca::core::Ok(std::optional<HttpServerResponse>(
                                 HttpServerResponse::buffered(text_response(403, "forbidden"))));
@@ -250,10 +255,13 @@ TEST(HttpClientServerTest, RunsMiddlewareBeforeRoutingAndCanShortCircuit)
     ASSERT_TRUE(not_found.is_ok());
     EXPECT_EQ(not_found.unwrap().status, 404);
 
-    ASSERT_EQ(order.size(), 10U);
-    for (usize index = 0; index < order.size(); index += 2) {
-        EXPECT_EQ(order[index], "audit");
-        EXPECT_EQ(order[index + 1], "auth");
+    {
+        std::lock_guard<std::mutex> lock(order_mutex);
+        ASSERT_EQ(order.size(), 10U);
+        for (usize index = 0; index < order.size(); index += 2) {
+            EXPECT_EQ(order[index], "audit");
+            EXPECT_EQ(order[index + 1], "auth");
+        }
     }
     EXPECT_EQ(after_auth_calls.load(), 3U);
     EXPECT_EQ(route_calls.load(), 1U);

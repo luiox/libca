@@ -391,12 +391,7 @@ private:
 
     HttpResult<HttpServerResponse> dispatch(const HttpServerRequestContext& context)
     {
-        std::vector<HttpRequestMiddleware> middleware;
-        {
-            std::lock_guard<std::mutex> lock(state_mutex_);
-            middleware = middleware_;
-        }
-        for (const auto& callback : middleware) {
+        for (const auto& callback : middleware_) {
             auto outcome = invoke_middleware(callback, context);
             if (outcome.is_err())
                 return ca::core::Err(std::move(outcome).unwrap_err());
