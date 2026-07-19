@@ -14,6 +14,7 @@ enum class HttpErrorKind
     Io,
     InvalidUrl,
     InvalidMessage,
+    InvalidState,
     HeaderLimitExceeded,
     BodyLimitExceeded,
     Unsupported
