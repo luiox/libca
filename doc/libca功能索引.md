@@ -99,6 +99,36 @@ UTF-8 字符串与所有权模型模块。
 - `libca/io/doc/design.md`
 - `libca/io/README.md`（快速示例）
 
+## json
+
+JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深度集成 `ca::str`：输入用
+`Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8String`。
+
+入口头文件：
+- `<libca/json/json.hpp>`（聚合头）
+- `<libca/json/json_value.hpp>`
+- `<libca/json/json_handler.hpp>`
+- `<libca/json/json_parser.hpp>`
+- `<libca/json/json_dom_builder.hpp>`
+- `<libca/json/json_reader.hpp>`
+- `<libca/json/json_writer.hpp>`
+- `<libca/json/parse_error.hpp>`
+- `<libca/json/source_location.hpp>`
+
+功能：
+- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。number 区分 i64/f64，i64 溢出自动降级 float。
+- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。
+- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件（流式，零内存峰值）。
+- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonValue`。
+- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonValue, ParseError>`。
+- `JsonWriter`：把 `JsonValue` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
+- `ParseError`：位置（行+列+字节偏移）+ 人读消息。
+- 宽松选项：尾随逗号、`//` 与 `/* */` 注释（默认严格 RFC 8259）。
+
+设计与使用文档：
+- `libca/json/doc/json设计文档.md`
+- `libca/json/README.md`（快速示例）
+
 ## net
 
 建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。
