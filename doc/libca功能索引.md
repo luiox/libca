@@ -130,9 +130,10 @@ value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `
 
 ## csv
 
-CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8StringRef`，输出 `Utf8String`，
-错误 `ParseError`（带行+列）。数据模型内部用 `std::string`（CSV 不规定编码，字段可能含
-任意字节，不强求 UTF-8 校验）。
+CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，
+字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留——CSV 不规定编码，字段
+可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 document。IO 边界接入 `ca::str`：
+输入 `Utf8StringRef`，输出 `Utf8String`，错误 `ParseError`（带行+列）。
 
 入口头文件：
 - `<libca/csv/csv.hpp>`（聚合头）
@@ -143,10 +144,12 @@ CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8S
 - `<libca/csv/source_location.hpp>`
 
 功能：
-- `CsvRow` / `CsvDocument`：表格数据模型（字段为 std::string），可选标题行 + 若干记录行。
+- `CsvRow` / `CsvDocument`：表格数据模型（字段为 Utf8StringRef，禁拷贝仅移动），可选标题行 + 若干记录行。
+- `CsvDocument::intern_field`：把字节区间经 `intern_raw` 入池（不校验 UTF-8）。
 - `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。
   支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
 - `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号。
+  （注意：输出 Utf8String 校验 UTF-8，非 UTF-8 字段会抛异常，待后续 PR 解决。）
 - 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
   Writer 的 `line_ending`、`write_header`。
 

@@ -1,6 +1,8 @@
 ---
-version: 1.2
+version: 1.3
 update:
+2026-07-19 - v1.3 迁移到 Arena 架构：CsvDocument 内嵌 Utf8StringArena，字段经 intern_raw
+             入池存 Utf8StringRef（不校验 UTF-8，保留任意字节）
 2026-07-19 - v1.2 接入 ca::str：Reader 输入改 Utf8StringRef、Writer 输出改 Utf8String、
              错误改 ParseError（带行+列）。数据模型内部仍用 std::string（CSV 不规定编码）
 2026-07-14 - 删除冗余英文摘要 design.md 与使用文档（并入 README），本文成为 csv 唯一设计文档
@@ -21,34 +23,58 @@ CSV 表格数据和文本格式之间的转换，不绑定业务 schema。
 
 模块分为三层：
 
-- `CsvDocument` / `CsvRow`：数据模型层，保存可选标题行和记录行。
-- `CsvReader`：解析层，把字符串或文件解析成 `CsvDocument`。
+- `CsvDocument` / `CsvRow`：数据模型层（Arena 架构），保存可选标题行和记录行。
+- `CsvReader`：解析层，把字符串或文件解析成 `CsvDocument`（字段经 `intern_raw` 入池）。
 - `CsvWriter`：序列化层，把 `CsvDocument` 写成字符串或文件。
 
 数据模型不保存原始逗号、引号、换行风格，也不保存未加引号字段两侧的格式空白策略。
 这些属于读写策略，由 `CsvReaderOptions` 和 `CsvWriterOptions` 控制。这样模型保持稳定，
 Reader/Writer 可以分别演进。
 
-## 与 ca::str 的集成（v1.2）
+## Arena 架构与 ca::str 的集成（v1.3）
 
-本模块在 IO 边界接入 `ca::str`，与 `libca/json`、`libca/ini` 风格一致：
+**v1.3 起，数据模型采用 Arena 架构**（与 `libca/toml`、`libca/json`、`libca/ini` 统一）：
+
+- `CsvDocument` 内嵌 `Utf8StringArena`，所有字段经 `arena.intern_raw(...)` 入池。
+- `CsvRow` / `CsvDocument` 的字段、标题行存 `Utf8StringRef`（16 字节、可拷贝、无独立堆分配）。
+- 字段 ref 生命周期绑定 CsvDocument：document 析构/clear/move-assign 后所有 ref 失效。
+- `CsvDocument` 禁拷贝（含 arena，不可共享），仅可移动。
+
+IO 边界与 json/ini/toml 一致：
 
 - `CsvReader::read` 接受 `Utf8StringRef`（零拷贝指向原文本）。
 - `CsvWriter::write` 返回 `Utf8String`。
 - 错误用 `ParseError{SourceLocation, Utf8String}`（位置 + 消息）。
 - 文件路径参数用 `Utf8StringRef`。
 
-**数据模型内部仍用 `std::string`**（`CsvRow` / `CsvDocument` 的字段、标题行）。这是与
-json/ini 的有意差异：
+### 为什么 csv 用 intern_raw（不校验 UTF-8）
 
-- CSV（RFC 4180）是字节级格式，不规定编码，字段可能含任意字节（含非 UTF-8）。
-  强行用 `Utf8String`（构造时校验 UTF-8）会在遇到非 UTF-8 字段时抛异常，反而限制能力。
-- `Utf8String` 不可拷贝，会让 `CsvRow({...})` 初始化列表、`rows[i][j]` 返回值等易用 API
-  失效。CSV 作为表格数据，字段值的拷贝/比较是高频操作，保留 `std::string` 更合适。
+CSV（RFC 4180）是字节级格式，不规定编码，字段可能含任意字节（含非 UTF-8）。
+`Utf8StringArena::intern` 会校验 UTF-8，对非 UTF-8 字节会失败。本模块用
+`Utf8StringArena::intern_raw`（不校验 UTF-8，按原始字节入池，码点数取保守值=字节长度）——
+这正是 `libca/str`（PR #151）新增 `intern_raw` 为此类字节级格式预留的入口。
 
-因此 ca::str 的集成体现在"IO 边界统一"（输入输出与其它格式库一致），而非"内部类型统一"。
-`SourceLocation` / `ParseError` 的定义与 json/ini 同形态，当前各自独立，等三个格式库都
-稳定后再考虑回抽公共层。
+### 历史背景：为什么 v1.2 用 std::string，v1.3 改回 Utf8StringRef
+
+v1.2 时数据模型用 `std::string`，理由记录在案：
+
+- CSV 字段不保证 UTF-8，`Utf8String` 构造时校验 UTF-8 会在非 UTF-8 字段抛异常。
+- `Utf8String` 不可拷贝，`CsvRow({...})` 初始化列表、`rows[i][j]` 返回值等易用 API 失效。
+
+v1.3 这两点障碍已被解除：
+- `intern_raw`（PR #151）解决了第一点——不校验 UTF-8 按原始字节入池。
+- `Utf8StringRef`（toml 已验证）可拷贝，解除了第二点——`CsvRow({...})` 和 `rows[i][j]` 直接可用。
+
+迁移收益：消灭大表每字段一次堆分配（换成 arena 64KB chunk），字段去重 bonus（CSV 字段
+重复率高），析构一次性释放 arena chunk，与 json/ini/toml 的存储模型完全统一。
+
+### 已知限制：CsvWriter 输出非 UTF-8 字段会抛异常
+
+`CsvWriter::write` 当前返回 `Utf8String`，其构造函数（`Utf8String(const u8*, usize)`）
+会校验 UTF-8。若字段含非 UTF-8 字节，writer 会抛 `std::runtime_error`。这是 csv 模块
+独立的设计限制（非 Arena 迁移引入），需在 `Utf8String` 增加不校验构造或 writer 改返回
+`std::string` 才能彻底解决，留待后续 PR。本 PR 的 Arena 迁移保证 reader 经 `intern_raw`
+能原样保留任意字节，writer round-trip 仍受此限制。
 
 ## 解析策略
 

@@ -8,15 +8,23 @@
 namespace ca::csv {
 namespace {
 
-bool needs_quote(const std::string& field, const CsvWriterOptions& options) {
+// 按 Utf8StringRef 的字节区间判断字段是否需要加引号。
+bool needs_quote(const ca::str::Utf8StringRef& field, const CsvWriterOptions& options) {
     if (options.always_quote) {
         return true;
     }
-    if (!field.empty() && (field.front() == ' ' || field.back() == ' ' ||
-                           field.front() == '\t' || field.back() == '\t')) {
+    const ca::usize len = field.byte_length();
+    if (len == 0) {
+        return false;
+    }
+    const ca::u8* data = field.data();
+    const ca::u8 first = data[0];
+    const ca::u8 last = data[len - 1];
+    if (first == ' ' || first == '\t' || last == ' ' || last == '\t') {
         return true;
     }
-    for (char ch : field) {
+    for (ca::usize i = 0; i < len; ++i) {
+        const char ch = static_cast<char>(data[i]);
         if (ch == options.delimiter || ch == options.quote ||
             ch == '\r' || ch == '\n') {
             return true;
@@ -26,16 +34,20 @@ bool needs_quote(const std::string& field, const CsvWriterOptions& options) {
 }
 
 void write_field(std::ostream& output,
-                 const std::string& field,
+                 const ca::str::Utf8StringRef& field,
                  const CsvWriterOptions& options) {
     const bool quoted = needs_quote(field, options);
     if (!quoted) {
-        output << field;
+        output.write(reinterpret_cast<const char*>(field.data()),
+                     static_cast<std::streamsize>(field.byte_length()));
         return;
     }
 
     output << options.quote;
-    for (char ch : field) {
+    const ca::u8* data = field.data();
+    const ca::usize len = field.byte_length();
+    for (ca::usize i = 0; i < len; ++i) {
+        const char ch = static_cast<char>(data[i]);
         if (ch == options.quote) {
             output << options.quote;
         }
@@ -45,7 +57,7 @@ void write_field(std::ostream& output,
 }
 
 void write_row(std::ostream& output,
-               const std::vector<std::string>& fields,
+               const std::vector<ca::str::Utf8StringRef>& fields,
                const CsvWriterOptions& options) {
     for (ca::usize i = 0; i < fields.size(); ++i) {
         if (i > 0) {

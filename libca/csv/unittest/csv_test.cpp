@@ -85,8 +85,14 @@ TEST(CsvReaderTest, KeepsTrailingEmptyQuotedField) {
 TEST(CsvWriterTest, WritesEscapedCsvText) {
     CsvDocument document;
     document.set_header({"id", "note"});
-    document.add_row(CsvRow({"1", "hello, \"csv\""}));
-    document.add_row(CsvRow({"2", "line1\nline2"}));
+    document.add_row(CsvRow({document.intern_field(
+                            reinterpret_cast<const ca::u8*>("1"), 1),
+                        document.intern_field(
+                            reinterpret_cast<const ca::u8*>("hello, \"csv\""), 12)}));
+    document.add_row(CsvRow({document.intern_field(
+                            reinterpret_cast<const ca::u8*>("2"), 1),
+                        document.intern_field(
+                            reinterpret_cast<const ca::u8*>("line1\nline2"), 11)}));
 
     CsvWriterOptions options;
     options.line_ending = "\r\n";
@@ -103,7 +109,10 @@ TEST(CsvIoTest, RoundTripsThroughFile) {
     const std::string path = "build/libca_csv_roundtrip_test.csv";
     CsvDocument document;
     document.set_header({"key", "value"});
-    document.add_row(CsvRow({"answer", "42"}));
+    document.add_row(CsvRow({document.intern_field(
+                            reinterpret_cast<const ca::u8*>("answer"), 6),
+                        document.intern_field(
+                            reinterpret_cast<const ca::u8*>("42"), 2)}));
 
     ASSERT_TRUE(CsvWriter::write_file(R(path.c_str()), document).is_ok());
 
@@ -158,7 +167,10 @@ TEST(CsvReaderTest, HandlesUtf8Fields) {
 
 TEST(CsvIoTest, Utf8RoundTrip) {
     CsvDocument document;
-    document.add_row(CsvRow({std::string("\xE5\xBC\xA0\xE4\xB8\x89"), "30"}));
+    document.add_row(CsvRow({document.intern_field(
+                            reinterpret_cast<const ca::u8*>("\xE5\xBC\xA0\xE4\xB8\x89"), 6),
+                        document.intern_field(
+                            reinterpret_cast<const ca::u8*>("30"), 2)}));
     auto text = CsvWriter::write(document);
     auto back = CsvReader::read(Utf8StringRef::from_string_view(
         std::string_view(reinterpret_cast<const char*>(text.data()), text.byte_length())));
@@ -166,4 +178,28 @@ TEST(CsvIoTest, Utf8RoundTrip) {
     auto back_doc = std::move(back).unwrap();
     ASSERT_EQ(back_doc.rows().size(), 1u);
     EXPECT_EQ(back_doc.rows()[0][0], "\xE5\xBC\xA0\xE4\xB8\x89");
+}
+
+// ============================================================================
+// 新增：非 UTF-8 字段保留（验证 intern_raw 保留任意字节）
+// ============================================================================
+// 注意：CsvWriter 当前输出 Utf8String（构造时校验 UTF-8），无法输出非 UTF-8 字节——
+// 这是 csv 模块独立的限制，不在 Arena 迁移范围内。此处仅验证 reader 经 intern_raw
+// 入池后能原样保留任意字节，跳过 writer round-trip。
+
+TEST(CsvReaderTest, PreservesNonUtf8Bytes) {
+    // 非 UTF-8 字节序列（\xFF\xFE\xFD 不是合法 UTF-8），reader 应原样保留。
+    const ca::u8 input[] = {'a', ',', 0xFF, 0xFE, 0xFD, '\n', 'b', ',', 'o', 'k'};
+    auto result = CsvReader::read(Utf8StringRef::from_data(input, sizeof(input)));
+    ASSERT_TRUE(result.is_ok());
+    auto doc = std::move(result).unwrap();
+    ASSERT_EQ(doc.rows().size(), 2u);
+    ASSERT_EQ(doc.rows()[0][0], "a");
+    ASSERT_EQ(doc.rows()[0][1].byte_length(), 3u);
+    const ca::u8* p = doc.rows()[0][1].data();
+    EXPECT_EQ(p[0], 0xFF);
+    EXPECT_EQ(p[1], 0xFE);
+    EXPECT_EQ(p[2], 0xFD);
+    EXPECT_EQ(doc.rows()[1][0], "b");
+    EXPECT_EQ(doc.rows()[1][1], "ok");
 }
