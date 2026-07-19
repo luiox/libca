@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-07-19 - 增加同步 client、精确路由 server、有界并发与 stop-aware deadlines
 2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
 2026-07-19 - 完成 HTTP/1 数据模型、URL、headers 与同步 codec
 ---
@@ -18,17 +19,20 @@ update:
 - 基于 `Reader` / `Writer` 的完整缓冲与流式读写。
 - Content-Length、chunked、trailers、response close-delimited body。
 - 不可信报文的结构校验和资源限制。
+- 复用同源 keep-alive 连接的同步 client。
+- 支持 buffered/chunked response 的精确路由 server。
 
 依赖方向为：
 
 ```text
-libca_core <- libca_io <- libca_net <- libca_http
+libca_core <- libca_io <- libca_net -----> libca_http
+          <- libca_thread ---------------^
 ```
 
-本模块不实现 DNS/TCP 连接管理、连接池、服务端 accept loop、路由、SSE event 编解码、
-压缩、代理、WebSocket、HTTP/2 或 TLS。client/server 在后续增量复用同一 codec；TLS
-通过实现相同 `Reader` / `Writer` 边界的可选 OpenSSL stream 接入，不能进入 HTTP/1
-parser。
+本模块不实现通用多 origin 连接池、redirect、cookie、SSE event 语义层、压缩、代理、
+WebSocket、HTTP/2 或 TLS。TLS 后续通过实现相同 `Reader` / `Writer` 边界的可选 OpenSSL
+stream 接入，不能进入 HTTP/1 parser。MCP 等上层协议使用 JSON-RPC，不把 XML 引入 HTTP
+传输层。
 
 ## 2. 数据与所有权
 
@@ -113,7 +117,41 @@ flush，连接管理层决定普通报文何时提交底层缓冲。
 headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码后累计 body，不能通过
 拆成许多小 chunk 绕过。
 
-## 7. 测试策略
+## 7. Client 与 Server
+
+`HttpClient` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同 http
+origin 且双方 keep-alive framing 允许时复用连接；origin 变化、close-delimited response、
+CONNECT tunnel、协议错误或 IO 错误都会丢弃连接。request target 与 Host 固定取自 URL，
+调用方不能让连接 origin 与 Host 分离。当前 response 完整缓冲，下载体积受 `HttpLimits`
+控制；需要边读边处理时可直接使用 codec streaming API。
+
+client 的 connect、request write、response head 与 response body 使用各自总 deadline。
+1xx response 有数量上限；101/upgrade 与 https 在对应 transport 能力实现前明确返回
+`Unsupported`。
+
+`HttpServer` bind 后注册 method/path 精确路由，`serve()` 在当前线程管理 listener 与固定
+`ThreadPool`。worker 数加 pending queue 容量构成连接并发硬边界；队列满时 accept loop
+使用独立的短 `overload_response_timeout` 返回 503 并优雅关闭连接，不无限增长内存，也不让
+慢连接按普通 response 期限阻塞 listener。每个 worker 在连接内串行处理 request，支持
+keep-alive 和 `max_requests_per_connection` 上限。
+
+handler 接收完整缓冲 request 与 peer/stop context，返回 buffered response 或 chunked
+producer。producer 成功返回后由 server 调用 `finish()`；producer 抛异常或返回错误时不写
+final chunk，直接关闭连接。这个边界允许 libmcp 在 producer 内实现 SSE，同时保留“错误路径
+不伪造完整响应”的 codec 契约。
+
+listener 使用 nonblocking accept 与短轮询，使 `stop()` 不依赖跨平台不确定的 close/accept
+唤醒行为。活动 IO 同时使用 stop-aware deadline 分片；这是因为 Windows 上对
+`WSADuplicateSocket` clone 执行 shutdown 不保证唤醒另一个 socket 对象中阻塞的 recv，而且
+立即销毁 duplicate socket 可能让刚写出的过载响应表现为 RST。server 因此不持有活动连接
+clone，由 deadline 轮询提供跨平台的停止上界。idle、head、body 使用独立期限，SSE writer
+则使用每次写入的 idle timeout，不设置整条流的总时长。
+
+server 识别 `Expect: 100-continue`，不支持的 expectation 返回 417；解析错误按类别映射
+400/408/413/431/501，handler 失败映射 500，过载映射 503。所有这些响应都关闭存在解析歧义
+或生命周期错误的连接。
+
+## 8. 测试策略
 
 单元测试使用每次只返回少量字节的 Reader，覆盖：
 
@@ -123,6 +161,9 @@ headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码
 - writer 到 reader 的 fixed/chunked round-trip。
 - fixed、chunked 与 close-delimited body 的流式读取、丢弃和显式完成。
 - SSE 风格 chunk write/flush、trailers、writer 独占与未完成析构行为。
+- loopback client/server、同连接复用、query 路由、404/405 与 Host 覆盖。
+- chunked producer、SSE flush、100-continue、413/417 与 stop 唤醒。
+- 单 worker/单 pending queue 下的确定性 503 背压。
 - CL/TE、冲突长度、重复/合并 Host、裸 LF、obs-fold、HTTP/1.0 TE 和截断 body。
 - start-line、header count/bytes 和 body 限制。
 - URL 的默认端口、query、fragment、IPv6 与非法 authority。

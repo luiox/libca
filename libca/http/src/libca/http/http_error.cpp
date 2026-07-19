@@ -11,6 +11,7 @@ const char* http_error_kind_name(HttpErrorKind kind) noexcept
     case HttpErrorKind::InvalidUrl: return "InvalidUrl";
     case HttpErrorKind::InvalidMessage: return "InvalidMessage";
     case HttpErrorKind::InvalidState: return "InvalidState";
+    case HttpErrorKind::ExpectationFailed: return "ExpectationFailed";
     case HttpErrorKind::HeaderLimitExceeded: return "HeaderLimitExceeded";
     case HttpErrorKind::BodyLimitExceeded: return "BodyLimitExceeded";
     case HttpErrorKind::Unsupported: return "Unsupported";
