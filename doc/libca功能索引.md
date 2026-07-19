@@ -126,6 +126,62 @@ INI 配置读写模块，保格式（读改写时保留人工注释、空行和�
 - `libca/ini/doc/ini设计文档.md`
 - `libca/ini/README.md`（快速示例）
 
+## csv
+
+CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8StringRef`，输出 `Utf8String`，
+错误 `ParseError`（带行+列）。数据模型内部用 `std::string`（CSV 不规定编码，字段可能含
+任意字节，不强求 UTF-8 校验）。
+
+入口头文件：
+- `<libca/csv/csv.hpp>`（聚合头）
+- `<libca/csv/csv_document.hpp>`
+- `<libca/csv/csv_reader.hpp>`
+- `<libca/csv/csv_writer.hpp>`
+- `<libca/csv/parse_error.hpp>`
+- `<libca/csv/source_location.hpp>`
+
+功能：
+- `CsvRow` / `CsvDocument`：表格数据模型（字段为 std::string），可选标题行 + 若干记录行。
+- `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。
+  支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
+- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号。
+- 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
+  Writer 的 `line_ending`、`write_header`。
+
+设计与使用文档：
+- `libca/csv/doc/csv设计文档.md`
+- `libca/csv/README.md`（快速示例）
+
+## json
+
+JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深度集成 `ca::str`：输入用
+`Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8String`。
+
+入口头文件：
+- `<libca/json/json.hpp>`（聚合头）
+- `<libca/json/json_value.hpp>`
+- `<libca/json/json_handler.hpp>`
+- `<libca/json/json_parser.hpp>`
+- `<libca/json/json_dom_builder.hpp>`
+- `<libca/json/json_reader.hpp>`
+- `<libca/json/json_writer.hpp>`
+- `<libca/json/parse_error.hpp>`
+- `<libca/json/source_location.hpp>`
+
+功能：
+- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。number 区分 i64/f64，i64 溢出自动降级 float。
+- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。
+- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件（流式，零内存峰值）。
+- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonValue`。
+- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonValue, ParseError>`。
+- `JsonWriter`：把 `JsonValue` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
+- `ParseError`：位置（行+列+字节偏移）+ 人读消息。
+- 宽松选项：尾随逗号、`//` 与 `/* */` 注释（默认严格 RFC 8259）。
+
+设计与使用文档：
+- `libca/json/doc/json设计文档.md`
+- `libca/json/README.md`（快速示例）
+
 ## net
 
 建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。

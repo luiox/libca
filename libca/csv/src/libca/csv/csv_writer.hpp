@@ -4,9 +4,11 @@
 /// @brief CSV Writer，把 CsvDocument 序列化为字符串或文件。
 /// @details Writer 会按需给字段加引号，并把字段内的引号写成两个连续引号。默认换行
 ///          使用 `\n`，可通过 CsvWriterOptions::line_ending 改成 `\r\n`。
+///          输出 Utf8String（与 json/ini 一致），写入文件接受 Utf8StringRef 路径。
 
 #include "libca/core/result.hpp"
 #include "libca/csv/csv_document.hpp"
+#include "libca/str/utf8_string.hpp"
 
 #include <string>
 
@@ -33,21 +35,15 @@ struct CsvWriterOptions {
 /// @brief CSV Writer。
 class CsvWriter {
 public:
-    /// @brief 将文档序列化为字符串。
-    /// @param document CSV 文档。
-    /// @param options 写出选项。
-    /// @return CSV 文本。
-    static std::string write(
+    /// @brief 将文档序列化为 Utf8String。
+    static ca::str::Utf8String write(
         const CsvDocument& document,
         const CsvWriterOptions& options = CsvWriterOptions());
 
     /// @brief 将文档写入文件。
-    /// @param path 文件路径。
-    /// @param document CSV 文档。
-    /// @param options 写出选项。
-    /// @return 写入成功返回 Ok，打开或写入失败返回错误说明。
-    static ca::Result<void, std::string> write_file(
-        const std::string& path,
+    /// @return 写入成功返回 Ok；打开或写入失败返回错误说明。
+    static ca::Result<void, ca::str::Utf8String> write_file(
+        const ca::str::Utf8StringRef& path,
         const CsvDocument& document,
         const CsvWriterOptions& options = CsvWriterOptions());
 };

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <ostream>
 #include <sstream>
+#include <string>
 
 namespace ca::csv {
 namespace {
@@ -75,26 +76,31 @@ void write_to_stream(std::ostream& output,
 
 }  // namespace
 
-std::string CsvWriter::write(
+ca::str::Utf8String CsvWriter::write(
     const CsvDocument& document,
     const CsvWriterOptions& options) {
     std::ostringstream output;
     write_to_stream(output, document, options);
-    return output.str();
+    const std::string text = output.str();
+    return ca::str::Utf8String(reinterpret_cast<const ca::u8*>(text.data()), text.size());
 }
 
-ca::Result<void, std::string> CsvWriter::write_file(
-    const std::string& path,
+ca::Result<void, ca::str::Utf8String> CsvWriter::write_file(
+    const ca::str::Utf8StringRef& path,
     const CsvDocument& document,
     const CsvWriterOptions& options) {
-    std::ofstream output(path, std::ios::binary);
+    std::string path_str(reinterpret_cast<const char*>(path.data()),
+                         reinterpret_cast<const char*>(path.data()) + path.byte_length());
+    std::ofstream output(path_str, std::ios::binary | std::ios::trunc);
     if (!output.is_open()) {
-        return ca::Err(std::string("failed to open CSV file for writing: ") + path);
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("failed to open CSV file for writing: " + path_str).c_str()));
     }
 
     write_to_stream(output, document, options);
     if (!output.good()) {
-        return ca::Err(std::string("failed to write CSV file: ") + path);
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("failed to write CSV file: " + path_str).c_str()));
     }
     return ca::Ok();
 }
