@@ -130,6 +130,16 @@ accept loop，另一个线程可调用 `stop()`：
 auto address = ca::net::SocketAddress(ca::net::IpAddress::localhost_v4(), 8080);
 auto server = ca::http::HttpServer::bind(address).unwrap();
 
+server.add_middleware([](const ca::http::HttpServerRequestContext& context) {
+    if (context.request().headers.get("Authorization") != "Bearer secret") {
+        ca::http::HttpResponse response;
+        response.status = 401;
+        return ca::core::Ok(std::optional<ca::http::HttpServerResponse>(
+            ca::http::HttpServerResponse::buffered(std::move(response))));
+    }
+    return ca::core::Ok(std::optional<ca::http::HttpServerResponse>{});
+});
+
 server.route("POST", "/mcp", [](const ca::http::HttpServerRequestContext& context) {
     ca::http::HttpResponse response;
     response.status = 200;
@@ -144,6 +154,11 @@ auto served = server.serve();
 不匹配返回 405，其它未匹配请求返回 404。`HttpServerResponse::chunked()` 接受同步 producer，
 producer 可逐块写入并 flush SSE event；producer 成功后 server 显式写 final chunk，失败则直接
 关闭不完整连接。
+
+`add_middleware()` 注册的回调在 route 解析前按顺序执行。返回空 optional 时继续，返回 response
+时短路后续 middleware 与 route，因此 Origin、认证和全局限流也能覆盖最终返回 404/405 的请求。
+middleware 接收的是已经按 `request_limits` 完整缓冲的 request；需要在读取 body 前拒绝连接的
+场景应同时收紧 header/body 限制，不能把 middleware 当成 wire framing hook。
 
 server 使用固定 worker 数和有界 pending connection 队列，过载连接返回 503。idle、request
 head/body、response write 均有独立期限；accept loop 发送 503 并关闭连接使用更短的

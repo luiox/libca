@@ -3,6 +3,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "libca/http/http1_codec.hpp"
@@ -76,6 +77,12 @@ private:
 using HttpRouteHandler =
     std::function<HttpResult<HttpServerResponse>(const HttpServerRequestContext&)>;
 
+/// @brief 在 route 解析前检查一条完整 request 的 middleware。
+/// @details 返回空 optional 时继续执行后续 middleware 与 route；返回 response 时立即短路。
+/// @note 不同连接上的 middleware 可并发执行；共享业务状态由调用方同步。
+using HttpRequestMiddleware =
+    std::function<HttpResult<std::optional<HttpServerResponse>>(const HttpServerRequestContext&)>;
+
 /// @brief 同步 HTTP server 的 listener、期限和有界并发配置。
 struct HttpServerOptions
 {
@@ -110,6 +117,10 @@ public:
     /// @brief 注册区分大小写的 method 与 origin-form path 精确路由。
     /// @note 只能在 serve() 开始前注册；重复 method/path 返回 InvalidState。
     HttpResult<void> route(std::string method, std::string path, HttpRouteHandler handler);
+
+    /// @brief 追加一个按注册顺序执行的 pre-routing middleware。
+    /// @note middleware 会处理包括最终返回 404/405 在内的全部完整 request，只能在 serve() 前追加。
+    HttpResult<void> add_middleware(HttpRequestMiddleware middleware);
 
     /// @brief 设置 path 未匹配时的 fallback；未设置时返回 404。
     /// @note path 已匹配但 method 不匹配仍返回 405。
