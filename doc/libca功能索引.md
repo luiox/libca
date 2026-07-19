@@ -255,6 +255,32 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 - `libca/net/doc/design.md`
 - `libca/net/README.md`（快速示例）
 
+## http
+
+建立在 net/io 上的同步 HTTP/1.0/1.1 报文基础模块。当前提供独立于 TCP/TLS 的 codec，
+后续 client/server、SSE 和可选 TLS 在此基础上扩展。
+
+入口头文件：
+- `<libca/http/http.hpp>`（聚合头）
+- `<libca/http/http_error.hpp>`
+- `<libca/http/headers.hpp>`
+- `<libca/http/message.hpp>`
+- `<libca/http/url.hpp>`
+- `<libca/http/http1_codec.hpp>`
+
+功能：
+- `HttpRequest` / `HttpResponse`：完整缓冲报文，body 使用 `ca::core::Bytes`。
+- `HttpHeaders`：保序、允许重复、ASCII 大小写不敏感查询，拒绝 header injection 字节。
+- `HttpUrl`：http/https absolute URL、DNS/IPv4、方括号 IPv6、端口、query 和 authority。
+- `Http1Reader` / `Http1Writer`：碎片化字节流、Content-Length、chunked、trailers、
+  close-delimited response、HEAD/无 body 状态码和 keep-alive framing。
+- `HttpLimits` / `HttpError`：start-line、header count/bytes、body 上限与结构化协议错误。
+- 严格拒绝 CL/TE 冲突、冲突 Content-Length、裸 LF、obs-fold、重复 Host 和超限报文。
+
+设计与使用文档：
+- `libca/http/doc/design.md`
+- `libca/http/README.md`（快速示例）
+
 ## crypto
 
 哈希、编码、校验和基础密码学工具。
