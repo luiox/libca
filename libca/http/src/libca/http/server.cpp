@@ -185,6 +185,19 @@ public:
         return ca::core::Ok();
     }
 
+    HttpResult<void> add_middleware(HttpRequestMiddleware middleware)
+    {
+        if (!middleware)
+            return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidMessage,
+                                                      "HTTP request middleware is empty"));
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (serve_started_)
+            return ca::core::Err(HttpError::from_kind(
+                HttpErrorKind::InvalidState, "HTTP middleware cannot change after serve starts"));
+        middleware_.push_back(std::move(middleware));
+        return ca::core::Ok();
+    }
+
     HttpResult<void> serve()
     {
         {
@@ -378,6 +391,15 @@ private:
 
     HttpResult<HttpServerResponse> dispatch(const HttpServerRequestContext& context)
     {
+        for (const auto& callback : middleware_) {
+            auto outcome = invoke_middleware(callback, context);
+            if (outcome.is_err())
+                return ca::core::Err(std::move(outcome).unwrap_err());
+            auto response = std::move(outcome).unwrap();
+            if (response.has_value())
+                return ca::core::Ok(std::move(*response));
+        }
+
         const auto               path = request_path(context.request().target);
         std::vector<std::string> allowed;
         HttpRouteHandler         handler;
@@ -428,6 +450,24 @@ private:
         catch (...) {
             return ca::core::Err(HttpError::from_kind(
                 HttpErrorKind::InvalidState, "HTTP route handler threw a non-standard exception"));
+        }
+    }
+
+    HttpResult<std::optional<HttpServerResponse>> invoke_middleware(
+        const HttpRequestMiddleware& middleware, const HttpServerRequestContext& context)
+    {
+        try {
+            return middleware(context);
+        }
+        catch (const std::exception& error) {
+            return ca::core::Err(HttpError::from_kind(
+                HttpErrorKind::InvalidState,
+                std::string("HTTP request middleware threw an exception: ") + error.what()));
+        }
+        catch (...) {
+            return ca::core::Err(
+                HttpError::from_kind(HttpErrorKind::InvalidState,
+                                     "HTTP request middleware threw a non-standard exception"));
         }
     }
 
@@ -532,15 +572,16 @@ private:
         }
     }
 
-    net::TcpListener       listener_;
-    net::SocketAddress     local_address_;
-    HttpServerOptions      options_;
-    ca::thread::StopSource stop_source_;
-    mutable std::mutex     state_mutex_;
-    std::vector<Route>     routes_;
-    HttpRouteHandler       fallback_;
-    bool                   serve_started_{false};
-    std::atomic<bool>      running_{false};
+    net::TcpListener                   listener_;
+    net::SocketAddress                 local_address_;
+    HttpServerOptions                  options_;
+    ca::thread::StopSource             stop_source_;
+    mutable std::mutex                 state_mutex_;
+    std::vector<Route>                 routes_;
+    std::vector<HttpRequestMiddleware> middleware_;
+    HttpRouteHandler                   fallback_;
+    bool                               serve_started_{false};
+    std::atomic<bool>                  running_{false};
 };
 
 HttpServerRequestContext::HttpServerRequestContext(const HttpRequest&        request,
@@ -641,6 +682,14 @@ HttpResult<void> HttpServer::route(std::string method, std::string path, HttpRou
         return ca::core::Err(
             HttpError::from_kind(HttpErrorKind::InvalidState, "HTTP server has been moved from"));
     return impl_->route(std::move(method), std::move(path), std::move(handler));
+}
+
+HttpResult<void> HttpServer::add_middleware(HttpRequestMiddleware middleware)
+{
+    if (impl_ == nullptr)
+        return ca::core::Err(
+            HttpError::from_kind(HttpErrorKind::InvalidState, "HTTP server has been moved from"));
+    return impl_->add_middleware(std::move(middleware));
 }
 
 HttpResult<void> HttpServer::set_fallback(HttpRouteHandler handler)
