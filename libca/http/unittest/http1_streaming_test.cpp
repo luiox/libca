@@ -111,6 +111,23 @@ TEST(Http1StreamingReaderTest, StreamsFixedBodyAndRequiresExplicitFinish)
     EXPECT_FALSE(eof.unwrap().has_value());
 }
 
+TEST(Http1StreamingReaderTest, ReadsFixedBodyLargerThanInitialCapacity)
+{
+    const std::string body(12 * 1024, 'x');
+    FragmentedReader  stream("POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Length: " +
+                                std::to_string(body.size()) + "\r\n\r\n" + body,
+                            257);
+    Http1Reader       reader(stream);
+
+    auto request = reader.read_request();
+    ASSERT_TRUE(request.is_ok()) << request.unwrap_err().to_string();
+    ASSERT_TRUE(request.unwrap().has_value());
+    EXPECT_EQ(request.unwrap()->body.remaining(), body.size());
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(request.unwrap()->body.as_ptr()),
+                          request.unwrap()->body.remaining()),
+              body);
+}
+
 TEST(Http1StreamingReaderTest, StreamsChunkedBodyAndReturnsTrailers)
 {
     FragmentedReader stream(

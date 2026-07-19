@@ -680,10 +680,11 @@ HttpResult<HttpHeaders> Http1Reader::discard_body()
 
 HttpResult<ca::core::Bytes> Http1Reader::read_body_all(HttpHeaders& trailers)
 {
-    const usize          initial_capacity = body_info_.kind == HttpBodyKind::ContentLength
-                                                ? body_info_.content_length
-                                                : std::min<usize>(limits_.max_body_bytes, 8192);
-    auto                 output           = ca::core::BytesMut::with_capacity(initial_capacity);
+    const usize          expected_body_size = body_info_.kind == HttpBodyKind::ContentLength
+                                                  ? body_info_.content_length
+                                                  : limits_.max_body_bytes;
+    const usize          initial_capacity   = std::min<usize>(expected_body_size, 8192);
+    auto                 output             = ca::core::BytesMut::with_capacity(initial_capacity);
     std::array<u8, 8192> chunk{};
     while (!body_finished()) {
         auto read = read_body(chunk.data(), chunk.size());
