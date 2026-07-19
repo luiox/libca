@@ -4,6 +4,8 @@
 #include <chrono>
 #include <future>
 #include <mutex>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
@@ -171,6 +173,133 @@ TEST(HttpClientServerTest, RoutesRequestsAndReusesSameOriginConnection)
         ASSERT_EQ(peer_ports.size(), 2U);
         EXPECT_EQ(peer_ports[0], peer_ports[1]);
     }
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, RunsMiddlewareBeforeRoutingAndCanShortCircuit)
+{
+    auto server         = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    std::vector<std::string> order;
+    std::atomic<usize>       after_auth_calls{0};
+    std::atomic<usize>       route_calls{0};
+    ASSERT_TRUE(server
+                    .add_middleware([&](const HttpServerRequestContext&) {
+                        order.push_back("audit");
+                        return ca::core::Ok(std::optional<HttpServerResponse>{});
+                    })
+                    .is_ok());
+    ASSERT_TRUE(server
+                    .add_middleware([&](const HttpServerRequestContext& context) {
+                        order.push_back("auth");
+                        if (context.request().headers.get("Authorization") != "Bearer secret")
+                            return ca::core::Ok(std::optional<HttpServerResponse>(
+                                HttpServerResponse::buffered(text_response(403, "forbidden"))));
+                        return ca::core::Ok(std::optional<HttpServerResponse>{});
+                    })
+                    .is_ok());
+    ASSERT_TRUE(server
+                    .add_middleware([&](const HttpServerRequestContext&) {
+                        after_auth_calls.fetch_add(1);
+                        return ca::core::Ok(std::optional<HttpServerResponse>{});
+                    })
+                    .is_ok());
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/secure",
+                           [&](const HttpServerRequestContext&) {
+                               route_calls.fetch_add(1);
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(text_response(200, "accepted")));
+                           })
+                    .is_ok());
+
+    ServerRunner runner(std::move(server));
+    auto         created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto       client  = std::move(created).unwrap();
+    const auto request = [&](std::string method, std::string_view path, bool authorized) {
+        HttpRequest value;
+        value.method = std::move(method);
+        if (authorized)
+            EXPECT_TRUE(value.headers.append("Authorization", "Bearer secret").is_ok());
+        return client.request(server_url(address, path), std::move(value));
+    };
+
+    auto unknown_without_auth = request("GET", "/missing", false);
+    ASSERT_TRUE(unknown_without_auth.is_ok());
+    EXPECT_EQ(unknown_without_auth.unwrap().status, 403);
+
+    auto method_without_auth = request("PUT", "/secure", false);
+    ASSERT_TRUE(method_without_auth.is_ok());
+    EXPECT_EQ(method_without_auth.unwrap().status, 403);
+
+    auto accepted = request("POST", "/secure", true);
+    ASSERT_TRUE(accepted.is_ok());
+    EXPECT_EQ(accepted.unwrap().status, 200);
+
+    auto method_not_allowed = request("PUT", "/secure", true);
+    ASSERT_TRUE(method_not_allowed.is_ok());
+    EXPECT_EQ(method_not_allowed.unwrap().status, 405);
+
+    auto not_found = request("GET", "/missing", true);
+    ASSERT_TRUE(not_found.is_ok());
+    EXPECT_EQ(not_found.unwrap().status, 404);
+
+    ASSERT_EQ(order.size(), 10U);
+    for (usize index = 0; index < order.size(); index += 2) {
+        EXPECT_EQ(order[index], "audit");
+        EXPECT_EQ(order[index + 1], "auth");
+    }
+    EXPECT_EQ(after_auth_calls.load(), 3U);
+    EXPECT_EQ(route_calls.load(), 1U);
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, MapsMiddlewareErrorsAndExceptionsToInternalServerError)
+{
+    auto server         = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    ASSERT_TRUE(server
+                    .add_middleware([](const HttpServerRequestContext& context)
+                                        -> HttpResult<std::optional<HttpServerResponse>> {
+                        if (context.request().target == "/error")
+                            return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                                      "middleware test error"));
+                        if (context.request().target == "/throw")
+                            throw std::runtime_error("middleware test exception");
+                        return ca::core::Ok(std::optional<HttpServerResponse>{});
+                    })
+                    .is_ok());
+
+    ServerRunner runner(std::move(server));
+    auto         created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    auto error = client.get(server_url(address, "/error"));
+    ASSERT_TRUE(error.is_ok());
+    EXPECT_EQ(error.unwrap().status, 500);
+    EXPECT_FALSE(client.has_open_connection());
+
+    auto exception = client.get(server_url(address, "/throw"));
+    ASSERT_TRUE(exception.is_ok());
+    EXPECT_EQ(exception.unwrap().status, 500);
+    EXPECT_FALSE(client.has_open_connection());
+
+    auto missing = client.get(server_url(address, "/missing"));
+    ASSERT_TRUE(missing.is_ok());
+    EXPECT_EQ(missing.unwrap().status, 404);
+
     auto finished = runner.finish();
     ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
 }
@@ -423,6 +552,8 @@ TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
     EXPECT_EQ(invalid_timeout_server.unwrap_err().kind(), HttpErrorKind::InvalidState);
 
     auto server = bind_server();
+    EXPECT_EQ(server.add_middleware(HttpRequestMiddleware()).unwrap_err().kind(),
+              HttpErrorKind::InvalidMessage);
     EXPECT_EQ(server
                   .route("GET",
                          "missing-slash",

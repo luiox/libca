@@ -140,6 +140,12 @@ producer。producer 成功返回后由 server 调用 `finish()`；producer 抛�
 final chunk，直接关闭连接。这个边界允许 libmcp 在 producer 内实现 SSE，同时保留“错误路径
 不伪造完整响应”的 codec 契约。
 
+pre-routing middleware 在完整 request 读取后、route 与 fallback 解析前按注册顺序执行。
+返回空 optional 表示继续，返回 response 表示短路；因此 Origin、认证、审计和限流可以覆盖正常
+route、未知 method、404 与 405。middleware 与 handler 一样可能由不同 connection worker 并发
+调用，且异常或错误统一映射为 500 并关闭当前连接。middleware 不是 head-only hook，body 资源
+消耗仍必须依靠 `HttpLimits` 约束。
+
 listener 使用 nonblocking accept 与短轮询，使 `stop()` 不依赖跨平台不确定的 close/accept
 唤醒行为。活动 IO 同时使用 stop-aware deadline 分片；这是因为 Windows 上对
 `WSADuplicateSocket` clone 执行 shutdown 不保证唤醒另一个 socket 对象中阻塞的 recv，而且
@@ -162,6 +168,7 @@ server 识别 `Expect: 100-continue`，不支持的 expectation 返回 417；解
 - fixed、chunked 与 close-delimited body 的流式读取、丢弃和显式完成。
 - SSE 风格 chunk write/flush、trailers、writer 独占与未完成析构行为。
 - loopback client/server、同连接复用、query 路由、404/405 与 Host 覆盖。
+- pre-routing middleware 顺序、短路、未知 method/path 覆盖与异常映射。
 - chunked producer、SSE flush、100-continue、413/417 与 stop 唤醒。
 - 单 worker/单 pending queue 下的确定性 503 背压。
 - CL/TE、冲突长度、重复/合并 Host、裸 LF、obs-fold、HTTP/1.0 TE 和截断 body。
