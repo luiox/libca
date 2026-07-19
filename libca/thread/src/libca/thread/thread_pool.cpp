@@ -182,12 +182,11 @@ ca::core::Status ThreadPool::shutdown(ShutdownMode mode)
             impl_->state         = PoolState::ShuttingDown;
             impl_->shutdown_mode = mode;
             if (mode == ShutdownMode::CancelPending) {
-                // CancelPending：请求共享停止令牌，把队列里尚未开始的任务全部取出，
-                // 让在跑的任务可协作退出、待跑的任务直接以 TaskCancelled 完成 future。
+                // 先关闭并取走队列，再唤醒运行任务，避免运行任务退出后抢走待取消任务。
+                pending = impl_->queue->close_and_take();
                 impl_->stop_source.request_stop();
                 for (auto& worker : impl_->workers)
                     worker.request_stop();
-                pending = impl_->queue->close_and_take();
             }
             else {
                 // Drain：只关队列生产端，worker 继续消费已排队任务后自然退出。
@@ -198,10 +197,10 @@ ca::core::Status ThreadPool::shutdown(ShutdownMode mode)
                  mode == ShutdownMode::CancelPending) {
             // 允许从 Drain 升级为 CancelPending（紧急中止），反向降级无效。
             impl_->shutdown_mode = ShutdownMode::CancelPending;
+            pending              = impl_->queue->close_and_take();
             impl_->stop_source.request_stop();
             for (auto& worker : impl_->workers)
                 worker.request_stop();
-            pending = impl_->queue->close_and_take();
         }
     }
 
