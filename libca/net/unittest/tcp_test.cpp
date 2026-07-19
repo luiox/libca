@@ -6,6 +6,14 @@
 #include <type_traits>
 #include <utility>
 
+#if defined(_WIN32)
+#    define WIN32_LEAN_AND_MEAN
+#    define NOMINMAX
+#    include <windows.h>
+#else
+#    include <fcntl.h>
+#endif
+
 #include "libca/net/tcp.hpp"
 
 namespace ca::net::test {
@@ -21,11 +29,25 @@ SocketAddress loopback_address(u16 port = 0)
     return SocketAddress(IpAddress::localhost_v4(), port);
 }
 
+void expect_socket_not_inheritable(RawSocket socket)
+{
+#if defined(_WIN32)
+    DWORD flags = 0;
+    ASSERT_NE(GetHandleInformation(reinterpret_cast<HANDLE>(socket), &flags), 0);
+    EXPECT_EQ(flags & HANDLE_FLAG_INHERIT, 0U);
+#else
+    const int flags = fcntl(static_cast<int>(socket), F_GETFD, 0);
+    ASSERT_GE(flags, 0);
+    EXPECT_NE(flags & FD_CLOEXEC, 0);
+#endif
+}
+
 TEST(TcpTest, LoopbackStreamUsesReaderWriterAndReportsAddresses)
 {
     auto listener_result = TcpListener::bind(loopback_address());
     ASSERT_TRUE(listener_result.is_ok()) << listener_result.unwrap_err().to_string();
     auto listener = std::move(listener_result).unwrap();
+    expect_socket_not_inheritable(listener.native_socket());
     auto address  = listener.local_address();
     ASSERT_TRUE(address.is_ok()) << address.unwrap_err().to_string();
     ASSERT_NE(address.unwrap().port(), 0);
@@ -33,9 +55,11 @@ TEST(TcpTest, LoopbackStreamUsesReaderWriterAndReportsAddresses)
     auto client_result = TcpStream::connect(address.unwrap());
     ASSERT_TRUE(client_result.is_ok()) << client_result.unwrap_err().to_string();
     auto client          = std::move(client_result).unwrap();
+    expect_socket_not_inheritable(client.native_socket());
     auto accepted_result = listener.accept();
     ASSERT_TRUE(accepted_result.is_ok()) << accepted_result.unwrap_err().to_string();
     auto accepted = std::move(accepted_result).unwrap();
+    expect_socket_not_inheritable(accepted.stream.native_socket());
 
     const std::string request = "ping";
     ASSERT_TRUE(
@@ -71,8 +95,17 @@ TEST(TcpTest, HostnameConnectAndConnectTimeoutReachListener)
     ASSERT_TRUE(hostname_client.is_ok()) << hostname_client.unwrap_err().to_string();
     EXPECT_TRUE(listener.accept().is_ok());
 
+    auto started        = std::chrono::steady_clock::now();
     auto timeout_client = TcpStream::connect_timeout(address, 2s);
     ASSERT_TRUE(timeout_client.is_ok()) << timeout_client.unwrap_err().to_string();
+    EXPECT_LT(std::chrono::steady_clock::now() - started, 1s);
+    EXPECT_TRUE(listener.accept().is_ok());
+
+    started = std::chrono::steady_clock::now();
+    auto hostname_timeout_client = TcpStream::connect_timeout("127.0.0.1", address.port(), 2s);
+    ASSERT_TRUE(hostname_timeout_client.is_ok())
+        << hostname_timeout_client.unwrap_err().to_string();
+    EXPECT_LT(std::chrono::steady_clock::now() - started, 1s);
     EXPECT_TRUE(listener.accept().is_ok());
 
     auto invalid = TcpStream::connect_timeout(address, 0ms);
@@ -82,6 +115,10 @@ TEST(TcpTest, HostnameConnectAndConnectTimeoutReachListener)
     auto too_large = TcpStream::connect_timeout(address, std::chrono::milliseconds::max());
     ASSERT_TRUE(too_large.is_err());
     EXPECT_EQ(too_large.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
+
+    auto invalid_host_timeout = TcpStream::connect_timeout("localhost", address.port(), 0ms);
+    ASSERT_TRUE(invalid_host_timeout.is_err());
+    EXPECT_EQ(invalid_host_timeout.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
 }
 
 TEST(TcpTest, ConfiguresTimeoutNodelayNonblockingAndClone)
@@ -128,6 +165,34 @@ TEST(TcpTest, ConfiguresTimeoutNodelayNonblockingAndClone)
     EXPECT_TRUE(std::move(rewrapped).unwrap().is_open());
     auto cloned_stream = std::move(clone).unwrap();
     EXPECT_TRUE(cloned_stream.is_open());
+    expect_socket_not_inheritable(cloned_stream.native_socket());
+}
+
+TEST(TcpListenerTest, ValidatesBindOptionsAndClosesExplicitly)
+{
+    TcpListenerOptions invalid_backlog;
+    invalid_backlog.backlog = 0;
+    auto invalid = TcpListener::bind(loopback_address(), invalid_backlog);
+    ASSERT_TRUE(invalid.is_err());
+    EXPECT_EQ(invalid.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
+
+    TcpListenerOptions invalid_ipv6;
+    invalid_ipv6.ipv6_only = true;
+    auto wrong_family = TcpListener::bind(loopback_address(), invalid_ipv6);
+    ASSERT_TRUE(wrong_family.is_err());
+    EXPECT_EQ(wrong_family.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
+
+    TcpListenerOptions options;
+    options.backlog       = 16;
+    options.reuse_address = true;
+    auto bound = TcpListener::bind(loopback_address(), options);
+    ASSERT_TRUE(bound.is_ok()) << bound.unwrap_err().to_string();
+    auto listener = std::move(bound).unwrap();
+    EXPECT_TRUE(listener.is_open());
+    expect_socket_not_inheritable(listener.native_socket());
+    EXPECT_TRUE(listener.close().is_ok());
+    EXPECT_TRUE(listener.close().is_ok());
+    EXPECT_FALSE(listener.is_open());
 }
 
 TEST(TcpListenerTest, NonblockingAcceptReturnsWouldBlockAndCloneSurvivesClose)

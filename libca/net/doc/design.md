@@ -2,6 +2,7 @@
 version: 1.0
 update:
 2026-07-11 - 完成 libca_net 第一版设计
+2026-07-19 - 加固 socket 继承边界并增加 TCP listener/连接期限配置
 ---
 
 # libca_net 设计文档
@@ -122,6 +123,8 @@ public:
 
 - Windows 使用 `closesocket()`，无效值为 `INVALID_SOCKET`。
 - POSIX 使用 `close()`，fd 0 是有效 socket。
+- Windows 创建和复制 socket 时禁用 handle 继承；POSIX 原子设置 `CLOEXEC`，避免子进程
+  意外延长连接或监听端口生命周期。
 - `adopt()` 明确接管关闭责任。
 - `duplicate()` 在 Windows 使用 `WSADuplicateSocket()` / `WSASocket()`，在 POSIX 优先使用
   `F_DUPFD_CLOEXEC`。
@@ -168,6 +171,10 @@ public:
     static io::IoResult<TcpStream> connect_timeout(
         const SocketAddress& address,
         std::chrono::milliseconds timeout);
+    static io::IoResult<TcpStream> connect_timeout(
+        const std::string& host,
+        u16 port,
+        std::chrono::milliseconds timeout);
 
     io::IoResult<usize> read(u8* buffer, usize capacity) override;
     io::IoResult<usize> write(const u8* data, usize length) override;
@@ -201,6 +208,10 @@ public:
 `connect_timeout()` 接受已经解析的单个 `SocketAddress`，使用非阻塞 connect + select，
 完成后恢复阻塞模式。timeout 必须大于 0。
 
+`connect_timeout(host, port, timeout)` 在同步 DNS 完成后建立统一 deadline，并让系统返回的
+全部地址共享这一个连接期限。同步 DNS 本身不计入 timeout。POSIX 使用 `select()` 前必须
+检查 fd 小于 `FD_SETSIZE`，超过时返回 `Unsupported`，不能调用 `FD_SET()`。
+
 ### 6.2 TcpListener
 
 ```cpp
@@ -214,11 +225,13 @@ class TcpListener
 {
 public:
     static io::IoResult<TcpListener> from_socket(OwnedSocket socket);
-    static io::IoResult<TcpListener> bind(const SocketAddress& address);
+    static io::IoResult<TcpListener> bind(
+        const SocketAddress& address, const TcpListenerOptions& options = {});
     io::IoResult<TcpAcceptResult> accept();
     io::IoResult<SocketAddress> local_address() const;
     io::IoResult<void> set_nonblocking(bool enabled);
     io::IoResult<TcpListener> try_clone() const;
+    io::IoResult<void> close();
     bool is_open() const noexcept;
     RawSocket native_socket() const noexcept;
     OwnedSocket into_socket() noexcept;
@@ -226,6 +239,12 @@ public:
 ```
 
 端口 0 允许操作系统分配临时端口。非阻塞 listener 没有待处理连接时返回 `WouldBlock`。
+`TcpListenerOptions` 在 bind 前配置正数 backlog、显式 `SO_REUSEADDR` 和可选
+`IPV6_V6ONLY`；IPv4 listener 指定 `ipv6_only` 返回 `InvalidInput`。默认不启用地址复用，
+避免不同平台下隐式放宽端口独占语义。
+
+Linux 优先用 `accept4(SOCK_CLOEXEC)` 原子禁止继承；不支持 accept4 的平台在 accept 后
+立即设置 `FD_CLOEXEC`。Windows accept 后清除 `HANDLE_FLAG_INHERIT`。
 
 ## 7. UDP
 

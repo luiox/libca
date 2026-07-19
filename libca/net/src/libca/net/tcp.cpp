@@ -77,6 +77,12 @@ io::IoResult<void> wait_for_connect(RawSocket                             socket
                                     std::chrono::steady_clock::time_point deadline)
 {
     const auto native = detail::to_native_socket(socket);
+#if !defined(_WIN32)
+    if (native >= FD_SETSIZE)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::Unsupported,
+            "socket descriptor exceeds FD_SETSIZE limit for select"));
+#endif
     for (;;) {
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline)
@@ -130,6 +136,71 @@ io::IoResult<void> wait_for_connect(RawSocket                             socket
             return ca::core::Err(detail::socket_error_from_code(error_code, "connect"));
         return ca::core::Ok();
     }
+}
+
+io::IoResult<std::chrono::steady_clock::duration> validate_connect_timeout(
+    std::chrono::milliseconds timeout)
+{
+    if (timeout.count() <= 0)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "TCP connect timeout must be greater than zero"));
+    const auto maximum_clock_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::duration::max());
+    if (timeout > maximum_clock_timeout)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
+    const auto clock_timeout =
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(timeout);
+    if (clock_timeout <= std::chrono::steady_clock::duration::zero())
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
+    return ca::core::Ok(clock_timeout);
+}
+
+io::IoResult<TcpStream> connect_until(const SocketAddress& address,
+                                      std::chrono::steady_clock::time_point deadline)
+{
+    if (std::chrono::steady_clock::now() >= deadline)
+        return ca::core::Err(
+            io::IoError::from_kind(io::IoErrorKind::TimedOut, "TCP connect timed out"));
+
+    auto created = detail::create_socket(address.ip().version(), SOCK_STREAM, IPPROTO_TCP);
+    if (created.is_err())
+        return ca::core::Err(created.unwrap_err());
+    auto socket = std::move(created).unwrap();
+
+    auto configured = configure_stream_socket(socket.get());
+    if (configured.is_err())
+        return ca::core::Err(configured.unwrap_err());
+
+    auto nonblocking = detail::set_nonblocking(socket.get(), true);
+    if (nonblocking.is_err())
+        return ca::core::Err(nonblocking.unwrap_err());
+
+    auto encoded = detail::encode_address(address);
+    if (encoded.is_err())
+        return ca::core::Err(encoded.unwrap_err());
+    const auto native_address = encoded.unwrap();
+    const int  connect_result = ::connect(detail::to_native_socket(socket.get()),
+                                         reinterpret_cast<const sockaddr*>(&native_address.storage),
+                                         native_address.length);
+    if (connect_result != 0) {
+        const i64 error_code = detail::last_socket_error_code();
+        if (!connect_is_in_progress(error_code)) {
+            detail::set_nonblocking(socket.get(), false);
+            return ca::core::Err(detail::socket_error_from_code(error_code, "connect"));
+        }
+        auto waited = wait_for_connect(socket.get(), deadline);
+        if (waited.is_err()) {
+            detail::set_nonblocking(socket.get(), false);
+            return ca::core::Err(waited.unwrap_err());
+        }
+    }
+
+    auto blocking = detail::set_nonblocking(socket.get(), false);
+    if (blocking.is_err())
+        return ca::core::Err(blocking.unwrap_err());
+    return TcpStream::from_socket(std::move(socket));
 }
 
 io::IoResult<OwnedSocket> create_connected_socket(const SocketAddress& address)
@@ -197,59 +268,50 @@ io::IoResult<TcpStream> TcpStream::connect(const std::string& host, u16 port)
 io::IoResult<TcpStream> TcpStream::connect_timeout(const SocketAddress&      address,
                                                    std::chrono::milliseconds timeout)
 {
-    if (timeout.count() <= 0)
-        return ca::core::Err(io::IoError::from_kind(
-            io::IoErrorKind::InvalidInput, "TCP connect timeout must be greater than zero"));
-    const auto maximum_clock_timeout = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::duration::max());
-    if (timeout > maximum_clock_timeout)
-        return ca::core::Err(io::IoError::from_kind(
-            io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
-    const auto clock_timeout =
-        std::chrono::duration_cast<std::chrono::steady_clock::duration>(timeout);
+    auto validated = validate_connect_timeout(timeout);
+    if (validated.is_err())
+        return ca::core::Err(validated.unwrap_err());
+    const auto clock_timeout = validated.unwrap();
     const auto now = std::chrono::steady_clock::now();
-    if (clock_timeout <= std::chrono::steady_clock::duration::zero() ||
-        clock_timeout > std::chrono::steady_clock::time_point::max() - now)
+    if (clock_timeout > std::chrono::steady_clock::time_point::max() - now)
         return ca::core::Err(io::IoError::from_kind(
             io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
+    return connect_until(address, now + clock_timeout);
+}
 
-    auto created = detail::create_socket(address.ip().version(), SOCK_STREAM, IPPROTO_TCP);
-    if (created.is_err())
-        return ca::core::Err(created.unwrap_err());
-    auto socket = std::move(created).unwrap();
+io::IoResult<TcpStream> TcpStream::connect_timeout(const std::string& host, u16 port,
+                                                   std::chrono::milliseconds timeout)
+{
+    auto validated = validate_connect_timeout(timeout);
+    if (validated.is_err())
+        return ca::core::Err(validated.unwrap_err());
 
-    auto configured = configure_stream_socket(socket.get());
-    if (configured.is_err())
-        return ca::core::Err(configured.unwrap_err());
+    auto resolved =
+        DnsResolver::resolve(host, port, AddressFamily::Unspecified, SocketKind::Stream);
+    if (resolved.is_err())
+        return ca::core::Err(resolved.unwrap_err());
 
-    auto nonblocking = detail::set_nonblocking(socket.get(), true);
-    if (nonblocking.is_err())
-        return ca::core::Err(nonblocking.unwrap_err());
+    const auto clock_timeout = validated.unwrap();
+    const auto now           = std::chrono::steady_clock::now();
+    if (clock_timeout > std::chrono::steady_clock::time_point::max() - now)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
+    const auto deadline = now + clock_timeout;
 
-    auto encoded = detail::encode_address(address);
-    if (encoded.is_err())
-        return ca::core::Err(encoded.unwrap_err());
-    const auto native_address = encoded.unwrap();
-    const int  connect_result = ::connect(detail::to_native_socket(socket.get()),
-                                         reinterpret_cast<const sockaddr*>(&native_address.storage),
-                                         native_address.length);
-    if (connect_result != 0) {
-        const i64 error_code = detail::last_socket_error_code();
-        if (!connect_is_in_progress(error_code)) {
-            detail::set_nonblocking(socket.get(), false);
-            return ca::core::Err(detail::socket_error_from_code(error_code, "connect"));
-        }
-        auto waited = wait_for_connect(socket.get(), now + clock_timeout);
-        if (waited.is_err()) {
-            detail::set_nonblocking(socket.get(), false);
-            return ca::core::Err(waited.unwrap_err());
-        }
+    std::optional<io::IoError> last_error;
+    auto                       addresses = std::move(resolved).unwrap();
+    for (const auto& address : addresses) {
+        auto connected = connect_until(address, deadline);
+        if (connected.is_ok())
+            return connected;
+        last_error = connected.unwrap_err();
+        if (last_error->kind() == io::IoErrorKind::TimedOut)
+            return ca::core::Err(std::move(*last_error));
     }
-
-    auto blocking = detail::set_nonblocking(socket.get(), false);
-    if (blocking.is_err())
-        return ca::core::Err(blocking.unwrap_err());
-    return ca::core::Ok(TcpStream(std::move(socket)));
+    if (last_error.has_value())
+        return ca::core::Err(std::move(*last_error));
+    return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::NotFound,
+                                                "DNS resolution returned no TCP addresses"));
 }
 
 io::IoResult<usize> TcpStream::read(u8* buffer, usize capacity)
@@ -444,8 +506,16 @@ io::IoResult<TcpListener> TcpListener::from_socket(OwnedSocket socket)
     return ca::core::Ok(TcpListener(std::move(socket)));
 }
 
-io::IoResult<TcpListener> TcpListener::bind(const SocketAddress& address)
+io::IoResult<TcpListener> TcpListener::bind(const SocketAddress&       address,
+                                            const TcpListenerOptions& options)
 {
+    if (options.backlog <= 0)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "TCP listener backlog must be greater than zero"));
+    if (options.ipv6_only.has_value() && address.ip().is_ipv4())
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::InvalidInput, "IPV6_V6ONLY cannot be configured for an IPv4 listener"));
+
     auto created = detail::create_socket(address.ip().version(), SOCK_STREAM, IPPROTO_TCP);
     if (created.is_err())
         return ca::core::Err(created.unwrap_err());
@@ -455,6 +525,22 @@ io::IoResult<TcpListener> TcpListener::bind(const SocketAddress& address)
     if (configured.is_err())
         return ca::core::Err(configured.unwrap_err());
 
+    if (options.reuse_address) {
+        auto reused = detail::set_bool_option(
+            socket.get(), SOL_SOCKET, SO_REUSEADDR, true, "setsockopt(SO_REUSEADDR)");
+        if (reused.is_err())
+            return ca::core::Err(reused.unwrap_err());
+    }
+    if (options.ipv6_only.has_value()) {
+        auto ipv6_only = detail::set_bool_option(socket.get(),
+                                                 IPPROTO_IPV6,
+                                                 IPV6_V6ONLY,
+                                                 *options.ipv6_only,
+                                                 "setsockopt(IPV6_V6ONLY)");
+        if (ipv6_only.is_err())
+            return ca::core::Err(ipv6_only.unwrap_err());
+    }
+
     auto encoded = detail::encode_address(address);
     if (encoded.is_err())
         return ca::core::Err(encoded.unwrap_err());
@@ -463,7 +549,7 @@ io::IoResult<TcpListener> TcpListener::bind(const SocketAddress& address)
                reinterpret_cast<const sockaddr*>(&native.storage),
                native.length) != 0)
         return ca::core::Err(detail::last_socket_error("bind"));
-    if (::listen(detail::to_native_socket(socket.get()), SOMAXCONN) != 0)
+    if (::listen(detail::to_native_socket(socket.get()), static_cast<int>(options.backlog)) != 0)
         return ca::core::Err(detail::last_socket_error("listen"));
     return ca::core::Ok(TcpListener(std::move(socket)));
 }
@@ -475,8 +561,24 @@ io::IoResult<TcpAcceptResult> TcpListener::accept()
 
     sockaddr_storage            storage{};
     detail::NativeAddressLength length = static_cast<detail::NativeAddressLength>(sizeof(storage));
-    const auto                  accepted = ::accept(
+    detail::NativeSocket accepted;
+    bool                 needs_inheritance_fix = true;
+#if defined(__linux__) && defined(SOCK_CLOEXEC)
+    accepted = ::accept4(detail::to_native_socket(socket_.get()),
+                         reinterpret_cast<sockaddr*>(&storage),
+                         &length,
+                         SOCK_CLOEXEC);
+    if (!detail::native_socket_is_valid(accepted) && (errno == ENOSYS || errno == EINVAL)) {
+        accepted = ::accept(
+            detail::to_native_socket(socket_.get()), reinterpret_cast<sockaddr*>(&storage), &length);
+    }
+    else {
+        needs_inheritance_fix = false;
+    }
+#else
+    accepted = ::accept(
         detail::to_native_socket(socket_.get()), reinterpret_cast<sockaddr*>(&storage), &length);
+#endif
     if (!detail::native_socket_is_valid(accepted))
         return ca::core::Err(detail::last_socket_error("accept"));
 
@@ -495,10 +597,11 @@ io::IoResult<TcpAcceptResult> TcpListener::accept()
     if (configured.is_err())
         return ca::core::Err(configured.unwrap_err());
 
-#if !defined(_WIN32)
-    if (fcntl(accepted, F_SETFD, FD_CLOEXEC) != 0)
-        return ca::core::Err(detail::last_socket_error("fcntl(FD_CLOEXEC)"));
-#endif
+    if (needs_inheritance_fix) {
+        auto inheritance = detail::set_socket_not_inheritable(owned.get());
+        if (inheritance.is_err())
+            return ca::core::Err(inheritance.unwrap_err());
+    }
     auto peer = detail::decode_address(reinterpret_cast<const sockaddr*>(&storage), length);
     if (peer.is_err())
         return ca::core::Err(peer.unwrap_err());
@@ -525,6 +628,11 @@ io::IoResult<TcpListener> TcpListener::try_clone() const
     if (duplicated.is_err())
         return ca::core::Err(duplicated.unwrap_err());
     return ca::core::Ok(TcpListener(std::move(duplicated).unwrap()));
+}
+
+io::IoResult<void> TcpListener::close()
+{
+    return socket_.close();
 }
 
 bool TcpListener::is_open() const noexcept
