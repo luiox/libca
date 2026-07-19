@@ -31,6 +31,50 @@ if (response.is_err() || !response.unwrap().has_value()) return;
 body 使用 `ca::core::Bytes`，不假设文本编码。headers 保序、允许重复，并按 ASCII
 大小写不敏感查询。
 
+## 流式读取 body
+
+下载、上传与长连接协议不应先把整个 body 放入内存。读取 head 后，可重复调用
+`read_body()` 消费解码后的 Content-Length、chunked 或 close-delimited body：
+
+```cpp
+auto head = reader.read_response_head("GET");
+if (head.is_err() || !head.unwrap().has_value()) return;
+
+std::array<u8, 8192> buffer{};
+while (!reader.body_finished()) {
+    auto read = reader.read_body(buffer.data(), buffer.size());
+    if (read.is_err()) return;
+    consume(buffer.data(), read.unwrap());
+}
+auto trailers = reader.finish_body();
+if (trailers.is_err()) return;
+```
+
+读取下一条 keep-alive/pipelined 报文前必须调用 `finish_body()`；不需要内容时用
+`discard_body()` 读到消息边界并丢弃。即使 `body_info().kind` 是 `None`，也必须显式
+finish。close-delimited body 以连接 EOF 结束，因此完成后不能再复用该连接。
+
+## 流式写入 chunked body
+
+HTTP/1.1 的未知长度 request/response 使用 `begin_chunked_request()` 或
+`begin_chunked_response()`。返回对象独占当前 `Http1Writer`，适合逐条发送 SSE event：
+
+```cpp
+ca::http::HttpResponseHead head;
+head.headers.append("Content-Type", "text/event-stream");
+
+auto begun = writer.begin_chunked_response(head, "GET");
+if (begun.is_err()) return;
+auto body = std::move(begun).unwrap();
+
+if (body.write_chunk("event: message\ndata: {}\n\n").is_err()) return;
+if (body.flush().is_err()) return;
+if (body.finish().is_err()) return;
+```
+
+`finish()` 会写 final chunk 与 trailers，但不会隐式 flush。析构也不会补 final chunk；若
+放弃未完成的 body，wire 报文保持不完整，所属 writer 不能继续复用，应关闭连接。
+
 ## 解析限制
 
 ```cpp

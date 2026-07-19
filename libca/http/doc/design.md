@@ -1,6 +1,7 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
 2026-07-19 - 完成 HTTP/1 数据模型、URL、headers 与同步 codec
 ---
 
@@ -14,7 +15,7 @@ update:
 - http/https absolute URL 分解。
 - HTTP/1.0 与 HTTP/1.1 request/response 数据模型。
 - headers 的合法性、重复字段和大小写不敏感查询。
-- 基于 `Reader` / `Writer` 的增量读取与序列化。
+- 基于 `Reader` / `Writer` 的完整缓冲与流式读写。
 - Content-Length、chunked、trailers、response close-delimited body。
 - 不可信报文的结构校验和资源限制。
 
@@ -24,15 +25,20 @@ update:
 libca_core <- libca_io <- libca_net <- libca_http
 ```
 
-本增量不实现 DNS/TCP 连接管理、连接池、服务端 accept loop、路由、SSE、压缩、代理、
-WebSocket、HTTP/2 或 TLS。client/server 在后续增量复用同一 codec；TLS 通过实现相同
-`Reader` / `Writer` 边界的可选 OpenSSL stream 接入，不能进入 HTTP/1 parser。
+本模块不实现 DNS/TCP 连接管理、连接池、服务端 accept loop、路由、SSE event 编解码、
+压缩、代理、WebSocket、HTTP/2 或 TLS。client/server 在后续增量复用同一 codec；TLS
+通过实现相同 `Reader` / `Writer` 边界的可选 OpenSSL stream 接入，不能进入 HTTP/1
+parser。
 
 ## 2. 数据与所有权
 
 `HttpRequest` / `HttpResponse` 是完整缓冲报文。method、target、reason 和 header 使用
 `std::string`，因为它们属于外部 wire protocol 边界；body 使用 `ca::core::Bytes`，不假设
 UTF-8。chunked trailers 与普通 headers 分开保存，避免调用方误把 trailer 当成首部安全决策。
+
+`HttpRequestHead` / `HttpResponseHead` 只拥有 start-line 与 headers，供流式路径先做路由、
+鉴权或状态判断，再决定读取或丢弃 body。`HttpBodyInfo` 暴露消息边界类型与 Content-Length，
+不暴露 parser 内部状态。
 
 `HttpHeaders` 内部使用 `vector<HttpHeader>`：
 
@@ -60,12 +66,24 @@ UTF-8。chunked trailers 与普通 headers 分开保存，避免调用方误把 
 `io::BufReader`，因为 TCP/TLS 连接还需要由同一上层对象写响应。reader 实例必须在整条
 keep-alive 连接期间存活，才能保留已经读到下一条报文的字节。
 
-解析按 CRLF 行、headers 和 body 三阶段进行。干净 EOF 只允许发生在下一条 start-line
-之前；start-line、headers、定长 body 或 chunk 中途 EOF 都是 `InvalidMessage`。
+解析按 CRLF 行、headers 和 body 三阶段进行。流式 body 状态机为：
+
+```text
+Ready -> ReadingHead -> FixedBody / ChunkedBody / CloseDelimitedBody -> BodyComplete -> Ready
+```
+
+读取 head 成功后，即使没有 body，也必须调用 `finish_body()`；不消费内容时调用
+`discard_body()`。只有回到 `Ready` 才能读取下一条报文，防止调用方把未消费 body 当作下一条
+start-line。chunked trailers 在消息边界处返回，且与普通 headers 共享限制预算。干净 EOF 只
+允许发生在下一条 start-line 前；start-line、headers、定长 body 或 chunk 中途 EOF 都是
+`InvalidMessage`。close-delimited body 以 EOF 完成，所在连接不能继续承载报文。
 
 `Http1Writer` 同样只借用 `Writer`。完整缓冲报文没有显式 framing 时，writer 根据 body
 补 Content-Length；显式 chunked 时把 body 写成一个或零个 data chunk，再写 trailers。
-writer 不隐式 flush，连接管理层决定一条或一批报文何时提交底层缓冲。
+未知长度 body 由 `Http1ChunkedBodyWriter` 逐块写入。活动 body 独占所属 writer，直至
+`finish()` 成功写入 final chunk。析构不隐式结束报文，避免异常路径把截断的业务响应伪装成
+完整响应；放弃 body 后必须关闭连接。writer 不隐式 flush，SSE 可在每个 event chunk 后显式
+flush，连接管理层决定普通报文何时提交底层缓冲。
 
 ## 5. Framing 与安全
 
@@ -87,7 +105,7 @@ writer 不隐式 flush，连接管理层决定一条或一批报文何时提交�
 
 ## 6. 错误模型与限制
 
-`HttpResult<T>` 使用 `HttpError`，区分 IO、URL、协议、header/body 限制和未支持能力。
+`HttpResult<T>` 使用 `HttpError`，区分 IO、URL、协议、调用状态、header/body 限制和未支持能力。
 底层 `IoError` 完整保留，可由 `io_error()` 读取。协议错误不伪装成 IO `InvalidData`，便于
 服务端映射 400/413/431，客户端区分网络失败与远端报文错误。
 
@@ -103,6 +121,8 @@ headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码
 - 同一输入中的连续 request/response，验证预读字节不丢失。
 - chunk extension、trailers、HEAD/204 和 close-delimited response。
 - writer 到 reader 的 fixed/chunked round-trip。
+- fixed、chunked 与 close-delimited body 的流式读取、丢弃和显式完成。
+- SSE 风格 chunk write/flush、trailers、writer 独占与未完成析构行为。
 - CL/TE、冲突长度、重复/合并 Host、裸 LF、obs-fold、HTTP/1.0 TE 和截断 body。
 - start-line、header count/bytes 和 body 限制。
 - URL 的默认端口、query、fragment、IPv6 与非法 authority。
