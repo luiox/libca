@@ -25,8 +25,8 @@ void JsonDomBuilder::on_float(ca::f64 v, const SourceLocation&) {
     emit_value(JsonValue::make_float(v));
 }
 
-void JsonDomBuilder::on_string(ca::str::Utf8String v, const SourceLocation&) {
-    emit_value(JsonValue::make_string(std::move(v)));
+void JsonDomBuilder::on_string(ca::str::Utf8StringRef v, const SourceLocation&) {
+    emit_value(JsonValue::make_string(v));
 }
 
 void JsonDomBuilder::on_array_start(const SourceLocation&) {
@@ -64,9 +64,9 @@ void JsonDomBuilder::on_object_end(const SourceLocation&) {
     emit_value(std::move(obj));
 }
 
-void JsonDomBuilder::on_object_key(ca::str::Utf8String key, const SourceLocation&) {
+void JsonDomBuilder::on_object_key(ca::str::Utf8StringRef key, const SourceLocation&) {
     Frame& top = stack_.back();
-    top.pending_key = std::move(key);
+    top.pending_key = key;
     top.has_pending_key = true;
 }
 

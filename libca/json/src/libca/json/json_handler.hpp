@@ -33,8 +33,8 @@ public:
     virtual void on_int(ca::i64 /*v*/, const SourceLocation& /*loc*/) {}
     /// 解析到浮点值。
     virtual void on_float(ca::f64 /*v*/, const SourceLocation& /*loc*/) {}
-    /// 解析到字符串值（已做转义解码）。
-    virtual void on_string(ca::str::Utf8String /*v*/, const SourceLocation& /*loc*/) {}
+    /// 解析到字符串值（已做转义解码，Utf8StringRef 指向 parser 关联的 arena）。
+    virtual void on_string(ca::str::Utf8StringRef /*v*/, const SourceLocation& /*loc*/) {}
 
     /// 解析到数组开始 `[`。
     virtual void on_array_start(const SourceLocation& /*loc*/) {}
@@ -44,8 +44,9 @@ public:
     virtual void on_object_start(const SourceLocation& /*loc*/) {}
     /// 解析到对象结束 `}`。
     virtual void on_object_end(const SourceLocation& /*loc*/) {}
-    /// 解析到对象成员的 key（在每个成员的 value 事件之前调用）。
-    virtual void on_object_key(ca::str::Utf8String /*key*/, const SourceLocation& /*loc*/) {}
+    /// 解析到对象成员的 key（在每个成员的 value 事件之前调用；Utf8StringRef 指向
+    /// parser 关联的 arena）。
+    virtual void on_object_key(ca::str::Utf8StringRef /*key*/, const SourceLocation& /*loc*/) {}
 
     /// @brief 解析遇到错误。必须实现。解析器调用后立即停止解析。
     virtual void on_error(const ParseError& err) = 0;

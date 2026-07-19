@@ -4,8 +4,10 @@
 /// @brief JSON 递归下降解析器：JsonParser。驱动 JsonHandler 发出 SAX 事件。
 /// @details 词法与语法分析合一（JSON 词法简单，单字节即可定 token）。解析过程对输入做单趟扫描，
 ///          按需回调 handler。首个错误经 handler.on_error 报告后立即停止。
-/// @note JsonParser 不持有解析结果；DOM 构造由 JsonDomBuilder（一个 JsonHandler 实现）完成。
-///       需要流式处理大文件的用户可自实现 handler，零内存峰值。
+/// @note 字符串事件（on_string / on_object_key）的 Utf8StringRef 指向构造时传入的 arena
+///       内副本——所有解码后的字符串经 `arena.intern(...)` 入池。SAX 用户因此不持有 owning
+///       字符串；自定义 handler 拿到的 ref 生命周期绑定到 arena（由 JsonReader 路径下的
+///       JsonDocument 持有，或纯 SAX 用户自管 arena）。
 
 #include "libca/core/datatype.hpp"
 
@@ -13,6 +15,7 @@
 #include "libca/json/parse_error.hpp"
 #include "libca/json/source_location.hpp"
 #include "libca/str/utf8_string.hpp"
+#include "libca/str/utf8_string_arena.hpp"
 
 namespace ca::json {
 
@@ -29,8 +32,11 @@ struct JsonParserOptions {
 /// @brief 递归下降 JSON 解析器，把输入驱动为 JsonHandler 事件。
 class JsonParser {
 public:
-    /// @brief 构造解析器。输入视图须在使用期内有效（零拷贝）。
+    /// @brief 构造解析器。输入视图与 arena 须在使用期内有效。
+    /// @details 解析出的字符串经 `arena.intern(...)` 入池，事件回调里的 Utf8StringRef
+    ///          指向 arena 内副本（与输入视图生命周期解耦）。
     JsonParser(ca::str::Utf8StringRef input, JsonHandler& handler,
+               ca::str::Utf8StringArena& arena,
                const JsonParserOptions& options = JsonParserOptions());
 
     /// @brief 解析顶层 JSON 值。
@@ -54,6 +60,7 @@ private:
     ca::usize depth_;
 
     JsonHandler& handler_;
+    ca::str::Utf8StringArena& arena_;
     JsonParserOptions options_;
     ParseError error_;  // 首个错误
 
@@ -76,8 +83,8 @@ private:
     void parse_string_value();
     void parse_number();
     void parse_literal(const char* text, ca::usize len, bool value, const char* kind);
-    // 解析字符串字面量到 out；返回是否成功（失败已 fail）。供 value 和 object key 复用。
-    bool parse_string_into(ca::str::Utf8String& out);
+    // 解析字符串字面量并 intern 到 arena；返回是否成功（失败已 fail）。
+    bool parse_string_into(ca::str::Utf8StringRef& out);
 };
 
 }  // namespace ca::json

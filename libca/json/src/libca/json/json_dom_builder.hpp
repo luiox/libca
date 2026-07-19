@@ -22,12 +22,12 @@ public:
     void on_bool(bool v, const SourceLocation&) override;
     void on_int(ca::i64 v, const SourceLocation&) override;
     void on_float(ca::f64 v, const SourceLocation&) override;
-    void on_string(ca::str::Utf8String v, const SourceLocation&) override;
+    void on_string(ca::str::Utf8StringRef v, const SourceLocation&) override;
     void on_array_start(const SourceLocation&) override;
     void on_array_end(const SourceLocation&) override;
     void on_object_start(const SourceLocation&) override;
     void on_object_end(const SourceLocation&) override;
-    void on_object_key(ca::str::Utf8String key, const SourceLocation&) override;
+    void on_object_key(ca::str::Utf8StringRef key, const SourceLocation&) override;
     void on_error(const ParseError& err) override;
 
     /// @brief 取走根节点。未解析或解析失败时返回 null 节点。
@@ -43,7 +43,7 @@ private:
         bool is_array;
         JsonValue::ArrayStorage array_items;
         JsonValue::ObjectStorage object_items;
-        ca::str::Utf8String pending_key;  // object 收到 key 后、value 前暂存
+        ca::str::Utf8StringRef pending_key;  // object 收到 key 后、value 前暂存
         bool has_pending_key;
     };
 

@@ -2,8 +2,9 @@
 
 JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。命名空间 `ca::json`，构建目标 `libca_json`。
 
-深度集成 `ca::str`：输入接受 `Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8String`。
-错误用 `Result<JsonValue, ParseError>`，不用异常。
+深度集成 `ca::str`：输入接受 `Utf8StringRef`（零拷贝指向原文本），DOM 字符串值与 object key
+用 `Utf8StringRef`，由 `JsonDocument` 内嵌的 `Utf8StringArena` 持有——析构 document 时
+所有字符串一次性释放，无零散堆分配。错误用 `Result<JsonDocument, ParseError>`，不用异常。
 
 > 设计与取舍见 `doc/json设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -27,18 +28,19 @@ if (result.is_err()) {
     return;
 }
 
-JsonValue root = std::move(result).unwrap();
-const JsonValue* name = root.find(Utf8StringRef::from_cstr("name"));
+JsonDocument doc = std::move(result).unwrap();
+const JsonValue* name = doc.root().find(Utf8StringRef::from_cstr("name"));
 if (name != nullptr) {
     // name->as_string() == "Alice"
 }
 ```
 
-`JsonValue` 是 move-only（树所有权清晰），需要深拷贝用 `clone()`。
+`JsonValue` 的字符串引用指向 `JsonDocument` 内部 arena，生命周期绑定 document。
+document 析构后所有 ref 失效——需要长期持有应 clone 出独立 `Utf8String`。
 
-## SAX 流式（大文件零内存峰值）
+## SAX 流式
 
-需要时跳过 DOM，自己实现 `JsonHandler` 接收事件：
+跳过 DOM，自己实现 `JsonHandler` 接收事件：
 
 ```cpp
 class CountHandler : public JsonHandler {
@@ -48,25 +50,34 @@ public:
     void on_error(const ParseError& err) override { /* ... */ }
 };
 
+Utf8StringArena arena;            // SAX 用户自管 arena
 CountHandler h;
-JsonParser parser(big_text_view, h);
+JsonParser parser(big_text_view, h, arena);
 if (!parser.parse()) {
     // parser.last_error()
 }
 // h.null_count 即 null 值的个数，全程不构造 JsonValue 树
 ```
 
+> 注意：SAX 字符串事件（`on_string` / `on_object_key`）的 `Utf8StringRef` 指向构造 parser 时
+> 传入的 arena 内副本（与输入视图生命周期解耦）。`JsonReader` 路径下 arena 由 `JsonDocument`
+> 持有；纯 SAX 路径下由用户自管。
+
 ## DOM 编辑 + 写回
 
 ```cpp
+JsonDocument doc;
+auto& arena = doc.arena();
 JsonValue root = JsonValue::make_object();
-root.set(Utf8String::from_cstr("name"), JsonValue::make_string(Utf8String::from_cstr("Bob")));
-root.set(Utf8String::from_cstr("scores"), JsonValue::make_array());
+root.set(arena.intern(Utf8String::from_cstr("name")),
+         JsonValue::make_string(arena.intern(Utf8String::from_cstr("Bob"))));
+root.set(arena.intern(Utf8String::from_cstr("scores")), JsonValue::make_array());
 root.find(Utf8StringRef::from_cstr("scores"))->append(JsonValue::make_int(95));
+doc.root() = std::move(root);
 
 JsonWriterOptions opts;
 opts.pretty = true;
-Utf8String text = JsonWriter::write(root, opts);
+Utf8String text = JsonWriter::write(doc, opts);
 ```
 
 `write` 默认输出紧凑 JSON；开启 `pretty` 后按 `indent` 缩进换行；`ensure_ascii` 把所有
@@ -76,7 +87,7 @@ Utf8String text = JsonWriter::write(root, opts);
 
 ```cpp
 auto read_result = JsonReader::read_file(Utf8StringRef::from_cstr("data.json"));
-auto write_result = JsonWriter::write_file(Utf8StringRef::from_cstr("out.json"), root);
+auto write_result = JsonWriter::write_file(Utf8StringRef::from_cstr("out.json"), doc);
 ```
 
 ## 宽松选项

@@ -154,12 +154,16 @@ CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8S
 
 ## json
 
-JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深度集成 `ca::str`：输入用
-`Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8String`。
+JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采用 **Arena 架构**：DOM 字符串值
+与 object key 用 `Utf8StringRef`，指向所属 `JsonDocument` 内部的 `Utf8StringArena`，
+消灭零散堆分配，object key 自动去重。SAX 字符串事件同样传 `Utf8StringRef`（指向 parser
+关联的 arena）。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用
+`Result<JsonDocument, ParseError>`。
 
 入口头文件：
 - `<libca/json/json.hpp>`（聚合头）
 - `<libca/json/json_value.hpp>`
+- `<libca/json/json_document.hpp>`
 - `<libca/json/json_handler.hpp>`
 - `<libca/json/json_parser.hpp>`
 - `<libca/json/json_dom_builder.hpp>`
@@ -169,12 +173,13 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深�
 - `<libca/json/source_location.hpp>`
 
 功能：
-- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。number 区分 i64/f64，i64 溢出自动降级 float。
-- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。
-- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件（流式，零内存峰值）。
-- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonValue`。
-- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonValue, ParseError>`。
-- `JsonWriter`：把 `JsonValue` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
+- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。String 与 object key 均为 `Utf8StringRef`，因此 JsonValue 可拷贝。number 区分 i64/f64，i64 溢出自动降级 float。
+- `JsonDocument`：所有权根，持 `Utf8StringArena` + `JsonValue root_`，禁拷贝、仅移动。析构时 arena 释放所有 chunk，所有 ref 失效。
+- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。字符串事件传 `Utf8StringRef`。
+- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件；构造时接收 arena 引用，字符串经 `arena.intern(...)` 入池。
+- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonDocument`。
+- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonDocument, ParseError>`。
+- `JsonWriter`：把 `JsonDocument` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。
 - 宽松选项：尾随逗号、`//` 与 `/* */` 注释（默认严格 RFC 8259）。
 

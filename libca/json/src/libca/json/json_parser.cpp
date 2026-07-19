@@ -12,6 +12,7 @@ namespace ca::json {
 // ============================================================================
 
 JsonParser::JsonParser(ca::str::Utf8StringRef input, JsonHandler& handler,
+                       ca::str::Utf8StringArena& arena,
                        const JsonParserOptions& options)
     : data_(input.data()),
       byte_length_(input.byte_length()),
@@ -20,6 +21,7 @@ JsonParser::JsonParser(ca::str::Utf8StringRef input, JsonHandler& handler,
       failed_(false),
       depth_(0),
       handler_(handler),
+      arena_(arena),
       options_(options),
       error_() {
     if (data_ == nullptr) {
@@ -318,7 +320,7 @@ static bool parse_hex4(const u8* p, u32& out) {
     return true;
 }
 
-bool JsonParser::parse_string_into(ca::str::Utf8String& out) {
+bool JsonParser::parse_string_into(ca::str::Utf8StringRef& out) {
     assert(peek() == '"' && "parse_string_into expects current char to be '\"'");
     SourceLocation start = loc_;
     advance();  // 消费开头的 "
@@ -417,15 +419,15 @@ bool JsonParser::parse_string_into(ca::str::Utf8String& out) {
             advance();
         }
     }
-    out = sb.build_or_empty();
+    out = arena_.intern(sb.build_or_empty());
     return !failed_;
 }
 
 void JsonParser::parse_string_value() {
     SourceLocation start = loc_;
-    ca::str::Utf8String value;
+    ca::str::Utf8StringRef value;
     if (!parse_string_into(value)) return;
-    handler_.on_string(std::move(value), start);
+    handler_.on_string(value, start);
 }
 
 // ============================================================================
@@ -524,9 +526,9 @@ void JsonParser::parse_object() {
             break;
         }
         SourceLocation key_loc = loc_;
-        ca::str::Utf8String key;
+        ca::str::Utf8StringRef key;
         if (!parse_string_into(key)) break;
-        handler_.on_object_key(std::move(key), key_loc);
+        handler_.on_object_key(key, key_loc);
 
         skip_ws_and_comments();
         if (failed_) break;
