@@ -42,12 +42,17 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
         return ca::Err(make_error(1, 1, "CSV delimiter and quote must be different"));
     }
 
-    // 内部用 std::string 做字符扫描（CSV 字段不一定是合法 UTF-8，按字节处理更稳妥）。
-    const std::string text(reinterpret_cast<const char*>(input.data()),
-                           reinterpret_cast<const char*>(input.data()) + input.byte_length());
+    CsvDocument document;
+    auto& arena = document.arena();
+
+    // 字段收集用 Utf8StringRef vector，每个字段经 intern_raw 入池（不校验 UTF-8，
+    // 按原始字节保留——CSV 字段可能是任意字节序列）。
+    auto intern_field = [&](const std::string& s) {
+        return arena.intern_raw(reinterpret_cast<const ca::u8*>(s.data()), s.size());
+    };
 
     std::vector<CsvRow> parsed_rows;
-    std::vector<std::string> current_row;
+    std::vector<ca::str::Utf8StringRef> current_row;
     std::string current_field;
     bool in_quotes = false;
     bool field_was_quoted = false;
@@ -56,11 +61,13 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     ca::usize column = 1;
 
     auto finish_field = [&]() {
+        std::string value;
         if (!field_was_quoted && options.trim_unquoted_space) {
-            current_row.push_back(trim_ascii_space(current_field));
+            value = trim_ascii_space(current_field);
         } else {
-            current_row.push_back(std::move(current_field));
+            value = std::move(current_field);
         }
+        current_row.push_back(intern_field(value));
         current_field.clear();
         field_was_quoted = false;
     };
@@ -71,15 +78,17 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
         current_row.clear();
     };
 
-    // 单趟状态机解析：非 quoted 状态识别分隔符/行尾，quoted 状态只特殊处理
-    // quote 与 quote quote，其余字符（包括换行）都属于字段内容。
-    for (ca::usize i = 0; i < text.size(); ++i) {
-        const char ch = text[i];
+    // 直接对 input 视图做单趟字节扫描（CSV 字段不保证 UTF-8，按字节处理更稳妥）。
+    const ca::u8* const data = input.data();
+    const ca::usize size = input.byte_length();
+
+    for (ca::usize i = 0; i < size; ++i) {
+        const char ch = static_cast<char>(data[i]);
         saw_any_char = true;
 
         if (in_quotes) {
             if (ch == options.quote) {
-                if (i + 1 < text.size() && text[i + 1] == options.quote) {
+                if (i + 1 < size && static_cast<char>(data[i + 1]) == options.quote) {
                     current_field.push_back(options.quote);
                     ++i;
                     ++column;
@@ -104,7 +113,7 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
             finish_field();
         } else if (ch == '\r' || ch == '\n') {
             finish_row();
-            if (ch == '\r' && i + 1 < text.size() && text[i + 1] == '\n') {
+            if (ch == '\r' && i + 1 < size && static_cast<char>(data[i + 1]) == '\n') {
                 ++i;
             }
             ++line;
@@ -124,14 +133,14 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
 
     // 文件末尾没有换行时补最后一行；被引号包裹的空字段也应形成一行。
     if (saw_any_char && (!current_field.empty() || !current_row.empty() ||
-                         (!text.empty() && text.back() == options.delimiter) ||
+                         (size > 0 && static_cast<char>(data[size - 1]) == options.delimiter) ||
                          field_was_quoted)) {
         finish_row();
     }
 
-    CsvDocument document;
     if (options.first_row_is_header && !parsed_rows.empty()) {
-        document.set_header(std::move(parsed_rows.front().fields()));
+        // header 字段已 intern 入池，直接接管（header() 的非 const 重载会置 header_enabled_=true）。
+        document.header() = std::move(parsed_rows.front().fields());
         for (ca::usize i = 1; i < parsed_rows.size(); ++i) {
             document.add_row(std::move(parsed_rows[i]));
         }

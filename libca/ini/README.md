@@ -3,7 +3,9 @@
 独立 INI 配置读写模块。命名空间 `ca::ini`，构建目标 `libca_ini`。
 
 核心目标是支持「读入、修改少量 key、写回」时保留人工维护的注释、空行和顺序，而不是只把
-INI 读成 map。深度集成 `ca::str`：输入 `Utf8StringRef`，值 `Utf8String`。
+INI 读成 map。采用 **Arena 架构**：`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段
+（`IniLine` / `LineRecord`）存 `Utf8StringRef`，析构 document 时 arena 一次性释放，无零散堆
+分配。输入 `Utf8StringRef`，值 `Utf8StringRef`（生命周期绑定 document）。
 
 > 设计与保格式策略见 `doc/ini设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -29,31 +31,32 @@ if (result.is_err()) {
 }
 
 IniDocument document = std::move(result).unwrap();
-auto host = std::move(document.get(
+Utf8StringRef host = document.get(
     Utf8StringRef::from_cstr("server"),
-    Utf8StringRef::from_cstr("host"))).unwrap();
+    Utf8StringRef::from_cstr("host")).unwrap();
+// host 是 Utf8StringRef，指向 document 内部 arena。document 析构后失效。
 ```
 
 全局 key 使用空字符串作为 section 名：
 
 ```cpp
-auto value = std::move(document.get(
+Utf8StringRef value = document.get(
     Utf8StringRef::from_cstr(""),
-    Utf8StringRef::from_cstr("root_key"))).unwrap();
+    Utf8StringRef::from_cstr("root_key")).unwrap();
 ```
 
-`IniDocument` 是 move-only（内部持有 `Utf8String` 行记录，所有权清晰）。
+`IniDocument` 禁拷贝、仅移动（含 arena，所有权清晰）。
 
 ## 类型化访问
 
-`get` 返回原始字符串（含可能的首尾引号）。需要 int/double/bool 时用类型化访问，
+`get` 返回原始字符串引用（含可能的首尾引号）。需要 int/double/bool 时用类型化访问，
 会自动剥首尾配对引号后转换：
 
 ```cpp
 auto port = document.get_int(R("server"), R("port")).unwrap_or(80);
 auto debug = document.get_bool(R("server"), R("debug")).unwrap_or(false);
 auto ratio = document.get_double(R("server"), R("ratio")).unwrap_or(0.0);
-auto name = document.get_or(R("server"), R("name"), R("default"));
+Utf8StringRef name = document.get_or(R("server"), R("name"), R("default"));
 ```
 
 `get_bool` 接受 `true/false/yes/no/on/off/1/0`（大小写不敏感）。

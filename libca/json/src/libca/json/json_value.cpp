@@ -41,7 +41,7 @@ JsonValue JsonValue::clone() const {
         case JsonType::Bool:    copy.data_ = std::get<bool>(data_); break;
         case JsonType::Int:     copy.data_ = std::get<i64>(data_); break;
         case JsonType::Float:   copy.data_ = std::get<f64>(data_); break;
-        case JsonType::String:  copy.data_ = std::get<ca::str::Utf8String>(data_).clone(); break;
+        case JsonType::String:  copy.data_ = std::get<ca::str::Utf8StringRef>(data_); break;
         case JsonType::Array: {
             ArrayStorage dup;
             const auto& src = std::get<ArrayStorage>(data_);
@@ -55,7 +55,7 @@ JsonValue JsonValue::clone() const {
             const auto& src = std::get<ObjectStorage>(data_);
             dup.reserve(src.size());
             for (const auto& m : src) {
-                dup.push_back(ObjectMember{m.first.clone(), m.second.clone()});
+                dup.push_back(ObjectMember{m.first, m.second.clone()});
             }
             copy.data_ = std::move(dup);
             break;
@@ -91,10 +91,10 @@ JsonValue JsonValue::make_float(f64 v) noexcept {
     return j;
 }
 
-JsonValue JsonValue::make_string(ca::str::Utf8String v) {
+JsonValue JsonValue::make_string(ca::str::Utf8StringRef v) noexcept {
     JsonValue j;
     j.type_ = JsonType::String;
-    j.data_ = std::move(v);
+    j.data_ = v;
     return j;
 }
 
@@ -145,9 +145,9 @@ f64 JsonValue::as_float() const noexcept {
     return std::get<f64>(data_);
 }
 
-const ca::str::Utf8String& JsonValue::as_string() const noexcept {
+const ca::str::Utf8StringRef& JsonValue::as_string() const noexcept {
     assert(type_ == JsonType::String && "JsonValue::as_string on non-String");
-    return std::get<ca::str::Utf8String>(data_);
+    return std::get<ca::str::Utf8StringRef>(data_);
 }
 
 const JsonValue::ArrayStorage& JsonValue::as_array() const noexcept {
@@ -208,7 +208,7 @@ usize JsonValue::size() const noexcept {
 // Object 编辑
 // ============================================================================
 
-void JsonValue::set(ca::str::Utf8String key, JsonValue v) {
+void JsonValue::set(ca::str::Utf8StringRef key, JsonValue v) {
     assert(type_ == JsonType::Object && "JsonValue::set on non-Object");
     auto& obj = std::get<ObjectStorage>(data_);
     for (auto& m : obj) {
@@ -217,7 +217,7 @@ void JsonValue::set(ca::str::Utf8String key, JsonValue v) {
             return;
         }
     }
-    obj.push_back(ObjectMember{std::move(key), std::move(v)});
+    obj.push_back(ObjectMember{key, std::move(v)});
 }
 
 const JsonValue* JsonValue::find(const ca::str::Utf8StringRef& key) const noexcept {

@@ -175,7 +175,7 @@ void write_object(Writer& w, const JsonValue& v) {
     for (ca::usize i = 0; i < obj.size(); ++i) {
         if (i > 0) w.write_raw(",", 1);
         w.newline_and_indent();
-        w.write_string(obj[i].first.ref());
+        w.write_string(obj[i].first);
         w.write_raw(":", 1);
         w.space();
         write_value(w, obj[i].second);
@@ -191,7 +191,7 @@ void write_value(Writer& w, const JsonValue& v) {
         case JsonType::Bool:   w.write_bool(v.as_bool()); break;
         case JsonType::Int:    w.write_int(v.as_int()); break;
         case JsonType::Float:  w.write_float(v.as_float()); break;
-        case JsonType::String: w.write_string(v.as_string().ref()); break;
+        case JsonType::String: w.write_string(v.as_string()); break;
         case JsonType::Array:
             if (w.pretty()) write_array(w, v);
             else {
@@ -211,7 +211,7 @@ void write_value(Writer& w, const JsonValue& v) {
                 w.write_raw("{", 1);
                 for (ca::usize i = 0; i < obj.size(); ++i) {
                     if (i > 0) w.write_raw(",", 1);
-                    w.write_string(obj[i].first.ref());
+                    w.write_string(obj[i].first);
                     w.write_raw(":", 1);
                     write_value(w, obj[i].second);
                 }
@@ -223,18 +223,18 @@ void write_value(Writer& w, const JsonValue& v) {
 
 }  // namespace
 
-ca::str::Utf8String JsonWriter::write(const JsonValue& value,
+ca::str::Utf8String JsonWriter::write(const JsonDocument& document,
                                        const JsonWriterOptions& options) {
     Writer w(options);
-    write_value(w, value);
+    write_value(w, document.root());
     return w.build();
 }
 
 ca::Result<void, ca::str::Utf8String> JsonWriter::write_file(
     const ca::str::Utf8StringRef& path,
-    const JsonValue& value,
+    const JsonDocument& document,
     const JsonWriterOptions& options) {
-    ca::str::Utf8String text = write(value, options);
+    ca::str::Utf8String text = write(document, options);
     std::string path_str(path.data(), path.data() + path.byte_length());
     std::ofstream out(path_str, std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {

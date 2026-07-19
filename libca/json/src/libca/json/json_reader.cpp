@@ -38,21 +38,23 @@ ParseError make_open_error(const ca::str::Utf8StringRef& path) {
 
 }  // namespace
 
-ca::Result<JsonValue, ParseError> JsonReader::read(
+ca::Result<JsonDocument, ParseError> JsonReader::read(
     const ca::str::Utf8StringRef& input,
     const JsonReaderOptions& options) {
+    JsonDocument document;
     JsonDomBuilder builder;
-    JsonParser parser(input, builder, to_parser_options(options));
+    JsonParser parser(input, builder, document.arena(), to_parser_options(options));
     if (!parser.parse()) {
         return ca::Err(clone_error(parser.last_error()));
     }
     if (builder.has_error()) {
         return ca::Err(clone_error(builder.error()));
     }
-    return ca::Ok(builder.take_root());
+    document.root() = builder.take_root();
+    return ca::Ok(std::move(document));
 }
 
-ca::Result<JsonValue, ParseError> JsonReader::read_file(
+ca::Result<JsonDocument, ParseError> JsonReader::read_file(
     const ca::str::Utf8StringRef& path,
     const JsonReaderOptions& options) {
     // 路径转 std::string（ifstream 需要）

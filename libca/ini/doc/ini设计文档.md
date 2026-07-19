@@ -1,6 +1,7 @@
 ---
-version: 2.0
+version: 2.1
 update:
+2026-07-19 - v2.1 迁移到 Arena 架构：IniDocument 内嵌 Utf8StringArena，字段与索引统一 Utf8StringRef
 2026-07-19 - v2.0 重写：深度集成 ca::str、新增类型化访问、修复带引号 value 改写 bug、
              错误带行列、重复检测、LineRecord 移入 detail 命名空间
 2026-07-14 - 删除冗余英文摘要 design.md 与使用文档（并入 README），本文成为 ini 唯一设计文档
@@ -17,7 +18,7 @@ INI 读成 map，而是支持"读入、修改少量 key、写回"时保留人工
 模块命名空间是 `ca::ini`，构建目标是 `libca_ini`，单元测试目标是 `libca_ini_unittest`。
 依赖 `libca_core` 和 `libca_str`。
 
-## v2.0 重写动机
+## v2.0 / v2.1 重写动机
 
 v1 能正确保格式 round-trip，但作为通用 INI 库有几个明显缺口。v2.0 针对性地重写：
 
@@ -32,23 +33,38 @@ v1 能正确保格式 round-trip，但作为通用 INI 库有几个明显缺口�
 | 从零生成格式不可控 | `IniWriterOptions::line_ending` 统一换行；新行格式仍固定为 `key = value` |
 
 向后兼容：保格式 round-trip、`(section, key)` 寻址、全局 key 用空串 section、同名取最后一个
-等 v1 行为全部保留（现有测试不变）。
+等 v1 行为全部保留。
 
-## 与 ca::str 的集成
+**v2.1 迁移到 Arena 架构**（与 `libca/toml`、`libca/json` 统一）：
 
-本模块 v2.0 起深度集成 `ca::str`，与 `libca/json` 保持一致：
+- `IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine` 的 section/key/value、
+  `LineRecord` 的 raw/line_ending/key_prefix 等）从 `Utf8String` 改为 `Utf8StringRef`，
+  指向内部 arena。
+- 内部索引从 `std::map<std::string, ...>` 改为 `std::map<Utf8StringRef, ...>`（Utf8StringRef
+  可拷贝可比较，直接做 key），**消除所有 `to_std()` 转换**。
+- 类型化访问（`get`/`get_or`/`sections`/`keys`）返回 `Utf8StringRef`（生命周期绑定 document）。
+- 错误通道（`get_int`/`get_double`/`get_bool` 的错误）仍用 owning `Utf8String`——错误要走出
+  document 生命期，必须是拥有式。
+
+核心动机：消灭零散堆分配。v2.0 每行 11 个 Utf8String 字段各一次堆分配，改为 Arena 后所有字符串
+进 arena 的 64KB chunk，析构 = arena 释放几个 chunk。附带 bonus：`intern` 自动去重，
+section/key 天然去重省内存。
+
+## 与 ca::str 的集成（Arena 架构）
+
+本模块深度集成 `ca::str`，**v2.1 起采用 Arena 架构**：
 
 - 输入文本用 `Utf8StringRef`（非拥有视图，零拷贝指向调用方持有的原文本）。
-- 行记录、key、value 等拥有值用 `Utf8String`。
-- 错误消息用 `Utf8String`。
+- 行记录、key、value 等字符串字段用 `Utf8StringRef`（指向所属 `IniDocument` 内的 arena）。
+- 错误消息用 `Utf8String`（拥有所有权——错误要走出 document 生命期）。
 
-代价是 `IniDocument`、`ParseError` 成为 move-only（含 `Utf8String`）。`IniReader::read` 返回
-`Result<IniDocument, ParseError>`，调用方用 `std::move(result).unwrap()` 取值。配套地，
-`libca/core/result.hpp` 补了 `unwrap_err() &&` move 重载（与 `unwrap() &&` 对称），以支持
-move-only 错误类型。
+代价是 `IniDocument`（含 arena，不可共享）与 `ParseError`（含 owning `Utf8String`）都是
+move-only。`IniReader::read` 返回 `Result<IniDocument, ParseError>`，调用方用
+`std::move(result).unwrap()` 取值。配套地，`libca/core/result.hpp` 补了 `unwrap_err() &&`
+move 重载（与 `unwrap() &&` 对称），以支持 move-only 错误类型。
 
-内部索引用 `std::map<std::string, usize>`（键是 std::string）——`Utf8String` 不可拷贝不便做
-map key，索引是内部细节，外部只经 `Utf8StringRef` 访问。
+内部索引用 `std::map<Utf8StringRef, ...>`（键是 Utf8StringRef，指向 arena 内副本）——
+Utf8StringRef 可拷贝可比较，直接做 map key，无需 `to_std()` 转换。
 
 ## 架构
 

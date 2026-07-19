@@ -101,8 +101,10 @@ UTF-8 字符串与所有权模型模块。
 
 ## ini
 
-INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。深度集成 `ca::str`：
-输入 `Utf8StringRef`，值 `Utf8String`，错误 `ParseError`。
+INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。采用 **Arena 架构**：
+`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine`/`LineRecord` 的 section/key/
+value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `Utf8StringRef`，
+值 `Utf8StringRef`（生命周期绑定 document），错误 `ParseError`。
 
 入口头文件：
 - `<libca/ini/ini.hpp>`（聚合头）
@@ -113,10 +115,10 @@ INI 配置读写模块，保格式（读改写时保留人工注释、空行和�
 - `<libca/ini/source_location.hpp>`
 
 功能：
-- `IniDocument`：保格式数据模型，按文件顺序保存行节点（`detail::LineRecord`）+ section/key 索引。
-- `IniReader`：把字符串/文件解析为 `IniDocument`，返回 `Result<IniDocument, ParseError>`。
+- `IniDocument`：保格式数据模型 + 内嵌 `Utf8StringArena`。按文件顺序保存行节点（`detail::LineRecord`，字段全为 Utf8StringRef）+ section/key 索引（键也是 Utf8StringRef）。禁拷贝、仅移动。
+- `IniReader`：把字符串/文件解析为 `IniDocument`，返回 `Result<IniDocument, ParseError>`。所有字符串经 arena.intern 入池。
 - `IniWriter`：按行节点顺序写回，返回 `Utf8String`。
-- 类型化访问：`get_int/get_double/get_bool/get_or`，自动剥首尾配对引号后转换。
+- 类型化访问：`get`（返回 Utf8StringRef）/`get_int`/`get_double`/`get_bool`/`get_or`，自动剥首尾配对引号后转换。`sections()`/`keys()` 返回 `vector<Utf8StringRef>`。
 - 保格式：set 只重建受影响行，保留缩进、分隔符、行内注释；带引号 value 修改后保留引号风格。
 - 选项：`allow_global_keys`、`hash_comment`/`semicolon_comment`、
   `on_duplicate_section`/`on_duplicate_key`（`KeepLast`/`Error`）、
@@ -128,9 +130,10 @@ INI 配置读写模块，保格式（读改写时保留人工注释、空行和�
 
 ## csv
 
-CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8StringRef`，输出 `Utf8String`，
-错误 `ParseError`（带行+列）。数据模型内部用 `std::string`（CSV 不规定编码，字段可能含
-任意字节，不强求 UTF-8 校验）。
+CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，
+字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留——CSV 不规定编码，字段
+可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 document。IO 边界接入 `ca::str`：
+输入 `Utf8StringRef`，输出 `Utf8String`，错误 `ParseError`（带行+列）。
 
 入口头文件：
 - `<libca/csv/csv.hpp>`（聚合头）
@@ -141,12 +144,14 @@ CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8S
 - `<libca/csv/source_location.hpp>`
 
 功能：
-- `CsvRow` / `CsvDocument`：表格数据模型（字段为 std::string），可选标题行 + 若干记录行。
+- `CsvRow` / `CsvDocument`：表格数据模型（字段为 Utf8StringRef，禁拷贝仅移动），可选标题行 + 若干记录行。
+- `CsvDocument::intern_field`：把字节区间经 `intern_raw` 入池（不校验 UTF-8）。
 - `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。
   支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
-- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号。
+- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号；
+  `validate_utf8`（默认 true）控制输出是否校验 UTF-8，置 false 可输出含非 UTF-8 字节的字段。
 - 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
-  Writer 的 `line_ending`、`write_header`。
+  Writer 的 `line_ending`、`write_header`、`validate_utf8`。
 
 设计与使用文档：
 - `libca/csv/doc/csv设计文档.md`
@@ -154,12 +159,16 @@ CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8S
 
 ## json
 
-JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深度集成 `ca::str`：输入用
-`Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8String`。
+JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采用 **Arena 架构**：DOM 字符串值
+与 object key 用 `Utf8StringRef`，指向所属 `JsonDocument` 内部的 `Utf8StringArena`，
+消灭零散堆分配，object key 自动去重。SAX 字符串事件同样传 `Utf8StringRef`（指向 parser
+关联的 arena）。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用
+`Result<JsonDocument, ParseError>`。
 
 入口头文件：
 - `<libca/json/json.hpp>`（聚合头）
 - `<libca/json/json_value.hpp>`
+- `<libca/json/json_document.hpp>`
 - `<libca/json/json_handler.hpp>`
 - `<libca/json/json_parser.hpp>`
 - `<libca/json/json_dom_builder.hpp>`
@@ -169,12 +178,13 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深�
 - `<libca/json/source_location.hpp>`
 
 功能：
-- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。number 区分 i64/f64，i64 溢出自动降级 float。
-- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。
-- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件（流式，零内存峰值）。
-- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonValue`。
-- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonValue, ParseError>`。
-- `JsonWriter`：把 `JsonValue` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
+- `JsonValue`：DOM 数据模型，七种类型（null/bool/int/float/string/array/object）。String 与 object key 均为 `Utf8StringRef`，因此 JsonValue 可拷贝。number 区分 i64/f64，i64 溢出自动降级 float。
+- `JsonDocument`：所有权根，持 `Utf8StringArena` + `JsonValue root_`，禁拷贝、仅移动。析构时 arena 释放所有 chunk，所有 ref 失效。
+- `JsonHandler`：SAX 事件接口，用户实现后由 `JsonParser` 驱动。字符串事件传 `Utf8StringRef`。
+- `JsonParser`：递归下降解析器，把输入驱动为 handler 事件；构造时接收 arena 引用，字符串经 `arena.intern(...)` 入池。
+- `JsonDomBuilder`：`JsonHandler` 的 DOM 装配实现，配合 `JsonParser` 得到 `JsonDocument`。
+- `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonDocument, ParseError>`。
+- `JsonWriter`：把 `JsonDocument` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。
 - 宽松选项：尾随逗号、`//` 与 `/* */` 注释（默认严格 RFC 8259）。
 

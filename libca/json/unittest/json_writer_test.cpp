@@ -14,8 +14,8 @@ namespace {
 
 Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
 
-// 读入成功并取走 root。
-JsonValue read_ok(const char* text) {
+// 读入成功并取走 document。
+JsonDocument read_ok(const char* text) {
     auto result = JsonReader::read(R(text));
     EXPECT_TRUE(result.is_ok());
     return std::move(result).unwrap();
@@ -24,6 +24,14 @@ JsonValue read_ok(const char* text) {
 std::string to_std(const Utf8String& s) {
     return std::string(reinterpret_cast<const char*>(s.data()),
                        reinterpret_cast<const char*>(s.data()) + s.byte_length());
+}
+
+// 把 JsonValue 包成临时 JsonDocument 供 writer 使用。
+// 注意：返回的 document 必须由调用方持有，writer 期间不可销毁。
+JsonDocument wrap(JsonValue v) {
+    JsonDocument doc;
+    doc.root() = std::move(v);
+    return doc;
 }
 
 // 递归比较两个 JsonValue 是否结构相等（用于 round-trip 验证）。
@@ -64,72 +72,82 @@ bool equal(const JsonValue& a, const JsonValue& b) {
 // ============================================================================
 
 TEST(JsonWriterTest, WritesScalars) {
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_null())), "null");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_bool(true))), "true");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_bool(false))), "false");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_int(42))), "42");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_int(-1))), "-1");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_null()))), "null");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_bool(true)))), "true");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_bool(false)))), "false");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_int(42)))), "42");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_int(-1)))), "-1");
 }
 
 TEST(JsonWriterTest, SerializesNaNAndInfinityAsNull) {
     // RFC 8259 不允许 NaN/Infinity；序列化为 null 保证输出仍是合法 JSON。
     EXPECT_EQ(to_std(JsonWriter::write(
-        JsonValue::make_float(std::numeric_limits<ca::f64>::quiet_NaN()))), "null");
+        wrap(JsonValue::make_float(std::numeric_limits<ca::f64>::quiet_NaN())))), "null");
     EXPECT_EQ(to_std(JsonWriter::write(
-        JsonValue::make_float(std::numeric_limits<ca::f64>::infinity()))), "null");
+        wrap(JsonValue::make_float(std::numeric_limits<ca::f64>::infinity())))), "null");
     EXPECT_EQ(to_std(JsonWriter::write(
-        JsonValue::make_float(-std::numeric_limits<ca::f64>::infinity()))), "null");
+        wrap(JsonValue::make_float(-std::numeric_limits<ca::f64>::infinity())))), "null");
 }
 
 TEST(JsonWriterTest, WritesString) {
-    EXPECT_EQ(to_std(JsonWriter::write(
-        JsonValue::make_string(Utf8String::from_cstr("hello")))), "\"hello\"");
+    JsonDocument doc;
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("hello")));
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)))), "\"hello\"");
 }
 
 TEST(JsonWriterTest, EscapesStringSpecialChars) {
+    JsonDocument doc;
     // " 和 \ 必须转义
-    auto v = JsonValue::make_string(Utf8String::from_cstr("a\"b\\c"));
-    EXPECT_EQ(to_std(JsonWriter::write(v)), "\"a\\\"b\\\\c\"");
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("a\"b\\c")));
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)))), "\"a\\\"b\\\\c\"");
 }
 
 TEST(JsonWriterTest, EscapesControlCharsAsUnicode) {
+    JsonDocument doc;
     // 换行、tab 转义
-    auto v = JsonValue::make_string(Utf8String::from_cstr("\n\t"));
-    EXPECT_EQ(to_std(JsonWriter::write(v)), "\"\\n\\t\"");
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("\n\t")));
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)))), "\"\\n\\t\"");
 }
 
 TEST(JsonWriterTest, PreservesUtf8ByDefault) {
+    JsonDocument doc;
     // 非 ASCII 默认原样输出（已是合法 UTF-8 字节）
-    auto v = JsonValue::make_string(Utf8String::from_cstr("\xE4\xB8\xAD"));  // "中"
-    EXPECT_EQ(to_std(JsonWriter::write(v)), "\"\xE4\xB8\xAD\"");
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("\xE4\xB8\xAD")));  // "中"
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)))), "\"\xE4\xB8\xAD\"");
 }
 
 TEST(JsonWriterTest, EscapesNonAsciiWhenOptionSet) {
     JsonWriterOptions opts;
     opts.ensure_ascii = true;
-    auto v = JsonValue::make_string(Utf8String::from_cstr("\xE4\xB8\xAD"));  // "中" = U+4E2D
-    EXPECT_EQ(to_std(JsonWriter::write(v, opts)), "\"\\u4e2d\"");
+    JsonDocument doc;
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("\xE4\xB8\xAD")));  // "中" = U+4E2D
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)), opts)), "\"\\u4e2d\"");
 }
 
 TEST(JsonWriterTest, EscapesAstralPlaneAsSurrogatePair) {
     JsonWriterOptions opts;
     opts.ensure_ascii = true;
-    auto v = JsonValue::make_string(Utf8String::from_cstr("\xF0\x9F\x98\x80"));  // 😀 U+1F600
-    EXPECT_EQ(to_std(JsonWriter::write(v, opts)), "\"\\ud83d\\ude00\"");
+    JsonDocument doc;
+    auto v = JsonValue::make_string(doc.arena().intern(Utf8String::from_cstr("\xF0\x9F\x98\x80")));  // 😀 U+1F600
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(std::move(v)), opts)), "\"\\ud83d\\ude00\"");
 }
 
 TEST(JsonWriterTest, WritesEmptyArrayAndObject) {
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_array())), "[]");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_object())), "{}");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_array()))), "[]");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_object()))), "{}");
 }
 
 TEST(JsonWriterTest, WritesNestedCompact) {
+    JsonDocument doc;
+    auto& arena = doc.arena();
     JsonValue obj = JsonValue::make_object();
-    obj.set(Utf8String::from_cstr("arr"), JsonValue::make_array());
+    obj.set(arena.intern(Utf8String::from_cstr("arr")), JsonValue::make_array());
     obj.find(R("arr"))->append(JsonValue::make_int(1));
     obj.find(R("arr"))->append(JsonValue::make_int(2));
-    obj.set(Utf8String::from_cstr("k"), JsonValue::make_string(Utf8String::from_cstr("v")));
-    EXPECT_EQ(to_std(JsonWriter::write(obj)), "{\"arr\":[1,2],\"k\":\"v\"}");
+    obj.set(arena.intern(Utf8String::from_cstr("k")),
+           JsonValue::make_string(arena.intern(Utf8String::from_cstr("v"))));
+    doc.root() = std::move(obj);
+    EXPECT_EQ(to_std(JsonWriter::write(doc)), "{\"arr\":[1,2],\"k\":\"v\"}");
 }
 
 // ============================================================================
@@ -137,9 +155,12 @@ TEST(JsonWriterTest, WritesNestedCompact) {
 // ============================================================================
 
 TEST(JsonWriterTest, PrettyIndents) {
+    JsonDocument doc;
+    auto& arena = doc.arena();
     JsonValue obj = JsonValue::make_object();
-    obj.set(Utf8String::from_cstr("a"), JsonValue::make_int(1));
-    obj.set(Utf8String::from_cstr("b"), JsonValue::make_int(2));
+    obj.set(arena.intern(Utf8String::from_cstr("a")), JsonValue::make_int(1));
+    obj.set(arena.intern(Utf8String::from_cstr("b")), JsonValue::make_int(2));
+    doc.root() = std::move(obj);
     JsonWriterOptions opts;
     opts.pretty = true;
     opts.indent = 2;
@@ -148,14 +169,14 @@ TEST(JsonWriterTest, PrettyIndents) {
         "  \"a\": 1,\n"
         "  \"b\": 2\n"
         "}";
-    EXPECT_EQ(to_std(JsonWriter::write(obj, opts)), expected);
+    EXPECT_EQ(to_std(JsonWriter::write(doc, opts)), expected);
 }
 
 TEST(JsonWriterTest, PrettyEmptyContainersStayCompact) {
     JsonWriterOptions opts;
     opts.pretty = true;
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_array(), opts)), "[]");
-    EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_object(), opts)), "{}");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_array()), opts)), "[]");
+    EXPECT_EQ(to_std(JsonWriter::write(wrap(JsonValue::make_object()), opts)), "{}");
 }
 
 // ============================================================================
@@ -165,28 +186,28 @@ TEST(JsonWriterTest, PrettyEmptyContainersStayCompact) {
 TEST(JsonWriterTest, RoundTripScalars) {
     const char* cases[] = {"null", "true", "false", "42", "-7", "3.14", "\"hi\"", "[]", "{}"};
     for (const char* c : cases) {
-        auto v = read_ok(c);
-        std::string written = to_std(JsonWriter::write(v));
-        auto v2 = read_ok(written.c_str());
-        EXPECT_TRUE(equal(v, v2)) << "round-trip failed for: " << c;
+        auto doc = read_ok(c);
+        std::string written = to_std(JsonWriter::write(doc));
+        auto doc2 = read_ok(written.c_str());
+        EXPECT_TRUE(equal(doc.root(), doc2.root())) << "round-trip failed for: " << c;
     }
 }
 
 TEST(JsonWriterTest, RoundTripComplex) {
     const char* src =
         "{\"name\":\"Alice\",\"age\":30,\"tags\":[\"a\",\"b\"],\"active\":true,\"score\":9.5}";
-    auto v1 = read_ok(src);
-    std::string written = to_std(JsonWriter::write(v1));
-    auto v2 = read_ok(written.c_str());
-    EXPECT_TRUE(equal(v1, v2));
+    auto doc1 = read_ok(src);
+    std::string written = to_std(JsonWriter::write(doc1));
+    auto doc2 = read_ok(written.c_str());
+    EXPECT_TRUE(equal(doc1.root(), doc2.root()));
 }
 
 TEST(JsonWriterTest, RoundTripPreservesNumbers) {
     // 整数仍是整数，浮点仍是浮点
-    auto vi = read_ok("12345");
-    EXPECT_EQ(to_std(JsonWriter::write(vi)), "12345");
-    auto vf = read_ok("1.5");
+    auto doc = read_ok("12345");
+    EXPECT_EQ(to_std(JsonWriter::write(doc)), "12345");
+    auto doci = read_ok("1.5");
     // 浮点经 %.17g 输出后可能形如 "1.5"，round-trip 仍应是 float
-    auto vf2 = read_ok(to_std(JsonWriter::write(vf)).c_str());
-    EXPECT_TRUE(vf2.is_float());
+    auto doc2 = read_ok(to_std(JsonWriter::write(doci)).c_str());
+    EXPECT_TRUE(doc2.root().is_float());
 }

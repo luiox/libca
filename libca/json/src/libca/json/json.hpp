@@ -9,6 +9,7 @@
 #include "libca/json/source_location.hpp"
 #include "libca/json/parse_error.hpp"
 #include "libca/json/json_value.hpp"
+#include "libca/json/json_document.hpp"
 #include "libca/json/json_handler.hpp"
 #include "libca/json/json_parser.hpp"
 #include "libca/json/json_dom_builder.hpp"

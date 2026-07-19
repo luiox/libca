@@ -13,8 +13,8 @@ namespace {
 // 把字符串字面量安全转成 Utf8StringRef（O(n) 算码点数，测试用无所谓）。
 Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
 
-// 解析并断言成功；返回 root（移动取出）。
-JsonValue read_ok(const char* text, JsonReaderOptions opts = {}) {
+// 解析并断言成功；返回 JsonDocument（移动取出）。
+JsonDocument read_ok(const char* text, JsonReaderOptions opts = {}) {
     auto result = JsonReader::read(R(text), opts);
     EXPECT_TRUE(result.is_ok()) << "expected parse success for: " << text;
     return std::move(result).unwrap();
@@ -26,57 +26,57 @@ JsonValue read_ok(const char* text, JsonReaderOptions opts = {}) {
 // ============================================================================
 
 TEST(JsonReaderTest, ParsesNull) {
-    auto v = read_ok("null");
-    ASSERT_TRUE(v.is_null());
-    EXPECT_EQ(v.type(), JsonType::Null);
+    auto doc = read_ok("null");
+    ASSERT_TRUE(doc.root().is_null());
+    EXPECT_EQ(doc.root().type(), JsonType::Null);
 }
 
 TEST(JsonReaderTest, ParsesBool) {
-    EXPECT_TRUE(read_ok("true").as_bool());
-    EXPECT_FALSE(read_ok("false").as_bool());
+    EXPECT_TRUE(read_ok("true").root().as_bool());
+    EXPECT_FALSE(read_ok("false").root().as_bool());
 }
 
 TEST(JsonReaderTest, ParsesInt) {
-    auto v = read_ok("42");
-    ASSERT_TRUE(v.is_int());
-    EXPECT_EQ(v.as_int(), 42);
+    auto doc = read_ok("42");
+    ASSERT_TRUE(doc.root().is_int());
+    EXPECT_EQ(doc.root().as_int(), 42);
 }
 
 TEST(JsonReaderTest, ParsesNegativeInt) {
-    auto v = read_ok("-1");
-    ASSERT_TRUE(v.is_int());
-    EXPECT_EQ(v.as_int(), -1);
+    auto doc = read_ok("-1");
+    ASSERT_TRUE(doc.root().is_int());
+    EXPECT_EQ(doc.root().as_int(), -1);
 }
 
 TEST(JsonReaderTest, ParsesMaxI64) {
-    auto v = read_ok("9223372036854775807");
-    ASSERT_TRUE(v.is_int());
-    EXPECT_EQ(v.as_int(), 9223372036854775807LL);
+    auto doc = read_ok("9223372036854775807");
+    ASSERT_TRUE(doc.root().is_int());
+    EXPECT_EQ(doc.root().as_int(), 9223372036854775807LL);
 }
 
 TEST(JsonReaderTest, ParsesMinI64) {
-    auto v = read_ok("-9223372036854775808");
-    ASSERT_TRUE(v.is_int());
-    EXPECT_EQ(v.as_int(), (-9223372036854775807LL - 1));
+    auto doc = read_ok("-9223372036854775808");
+    ASSERT_TRUE(doc.root().is_int());
+    EXPECT_EQ(doc.root().as_int(), (-9223372036854775807LL - 1));
 }
 
 TEST(JsonReaderTest, I64OverflowDowngradesToFloat) {
     // 超过 i64 上限，应降级为 float
-    auto v = read_ok("9223372036854775808");  // i64::MAX + 1
-    ASSERT_TRUE(v.is_float()) << "expected float for overflowing integer";
-    EXPECT_GT(v.as_float(), 9.2e18);
+    auto doc = read_ok("9223372036854775808");  // i64::MAX + 1
+    ASSERT_TRUE(doc.root().is_float()) << "expected float for overflowing integer";
+    EXPECT_GT(doc.root().as_float(), 9.2e18);
 }
 
 TEST(JsonReaderTest, ParsesFloat) {
-    auto v = read_ok("3.14");
-    ASSERT_TRUE(v.is_float());
-    EXPECT_DOUBLE_EQ(v.as_float(), 3.14);
+    auto doc = read_ok("3.14");
+    ASSERT_TRUE(doc.root().is_float());
+    EXPECT_DOUBLE_EQ(doc.root().as_float(), 3.14);
 }
 
 TEST(JsonReaderTest, ParsesFloatWithExponent) {
-    EXPECT_DOUBLE_EQ(read_ok("1e10").as_float(), 1e10);
-    EXPECT_DOUBLE_EQ(read_ok("1.5E-3").as_float(), 1.5e-3);
-    EXPECT_DOUBLE_EQ(read_ok("-0.0").as_float(), -0.0);
+    EXPECT_DOUBLE_EQ(read_ok("1e10").root().as_float(), 1e10);
+    EXPECT_DOUBLE_EQ(read_ok("1.5E-3").root().as_float(), 1.5e-3);
+    EXPECT_DOUBLE_EQ(read_ok("-0.0").root().as_float(), -0.0);
 }
 
 TEST(JsonReaderTest, RejectsLeadingZeros) {
@@ -106,26 +106,26 @@ TEST(JsonReaderTest, RejectsDanglingMinus) {
 // ============================================================================
 
 TEST(JsonReaderTest, ParsesEmptyString) {
-    auto v = read_ok("\"\"");
-    ASSERT_TRUE(v.is_string());
-    EXPECT_TRUE(v.as_string().is_empty());
+    auto doc = read_ok("\"\"");
+    ASSERT_TRUE(doc.root().is_string());
+    EXPECT_TRUE(doc.root().as_string().is_empty());
 }
 
 TEST(JsonReaderTest, ParsesAsciiString) {
-    auto v = read_ok("\"hello\"");
-    EXPECT_EQ(v.as_string(), Utf8String::from_cstr("hello"));
+    auto doc = read_ok("\"hello\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("hello"));
 }
 
 TEST(JsonReaderTest, ParsesUtf8String) {
     // 中文 + emoji（emoji 在 JSON 里通常以 surrogate pair 写，但合法 UTF-8 字节也直接接受）
-    auto v = read_ok("\"\\u4e2d\\u6587\"");
-    EXPECT_EQ(v.as_string(), Utf8String::from_cstr("中文"));
+    auto doc = read_ok("\"\\u4e2d\\u6587\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("中文"));
 }
 
 TEST(JsonReaderTest, ParsesSurrogatePair) {
     // U+1F600 😀 = \uD83D\uDE00
-    auto v = read_ok("\"\\uD83D\\uDE00\"");
-    EXPECT_EQ(v.as_string(), Utf8String::from_cstr("\xF0\x9F\x98\x80"));
+    auto doc = read_ok("\"\\uD83D\\uDE00\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("\xF0\x9F\x98\x80"));
 }
 
 TEST(JsonReaderTest, RejectsDanglingHighSurrogate) {
@@ -137,14 +137,14 @@ TEST(JsonReaderTest, RejectsUnexpectedLowSurrogate) {
 }
 
 TEST(JsonReaderTest, ParsesAllEscapes) {
-    auto v = read_ok("\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"");
+    auto doc = read_ok("\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"");
     // 期望解码后：" \ / backspace formfeed newline cr tab
-    EXPECT_EQ(v.as_string(), Utf8String::from_cstr("\"\\/\b\f\n\r\t"));
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("\"\\/\b\f\n\r\t"));
 }
 
 TEST(JsonReaderTest, ParsesHexEscape) {
-    auto v = read_ok("\"\\u0041\"");  // 'A'
-    EXPECT_EQ(v.as_string(), Utf8String::from_cstr("A"));
+    auto doc = read_ok("\"\\u0041\"");  // 'A'
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("A"));
 }
 
 TEST(JsonReaderTest, RejectsUnterminatedString) {
@@ -169,19 +169,20 @@ TEST(JsonReaderTest, RejectsIncompleteUnicodeEscape) {
 // ============================================================================
 
 TEST(JsonReaderTest, ParsesEmptyArray) {
-    auto v = read_ok("[]");
-    ASSERT_TRUE(v.is_array());
-    EXPECT_EQ(v.size(), 0u);
+    auto doc = read_ok("[]");
+    ASSERT_TRUE(doc.root().is_array());
+    EXPECT_EQ(doc.root().size(), 0u);
 }
 
 TEST(JsonReaderTest, ParsesEmptyObject) {
-    auto v = read_ok("{}");
-    ASSERT_TRUE(v.is_object());
-    EXPECT_EQ(v.as_object().size(), 0u);
+    auto doc = read_ok("{}");
+    ASSERT_TRUE(doc.root().is_object());
+    EXPECT_EQ(doc.root().as_object().size(), 0u);
 }
 
 TEST(JsonReaderTest, ParsesMixedArray) {
-    auto v = read_ok("[1, \"two\", true, null, 3.5]");
+    auto doc = read_ok("[1, \"two\", true, null, 3.5]");
+    const auto& v = doc.root();
     ASSERT_TRUE(v.is_array());
     ASSERT_EQ(v.size(), 5u);
     EXPECT_EQ(v.at(0).as_int(), 1);
@@ -192,7 +193,8 @@ TEST(JsonReaderTest, ParsesMixedArray) {
 }
 
 TEST(JsonReaderTest, ParsesObject) {
-    auto v = read_ok("{\"name\": \"Alice\", \"age\": 30}");
+    auto doc = read_ok("{\"name\": \"Alice\", \"age\": 30}");
+    const auto& v = doc.root();
     ASSERT_TRUE(v.is_object());
     ASSERT_EQ(v.as_object().size(), 2u);
     ASSERT_NE(v.find(R("name")), nullptr);
@@ -203,7 +205,8 @@ TEST(JsonReaderTest, ParsesObject) {
 }
 
 TEST(JsonReaderTest, ParsesNested) {
-    auto v = read_ok("{\"a\": [1, 2, {\"b\": [3, 4]}]}");
+    auto doc = read_ok("{\"a\": [1, 2, {\"b\": [3, 4]}]}");
+    const auto& v = doc.root();
     ASSERT_TRUE(v.is_object());
     auto* a = v.find(R("a"));
     ASSERT_NE(a, nullptr);
@@ -216,9 +219,9 @@ TEST(JsonReaderTest, ParsesNested) {
 }
 
 TEST(JsonReaderTest, IgnoresWhitespace) {
-    auto v = read_ok("  {  \"k\"  :  1  }  ");
-    ASSERT_TRUE(v.is_object());
-    EXPECT_EQ(v.find(R("k"))->as_int(), 1);
+    auto doc = read_ok("  {  \"k\"  :  1  }  ");
+    ASSERT_TRUE(doc.root().is_object());
+    EXPECT_EQ(doc.root().find(R("k"))->as_int(), 1);
 }
 
 TEST(JsonReaderTest, RejectsMissingCommaInArray) {
@@ -241,8 +244,8 @@ TEST(JsonReaderTest, RejectsTrailingCommaByDefault) {
 TEST(JsonReaderTest, AllowsTrailingCommaWhenOptionSet) {
     JsonReaderOptions opts;
     opts.allow_trailing_comma = true;
-    EXPECT_TRUE(read_ok("[1, 2,]", opts).is_array());
-    EXPECT_TRUE(read_ok("{\"a\":1,}", opts).is_object());
+    EXPECT_TRUE(read_ok("[1, 2,]", opts).root().is_array());
+    EXPECT_TRUE(read_ok("{\"a\":1,}", opts).root().is_object());
 }
 
 TEST(JsonReaderTest, RejectsCommentsByDefault) {
@@ -253,8 +256,8 @@ TEST(JsonReaderTest, RejectsCommentsByDefault) {
 TEST(JsonReaderTest, AllowsCommentsWhenOptionSet) {
     JsonReaderOptions opts;
     opts.allow_comments = true;
-    EXPECT_EQ(read_ok("// hi\n42", opts).as_int(), 42);
-    EXPECT_EQ(read_ok("/* hi */42", opts).as_int(), 42);
+    EXPECT_EQ(read_ok("// hi\n42", opts).root().as_int(), 42);
+    EXPECT_EQ(read_ok("/* hi */42", opts).root().as_int(), 42);
 }
 
 TEST(JsonReaderTest, RejectsEmptyInput) {
@@ -278,11 +281,13 @@ TEST(JsonReaderTest, RejectsBom) {
 // ============================================================================
 
 TEST(JsonValueTest, FactoryAndTypeQueries) {
+    JsonDocument doc;  // 为 make_string 提供入池 arena
+    auto& arena = doc.arena();
     EXPECT_TRUE(JsonValue::make_null().is_null());
     EXPECT_TRUE(JsonValue::make_bool(true).is_bool());
     EXPECT_TRUE(JsonValue::make_int(5).is_int());
     EXPECT_TRUE(JsonValue::make_float(1.5).is_float());
-    EXPECT_TRUE(JsonValue::make_string(Utf8String::from_cstr("x")).is_string());
+    EXPECT_TRUE(JsonValue::make_string(arena.intern(Utf8String::from_cstr("x"))).is_string());
     EXPECT_TRUE(JsonValue::make_array().is_array());
     EXPECT_TRUE(JsonValue::make_object().is_object());
     EXPECT_TRUE(JsonValue::make_int(5).is_number());
@@ -307,18 +312,22 @@ TEST(JsonValueTest, ArrayAppendAndAt) {
 }
 
 TEST(JsonValueTest, ObjectSetOverwritesSameKey) {
+    JsonDocument doc;
+    auto& arena = doc.arena();
     JsonValue obj = JsonValue::make_object();
-    obj.set(Utf8String::from_cstr("k"), JsonValue::make_int(1));
-    obj.set(Utf8String::from_cstr("k"), JsonValue::make_int(2));
+    obj.set(arena.intern(Utf8String::from_cstr("k")), JsonValue::make_int(1));
+    obj.set(arena.intern(Utf8String::from_cstr("k")), JsonValue::make_int(2));
     EXPECT_EQ(obj.as_object().size(), 1u);
     EXPECT_EQ(obj.find(R("k"))->as_int(), 2);
 }
 
 TEST(JsonValueTest, ObjectPreservesInsertionOrder) {
+    JsonDocument doc;
+    auto& arena = doc.arena();
     JsonValue obj = JsonValue::make_object();
-    obj.set(Utf8String::from_cstr("c"), JsonValue::make_int(3));
-    obj.set(Utf8String::from_cstr("a"), JsonValue::make_int(1));
-    obj.set(Utf8String::from_cstr("b"), JsonValue::make_int(2));
+    obj.set(arena.intern(Utf8String::from_cstr("c")), JsonValue::make_int(3));
+    obj.set(arena.intern(Utf8String::from_cstr("a")), JsonValue::make_int(1));
+    obj.set(arena.intern(Utf8String::from_cstr("b")), JsonValue::make_int(2));
     ASSERT_EQ(obj.as_object().size(), 3u);
     EXPECT_EQ(obj.as_object()[0].first, Utf8String::from_cstr("c"));
     EXPECT_EQ(obj.as_object()[1].first, Utf8String::from_cstr("a"));
@@ -326,8 +335,10 @@ TEST(JsonValueTest, ObjectPreservesInsertionOrder) {
 }
 
 TEST(JsonValueTest, ObjectRemove) {
+    JsonDocument doc;
+    auto& arena = doc.arena();
     JsonValue obj = JsonValue::make_object();
-    obj.set(Utf8String::from_cstr("k"), JsonValue::make_int(1));
+    obj.set(arena.intern(Utf8String::from_cstr("k")), JsonValue::make_int(1));
     EXPECT_TRUE(obj.remove(R("k")));
     EXPECT_FALSE(obj.remove(R("k")));
     EXPECT_EQ(obj.as_object().size(), 0u);

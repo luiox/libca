@@ -15,8 +15,9 @@ namespace {
 // C 字符串 → Utf8StringRef（测试输入便利）。
 Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
 
-// Utf8String → std::string（用于 EXPECT_EQ 与字面量比较）。
-std::string S(const Utf8String& s) {
+// Utf8StringRef → std::string（用于 EXPECT_EQ 与字面量比较）。
+// Utf8String 可隐式转 Utf8StringRef，所以本 helper 同时兼容两者。
+std::string S(const ca::str::Utf8StringRef& s) {
     return std::string(reinterpret_cast<const char*>(s.data()),
                        reinterpret_cast<const char*>(s.data()) + s.byte_length());
 }
@@ -28,8 +29,8 @@ IniDocument read_ok(const char* text, IniReaderOptions opts = {}) {
     return std::move(result).unwrap();
 }
 
-// get 并断言成功，返回 value（Utf8String）。
-Utf8String get_ok(const IniDocument& doc, const char* section, const char* key) {
+// get 并断言成功，返回 value（Utf8StringRef，生命周期绑定 doc；调用方需保持 doc 存活）。
+Utf8StringRef get_ok(const IniDocument& doc, const char* section, const char* key) {
     auto r = doc.get(R(section), R(key));
     EXPECT_TRUE(r.is_ok());
     return std::move(r).unwrap();

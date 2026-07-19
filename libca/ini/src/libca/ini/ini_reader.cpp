@@ -16,13 +16,16 @@ namespace {
 using ca::u8;
 using ca::usize;
 
-// Utf8StringRef/Utf8String 与 std::string 互转（内部用 std::string 做字符扫描更直接）。
+// Utf8StringRef 与 std::string 互转（内部用 std::string 做字符扫描更直接）。
 std::string to_std(const ca::str::Utf8StringRef& s) {
     return std::string(reinterpret_cast<const char*>(s.data()),
                        reinterpret_cast<const char*>(s.data()) + s.byte_length());
 }
-ca::str::Utf8String from_std(std::string s) {
-    return ca::str::Utf8String::from_cstr(s.c_str());
+
+// 把 std::string 经 arena 入池得到 Utf8StringRef（parse_line 内统一入口）。
+ca::str::Utf8StringRef intern_std(ca::str::Utf8StringArena& arena, const std::string& s) {
+    return arena.intern(ca::str::Utf8String(
+        reinterpret_cast<const ca::u8*>(s.data()), s.size()));
 }
 
 bool is_space(char ch) noexcept {
@@ -104,16 +107,17 @@ struct LineParse {
     ParseError parse_error;
 };
 
-void parse_line(const std::string& raw,
+void parse_line(ca::str::Utf8StringArena& arena,
+                const std::string& raw,
                 const std::string& line_ending,
                 const std::string& current_section,
                 const IniReaderOptions& options,
                 usize line_number,
                 usize line_start_column,  // 该行第一列的列号（通常 1）
                 LineParse& out) {
-    out.record.raw = from_std(raw);
-    out.record.line_ending = from_std(line_ending);
-    out.record.line.section = from_std(current_section);
+    out.record.raw = intern_std(arena, raw);
+    out.record.line_ending = intern_std(arena, line_ending);
+    out.record.line.section = intern_std(arena, current_section);
 
     const auto trimmed = trim_ascii(raw);
     if (trimmed.empty()) {
@@ -130,11 +134,11 @@ void parse_line(const std::string& raw,
         if (end == std::string::npos) {
             out.error = true;
             out.parse_error.location = SourceLocation{line_number, line_start_column};
-            out.parse_error.message = from_std("section header misses closing ']'");
+            out.parse_error.message = ca::str::Utf8String::from_cstr("section header misses closing ']'");
             return;
         }
         out.record.line.kind = IniLineKind::Section;
-        out.record.line.section = from_std(trim_ascii(trimmed.substr(1, end - 1)));
+        out.record.line.section = intern_std(arena, trim_ascii(trimmed.substr(1, end - 1)));
         out.next_section = trim_ascii(trimmed.substr(1, end - 1));
         out.changed_section = true;
         return;
@@ -154,13 +158,13 @@ void parse_line(const std::string& raw,
     if (separator_pos == std::string::npos) {
         out.error = true;
         out.parse_error.location = SourceLocation{line_number, line_start_column};
-        out.parse_error.message = from_std("key/value line misses '=' or ':'");
+        out.parse_error.message = ca::str::Utf8String::from_cstr("key/value line misses '=' or ':'");
         return;
     }
     if (current_section.empty() && !options.allow_global_keys) {
         out.error = true;
         out.parse_error.location = SourceLocation{line_number, line_start_column};
-        out.parse_error.message = from_std("global key/value is disabled");
+        out.parse_error.message = ca::str::Utf8String::from_cstr("global key/value is disabled");
         return;
     }
 
@@ -181,16 +185,16 @@ void parse_line(const std::string& raw,
     const std::string value_str = value_part.substr(value_begin, value_end - value_begin);
 
     out.record.line.kind = IniLineKind::KeyValue;
-    out.record.line.section = from_std(current_section);
-    out.record.line.key = from_std(key_str);
-    out.record.line.value = from_std(value_str);
-    out.record.key_prefix = from_std(key_part.substr(0, key_begin));
-    out.record.key_suffix = from_std(key_part.substr(key_end));
-    out.record.separator = from_std(raw.substr(separator_pos, 1));
-    out.record.value_prefix = from_std(value_part.substr(0, value_begin));
+    out.record.line.section = intern_std(arena, current_section);
+    out.record.line.key = intern_std(arena, key_str);
+    out.record.line.value = intern_std(arena, value_str);
+    out.record.key_prefix = intern_std(arena, key_part.substr(0, key_begin));
+    out.record.key_suffix = intern_std(arena, key_part.substr(key_end));
+    out.record.separator = intern_std(arena, raw.substr(separator_pos, 1));
+    out.record.value_prefix = intern_std(arena, value_part.substr(0, value_begin));
     out.record.comment_suffix = value_end < value_part.size()
-                                    ? from_std(value_part.substr(value_end))
-                                    : ca::str::Utf8String();
+                                    ? intern_std(arena, value_part.substr(value_end))
+                                    : ca::str::Utf8StringRef();
     // 记录 value 是否带引号（供 set() 重建时补回）。
     char qchar = '"';
     out.record.value_quoted = detect_quotes(value_str, qchar);
@@ -203,10 +207,11 @@ ca::Result<IniDocument, ParseError> IniReader::read(
     const ca::str::Utf8StringRef& input,
     const IniReaderOptions& options) {
     IniDocument document;
+    auto& arena = document.arena();
     std::string current_section;
     usize line_number = 1;
 
-    // 用 std::string 做行扫描（字符级处理更直接），解析后转 Utf8String 入文档。
+    // 用 std::string 做行扫描（字符级处理更直接），解析后经 arena 入池。
     const std::string text = to_std(input);
 
     // 重复检测记账
@@ -239,7 +244,7 @@ ca::Result<IniDocument, ParseError> IniReader::read(
         }
 
         LineParse parsed;
-        parse_line(raw, line_ending, current_section, options, line_number, 1, parsed);
+        parse_line(arena, raw, line_ending, current_section, options, line_number, 1, parsed);
         if (parsed.error) {
             return ca::Err(std::move(parsed.parse_error));
         }
@@ -251,7 +256,8 @@ ca::Result<IniDocument, ParseError> IniReader::read(
                 seen_sections.find(current_section) != seen_sections.end()) {
                 ParseError err;
                 err.location = SourceLocation{line_number, 1};
-                err.message = from_std("duplicate section: " + current_section);
+                err.message = ca::str::Utf8String::from_cstr(
+                    ("duplicate section: " + current_section).c_str());
                 return ca::Err(std::move(err));
             }
             seen_sections[current_section] = true;
@@ -260,12 +266,13 @@ ca::Result<IniDocument, ParseError> IniReader::read(
         // 重复检测：key
         if (parsed.record.line.kind == IniLineKind::KeyValue) {
             const std::string& sec = current_section;
-            const std::string key_str = to_std(parsed.record.line.key.ref());
+            const std::string key_str = to_std(parsed.record.line.key);
             if (options.on_duplicate_key == DuplicatePolicy::Error &&
                 seen_keys[sec].find(key_str) != seen_keys[sec].end()) {
                 ParseError err;
                 err.location = SourceLocation{line_number, 1};
-                err.message = from_std("duplicate key '" + key_str + "' in section: " + sec);
+                err.message = ca::str::Utf8String::from_cstr(
+                    ("duplicate key '" + key_str + "' in section: " + sec).c_str());
                 return ca::Err(std::move(err));
             }
             seen_keys[sec][key_str] = true;
@@ -287,7 +294,8 @@ ca::Result<IniDocument, ParseError> IniReader::read_file(
     if (!input.is_open()) {
         ParseError err;
         err.location = SourceLocation{};
-        err.message = from_std("failed to open INI file: " + path_str);
+        err.message = ca::str::Utf8String::from_cstr(
+            ("failed to open INI file: " + path_str).c_str());
         return ca::Err(std::move(err));
     }
     std::ostringstream buffer;

@@ -5,15 +5,18 @@
 /// @details IniDocument 以"行节点列表"为核心，保留注释、空行、section 顺序和未修改行的
 ///          原始文本。set/remove 等编辑操作只重建受影响的 key 或 section 行，Writer 按当前
 ///          行节点顺序输出，从而满足配置文件读改写时尽量不扰动人工注释的需求。
-/// @note 字符串值用 ca::str::Utf8String，参数用 Utf8StringRef，深度集成 ca::str。
-///       section 用 Utf8String 表示，空字符串表示全局区（向后兼容约定）。
-///       LineRecord 在 ca::ini::detail 命名空间，属内部实现细节，普通调用方只用
-///       IniLine / get / set / 类型化访问等高层接口。
+/// @note 采用 Arena 架构：IniDocument 内嵌 `ca::str::Utf8StringArena`，所有字符串字段
+///       （IniLine / LineRecord）存 `Utf8StringRef`，指向内部 arena。
+///       section 用 Utf8StringRef 表示，空字符串表示全局区（向后兼容约定）。
+///       IniDocument 禁拷贝（含 arena，不可共享），仅可移动。document 析构/clear/move-assign
+///       后，所有 ref 失效。LineRecord 在 ca::ini::detail 命名空间，属内部实现细节，
+///       普通调用方只用 IniLine / get / set / 类型化访问等高层接口。
 
 #include "libca/core/datatype.hpp"
 #include "libca/core/result.hpp"
 
 #include "libca/str/utf8_string.hpp"
+#include "libca/str/utf8_string_arena.hpp"
 
 #include <map>
 #include <string>
@@ -32,12 +35,12 @@ enum class IniLineKind {
     KeyValue  ///< key/value 配置项行。
 };
 
-/// @brief INI 文档中的一行（只读视图）。
+/// @brief INI 文档中的一行（只读视图，字符串引用绑定所属 IniDocument）。
 struct IniLine {
     IniLineKind kind = IniLineKind::Blank;  ///< 行类型。
-    ca::str::Utf8String section;            ///< 所属 section；全局区为空字符串。
-    ca::str::Utf8String key;                ///< KeyValue 行的 key。
-    ca::str::Utf8String value;              ///< KeyValue 行的 value（按解析原样，含可能的首尾引号）。
+    ca::str::Utf8StringRef section;            ///< 所属 section；全局区为空字符串。
+    ca::str::Utf8StringRef key;                ///< KeyValue 行的 key。
+    ca::str::Utf8StringRef value;              ///< KeyValue 行的 value（按解析原样，含可能的首尾引号）。
 };
 
 namespace detail {
@@ -46,15 +49,15 @@ namespace detail {
 /// @details Reader 填充，Writer 消费。set() 只重建受影响行的 raw，不动其余行。
 struct LineRecord {
     IniLine line;                       ///< 解析出的高层行信息。
-    ca::str::Utf8String raw;            ///< 整行原始文本（不含行结束符）。
-    ca::str::Utf8String line_ending;    ///< 行结束符。
+    ca::str::Utf8StringRef raw;            ///< 整行原始文本（不含行结束符）。
+    ca::str::Utf8StringRef line_ending;    ///< 行结束符。
 
     // 以下格式片段仅对 KeyValue 行有效；用于 set() 后原样重建该行。
-    ca::str::Utf8String key_prefix;     ///< key 前的缩进/空白。
-    ca::str::Utf8String key_suffix;     ///< key 与分隔符之间的空白。
-    ca::str::Utf8String separator;      ///< 分隔符（"=" 或 ":"）。
-    ca::str::Utf8String value_prefix;   ///< 分隔符与 value 之间的空白。
-    ca::str::Utf8String comment_suffix; ///< value 之后的行内注释（含前导空白）。
+    ca::str::Utf8StringRef key_prefix;     ///< key 前的缩进/空白。
+    ca::str::Utf8StringRef key_suffix;     ///< key 与分隔符之间的空白。
+    ca::str::Utf8StringRef separator;      ///< 分隔符（"=" 或 ":"）。
+    ca::str::Utf8StringRef value_prefix;   ///< 分隔符与 value 之间的空白。
+    ca::str::Utf8StringRef comment_suffix; ///< value 之后的行内注释（含前导空白）。
 
     /// value 是否被引号包裹（解析时记录）；set() 重建时按此补回引号。
     bool value_quoted = false;
@@ -64,15 +67,18 @@ struct LineRecord {
 
 }  // namespace detail
 
-/// @brief INI 文档模型（保格式）。
+/// @brief INI 文档模型（保格式，Arena 架构）。
 class IniDocument {
 public:
-    IniDocument() = default;
+    IniDocument();
     IniDocument(const IniDocument&) = delete;
     IniDocument& operator=(const IniDocument&) = delete;
-    IniDocument(IniDocument&&) noexcept = default;
-    IniDocument& operator=(IniDocument&&) noexcept = default;
+    IniDocument(IniDocument&&) noexcept;
+    IniDocument& operator=(IniDocument&&) noexcept;
     ~IniDocument();
+
+    /// @brief 内部 arena（reader/用户需要 intern 字符串时用）。
+    ca::str::Utf8StringArena& arena() noexcept;
 
     // ---- 查询 ----
 
@@ -85,9 +91,10 @@ public:
 
     // ---- 原始值访问 ----
 
-    /// @brief 读取配置值（按解析原样，含可能的首尾引号）。
-    /// @return 成功返回 value；不存在返回错误说明。
-    ca::Result<ca::str::Utf8String, ca::str::Utf8String> get(
+    /// @brief 读取配置值（按解析原样，含可能的首尾引号）。返回 Utf8StringRef，生命周期绑定
+    ///        本 document。
+    /// @return 成功返回 value；不存在返回错误说明（owning Utf8String）。
+    ca::Result<ca::str::Utf8StringRef, ca::str::Utf8String> get(
         const ca::str::Utf8StringRef& section,
         const ca::str::Utf8StringRef& key) const;
 
@@ -108,14 +115,15 @@ public:
         const ca::str::Utf8StringRef& section,
         const ca::str::Utf8StringRef& key) const;
 
-    /// @brief 读取值；不存在时返回 default_value（按解析原样，含可能的首尾引号）。
-    ca::str::Utf8String get_or(const ca::str::Utf8StringRef& section,
-                               const ca::str::Utf8StringRef& key,
-                               const ca::str::Utf8StringRef& default_value) const;
+    /// @brief 读取值；不存在时返回 default_value（返回 Utf8StringRef，生命周期绑定本 document
+    ///        或调用方传入的 default_value）。
+    ca::str::Utf8StringRef get_or(const ca::str::Utf8StringRef& section,
+                                  const ca::str::Utf8StringRef& key,
+                                  const ca::str::Utf8StringRef& default_value) const;
 
     // ---- 编辑 ----
 
-    /// @brief 设置配置值；不存在时会插入到对应 section 末尾。
+    /// @brief 设置配置值；不存在时会插入到对应 section 末尾。新 value 经 arena.intern 入池。
     /// @note 若原 value 带引号（value_quoted），新 value 重建时补回同样的引号。
     void set(const ca::str::Utf8StringRef& section,
              const ca::str::Utf8StringRef& key,
@@ -133,15 +141,17 @@ public:
     // ---- 枚举 ----
 
     /// @brief 返回 section 列表，按文件中首次出现顺序排列（不含全局区）。
-    std::vector<ca::str::Utf8String> sections() const;
+    ///        返回的 Utf8StringRef 生命周期绑定本 document。
+    std::vector<ca::str::Utf8StringRef> sections() const;
 
     /// @brief 返回指定 section 下的 key 列表，按首次出现顺序排列并去重。
-    std::vector<ca::str::Utf8String> keys(const ca::str::Utf8StringRef& section) const;
+    ///        返回的 Utf8StringRef 生命周期绑定本 document。
+    std::vector<ca::str::Utf8StringRef> keys(const ca::str::Utf8StringRef& section) const;
 
     /// @brief 返回解析出的行结构视图（只读）。
     const std::vector<IniLine>& lines() const noexcept;
 
-    /// @brief 清空文档。
+    /// @brief 清空文档并释放 arena。所有 ref 失效。
     void clear() noexcept;
 
 private:
@@ -149,23 +159,23 @@ private:
     friend class IniWriter;
 
     // 内部查找：定位到 (section, key) 的 value；找不到返回 nullptr。
-    // 用于类型化访问避开 Result< Utf8String, Utf8String > 在 move-only Utf8String 上的拷贝问题。
-    const ca::str::Utf8String* find_value(const ca::str::Utf8StringRef& section,
-                                          const ca::str::Utf8StringRef& key) const;
+    const ca::str::Utf8StringRef* find_value(const ca::str::Utf8StringRef& section,
+                                             const ca::str::Utf8StringRef& key) const;
 
+    ca::str::Utf8StringArena arena_;
     std::vector<detail::LineRecord> records_;
     std::vector<IniLine> public_lines_;
-    // 索引键用 std::string：Utf8String 不可拷贝，不便做 map key；索引是内部细节，
-    // 外部只经 Utf8StringRef 访问。全局区用空 std::string 表示。
-    std::map<std::string, ca::usize> section_index_;
-    std::map<std::string, std::map<std::string, ca::usize>> key_index_;
+    // 索引键用 Utf8StringRef（指向 arena 内副本，可拷贝可比较）。
+    // 全局区用空 ref 表示。
+    std::map<ca::str::Utf8StringRef, ca::usize> section_index_;
+    std::map<ca::str::Utf8StringRef, std::map<ca::str::Utf8StringRef, ca::usize>> key_index_;
     std::string default_line_ending_ = "\n";
 
     // 内部辅助
     void add_record(detail::LineRecord record);
     void rebuild_index();
     void rebuild_key_raw(ca::usize line_index);
-    ca::usize find_insert_position(const std::string& section) const noexcept;
+    ca::usize find_insert_position(const ca::str::Utf8StringRef& section) const noexcept;
     std::string line_ending_for_new_line() const;
 };
 
