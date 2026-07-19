@@ -1,9 +1,9 @@
 # libca_http
 
-同步 HTTP/1.0/1.1 报文、URL 与 header 基础模块，命名空间 `ca::http`。
+同步 HTTP/1.0/1.1 codec、client 与 server 模块，命名空间 `ca::http`。
 
-> 当前版本提供 codec，不包含连接管理、路由和 TLS。设计边界见 `doc/design.md`，接口签名
-> 以头文件 Doxygen 注释为准。
+> 当前版本只连接明文 http。https 需要后续可选 TLS stream；设计边界见 `doc/design.md`，
+> 接口签名以头文件 Doxygen 注释为准。
 
 ## 读写报文
 
@@ -102,3 +102,51 @@ url.authority();  // [::1]:8443
 
 URL parser 支持 http/https、DNS/IPv4 host、方括号 IPv6、显式端口、query 和 fragment
 剥离。userinfo、未加方括号的 IPv6、控制字符和非法端口会返回 `InvalidUrl`。
+
+## Client
+
+`HttpClient` 完整缓冲 response，并在相同 http origin 上复用一条 keep-alive 连接。URL
+始终覆盖 request 的 target 与 Host，避免实际连接地址和 wire authority 分歧：
+
+```cpp
+auto url = ca::http::HttpUrl::parse("http://127.0.0.1:8080/data").unwrap();
+auto client = ca::http::HttpClient::create().unwrap();
+
+auto response = client.get(url);
+if (response.is_err()) return;
+if (response.unwrap().status != 200) return;
+```
+
+`HttpClientOptions` 分别控制 connect、request write、response head/body 总期限与解析限制。
+client 会跳过有限数量的 1xx response，正确处理 close-delimited body，并在 framing 或
+`Connection` 不允许复用时关闭连接。当前不做 redirect、cookie、代理、压缩和 https。
+
+## Server
+
+`HttpServer::bind()` 在调用线程外不启动后台任务；注册路由后，`serve()` 在当前线程进入
+accept loop，另一个线程可调用 `stop()`：
+
+```cpp
+auto address = ca::net::SocketAddress(ca::net::IpAddress::localhost_v4(), 8080);
+auto server = ca::http::HttpServer::bind(address).unwrap();
+
+server.route("POST", "/mcp", [](const ca::http::HttpServerRequestContext& context) {
+    ca::http::HttpResponse response;
+    response.status = 200;
+    response.body = context.request().body;
+    return ca::core::Ok(ca::http::HttpServerResponse::buffered(std::move(response)));
+});
+
+auto served = server.serve();
+```
+
+路由按区分大小写的 method 与不含 query 的 origin-form path 精确匹配；path 匹配而 method
+不匹配返回 405，其它未匹配请求返回 404。`HttpServerResponse::chunked()` 接受同步 producer，
+producer 可逐块写入并 flush SSE event；producer 成功后 server 显式写 final chunk，失败则直接
+关闭不完整连接。
+
+server 使用固定 worker 数和有界 pending connection 队列，过载连接返回 503。idle、request
+head/body、response write 均有独立期限；accept loop 发送 503 并关闭连接使用更短的
+`overload_response_timeout`，避免慢连接长时间阻塞后续 accept。`stop()` 请求协作取消，活动 IO
+最多一个 `stop_poll_interval` 后退出。单连接达到 `max_requests_per_connection` 后会发送
+`Connection: close`。
