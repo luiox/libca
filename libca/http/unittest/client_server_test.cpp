@@ -225,6 +225,43 @@ TEST(HttpClientServerTest, StreamsChunkedResponseWithTrailersAndStopsIdleWorker)
     ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
 }
 
+TEST(HttpClientServerTest, BuffersBodiesLargerThanInitialCapacity)
+{
+    auto server         = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/echo",
+                           [](const HttpServerRequestContext& context) {
+                               HttpResponse response;
+                               response.status = 200;
+                               response.body   = context.request().body;
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(std::move(response)));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    const std::string body(12 * 1024, 'x');
+    HttpRequest       request;
+    request.method = "POST";
+    request.body   = body_bytes(body);
+    auto response  = client.request(server_url(address, "/echo"), std::move(request));
+    ASSERT_TRUE(response.is_ok()) << response.unwrap_err().to_string();
+    EXPECT_EQ(response.unwrap().status, 200);
+    EXPECT_EQ(body_text(response.unwrap().body), body);
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
 TEST(HttpClientServerTest, MapsBodyLimitAndUnsupportedExpectation)
 {
     HttpServerOptions options;
@@ -279,11 +316,12 @@ TEST(HttpClientServerTest, MapsBodyLimitAndUnsupportedExpectation)
 TEST(HttpClientServerTest, RejectsConnectionsBeyondWorkerAndPendingCapacity)
 {
     HttpServerOptions options;
-    options.worker_threads      = 1;
-    options.pending_connections = 1;
-    options.stop_poll_interval  = std::chrono::milliseconds(5);
-    auto server                 = bind_server(options);
-    auto address_result         = server.local_address();
+    options.worker_threads            = 1;
+    options.pending_connections       = 1;
+    options.overload_response_timeout = std::chrono::milliseconds(200);
+    options.stop_poll_interval        = std::chrono::milliseconds(5);
+    auto server                       = bind_server(options);
+    auto address_result               = server.local_address();
     ASSERT_TRUE(address_result.is_ok());
     const auto address = address_result.unwrap();
 
@@ -377,6 +415,12 @@ TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
     auto invalid_server =
         HttpServer::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0), server_options);
     EXPECT_EQ(invalid_server.unwrap_err().kind(), HttpErrorKind::InvalidState);
+
+    server_options.pending_connections       = 64;
+    server_options.overload_response_timeout = std::chrono::milliseconds(0);
+    auto invalid_timeout_server =
+        HttpServer::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0), server_options);
+    EXPECT_EQ(invalid_timeout_server.unwrap_err().kind(), HttpErrorKind::InvalidState);
 
     auto server = bind_server();
     EXPECT_EQ(server

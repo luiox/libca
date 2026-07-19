@@ -87,6 +87,7 @@ struct HttpServerOptions
     std::chrono::milliseconds request_header_timeout{10000};   ///< 首字节后的 head 总期限。
     std::chrono::milliseconds request_body_timeout{30000};     ///< request body 总期限。
     std::chrono::milliseconds response_write_timeout{30000};   ///< 每条 response 写入总期限。
+    std::chrono::milliseconds overload_response_timeout{1000};   ///< 过载响应与关闭的总期限。
     std::chrono::milliseconds stop_poll_interval{10};   ///< accept 与阻塞 IO 的 stop 检查间隔。
     HttpLimits request_limits;                          ///< request 解析限制。
     bool       tcp_nodelay{true};   ///< 是否为 accepted stream 启用 TCP_NODELAY。

@@ -156,11 +156,12 @@ public:
                     "HTTP response contains too many informational responses"));
         }
 
-        const HttpBodyInfo   body_info        = connection->codec_reader.body_info();
-        const usize          initial_capacity = body_info.kind == HttpBodyKind::ContentLength
-                                                    ? body_info.content_length
-                                                    : std::min<usize>(options.limits.max_body_bytes, 8192);
-        auto                 output           = ca::core::BytesMut::with_capacity(initial_capacity);
+        const HttpBodyInfo   body_info          = connection->codec_reader.body_info();
+        const usize          expected_body_size = body_info.kind == HttpBodyKind::ContentLength
+                                                      ? body_info.content_length
+                                                      : options.limits.max_body_bytes;
+        const usize          initial_capacity   = std::min<usize>(expected_body_size, 8192);
+        auto                 output = ca::core::BytesMut::with_capacity(initial_capacity);
         std::array<u8, 8192> buffer{};
         connection->deadline_reader.start(options.response_body_timeout);
         while (!connection->codec_reader.body_finished()) {

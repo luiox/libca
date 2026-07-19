@@ -131,8 +131,9 @@ client 的 connect、request write、response head 与 response body 使用各�
 
 `HttpServer` bind 后注册 method/path 精确路由，`serve()` 在当前线程管理 listener 与固定
 `ThreadPool`。worker 数加 pending queue 容量构成连接并发硬边界；队列满时 accept loop
-返回 503，不无限增长内存。每个 worker 在连接内串行处理 request，支持 keep-alive 和
-`max_requests_per_connection` 上限。
+使用独立的短 `overload_response_timeout` 返回 503 并优雅关闭连接，不无限增长内存，也不让
+慢连接按普通 response 期限阻塞 listener。每个 worker 在连接内串行处理 request，支持
+keep-alive 和 `max_requests_per_connection` 上限。
 
 handler 接收完整缓冲 request 与 peer/stop context，返回 buffered response 或 chunked
 producer。producer 成功返回后由 server 调用 `finish()`；producer 抛异常或返回错误时不写

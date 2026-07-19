@@ -38,7 +38,7 @@ HttpResult<void> validate_options(const HttpServerOptions& options)
     if (options.pending_connections == 0 || options.max_requests_per_connection == 0 ||
         options.idle_timeout.count() <= 0 || options.request_header_timeout.count() <= 0 ||
         options.request_body_timeout.count() <= 0 || options.response_write_timeout.count() <= 0 ||
-        options.stop_poll_interval.count() <= 0)
+        options.overload_response_timeout.count() <= 0 || options.stop_poll_interval.count() <= 0)
         return ca::core::Err(
             HttpError::from_kind(HttpErrorKind::InvalidState,
                                  "all HTTP server capacities and timeouts must be positive"));
@@ -288,13 +288,33 @@ private:
 
     void send_overloaded(net::TcpStream& stream)
     {
+        const auto deadline = std::chrono::steady_clock::now() + options_.overload_response_timeout;
         detail::DeadlineWriter deadline_writer(
             stream, stop_source_.token(), options_.stop_poll_interval);
-        deadline_writer.start(options_.response_write_timeout);
+        deadline_writer.start(options_.overload_response_timeout);
         Http1Writer writer(deadline_writer);
         auto        response = text_response(503, "Service Unavailable\n");
         response.headers.set("Connection", "close");
-        writer.write_response(response, "GET");
+        auto sent = writer.write_response(response, "GET");
+        if (sent.is_err() || stream.shutdown(net::Shutdown::Write).is_err())
+            return;
+
+        // Windows 上直接关闭带未读入站数据的 socket 可能用 RST 覆盖已发送的 503。
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline)
+            return;
+        auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+        if (remaining.count() == 0)
+            remaining = std::chrono::milliseconds(1);
+        detail::DeadlineReader deadline_reader(
+            stream, stop_source_.token(), options_.stop_poll_interval);
+        deadline_reader.start(remaining);
+        std::array<u8, 1024> discarded{};
+        for (;;) {
+            auto read = deadline_reader.read(discarded.data(), discarded.size());
+            if (read.is_err() || read.unwrap() == 0)
+                return;
+        }
     }
 
     HttpResult<HttpRequest> read_request(Http1Reader&            reader,
@@ -327,11 +347,11 @@ private:
                 return ca::core::Err(sent.unwrap_err());
         }
 
-        const HttpBodyInfo body_info = reader.body_info();
-        const usize        initial_capacity =
-            body_info.kind == HttpBodyKind::ContentLength
-                       ? body_info.content_length
-                       : std::min<usize>(options_.request_limits.max_body_bytes, 8192);
+        const HttpBodyInfo   body_info          = reader.body_info();
+        const usize          expected_body_size = body_info.kind == HttpBodyKind::ContentLength
+                                                      ? body_info.content_length
+                                                      : options_.request_limits.max_body_bytes;
+        const usize          initial_capacity   = std::min<usize>(expected_body_size, 8192);
         auto                 output = ca::core::BytesMut::with_capacity(initial_capacity);
         std::array<u8, 8192> buffer{};
         deadline_reader.start(options_.request_body_timeout);

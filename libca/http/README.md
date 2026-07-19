@@ -146,6 +146,7 @@ producer 可逐块写入并 flush SSE event；producer 成功后 server 显式�
 关闭不完整连接。
 
 server 使用固定 worker 数和有界 pending connection 队列，过载连接返回 503。idle、request
-head/body、response write 均有独立期限；`stop()` 请求协作取消，活动 IO 最多一个
-`stop_poll_interval` 后退出。单连接达到 `max_requests_per_connection` 后会发送
+head/body、response write 均有独立期限；accept loop 发送 503 并关闭连接使用更短的
+`overload_response_timeout`，避免慢连接长时间阻塞后续 accept。`stop()` 请求协作取消，活动 IO
+最多一个 `stop_poll_interval` 后退出。单连接达到 `max_requests_per_connection` 后会发送
 `Connection: close`。
