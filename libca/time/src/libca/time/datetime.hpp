@@ -1,9 +1,8 @@
+/// @file datetime.hpp
+/// @brief Date / Time / DateTime — 日期、时间、日期时间基本类型。
 ///
-/// @brief 日期时间组件
-/// @author Canrad
-/// @date 2026/05/31
-/// @note 命名空间 ca::time，提供 Date / Time / DateTime 基本类型
-///
+/// 命名空间 ca::time。Date 与 Time 是纯值类型，仅保存日历字段；
+/// DateTime 提供 now() 入口，返回本地时区拆分后的 (Date, Time)。
 
 #pragma once
 
@@ -13,17 +12,21 @@
 
 namespace ca::time {
 
-/// 日期（年/月/日）
+/// @brief 日期值类型（年/月/日），不做范围校验，依赖调用方保证合法。
 class Date {
 public:
+    /// @brief 由年/月/日构造，不做合法性校验。
     Date(int year, int month, int day);
-    explicit Date(const std::string& date);  ///< ISO 格式 "YYYY-MM-DD"
+
+    /// @brief 解析 ISO 格式字符串 "YYYY-MM-DD"。
+    explicit Date(const std::string& date);
 
     int year() const noexcept { return year_; }
     int month() const noexcept { return month_; }
     int day() const noexcept { return day_; }
 
-    /// 格式化为 "YYYY-MM-DD"
+    /// @brief 格式化为 "YYYY-MM-DD"。
+    /// @return 固定 10 字符 ISO 格式字符串。
     std::string toString() const;
 
 private:
@@ -32,17 +35,21 @@ private:
     int day_;
 };
 
-/// 时间（时/分/秒）
+/// @brief 时间值类型（时/分/秒），不做范围校验，依赖调用方保证合法。
 class Time {
 public:
+    /// @brief 由时/分/秒构造，不做合法性校验。
     Time(int hour, int minute, int second);
-    explicit Time(const std::string& time);  ///< 格式 "HH:MM:SS"
+
+    /// @brief 解析格式字符串 "HH:MM:SS"。
+    explicit Time(const std::string& time);
 
     int hour() const noexcept { return hour_; }
     int minute() const noexcept { return minute_; }
     int second() const noexcept { return second_; }
 
-    /// 格式化为 "HH:MM:SS"
+    /// @brief 格式化为 "HH:MM:SS"。
+    /// @return 固定 8 字符格式字符串。
     std::string toString() const;
 
 private:
@@ -51,9 +58,10 @@ private:
     int second_;
 };
 
-/// 日期时间工具
+/// @brief 日期时间工具，仅提供当前时间入口。
 struct DateTime {
-    /// 获取当前本地日期时间
+    /// @brief 获取当前本地日期时间。
+    /// @return (Date, Time)，基于 std::time 和 std::localtime 拆分。
     static std::tuple<Date, Time> now();
 };
 

@@ -75,6 +75,8 @@ StatusResult<std::wstring> pipe_name(const std::string& name)
         return Err(converted.unwrap_err());
     std::wstring       value  = std::move(converted).unwrap();
     const std::wstring prefix = L"\\\\.\\pipe\\";
+    // Windows 命名管道必须位于 \\.\pipe\ 命名空间，调用方传简单名字时自动补前缀，
+    // 已带前缀则原样保留，避免重复拼接。
     if (value.compare(0, prefix.size(), prefix) != 0)
         value = prefix + value;
     return Ok(std::move(value));
@@ -101,6 +103,9 @@ Status posix_error(const char* operation)
                      std::string(operation) + " failed: " + std::strerror(errno));
 }
 
+// POSIX 命名管道在 Linux 上回退为 AF_UNIX socket：把简单名字映射到 /tmp 下
+// 固定前缀的套接字文件，禁止含 '/' 防止越权写任意路径。长度上限由 sockaddr_un
+// 的 sun_path 决定，超长直接报错（截断会产生不可连接的路径）。
 StatusResult<std::string> unix_socket_path(const std::string& name)
 {
     if (name.empty() || name.find('/') != std::string::npos)
@@ -112,6 +117,8 @@ StatusResult<std::string> unix_socket_path(const std::string& name)
     return Ok(path);
 }
 
+// POSIX 共享内存 / 命名信号量 / 消息队列的名字必须以 '/' 开头且不含其它 '/'，
+// 否则 shm_open / sem_open / mq_open 会失败。统一加前缀保证合法。
 StatusResult<std::string> posix_shared_memory_name(const std::string& name)
 {
     if (name.empty() || name.find('/') != std::string::npos)
@@ -265,6 +272,9 @@ StatusResult<NamedPipeServer> NamedPipeServer::create(const std::string& name)
     auto path = pipe_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
+    // Windows 命名管道服务端实例：PIPE_ACCESS_DUPLEX 双向，nMaxInstances=1 表示
+    // 同名只允许一个实例（多客户端需自行加锁或起多服务端）。这里用阻塞模式
+    // (PIPE_WAIT)，accept() 时再被 ConnectNamedPipe 唤醒。
     HANDLE handle = CreateNamedPipeW(std::move(path).unwrap().c_str(),
                                      PIPE_ACCESS_DUPLEX,
                                      PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
@@ -277,6 +287,8 @@ StatusResult<NamedPipeServer> NamedPipeServer::create(const std::string& name)
         return Err(windows_error("CreateNamedPipeW"));
     return Ok(NamedPipeServer(to_native(handle)));
 #else
+    // POSIX 用 AF_UNIX SOCK_STREAM 模拟命名管道。bind 前若已有同名 socket 文件
+    // 会失败，所以路径里的 name 必须是简单 token（unix_socket_path 已校验）。
     auto path = unix_socket_path(name);
     if (path.is_err())
         return Err(path.unwrap_err());
@@ -307,15 +319,22 @@ StatusResult<NamedPipeConnection> NamedPipeServer::accept()
         return Err(
             ErrStatus(StatusCode::FAILED_PRECONDITION, "accept on a closed named pipe server"));
 #if defined(_WIN32)
+    // ConnectNamedPipe 在客户端已先连上时会返回 FALSE 且 GetLastError == ERROR_PIPE_CONNECTED，
+    // 这是合法的"已连接"状态而非错误，必须显式放行，否则会在客户端先于服务端 connect 的
+    // 竞态下误报失败。
     HANDLE handle = to_handle(native_handle_);
     if (!ConnectNamedPipe(handle, nullptr) && GetLastError() != ERROR_PIPE_CONNECTED)
         return Err(windows_error("ConnectNamedPipe"));
+    // Windows 命名管道的实例只能 accept 一次：连接建立后原 server handle 直接
+    // 转为 connection handle（句柄不变，角色切换），server 端状态置为已关闭。
     native_handle_ = -1;
     return Ok(NamedPipeConnection(to_native(handle)));
 #else
     const int handle = ::accept(to_fd(native_handle_), nullptr, nullptr);
     if (handle < 0)
         return Err(posix_error("accept"));
+    // 与 Windows 侧"一次 accept 即关闭 server"对齐：单连接服务端，accept 后关闭
+    // 监听 socket 并 unlink 路径（close() 内部完成 unlink）。
     close();
     return Ok(NamedPipeConnection(handle));
 #endif
@@ -408,9 +427,12 @@ void SharedMemory::close() noexcept
     if (!is_open())
         return;
 #if defined(_WIN32)
+    // Windows 文件映射：view 和 mapping handle 是两个独立对象，都要释放。
     UnmapViewOfFile(data_);
     CloseHandle(to_handle(native_handle_));
 #else
+    // POSIX：mmap 之后底层 fd 即可关闭，映射独立存活。这里两个都释放；
+    // 注意本类不负责 shm_unlink（命名对象回收由创建者决定，见 create()）。
     munmap(data_, size_);
     ::close(to_fd(native_handle_));
 #endif
@@ -428,6 +450,8 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
     if (wide_name.is_err())
         return Err(wide_name.unwrap_err());
     const u64 length = static_cast<u64>(size);
+    // CreateFileMappingW 即使返回成功句柄，若同名对象已存在也会设 GetLastError = ERROR_ALREADY_EXISTS，
+    // 必须用这个标志区分"新建者"与"复用者"——只有新建者才被视为 create 成功。
     HANDLE    handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
                                        nullptr,
                                        PAGE_READWRITE,
@@ -451,6 +475,8 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
     if (path_result.is_err())
         return Err(path_result.unwrap_err());
     const std::string path = std::move(path_result).unwrap();
+    // O_CREAT | O_EXCL 保证 create 语义：已存在则失败（errno=EEXIST）。结合
+    // 后续 ftruncate + mmap，失败路径必须回收 shm_unlink 防止泄露空对象。
     const int handle = shm_open(path.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
     if (handle < 0) {
         if (errno == EEXIST)
@@ -484,6 +510,8 @@ StatusResult<SharedMemory> SharedMemory::open(const std::string& name)
         OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, std::move(wide_name).unwrap().c_str());
     if (!handle)
         return Err(windows_error("OpenFileMappingW"));
+    // 传 0 给 MapViewOfFile 表示映射整个 mapping 对象，再通过 VirtualQuery 查询
+    // 实际 RegionSize——Windows API 不提供"查询命名共享内存大小"的独立接口。
     MEMORY_BASIC_INFORMATION info{};
     void*                    view = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (!view) {
@@ -502,6 +530,7 @@ StatusResult<SharedMemory> SharedMemory::open(const std::string& name)
             return Err(ErrStatus(StatusCode::NOT_FOUND, "shared memory not found"));
         return Err(posix_error("shm_open"));
     }
+    // POSIX 共享内存打开后大小由 fstat 推断；创建者已经 ftruncate 设过，这里只读。
     struct stat info
     {};
     if (fstat(handle, &info) != 0 || info.st_size <= 0) {
@@ -546,8 +575,13 @@ void NamedSemaphore::close() noexcept
     if (native_handle_ == -1)
         return;
 #if defined(_WIN32)
+    // Windows 命名信号量是内核对象，CloseHandle 即释放当前句柄；引用计数到 0 时
+    // 系统回收，无需显式 unlink。
     CloseHandle(to_handle(native_handle_));
 #else
+    // POSIX：sem_close 仅解除"本进程"对该命名信号量的映射（sem_t*），不影响其它
+    // 进程。命名对象的最终回收需要创建者调用 sem_unlink（本类未提供，由调用方
+    // 在合适的生命周期点显式处理）。
     sem_close(reinterpret_cast<sem_t*>(native_handle_));
 #endif
     native_handle_ = -1;
@@ -627,6 +661,7 @@ StatusResult<bool> NamedSemaphore::try_acquire_for(std::chrono::milliseconds tim
     if (native_handle_ == -1)
         return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "wait on a closed semaphore"));
 #if defined(_WIN32)
+    // Windows WaitForSingleObject 相对超时即可，超时返回 WAIT_TIMEOUT。
     const DWORD result = WaitForSingleObject(to_handle(native_handle_),
                                              static_cast<DWORD>(std::max<i64>(0, timeout.count())));
     if (result == WAIT_OBJECT_0)
@@ -635,6 +670,8 @@ StatusResult<bool> NamedSemaphore::try_acquire_for(std::chrono::milliseconds tim
         return Ok(false);
     return Err(windows_error("WaitForSingleObject"));
 #else
+    // sem_timedwait 用绝对截止时间，需基于 CLOCK_REALTIME 计算 deadline
+    // （sem_* 系列不保证支持 monotonic）。先取当前绝对时间再加偏移，纳秒溢出部分进位到秒。
     timespec deadline{};
     clock_gettime(CLOCK_REALTIME, &deadline);
     const i64 nanoseconds = static_cast<i64>(deadline.tv_nsec) + timeout.count() * 1000000;
@@ -723,6 +760,8 @@ StatusResult<MessageQueue> MessageQueue::create(const std::string& name, usize m
     auto path = mailslot_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
+    // Windows mailslot 是单向的：CreateMailslotW 返回的句柄只能读（服务端角色），
+    // 客户端必须用 CreateFileW 以 GENERIC_WRITE 打开同名 slot 写入。故 receiver_=true。
     HANDLE handle = CreateMailslotW(
         std::move(path).unwrap().c_str(), static_cast<DWORD>(max_message_size), 0, nullptr);
     if (handle == INVALID_HANDLE_VALUE)
@@ -732,6 +771,8 @@ StatusResult<MessageQueue> MessageQueue::create(const std::string& name, usize m
     auto path = posix_shared_memory_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
+    // POSIX mq 双向：create 一侧既可 send 也可 receive。mq_maxmsg 固定 10（本类的
+    // 容量约定），mq_msgsize 取调用方指定上限，mq_send 时会据此校验单条长度。
     mq_attr attributes{};
     attributes.mq_maxmsg  = 10;
     attributes.mq_msgsize = static_cast<long>(max_message_size);
@@ -751,6 +792,8 @@ StatusResult<MessageQueue> MessageQueue::open(const std::string& name)
     auto path = mailslot_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
+    // mailslot 客户端：GENERIC_WRITE 打开，FILE_SHARE_READ 允许其它客户端并发写。
+    // receiver_=false 与 max_message_size_=0 标记只写状态（receive 会拒绝）。
     HANDLE handle = CreateFileW(std::move(path).unwrap().c_str(),
                                 GENERIC_WRITE,
                                 FILE_SHARE_READ,
@@ -765,6 +808,8 @@ StatusResult<MessageQueue> MessageQueue::open(const std::string& name)
     auto path = posix_shared_memory_name(name);
     if (path.is_err())
         return Err(path.unwrap_err());
+    // POSIX mq 的 open 不带 O_CREAT，要求对象已存在。mq_getattr 查出 msgsize，
+    // 这样后续 receive 才知道按多大缓冲接收。receiver_=true（POSIX 双向）。
     const mqd_t handle = mq_open(std::move(path).unwrap().c_str(), O_RDWR);
     if (handle == static_cast<mqd_t>(-1))
         return Err(errno == ENOENT ? ErrStatus(StatusCode::NOT_FOUND, "message queue not found")
@@ -814,6 +859,9 @@ StatusResult<std::string> MessageQueue::receive()
         return Err(
             ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
 #if defined(_WIN32)
+    // mailslot 服务端默认无限等待：MAIRSLOT_WAIT_FOREVER 显式设定（防止之前
+    // receive_for 改过超时值残留）。接收缓冲按 max_message_size_ 预分配，ReadFile
+    // 后用 count resize 到真实长度。
     if (!SetMailslotInfo(to_handle(native_handle_), MAILSLOT_WAIT_FOREVER))
         return Err(windows_error("SetMailslotInfo"));
     std::string result(max_message_size_, '\0');
@@ -827,6 +875,8 @@ StatusResult<std::string> MessageQueue::receive()
     result.resize(count);
     return Ok(std::move(result));
 #else
+    // mq_receive 可能被信号中断（EINTR），需循环重试；缓冲大小必须 >= mq_msgsize，
+    // 这里直接用 max_message_size_（由 mq_getattr 获取）。
     std::string   result(max_message_size_, '\0');
     ssize_t count = -1;
     do {
@@ -846,6 +896,9 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
         return Err(
             ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a sender-only message queue"));
 #if defined(_WIN32)
+    // mailslot 超时通过 SetMailslotInfo 设置整个句柄的读超时（毫秒级，影响后续所有
+    // ReadFile）。DWORD-1 作为上限避开溢出，ERROR_SEM_TIMEOUT 是 mailslot 专有的
+    // 超时码（不是 WAIT_TIMEOUT，因为这里是同步 ReadFile 而非 wait 函数）。
     const auto milliseconds = std::max<i64>(0, timeout.count());
     const DWORD wait = static_cast<DWORD>(std::min<i64>(
         milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
@@ -865,6 +918,8 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
     result.resize(count);
     return Ok(std::optional<std::string>(std::move(result)));
 #else
+    // mq_timedwait 用 CLOCK_REALTIME 绝对截止时间。归一化纳秒进位，避免 tv_nsec
+    // 超过 1e9 被 mq_timedreceive 拒绝（EINVAL）。
     timespec deadline{};
     if (clock_gettime(CLOCK_REALTIME, &deadline) != 0)
         return Err(posix_error("clock_gettime"));

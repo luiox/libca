@@ -1,10 +1,8 @@
+/// @file stream.hpp
+/// @brief Stream — 基于迭代器范围的惰性流式处理（header-only 模板）。
 ///
-/// @brief Stream — 容器流式操作
-/// @author Canrad
-/// @date 2026/05/31
-/// @note 命名空间 ca::collection，提供类似 Java Stream 的惰性 filter/map/collect/forEach
-///       所有实现均在头文件（模板），依赖 C++17
-///
+/// 命名空间 ca::collection。提供类似 Java Stream 的 filter/map/collect/forEach
+/// 入口：filter 与 map 仅暂存谓词，真正求值发生在 forEach / collect 等终止操作。
 
 #pragma once
 
@@ -13,29 +11,38 @@
 
 namespace ca::collection {
 
-/// 基于迭代器范围的惰性流式处理
+/// @brief 基于迭代器范围 `[begin, end)` 的惰性流。
+/// @tparam T   元素值类型。
+/// @tparam Iter 迭代器类型，需支持 `*it` 和 `++it`。
+///
+/// filter() / map() 暂存谓词不立即求值；forEach() / collect() 才遍历并应用。
+/// 当前实现仅支持单段 filter + 单段 map（后设置覆盖前设置）。
 template<typename T, typename Iter>
 class Stream {
 public:
     using value_type = T;
     using iterator = Iter;
 
+    /// @brief 用迭代器范围构造流。
     Stream(iterator begin, iterator end)
         : begin_(begin), end_(end) {}
 
-    /// 过滤（惰性）
+    /// @brief 设置过滤谓词（惰性，不立即遍历）。
+    /// @return *this，便于链式调用。
     Stream& filter(std::function<bool(value_type)> predicate) {
         filter_ = std::move(predicate);
         return *this;
     }
 
-    /// 映射（惰性）
+    /// @brief 设置映射函数（惰性，不立即遍历）。
+    /// @return *this，便于链式调用。
     Stream& map(std::function<value_type(value_type)> mapper) {
         map_ = std::move(mapper);
         return *this;
     }
 
-    /// 遍历
+    /// @brief 遍历并应用 consumer，对每个通过 filter 的元素执行操作。
+    /// @return *this。
     Stream& forEach(std::function<void(value_type)> consumer) {
         for (auto it = begin_; it != end_; ++it) {
             if (!filter_ || filter_(*it)) {
@@ -47,7 +54,9 @@ public:
         return *this;
     }
 
-    /// 收集到容器
+    /// @brief 终止操作：把通过 filter 的元素（经 map 后）收集到 Container。
+    /// @tparam Container 目标容器，需支持 push_back。
+    /// @return 填充后的容器。
     template<typename Container>
     Container collect() {
         Container result;
@@ -93,7 +102,7 @@ namespace detail {
         : std::conjunction<has_begin<T>, has_end<T>, has_value_type<T>> {};
 }
 
-/// 从容器创建 Stream（SFINAE：要求容器有 begin/end/value_type）
+/// @brief 从可变容器创建 Stream（SFINAE：要求容器有 begin/end/value_type）。
 template<typename Container>
 auto stream(Container& container)
     -> std::enable_if_t<detail::container_traits<Container>::value,
@@ -103,7 +112,7 @@ auto stream(Container& container)
         container.begin(), container.end());
 }
 
-/// 从 const 容器创建 Stream
+/// @brief 从 const 容器创建 Stream，元素为 const T。
 template<typename Container>
 auto stream(const Container& container)
     -> std::enable_if_t<detail::container_traits<Container>::value,
