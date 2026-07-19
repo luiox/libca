@@ -57,8 +57,9 @@ Utf8String text = CsvWriter::write(document, options);
 `CsvWriter::write` 返回 `Utf8String`。Writer 默认只在必要时加引号：字段含分隔符、引号、
 换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
 
-> 注意：`CsvWriter::write` 的输出 Utf8String 构造时会校验 UTF-8。若字段含非 UTF-8 字节，
-> 当前会抛 `std::runtime_error`——这是待解决的设计限制。
+> 默认 `validate_utf8 = true`：输出 Utf8String 校验 UTF-8，字段含非 UTF-8 字节会抛
+> `std::runtime_error`。字段含任意字节时设 `options.validate_utf8 = false`，writer 经
+> `Utf8String::from_data_unchecked` 不校验按原始字节输出。
 
 ## 读写文件
 

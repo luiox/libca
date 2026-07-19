@@ -30,6 +30,14 @@ struct CsvWriterOptions {
 
     /// @brief 是否强制每个字段都加引号。
     bool always_quote = false;
+
+    /// @brief 输出 Utf8String 时是否校验 UTF-8。
+    /// @details CSV 字段可能含非 UTF-8 字节（RFC 4180 不规定编码）。默认 true：
+    ///          字段含非法 UTF-8 时 write() 抛 `std::runtime_error`。设为 false 后，
+    ///          writer 经 `Utf8String::from_data_unchecked` 不校验按原始字节输出，
+    ///          字段中的非 UTF-8 字节原样保留。注意：不校验时码点数 length 取保守值
+    ///          （= 字节长度），按码点迭代行为不准。
+    bool validate_utf8 = true;
 };
 
 /// @brief CSV Writer。

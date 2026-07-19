@@ -365,6 +365,34 @@ TEST(Utf8StringTest, FromData) {
     EXPECT_STREQ(s.c_str(), "中国");
 }
 
+TEST(Utf8StringTest, FromDataUnchecked_PreservesInvalidUtf8) {
+    // 0xFF 不是合法 UTF-8 首字节；from_data_unchecked 不抛异常，原样保留字节。
+    u8 bad[] = {0xFF, 0x41, 0x42};
+    auto s = Utf8String::from_data_unchecked(bad, 3);
+    EXPECT_FALSE(s.is_empty());
+    EXPECT_EQ(s.byte_length(), 3u);
+    // 码点数取保守值 = 字节长度
+    EXPECT_EQ(s.length(), 3u);
+    EXPECT_EQ(s.data()[0], 0xFF);
+    EXPECT_EQ(s.data()[1], 0x41);
+    EXPECT_EQ(s.data()[2], 0x42);
+}
+
+TEST(Utf8StringTest, FromDataUnchecked_AcceptsValidUtf8) {
+    // 合法 UTF-8 字节也走原样保留路径（码点数仍是字节长度，与 intern_raw 语义一致）
+    u8 data[] = {0xE4, 0xB8, 0xAD};  // "中"
+    auto s = Utf8String::from_data_unchecked(data, 3);
+    EXPECT_EQ(s.byte_length(), 3u);
+    EXPECT_EQ(s.length(), 3u);  // 保守值
+    EXPECT_EQ(s.data()[0], 0xE4);
+}
+
+TEST(Utf8StringTest, FromDataUnchecked_NullOrEmptyReturnsEmpty) {
+    EXPECT_TRUE(Utf8String::from_data_unchecked(nullptr, 3).is_empty());
+    u8 data[] = {0x41};
+    EXPECT_TRUE(Utf8String::from_data_unchecked(data, 0).is_empty());
+}
+
 TEST(Utf8StringTest, FromCStrFactory) {
     auto s = Utf8String::from_cstr("你好");
     EXPECT_EQ(s.length(), 2);

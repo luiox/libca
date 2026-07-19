@@ -148,10 +148,10 @@ CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` �
 - `CsvDocument::intern_field`：把字节区间经 `intern_raw` 入池（不校验 UTF-8）。
 - `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。
   支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
-- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号。
-  （注意：输出 Utf8String 校验 UTF-8，非 UTF-8 字段会抛异常，待后续 PR 解决。）
+- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号；
+  `validate_utf8`（默认 true）控制输出是否校验 UTF-8，置 false 可输出含非 UTF-8 字节的字段。
 - 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
-  Writer 的 `line_ending`、`write_header`。
+  Writer 的 `line_ending`、`write_header`、`validate_utf8`。
 
 设计与使用文档：
 - `libca/csv/doc/csv设计文档.md`

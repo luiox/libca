@@ -347,6 +347,22 @@ Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
     return s;
 }
 
+Utf8String Utf8String::from_data_unchecked(const u8* data, usize byte_len) noexcept {
+    if (data == nullptr || byte_len == 0)
+        return Utf8String();
+
+    Utf8String s;
+    delete[] s.data_;
+    s.data_ = new u8[byte_len + 1];
+    std::memcpy(s.data_, data, byte_len);
+    s.data_[byte_len] = '\0';
+    s.byte_length_    = byte_len;
+    // 码点数取保守值 byte_length（与 Utf8StringArena::intern_raw 一致）。
+    // 调用方按码点迭代/查 length 的行为可能不准。
+    s.length_         = byte_len;
+    return s;
+}
+
 
 // ============================================================================
 // Utf8StringBuilder

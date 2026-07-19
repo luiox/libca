@@ -209,6 +209,12 @@ public:
     static Utf8String from_cstr(const char* cstr) noexcept;
     /// @brief 从字节数据复制构造并校验 UTF-8。@throw std::runtime_error 非法 UTF-8。
     static Utf8String from_data(const u8* data, usize byte_len, usize cp_len = -1);
+    /// @brief 从字节数据复制构造，**不校验 UTF-8**，按原始字节保留。
+    /// @details 码点数 length 取保守值 byte_length（上界），与
+    ///          `Utf8StringArena::intern_raw` 语义一致。用于字节流载体（CSV 等不规定编码
+    ///          的格式）——调用方须自行确保字节在预期语义下使用，长度查询等行为可能不准。
+    ///          **不应**用于需要按码点迭代的场景。
+    static Utf8String from_data_unchecked(const u8* data, usize byte_len) noexcept;
     /// @brief 从单个码点构造。@throw std::runtime_error 非法码点。
     static Utf8String from_code_point(u32 cp);
 

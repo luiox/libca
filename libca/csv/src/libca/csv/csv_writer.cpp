@@ -94,7 +94,12 @@ ca::str::Utf8String CsvWriter::write(
     std::ostringstream output;
     write_to_stream(output, document, options);
     const std::string text = output.str();
-    return ca::str::Utf8String(reinterpret_cast<const ca::u8*>(text.data()), text.size());
+    if (options.validate_utf8) {
+        return ca::str::Utf8String(reinterpret_cast<const ca::u8*>(text.data()), text.size());
+    }
+    // 字段含非 UTF-8 字节时绕过校验，按原始字节输出（与 CsvDocument::intern_raw 语义对齐）。
+    return ca::str::Utf8String::from_data_unchecked(
+        reinterpret_cast<const ca::u8*>(text.data()), text.size());
 }
 
 ca::Result<void, ca::str::Utf8String> CsvWriter::write_file(

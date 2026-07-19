@@ -181,11 +181,8 @@ TEST(CsvIoTest, Utf8RoundTrip) {
 }
 
 // ============================================================================
-// 新增：非 UTF-8 字段保留（验证 intern_raw 保留任意字节）
+// 新增：非 UTF-8 字段保留与 round-trip（验证 intern_raw + validate_utf8=false）
 // ============================================================================
-// 注意：CsvWriter 当前输出 Utf8String（构造时校验 UTF-8），无法输出非 UTF-8 字节——
-// 这是 csv 模块独立的限制，不在 Arena 迁移范围内。此处仅验证 reader 经 intern_raw
-// 入池后能原样保留任意字节，跳过 writer round-trip。
 
 TEST(CsvReaderTest, PreservesNonUtf8Bytes) {
     // 非 UTF-8 字节序列（\xFF\xFE\xFD 不是合法 UTF-8），reader 应原样保留。
@@ -202,4 +199,38 @@ TEST(CsvReaderTest, PreservesNonUtf8Bytes) {
     EXPECT_EQ(p[2], 0xFD);
     EXPECT_EQ(doc.rows()[1][0], "b");
     EXPECT_EQ(doc.rows()[1][1], "ok");
+}
+
+TEST(CsvIoTest, NonUtf8RoundTripWithValidateOff) {
+    // 非 UTF-8 字节经 intern_raw 入池，writer 在 validate_utf8=false 时不校验，
+    // 原样输出，可与 reader 完整 round-trip。
+    const ca::u8 bytes[] = {0xFF, 0xFE, 0xFD};
+    CsvDocument document;
+    document.add_row(CsvRow({
+        document.intern_field(bytes, 3),
+        document.intern_field(reinterpret_cast<const ca::u8*>("ok"), 2),
+    }));
+
+    CsvWriterOptions opts;
+    opts.validate_utf8 = false;
+    auto text = CsvWriter::write(document, opts);
+    auto back = CsvReader::read(Utf8StringRef::from_string_view(
+        std::string_view(reinterpret_cast<const char*>(text.data()), text.byte_length())));
+    ASSERT_TRUE(back.is_ok());
+    auto back_doc = std::move(back).unwrap();
+    ASSERT_EQ(back_doc.rows().size(), 1u);
+    ASSERT_EQ(back_doc.rows()[0][0].byte_length(), 3u);
+    const ca::u8* p = back_doc.rows()[0][0].data();
+    EXPECT_EQ(p[0], 0xFF);
+    EXPECT_EQ(p[1], 0xFE);
+    EXPECT_EQ(p[2], 0xFD);
+    EXPECT_EQ(back_doc.rows()[0][1], "ok");
+}
+
+TEST(CsvWriterTest, ValidateUtf8DefaultThrowsOnInvalidBytes) {
+    // validate_utf8 默认 true：字段含非法 UTF-8 时 write 抛异常（保留旧行为）。
+    const ca::u8 bytes[] = {0xFF, 0xFE, 0xFD};
+    CsvDocument document;
+    document.add_row(CsvRow({document.intern_field(bytes, 3)}));
+    EXPECT_THROW(CsvWriter::write(document), std::runtime_error);
 }

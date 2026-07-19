@@ -68,13 +68,21 @@ v1.3 这两点障碍已被解除：
 迁移收益：消灭大表每字段一次堆分配（换成 arena 64KB chunk），字段去重 bonus（CSV 字段
 重复率高），析构一次性释放 arena chunk，与 json/ini/toml 的存储模型完全统一。
 
-### 已知限制：CsvWriter 输出非 UTF-8 字段会抛异常
+### CsvWriter 输出非 UTF-8 字段
 
-`CsvWriter::write` 当前返回 `Utf8String`，其构造函数（`Utf8String(const u8*, usize)`）
-会校验 UTF-8。若字段含非 UTF-8 字节，writer 会抛 `std::runtime_error`。这是 csv 模块
-独立的设计限制（非 Arena 迁移引入），需在 `Utf8String` 增加不校验构造或 writer 改返回
-`std::string` 才能彻底解决，留待后续 PR。本 PR 的 Arena 迁移保证 reader 经 `intern_raw`
-能原样保留任意字节，writer round-trip 仍受此限制。
+`CsvWriter::write` 返回 `Utf8String`。`Utf8String` 的标准构造函数校验 UTF-8，因此
+writer 输出非 UTF-8 字段需要绕过校验。本模块提供 `CsvWriterOptions::validate_utf8`
+开关（默认 `true`，保持旧行为）：
+
+- `validate_utf8 = true`（默认）：输出经标准 `Utf8String(const u8*, usize)` 构造，校验
+  UTF-8；字段含非法字节时抛 `std::runtime_error`。
+- `validate_utf8 = false`：输出经 `Utf8String::from_data_unchecked` 构造，**不校验 UTF-8**，
+  按原始字节保留，与 `CsvDocument::intern_raw` 入池语义对齐。代价：Utf8String 的码点数
+  length 取保守值（= 字节长度），按码点迭代行为不准——但 CSV 字段就是字节序列，按码点
+  迭代本来也不是 CSV 的典型用法。
+
+`Utf8String::from_data_unchecked` 是 `libca/str` 配套新增的工厂方法（与
+`Utf8StringArena::intern_raw` 对称），供任何需要按原始字节保留的场景使用。
 
 ## 解析策略
 
