@@ -9,7 +9,7 @@ namespace ca::ini {
 
 namespace {
 
-std::string to_std(const ca::str::Utf8String& s) {
+std::string to_std(const ca::str::Utf8StringRef& s) {
     return std::string(reinterpret_cast<const char*>(s.data()),
                        reinterpret_cast<const char*>(s.data()) + s.byte_length());
 }

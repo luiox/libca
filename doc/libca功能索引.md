@@ -101,8 +101,10 @@ UTF-8 字符串与所有权模型模块。
 
 ## ini
 
-INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。深度集成 `ca::str`：
-输入 `Utf8StringRef`，值 `Utf8String`，错误 `ParseError`。
+INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。采用 **Arena 架构**：
+`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine`/`LineRecord` 的 section/key/
+value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `Utf8StringRef`，
+值 `Utf8StringRef`（生命周期绑定 document），错误 `ParseError`。
 
 入口头文件：
 - `<libca/ini/ini.hpp>`（聚合头）
@@ -113,10 +115,10 @@ INI 配置读写模块，保格式（读改写时保留人工注释、空行和�
 - `<libca/ini/source_location.hpp>`
 
 功能：
-- `IniDocument`：保格式数据模型，按文件顺序保存行节点（`detail::LineRecord`）+ section/key 索引。
-- `IniReader`：把字符串/文件解析为 `IniDocument`，返回 `Result<IniDocument, ParseError>`。
+- `IniDocument`：保格式数据模型 + 内嵌 `Utf8StringArena`。按文件顺序保存行节点（`detail::LineRecord`，字段全为 Utf8StringRef）+ section/key 索引（键也是 Utf8StringRef）。禁拷贝、仅移动。
+- `IniReader`：把字符串/文件解析为 `IniDocument`，返回 `Result<IniDocument, ParseError>`。所有字符串经 arena.intern 入池。
 - `IniWriter`：按行节点顺序写回，返回 `Utf8String`。
-- 类型化访问：`get_int/get_double/get_bool/get_or`，自动剥首尾配对引号后转换。
+- 类型化访问：`get`（返回 Utf8StringRef）/`get_int`/`get_double`/`get_bool`/`get_or`，自动剥首尾配对引号后转换。`sections()`/`keys()` 返回 `vector<Utf8StringRef>`。
 - 保格式：set 只重建受影响行，保留缩进、分隔符、行内注释；带引号 value 修改后保留引号风格。
 - 选项：`allow_global_keys`、`hash_comment`/`semicolon_comment`、
   `on_duplicate_section`/`on_duplicate_key`（`KeepLast`/`Error`）、

@@ -9,21 +9,16 @@ namespace ca::ini {
 
 namespace {
 
-// Utf8StringRef 转 std::string（用于内部索引键）。
+// Utf8StringRef 转 std::string（用于错误消息拼接等临时用途）。
 std::string to_std(const ca::str::Utf8StringRef& s) {
     return std::string(reinterpret_cast<const char*>(s.data()),
                        reinterpret_cast<const char*>(s.data()) + s.byte_length());
 }
 
-// Utf8String 转 std::string。
-std::string to_std(const ca::str::Utf8String& s) {
-    return std::string(reinterpret_cast<const char*>(s.data()),
-                       reinterpret_cast<const char*>(s.data()) + s.byte_length());
-}
-
-// std::string 转 Utf8String（move 语义）。
-ca::str::Utf8String from_std(std::string s) {
-    return ca::str::Utf8String::from_cstr(s.c_str());
+// 把 std::string 经 arena 入池得到 Utf8StringRef。
+ca::str::Utf8StringRef intern_std(ca::str::Utf8StringArena& arena, const std::string& s) {
+    return arena.intern(ca::str::Utf8String(
+        reinterpret_cast<const ca::u8*>(s.data()), s.size()));
 }
 
 // 判断 value 末尾引号是否被反斜杠转义：从末尾引号前一个字节起向前数连续反斜杠，
@@ -35,24 +30,6 @@ bool trailing_quote_escaped(const ca::u8* data, ca::usize quote_pos) {
         --quote_pos;
     }
     return (backslashes % 2) != 0;
-}
-
-// 剥首尾配对的单/双引号。若 value 以同一个引号字符开头且结尾、且末尾引号未被转义，
-// 去掉两者。返回 Utf8String（持有）；输入视图内容必须是合法 UTF-8。
-ca::str::Utf8String strip_quotes(const ca::str::Utf8StringRef& value) {
-    const ca::usize blen = value.byte_length();
-    if (blen < 2) {
-        return ca::str::Utf8String(value.data(), blen);
-    }
-    const ca::u8 first = value.byte_at(0);
-    const ca::u8 last = value.byte_at(blen - 1);
-    if ((first == '"' || first == '\'') && first == last &&
-        !trailing_quote_escaped(value.data(), blen - 1)) {
-        // 去掉首尾各一字节（引号是单字节 ASCII，切片落在码点边界）
-        const ca::u8* p = value.data() + 1;
-        return ca::str::Utf8String(p, blen - 2);
-    }
-    return ca::str::Utf8String(value.data(), blen);
 }
 
 // 把 ASCII 字符串转小写（仅用于 bool 判定）。
@@ -67,22 +44,45 @@ std::string ascii_lower(const std::string& s) {
 }  // namespace
 
 // ============================================================================
-// 析构（records_ 含 Utf8String，需要完整类型；默认实现即可，此处显式声明便于将来扩展）
+// 构造 / 析构 / 移动（arena_ 声明先于 records_，保证析构逆序：先树后池）
 // ============================================================================
 
+IniDocument::IniDocument() : arena_(), records_(), public_lines_() {}
+
 IniDocument::~IniDocument() = default;
+
+IniDocument::IniDocument(IniDocument&& other) noexcept
+    : arena_(std::move(other.arena_)),
+      records_(std::move(other.records_)),
+      public_lines_(std::move(other.public_lines_)),
+      section_index_(std::move(other.section_index_)),
+      key_index_(std::move(other.key_index_)),
+      default_line_ending_(std::move(other.default_line_ending_)) {}
+
+IniDocument& IniDocument::operator=(IniDocument&& other) noexcept {
+    if (this != &other) {
+        arena_ = std::move(other.arena_);
+        records_ = std::move(other.records_);
+        public_lines_ = std::move(other.public_lines_);
+        section_index_ = std::move(other.section_index_);
+        key_index_ = std::move(other.key_index_);
+        default_line_ending_ = std::move(other.default_line_ending_);
+    }
+    return *this;
+}
+
+ca::str::Utf8StringArena& IniDocument::arena() noexcept { return arena_; }
 
 // ============================================================================
 // 内部查找
 // ============================================================================
 
-const ca::str::Utf8String* IniDocument::find_value(
+const ca::str::Utf8StringRef* IniDocument::find_value(
     const ca::str::Utf8StringRef& section,
     const ca::str::Utf8StringRef& key) const {
-    const std::string sec = to_std(section);
-    auto section_it = key_index_.find(sec);
+    auto section_it = key_index_.find(section);
     if (section_it == key_index_.end()) return nullptr;
-    auto key_it = section_it->second.find(to_std(key));
+    auto key_it = section_it->second.find(key);
     if (key_it == section_it->second.end()) return nullptr;
     return &records_[key_it->second].line.value;
 }
@@ -92,104 +92,128 @@ const ca::str::Utf8String* IniDocument::find_value(
 // ============================================================================
 
 bool IniDocument::has_section(const ca::str::Utf8StringRef& section) const {
-    const std::string key = to_std(section);
-    if (key.empty()) {
-        return key_index_.find(key) != key_index_.end();
+    if (section.is_empty()) {
+        // 空字符串表示全局区：检查 key_index_ 是否有该 key
+        return key_index_.find(section) != key_index_.end();
     }
-    return section_index_.find(key) != section_index_.end();
+    return section_index_.find(section) != section_index_.end();
 }
 
 bool IniDocument::has(const ca::str::Utf8StringRef& section,
                       const ca::str::Utf8StringRef& key) const {
-    const std::string sec = to_std(section);
-    auto section_it = key_index_.find(sec);
+    auto section_it = key_index_.find(section);
     if (section_it == key_index_.end()) return false;
-    return section_it->second.find(to_std(key)) != section_it->second.end();
+    return section_it->second.find(key) != section_it->second.end();
 }
 
-ca::Result<ca::str::Utf8String, ca::str::Utf8String> IniDocument::get(
+ca::Result<ca::str::Utf8StringRef, ca::str::Utf8String> IniDocument::get(
     const ca::str::Utf8StringRef& section,
     const ca::str::Utf8StringRef& key) const {
-    const std::string sec = to_std(section);
-    auto section_it = key_index_.find(sec);
+    auto section_it = key_index_.find(section);
     if (section_it == key_index_.end()) {
-        return ca::Err(from_std("INI section not found: " + to_std(section)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI section not found: " + to_std(section)).c_str()));
     }
-    auto key_it = section_it->second.find(to_std(key));
+    auto key_it = section_it->second.find(key);
     if (key_it == section_it->second.end()) {
-        return ca::Err(from_std("INI key not found: " + to_std(key)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI key not found: " + to_std(key)).c_str()));
     }
-    return ca::Ok(records_[key_it->second].line.value.clone());
+    return ca::Ok(records_[key_it->second].line.value);
 }
 
-ca::str::Utf8String IniDocument::get_or(const ca::str::Utf8StringRef& section,
-                                        const ca::str::Utf8StringRef& key,
-                                        const ca::str::Utf8StringRef& default_value) const {
-    const ca::str::Utf8String* value = find_value(section, key);
+ca::str::Utf8StringRef IniDocument::get_or(const ca::str::Utf8StringRef& section,
+                                           const ca::str::Utf8StringRef& key,
+                                           const ca::str::Utf8StringRef& default_value) const {
+    const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value != nullptr) {
-        return value->clone();
+        return *value;
     }
-    return ca::str::Utf8String(default_value.data(), default_value.byte_length());
+    return default_value;
 }
 
 // ============================================================================
 // 类型化访问
 // ============================================================================
 
+namespace {
+
+// 剥首尾配对的单/双引号。返回 std::string（用于数值/bool 解析）。
+std::string strip_quotes_to_std(const ca::str::Utf8StringRef& value) {
+    const ca::usize blen = value.byte_length();
+    if (blen < 2) {
+        return std::string(reinterpret_cast<const char*>(value.data()), blen);
+    }
+    const ca::u8 first = value.data()[0];
+    const ca::u8 last = value.data()[blen - 1];
+    if ((first == '"' || first == '\'') && first == last &&
+        !trailing_quote_escaped(value.data(), blen - 1)) {
+        return std::string(reinterpret_cast<const char*>(value.data() + 1), blen - 2);
+    }
+    return std::string(reinterpret_cast<const char*>(value.data()), blen);
+}
+
+}  // namespace
+
 ca::Result<ca::i64, ca::str::Utf8String> IniDocument::get_int(
     const ca::str::Utf8StringRef& section,
     const ca::str::Utf8StringRef& key) const {
-    const ca::str::Utf8String* value = find_value(section, key);
+    const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
-        return ca::Err(from_std("INI key not found: " + to_std(key)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI key not found: " + to_std(key)).c_str()));
     }
-    ca::str::Utf8String stripped = strip_quotes(value->ref());
-    std::string s = to_std(stripped);
+    const std::string s = strip_quotes_to_std(*value);
     try {
         std::size_t pos = 0;
         long long v = std::stoll(s, &pos);
         if (pos != s.size()) {
-            return ca::Err(from_std("INI value is not a valid integer: " + to_std(*value)));
+            return ca::Err(ca::str::Utf8String::from_cstr(
+                ("INI value is not a valid integer: " + to_std(*value)).c_str()));
         }
         return ca::Ok(static_cast<ca::i64>(v));
     } catch (...) {
-        return ca::Err(from_std("INI value is not a valid integer: " + to_std(*value)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI value is not a valid integer: " + to_std(*value)).c_str()));
     }
 }
 
 ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
     const ca::str::Utf8StringRef& section,
     const ca::str::Utf8StringRef& key) const {
-    const ca::str::Utf8String* value = find_value(section, key);
+    const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
-        return ca::Err(from_std("INI key not found: " + to_std(key)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI key not found: " + to_std(key)).c_str()));
     }
-    ca::str::Utf8String stripped = strip_quotes(value->ref());
-    std::string s = to_std(stripped);
+    const std::string s = strip_quotes_to_std(*value);
     try {
         std::size_t pos = 0;
         double v = std::stod(s, &pos);
         if (pos != s.size()) {
-            return ca::Err(from_std("INI value is not a valid number: " + to_std(*value)));
+            return ca::Err(ca::str::Utf8String::from_cstr(
+                ("INI value is not a valid number: " + to_std(*value)).c_str()));
         }
         return ca::Ok(static_cast<ca::f64>(v));
     } catch (...) {
-        return ca::Err(from_std("INI value is not a valid number: " + to_std(*value)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI value is not a valid number: " + to_std(*value)).c_str()));
     }
 }
 
 ca::Result<bool, ca::str::Utf8String> IniDocument::get_bool(
     const ca::str::Utf8StringRef& section,
     const ca::str::Utf8StringRef& key) const {
-    const ca::str::Utf8String* value = find_value(section, key);
+    const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
-        return ca::Err(from_std("INI key not found: " + to_std(key)));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("INI key not found: " + to_std(key)).c_str()));
     }
-    ca::str::Utf8String stripped = strip_quotes(value->ref());
-    const std::string s = ascii_lower(to_std(stripped));
+    const std::string s = ascii_lower(strip_quotes_to_std(*value));
     if (s == "true" || s == "yes" || s == "on" || s == "1") return ca::Ok(true);
     if (s == "false" || s == "no" || s == "off" || s == "0") return ca::Ok(false);
-    return ca::Err(from_std("INI value is not a valid boolean: " + to_std(*value)));
+    return ca::Err(ca::str::Utf8String::from_cstr(
+        ("INI value is not a valid boolean: " + to_std(*value)).c_str()));
 }
 
 // ============================================================================
@@ -199,43 +223,42 @@ ca::Result<bool, ca::str::Utf8String> IniDocument::get_bool(
 void IniDocument::set(const ca::str::Utf8StringRef& section,
                       const ca::str::Utf8StringRef& key,
                       const ca::str::Utf8StringRef& value) {
-    const std::string sec = to_std(section);
-
     // 已存在的 key：改 value，复用保存的格式片段重建该行。
-    auto section_it = key_index_.find(sec);
+    auto section_it = key_index_.find(section);
     if (section_it != key_index_.end()) {
-        auto key_it = section_it->second.find(to_std(key));
+        auto key_it = section_it->second.find(key);
         if (key_it != section_it->second.end()) {
             auto& record = records_[key_it->second];
-            record.line.value = ca::str::Utf8String(value.data(), value.byte_length());
+            record.line.value = arena_.intern(value);
             rebuild_key_raw(key_it->second);
-            // 同步更新 public_lines_（Utf8String 不可拷贝，逐字段 clone）。
+            // 同步更新 public_lines_（Utf8StringRef 可拷贝，直接赋值）。
             IniLine updated;
             updated.kind = record.line.kind;
-            updated.section = record.line.section.clone();
-            updated.key = record.line.key.clone();
-            updated.value = record.line.value.clone();
-            public_lines_[key_it->second] = std::move(updated);
+            updated.section = record.line.section;
+            updated.key = record.line.key;
+            updated.value = record.line.value;
+            public_lines_[key_it->second] = updated;
             return;
         }
     }
 
     const auto newline = line_ending_for_new_line();
+    const std::string sec = to_std(section);
 
     // 新 key 落在尚不存在的 section：先建 section 头。
-    if (!sec.empty() && section_index_.find(sec) == section_index_.end()) {
+    if (!sec.empty() && section_index_.find(section) == section_index_.end()) {
         if (!records_.empty() && !records_.back().raw.is_empty()) {
             detail::LineRecord blank;
             blank.line.kind = IniLineKind::Blank;
-            blank.line_ending = from_std(newline);
+            blank.line_ending = intern_std(arena_, newline);
             records_.push_back(std::move(blank));
         }
 
         detail::LineRecord section_record;
         section_record.line.kind = IniLineKind::Section;
-        section_record.line.section = ca::str::Utf8String(section.data(), section.byte_length());
-        section_record.raw = from_std("[" + sec + "]");
-        section_record.line_ending = from_std(newline);
+        section_record.line.section = arena_.intern(section);
+        section_record.raw = intern_std(arena_, "[" + sec + "]");
+        section_record.line_ending = intern_std(arena_, newline);
         records_.push_back(std::move(section_record));
         rebuild_index();
     }
@@ -243,17 +266,17 @@ void IniDocument::set(const ca::str::Utf8StringRef& section,
     // 新增 key 行用统一的 "key = value" 格式。
     detail::LineRecord key_record;
     key_record.line.kind = IniLineKind::KeyValue;
-    key_record.line.section = ca::str::Utf8String(section.data(), section.byte_length());
-    key_record.line.key = ca::str::Utf8String(key.data(), key.byte_length());
-    key_record.line.value = ca::str::Utf8String(value.data(), value.byte_length());
-    key_record.key_suffix = from_std(" ");
-    key_record.separator = from_std("=");
-    key_record.value_prefix = from_std(" ");
-    key_record.line_ending = from_std(newline);
+    key_record.line.section = arena_.intern(section);
+    key_record.line.key = arena_.intern(key);
+    key_record.line.value = arena_.intern(value);
+    key_record.key_suffix = intern_std(arena_, " ");
+    key_record.separator = intern_std(arena_, "=");
+    key_record.value_prefix = intern_std(arena_, " ");
+    key_record.line_ending = intern_std(arena_, newline);
     key_record.value_quoted = false;
-    key_record.raw = from_std(to_std(key) + " = " + to_std(value));
+    key_record.raw = intern_std(arena_, to_std(key) + " = " + to_std(value));
 
-    auto pos = find_insert_position(sec);
+    auto pos = find_insert_position(section);
     records_.insert(records_.begin() + static_cast<std::ptrdiff_t>(pos),
                     std::move(key_record));
     rebuild_index();
@@ -264,9 +287,8 @@ void IniDocument::set(const ca::str::Utf8StringRef& section,
 // ============================================================================
 
 bool IniDocument::remove_section(const ca::str::Utf8StringRef& section) {
-    const std::string sec = to_std(section);
     bool removed = false;
-    if (sec.empty()) {
+    if (section.is_empty()) {
         records_.erase(
             std::remove_if(records_.begin(), records_.end(), [&](const detail::LineRecord& record) {
                 const bool should_remove =
@@ -279,7 +301,7 @@ bool IniDocument::remove_section(const ca::str::Utf8StringRef& section) {
         return removed;
     }
 
-    auto it = section_index_.find(sec);
+    auto it = section_index_.find(section);
     if (it == section_index_.end()) return false;
 
     const ca::usize start = it->second;
@@ -303,10 +325,9 @@ bool IniDocument::remove_section(const ca::str::Utf8StringRef& section) {
 
 bool IniDocument::remove(const ca::str::Utf8StringRef& section,
                          const ca::str::Utf8StringRef& key) {
-    const std::string sec = to_std(section);
-    auto section_it = key_index_.find(sec);
+    auto section_it = key_index_.find(section);
     if (section_it == key_index_.end()) return false;
-    auto key_it = section_it->second.find(to_std(key));
+    auto key_it = section_it->second.find(key);
     if (key_it == section_it->second.end()) return false;
     records_.erase(records_.begin() + static_cast<std::ptrdiff_t>(key_it->second));
     rebuild_index();
@@ -317,22 +338,21 @@ bool IniDocument::remove(const ca::str::Utf8StringRef& section,
 // 枚举
 // ============================================================================
 
-std::vector<ca::str::Utf8String> IniDocument::sections() const {
-    std::vector<ca::str::Utf8String> result;
+std::vector<ca::str::Utf8StringRef> IniDocument::sections() const {
+    std::vector<ca::str::Utf8StringRef> result;
     for (const auto& record : records_) {
         if (record.line.kind == IniLineKind::Section) {
-            result.push_back(record.line.section.clone());
+            result.push_back(record.line.section);
         }
     }
     return result;
 }
 
-std::vector<ca::str::Utf8String> IniDocument::keys(const ca::str::Utf8StringRef& section) const {
-    // 用 string_view 做匹配和去重，避免每次循环分配 std::string（Utf8String 的 data()
-    // 在 record 存活期间稳定，string_view 安全）。
+std::vector<ca::str::Utf8StringRef> IniDocument::keys(const ca::str::Utf8StringRef& section) const {
+    // 用 string_view 做匹配和去重，避免每次循环分配 std::string。
     const std::string_view sec_view(reinterpret_cast<const char*>(section.data()),
                                     section.byte_length());
-    std::vector<ca::str::Utf8String> result;
+    std::vector<ca::str::Utf8StringRef> result;
     std::set<std::string_view> seen;
     for (const auto& record : records_) {
         if (record.line.kind != IniLineKind::KeyValue) continue;
@@ -343,7 +363,7 @@ std::vector<ca::str::Utf8String> IniDocument::keys(const ca::str::Utf8StringRef&
         const std::string_view k_view(reinterpret_cast<const char*>(record.line.key.data()),
                                       record.line.key.byte_length());
         if (seen.insert(k_view).second) {
-            result.push_back(record.line.key.clone());
+            result.push_back(record.line.key);
         }
     }
     return result;
@@ -359,6 +379,7 @@ void IniDocument::clear() noexcept {
     section_index_.clear();
     key_index_.clear();
     default_line_ending_ = "\n";
+    arena_.clear();
 }
 
 // ============================================================================
@@ -382,36 +403,36 @@ void IniDocument::rebuild_index() {
         const auto& line = records_[i].line;
         IniLine public_line;
         public_line.kind = line.kind;
-        public_line.section = line.section.clone();
-        public_line.key = line.key.clone();
-        public_line.value = line.value.clone();
+        public_line.section = line.section;
+        public_line.key = line.key;
+        public_line.value = line.value;
         public_lines_.push_back(std::move(public_line));
 
-        const std::string sec = to_std(line.section.ref());
         if (line.kind == IniLineKind::Section) {
-            section_index_[sec] = i;
+            section_index_[line.section] = i;
         } else if (line.kind == IniLineKind::KeyValue) {
-            key_index_[sec][to_std(line.key.ref())] = i;
+            key_index_[line.section][line.key] = i;
         }
     }
 }
 
 void IniDocument::rebuild_key_raw(ca::usize line_index) {
     auto& record = records_[line_index];
-    // 修复 C：若 value 原本带引号，重建时补回引号。
+    // 若 value 原本带引号，重建时补回引号。
     std::string value_str = to_std(record.line.value);
     if (record.value_quoted) {
         value_str = std::string(1, record.value_quote_char) + value_str +
                     std::string(1, record.value_quote_char);
     }
-    record.raw = from_std(to_std(record.key_prefix) + to_std(record.line.key) +
-                          to_std(record.key_suffix) + to_std(record.separator) +
-                          to_std(record.value_prefix) + value_str +
-                          to_std(record.comment_suffix));
+    const std::string rebuilt = to_std(record.key_prefix) + to_std(record.line.key) +
+                                to_std(record.key_suffix) + to_std(record.separator) +
+                                to_std(record.value_prefix) + value_str +
+                                to_std(record.comment_suffix);
+    record.raw = intern_std(arena_, rebuilt);
 }
 
-ca::usize IniDocument::find_insert_position(const std::string& section) const noexcept {
-    if (section.empty()) {
+ca::usize IniDocument::find_insert_position(const ca::str::Utf8StringRef& section) const noexcept {
+    if (section.is_empty()) {
         ca::usize pos = 0;
         while (pos < records_.size() && records_[pos].line.kind != IniLineKind::Section) {
             ++pos;
