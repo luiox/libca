@@ -2,8 +2,12 @@
 
 同步 HTTP/1.0/1.1 codec、client 与 server 模块，命名空间 `ca::http`。
 
-> 当前版本只连接明文 http。https 需要后续可选 TLS stream；设计边界见 `doc/design.md`，
-> 接口签名以头文件 Doxygen 注释为准。
+HTTPS client 是默认关闭的可选能力，启用时由 OpenSSL 3 提供 TLS transport；HTTP codec 与
+公开接口不暴露 OpenSSL 类型。设计边界见 `doc/design.md`，接口签名以头文件 Doxygen 注释为准。
+
+```bash
+xmake f --with_core=y --with_em=n --with_openssl=y -y
+```
 
 ## 读写报文
 
@@ -105,7 +109,7 @@ URL parser 支持 http/https、DNS/IPv4 host、方括号 IPv6、显式端口、q
 
 ## Client
 
-`HttpClient` 完整缓冲 response，并在相同 http origin 上复用一条 keep-alive 连接。URL
+`HttpClient` 完整缓冲 response，并在相同 scheme/host/port origin 上复用一条 keep-alive 连接。URL
 始终覆盖 request 的 target 与 Host，避免实际连接地址和 wire authority 分歧：
 
 ```cpp
@@ -119,7 +123,26 @@ if (response.unwrap().status != 200) return;
 
 `HttpClientOptions` 分别控制 connect、request write、response head/body 总期限与解析限制。
 client 会跳过有限数量的 1xx response，正确处理 close-delimited body，并在 framing 或
-`Connection` 不允许复用时关闭连接。当前不做 redirect、cookie、代理、压缩和 https。
+`Connection` 不允许复用时关闭连接。当前不做 redirect、cookie、代理和压缩。
+
+启用 `with_openssl` 后，`HttpClient::supports_https()` 返回 true。HTTPS 最低使用 TLS 1.2，
+ALPN 只声明 `http/1.1`；默认校验证书链及 URL 中的 DNS hostname 或 IP address。可通过
+`options.tls.ca_file` 指定 PEM CA bundle，或通过 `ca_directory` 指定 OpenSSL hashed CA
+directory；两者均为空时使用 OpenSSL default trust paths。Windows 构建不会自动导入系统
+certificate store，部署方需要确保 default trust paths 可用或显式提供 CA。
+
+```cpp
+ca::http::HttpClientOptions options;
+options.tls.ca_file = "ca-bundle.pem";
+options.tls_handshake_timeout = std::chrono::seconds(10);
+
+auto client = ca::http::HttpClient::create(options).unwrap();
+auto url = ca::http::HttpUrl::parse("https://mcp.example.com/rpc").unwrap();
+auto response = client.get(url);
+```
+
+`verify_peer=false` 会同时关闭证书链与 peer identity 校验，只应由测试或开发环境显式设置。
+未启用 OpenSSL 的构建仍可解析 https URL，但 client 会在联网前返回 `Unsupported`。
 
 ## Server
 

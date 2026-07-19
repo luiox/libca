@@ -30,8 +30,18 @@ option("with_tests")
     set_description("Enable *_unittest targets and pull gtest via xrepo.")
 option_end()
 
+option("with_openssl")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Enable optional OpenSSL HTTPS client support")
+option_end()
+
 if has_config("with_tests") then
     add_requires("gtest")
+end
+
+if has_config("with_openssl") then
+    add_requires("openssl3")
 end
 
 set_languages("c99")

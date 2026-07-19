@@ -8,6 +8,11 @@ target("libca_http")
     add_includedirs("src", {public = true})
     add_deps("libca_net", "libca_thread")
 
+    if has_config("with_openssl") then
+        add_defines("LIBCA_HTTP_HAS_OPENSSL")
+        add_packages("openssl3", {public = true})
+    end
+
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
@@ -23,6 +28,10 @@ target("libca_http_unittest")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
     set_rundir("$(projectdir)")
+
+    if has_config("with_openssl") then
+        add_defines("LIBCA_HTTP_HAS_OPENSSL")
+    end
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})

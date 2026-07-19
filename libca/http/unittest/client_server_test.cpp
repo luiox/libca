@@ -547,6 +547,14 @@ TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
     client_options.connect_timeout = std::chrono::milliseconds(0);
     EXPECT_EQ(HttpClient::create(client_options).unwrap_err().kind(), HttpErrorKind::InvalidState);
 
+    client_options.connect_timeout       = std::chrono::milliseconds(10000);
+    client_options.tls_handshake_timeout = std::chrono::milliseconds(0);
+    EXPECT_EQ(HttpClient::create(client_options).unwrap_err().kind(), HttpErrorKind::InvalidState);
+
+    client_options.tls_handshake_timeout = std::chrono::milliseconds(10000);
+    client_options.tls.ca_file           = std::string("ca.pem\0ignored", 14);
+    EXPECT_EQ(HttpClient::create(client_options).unwrap_err().kind(), HttpErrorKind::InvalidState);
+
     HttpServerOptions server_options;
     server_options.pending_connections = 0;
     auto invalid_server =
@@ -578,7 +586,12 @@ TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
     auto client = std::move(created).unwrap();
     auto https  = HttpUrl::parse("https://localhost/mcp");
     ASSERT_TRUE(https.is_ok());
+#if defined(LIBCA_HTTP_HAS_OPENSSL)
+    EXPECT_TRUE(HttpClient::supports_https());
+#else
+    EXPECT_FALSE(HttpClient::supports_https());
     EXPECT_EQ(client.get(https.unwrap()).unwrap_err().kind(), HttpErrorKind::Unsupported);
+#endif
 }
 
 }   // namespace
