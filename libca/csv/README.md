@@ -12,7 +12,7 @@
 using namespace ca::csv;
 ```
 
-构建时依赖 `libca_csv`。
+构建时依赖 `libca_csv`、`libca_str`、`libca_core`。
 
 ## 读取字符串
 
@@ -20,14 +20,18 @@ using namespace ca::csv;
 CsvReaderOptions options;
 options.first_row_is_header = true;
 
-auto result = CsvReader::read("id,name\n1,Alice\n2,Bob", options);
+auto result = CsvReader::read(Utf8StringRef::from_cstr("id,name\n1,Alice\n2,Bob"), options);
 if (result.is_err()) {
-    // 处理 result.unwrap_err()
+    auto err = std::move(result).unwrap_err();
+    // err.location.line / .column / err.message
 }
 
-auto document = result.unwrap();
-auto name = document.rows()[0][1];  // Alice
+auto document = std::move(result).unwrap();
+auto name = document.rows()[0][1];  // Alice（std::string）
 ```
+
+`CsvReader::read` 接受 `Utf8StringRef`（零拷贝指向原文本）。CSV 字段内部按字节保留为
+`std::string`——CSV 不规定编码，字段可能是任意字节，不强求 UTF-8 校验。
 
 ## 写出字符串
 
@@ -40,21 +44,21 @@ document.add_row(CsvRow({"2", "line1\nline2"}));
 CsvWriterOptions options;
 options.line_ending = "\r\n";
 
-auto text = CsvWriter::write(document, options);
+Utf8String text = CsvWriter::write(document, options);
 ```
 
-Writer 默认只在必要时加引号：字段含分隔符、引号、换行，或首尾有空格/制表符时自动加引号，
-字段里的 `"` 会写成 `""`。
+`CsvWriter::write` 返回 `Utf8String`。Writer 默认只在必要时加引号：字段含分隔符、引号、
+换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
 
 ## 读写文件
 
 ```cpp
-auto write_result = CsvWriter::write_file("data.csv", document);
+auto write_result = CsvWriter::write_file(Utf8StringRef::from_cstr("data.csv"), document);
 if (write_result.is_err()) {
     // 处理写入失败
 }
 
-auto read_result = CsvReader::read_file("data.csv", options);
+auto read_result = CsvReader::read_file(Utf8StringRef::from_cstr("data.csv"), options);
 if (read_result.is_err()) {
     // 处理打开失败或格式错误
 }
