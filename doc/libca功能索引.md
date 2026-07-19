@@ -99,6 +99,33 @@ UTF-8 字符串与所有权模型模块。
 - `libca/io/doc/design.md`
 - `libca/io/README.md`（快速示例）
 
+## ini
+
+INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。深度集成 `ca::str`：
+输入 `Utf8StringRef`，值 `Utf8String`，错误 `ParseError`。
+
+入口头文件：
+- `<libca/ini/ini.hpp>`（聚合头）
+- `<libca/ini/ini_document.hpp>`
+- `<libca/ini/ini_reader.hpp>`
+- `<libca/ini/ini_writer.hpp>`
+- `<libca/ini/parse_error.hpp>`
+- `<libca/ini/source_location.hpp>`
+
+功能：
+- `IniDocument`：保格式数据模型，按文件顺序保存行节点（`detail::LineRecord`）+ section/key 索引。
+- `IniReader`：把字符串/文件解析为 `IniDocument`，返回 `Result<IniDocument, ParseError>`。
+- `IniWriter`：按行节点顺序写回，返回 `Utf8String`。
+- 类型化访问：`get_int/get_double/get_bool/get_or`，自动剥首尾配对引号后转换。
+- 保格式：set 只重建受影响行，保留缩进、分隔符、行内注释；带引号 value 修改后保留引号风格。
+- 选项：`allow_global_keys`、`hash_comment`/`semicolon_comment`、
+  `on_duplicate_section`/`on_duplicate_key`（`KeepLast`/`Error`）、
+  `inline_comment_strict_whitespace`；Writer 的 `line_ending`。
+
+设计与使用文档：
+- `libca/ini/doc/ini设计文档.md`
+- `libca/ini/README.md`（快速示例）
+
 ## csv
 
 CSV 表格读写模块（RFC 4180）。IO 边界接入 `ca::str`：输入 `Utf8StringRef`，输出 `Utf8String`，
