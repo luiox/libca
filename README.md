@@ -17,6 +17,7 @@ xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于�
 
 ```bash
 xmake f -p windows -a x64 --with_tests=y --with_em=n --with_demo=n -y  # 配置(带测试,仅C++)
+xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_em=n --with_demo=n -y  # 启用 HTTPS client
 xmake                          # 构建
 xmake test -g core/test        # 跑全部 C++ 测试(对应 CI)
 xmake run libca_fs_unittest    # 跑单个模块测试
@@ -68,7 +69,7 @@ L3  业务 / 上层
 | opt / reflect / zip | 规划中 | — | — | **空** | — |
 | log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / process / csv / ini / io / net）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / process / csv / ini / io / net / http）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定

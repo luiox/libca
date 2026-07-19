@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "libca/core/bytes.hpp"
+#include "libca/http/detail/client_transport.hpp"
 #include "libca/http/detail/deadline_io.hpp"
 #include "libca/http/http1_codec.hpp"
 #include "libca/net/tcp.hpp"
@@ -31,7 +32,8 @@ bool ascii_equals(std::string_view lhs, std::string_view rhs) noexcept
 
 HttpResult<void> validate_options(const HttpClientOptions& options)
 {
-    if (options.connect_timeout.count() <= 0 || options.request_write_timeout.count() <= 0 ||
+    if (options.connect_timeout.count() <= 0 || options.tls_handshake_timeout.count() <= 0 ||
+        options.request_write_timeout.count() <= 0 ||
         options.response_header_timeout.count() <= 0 ||
         options.response_body_timeout.count() <= 0 || options.max_informational_responses == 0)
         return ca::core::Err(HttpError::from_kind(
@@ -40,6 +42,10 @@ HttpResult<void> validate_options(const HttpClientOptions& options)
         options.limits.max_header_count == 0 || options.limits.max_body_bytes == 0)
         return ca::core::Err(HttpError::from_kind(
             HttpErrorKind::InvalidState, "all HTTP response parsing limits must be positive"));
+    if (options.tls.ca_file.find('\0') != std::string::npos ||
+        options.tls.ca_directory.find('\0') != std::string::npos)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "TLS CA paths must not contain NUL bytes"));
     return ca::core::Ok();
 }
 
@@ -53,6 +59,31 @@ bool is_connect_tunnel(std::string_view method, u16 status) noexcept
     return method == "CONNECT" && status >= 200 && status < 300;
 }
 
+class PlainClientTransport final : public detail::ClientTransport
+{
+public:
+    explicit PlainClientTransport(net::TcpStream stream) noexcept
+        : stream_(std::move(stream))
+    {}
+
+    io::IoResult<usize> read(u8* buffer, usize capacity) override
+    {
+        return stream_.read(buffer, capacity);
+    }
+
+    io::IoResult<usize> write(const u8* data, usize length) override
+    {
+        return stream_.write(data, length);
+    }
+
+    io::IoResult<void> flush() override { return stream_.flush(); }
+
+    net::TcpStream& tcp_stream() noexcept override { return stream_; }
+
+private:
+    net::TcpStream stream_;
+};
+
 }   // namespace
 
 class HttpClient::Impl
@@ -60,24 +91,28 @@ class HttpClient::Impl
 public:
     struct Connection
     {
-        Connection(net::TcpStream value, std::string origin_host, u16 origin_port,
-                   const HttpLimits& limits)
-            : stream(std::move(value))
-            , deadline_reader(stream)
-            , deadline_writer(stream)
+        Connection(std::unique_ptr<detail::ClientTransport> value, HttpScheme origin_scheme,
+                   std::string origin_host, u16 origin_port, const HttpLimits& limits)
+            : transport(std::move(value))
+            , deadline_reader(*transport, transport->tcp_stream(),
+                              origin_scheme == HttpScheme::Https)
+            , deadline_writer(*transport, transport->tcp_stream(),
+                              origin_scheme == HttpScheme::Https)
             , codec_reader(deadline_reader, limits)
             , codec_writer(deadline_writer)
+            , scheme(origin_scheme)
             , host(std::move(origin_host))
             , port(origin_port)
         {}
 
-        net::TcpStream         stream;
-        detail::DeadlineReader deadline_reader;
-        detail::DeadlineWriter deadline_writer;
-        Http1Reader            codec_reader;
-        Http1Writer            codec_writer;
-        std::string            host;
-        u16                    port{0};
+        std::unique_ptr<detail::ClientTransport> transport;
+        detail::DeadlineReader                   deadline_reader;
+        detail::DeadlineWriter                   deadline_writer;
+        Http1Reader                              codec_reader;
+        Http1Writer                              codec_writer;
+        HttpScheme                               scheme{HttpScheme::Http};
+        std::string                              host;
+        u16                                      port{0};
     };
 
     explicit Impl(HttpClientOptions value)
@@ -86,13 +121,13 @@ public:
 
     bool same_origin(const HttpUrl& url) const noexcept
     {
-        return connection != nullptr && url.scheme() == HttpScheme::Http &&
+        return connection != nullptr && connection->scheme == url.scheme() &&
                connection->port == url.port() && ascii_equals(connection->host, url.host());
     }
 
     HttpResult<void> connect(const HttpUrl& url)
     {
-        if (url.scheme() != HttpScheme::Http)
+        if (url.scheme() == HttpScheme::Https && !detail::tls_client_available())
             return ca::core::Err(HttpError::from_kind(HttpErrorKind::Unsupported,
                                                       "https requires the optional TLS transport"));
         if (same_origin(url))
@@ -108,8 +143,20 @@ public:
         if (nodelay.is_err())
             return ca::core::Err(
                 HttpError::from_io(nodelay.unwrap_err(), "configure HTTP connection"));
-        connection =
-            std::make_unique<Connection>(std::move(stream), url.host(), url.port(), options.limits);
+
+        std::unique_ptr<detail::ClientTransport> transport;
+        if (url.scheme() == HttpScheme::Https) {
+            auto secured = detail::make_tls_client_transport(
+                std::move(stream), url.host(), options.tls, options.tls_handshake_timeout);
+            if (secured.is_err())
+                return ca::core::Err(std::move(secured).unwrap_err());
+            transport = std::move(secured).unwrap();
+        }
+        else {
+            transport = std::make_unique<PlainClientTransport>(std::move(stream));
+        }
+        connection = std::make_unique<Connection>(
+            std::move(transport), url.scheme(), url.host(), url.port(), options.limits);
         return ca::core::Ok();
     }
 
@@ -208,6 +255,11 @@ HttpResult<HttpClient> HttpClient::create(const HttpClientOptions& options)
     if (valid.is_err())
         return ca::core::Err(valid.unwrap_err());
     return ca::core::Ok(HttpClient(std::make_unique<Impl>(options)));
+}
+
+bool HttpClient::supports_https() noexcept
+{
+    return detail::tls_client_available();
 }
 
 HttpClient::HttpClient(std::unique_ptr<Impl> impl) noexcept
