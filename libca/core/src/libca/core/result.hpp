@@ -923,9 +923,20 @@ struct Result {
     }
 
     /// @brief 错误则取错误值；成功则 std::terminate。确定是 Err 时才用。
-    E unwrap_err() const {
+    E unwrap_err() const & {
         if (is_err()) {
             return storage().template get<E>();
+        }
+
+        std::fprintf(stderr, "Attempting to unwrap_err an ok Result\n");
+        std::terminate();
+    }
+
+    /// @brief 错误则移动取错误值；成功则 std::terminate。
+    ///        与 unwrap() && 对称，适用于 move-only 的错误类型（如含 Utf8String）。
+    E unwrap_err() && {
+        if (is_err()) {
+            return std::move(storage().template get<E>());
         }
 
         std::fprintf(stderr, "Attempting to unwrap_err an ok Result\n");
