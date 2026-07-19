@@ -24,6 +24,11 @@ public:
     static io::IoResult<TcpStream> connect_timeout(const SocketAddress&      address,
                                                    std::chrono::milliseconds timeout);
 
+    /// @brief 在总连接期限内解析主机名并按系统顺序尝试所有地址。
+    /// @note 同步 DNS 解析不计入 timeout；timeout 只约束解析完成后的连接尝试。
+    static io::IoResult<TcpStream> connect_timeout(const std::string& host, u16 port,
+                                                   std::chrono::milliseconds timeout);
+
     TcpStream(const TcpStream&)                = delete;
     TcpStream& operator=(const TcpStream&)     = delete;
     TcpStream(TcpStream&&) noexcept            = default;
@@ -66,13 +71,31 @@ struct TcpAcceptResult
     SocketAddress peer_address;
 };
 
+/// @brief TCP listener 在 bind/listen 前应用的创建选项。
+struct TcpListenerOptions
+{
+    /// listen() 的待处理连接队列长度，必须大于 0。
+    i32 backlog{128};
+
+    /// 是否在 bind() 前启用 SO_REUSEADDR；默认关闭以保持保守的端口独占行为。
+    bool reuse_address{false};
+
+    /// IPv6 socket 的 IPV6_V6ONLY 设置；nullopt 保留操作系统默认值。
+    /// @warning IPv4 地址不能指定此选项。
+    std::optional<bool> ipv6_only{};
+};
+
 /// @brief 拥有监听 socket 的同步 TCP 接收器。
 class TcpListener
 {
 public:
     /// @brief 接管外部已经 bind/listen 的 TCP socket。
     static io::IoResult<TcpListener> from_socket(OwnedSocket socket);
-    static io::IoResult<TcpListener> bind(const SocketAddress& address);
+
+    /// @brief 创建 socket，应用 options，然后执行 bind/listen。
+    static io::IoResult<TcpListener> bind(
+        const SocketAddress& address,
+        const TcpListenerOptions& options = TcpListenerOptions());
 
     TcpListener(const TcpListener&)                = delete;
     TcpListener& operator=(const TcpListener&)     = delete;
@@ -84,6 +107,9 @@ public:
     io::IoResult<SocketAddress>   local_address() const;
     io::IoResult<void>            set_nonblocking(bool enabled);
     io::IoResult<TcpListener>     try_clone() const;
+
+    /// @brief 显式关闭 listener；重复关闭成功返回 Ok。
+    io::IoResult<void> close();
 
     bool        is_open() const noexcept;
     RawSocket   native_socket() const noexcept;

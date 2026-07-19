@@ -57,6 +57,7 @@ io::IoResult<SocketAddress> local_address(RawSocket socket);
 io::IoResult<SocketAddress> peer_address(RawSocket socket);
 
 io::IoResult<void> set_nonblocking(RawSocket socket, bool enabled);
+io::IoResult<void> set_socket_not_inheritable(RawSocket socket);
 io::IoResult<void> set_timeout(RawSocket socket, int option,
                                std::optional<std::chrono::milliseconds> timeout);
 io::IoResult<std::optional<std::chrono::milliseconds>> get_timeout(RawSocket socket, int option);

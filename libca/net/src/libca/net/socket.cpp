@@ -99,10 +99,19 @@ io::IoResult<OwnedSocket> create_socket(IpVersion version, int type, int protoco
         return ca::core::Err(runtime.unwrap_err());
 
 #if defined(_WIN32)
+    DWORD socket_flags = WSA_FLAG_OVERLAPPED;
+#    if defined(WSA_FLAG_NO_HANDLE_INHERIT)
+    socket_flags |= WSA_FLAG_NO_HANDLE_INHERIT;
+#    endif
     const NativeSocket socket =
-        WSASocketW(native_family(version), type, protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
+        WSASocketW(native_family(version), type, protocol, nullptr, 0, socket_flags);
     if (!native_socket_is_valid(socket))
         return ca::core::Err(last_socket_error("WSASocket"));
+    auto inheritance = set_socket_not_inheritable(from_native_socket(socket));
+    if (inheritance.is_err()) {
+        closesocket(socket);
+        return ca::core::Err(inheritance.unwrap_err());
+    }
 #else
     // 原子地置 CLOEXEC 以避开 fork 竞态；老内核不支持 SOCK_CLOEXEC 会返回 EINVAL，
     // 此时退回 fcntl 设置（有竞态但保证语义正确）。
@@ -123,11 +132,12 @@ io::IoResult<OwnedSocket> create_socket(IpVersion version, int type, int protoco
     if (!native_socket_is_valid(socket))
         return ca::core::Err(last_socket_error("socket"));
 
-    const bool needs_cloexec = !cloexec_applied;
-    if (needs_cloexec && fcntl(socket, F_SETFD, FD_CLOEXEC) != 0) {
-        const auto error = last_socket_error("fcntl(FD_CLOEXEC)");
-        ::close(socket);
-        return ca::core::Err(error);
+    if (!cloexec_applied) {
+        auto inheritance = set_socket_not_inheritable(from_native_socket(socket));
+        if (inheritance.is_err()) {
+            ::close(socket);
+            return ca::core::Err(inheritance.unwrap_err());
+        }
     }
 #endif
     return OwnedSocket::adopt(from_native_socket(socket));
@@ -220,10 +230,28 @@ io::IoResult<void> set_nonblocking(RawSocket socket, bool enabled)
     return ca::core::Ok();
 }
 
+io::IoResult<void> set_socket_not_inheritable(RawSocket socket)
+{
+#if defined(_WIN32)
+    const auto handle = reinterpret_cast<HANDLE>(to_native_socket(socket));
+    if (SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) == 0)
+        return ca::core::Err(io::IoError::from_native_error(
+            static_cast<i64>(GetLastError()), "SetHandleInformation(socket)"));
+#else
+    const int native = to_native_socket(socket);
+    const int flags  = fcntl(native, F_GETFD, 0);
+    if (flags < 0)
+        return ca::core::Err(last_socket_error("fcntl(F_GETFD)"));
+    if ((flags & FD_CLOEXEC) == 0 && fcntl(native, F_SETFD, flags | FD_CLOEXEC) != 0)
+        return ca::core::Err(last_socket_error("fcntl(FD_CLOEXEC)"));
+#endif
+    return ca::core::Ok();
+}
+
 io::IoResult<void> set_timeout(RawSocket socket, int option,
                                std::optional<std::chrono::milliseconds> timeout)
 {
-    // timeout<=0 直接拒绝：setsockopt 中 0 表示"用系统默认值"而非"禁用超时"，会被误解。
+    // timeout<=0 直接拒绝：setsockopt 中 0 表示无限等待，统一要求用 nullopt 清除超时。
     if (timeout.has_value() && timeout->count() <= 0)
         return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::InvalidInput,
                                                     "socket timeout must be greater than zero"));
@@ -383,24 +411,36 @@ io::IoResult<OwnedSocket> OwnedSocket::duplicate() const
     if (WSADuplicateSocketW(
             detail::to_native_socket(socket_), GetCurrentProcessId(), &information) != 0)
         return ca::core::Err(detail::last_socket_error("WSADuplicateSocket"));
+    DWORD socket_flags = WSA_FLAG_OVERLAPPED;
+#    if defined(WSA_FLAG_NO_HANDLE_INHERIT)
+    socket_flags |= WSA_FLAG_NO_HANDLE_INHERIT;
+#    endif
     const auto duplicate = WSASocketW(FROM_PROTOCOL_INFO,
                                       FROM_PROTOCOL_INFO,
                                       FROM_PROTOCOL_INFO,
                                       &information,
                                       0,
-                                      WSA_FLAG_OVERLAPPED);
+                                      socket_flags);
     if (!detail::native_socket_is_valid(duplicate))
         return ca::core::Err(detail::last_socket_error("WSASocket(duplicate)"));
+    auto inheritance = detail::set_socket_not_inheritable(detail::from_native_socket(duplicate));
+    if (inheritance.is_err()) {
+        closesocket(duplicate);
+        return ca::core::Err(inheritance.unwrap_err());
+    }
 #else
     int duplicate = -1;
 #    if defined(F_DUPFD_CLOEXEC)
     duplicate = fcntl(detail::to_native_socket(socket_), F_DUPFD_CLOEXEC, 0);
 #    else
     duplicate = ::dup(detail::to_native_socket(socket_));
-    if (duplicate >= 0 && fcntl(duplicate, F_SETFD, FD_CLOEXEC) != 0) {
-        const auto error = detail::last_socket_error("fcntl(FD_CLOEXEC)");
-        ::close(duplicate);
-        return ca::core::Err(error);
+    if (duplicate >= 0) {
+        auto inheritance =
+            detail::set_socket_not_inheritable(detail::from_native_socket(duplicate));
+        if (inheritance.is_err()) {
+            ::close(duplicate);
+            return ca::core::Err(inheritance.unwrap_err());
+        }
     }
 #    endif
     if (duplicate < 0)

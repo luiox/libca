@@ -33,7 +33,10 @@ auto response = stream.read_to_end(1024 * 1024);
 
 ```cpp
 ca::net::SocketAddress bind_address(ca::net::IpAddress::unspecified_v4(), 8080);
-auto listener = ca::net::TcpListener::bind(bind_address).unwrap();
+ca::net::TcpListenerOptions listener_options;
+listener_options.backlog = 128;
+listener_options.reuse_address = true;
+auto listener = ca::net::TcpListener::bind(bind_address, listener_options).unwrap();
 
 auto accepted = listener.accept().unwrap();
 auto stream = std::move(accepted.stream);
@@ -45,11 +48,14 @@ auto stream = std::move(accepted.stream);
 
 ```cpp
 auto stream = ca::net::TcpStream::connect_timeout(address, std::chrono::milliseconds(500));
+auto host_stream = ca::net::TcpStream::connect_timeout(
+    "example.com", 80, std::chrono::milliseconds(500));
 socket.set_nonblocking(true);
 socket.set_read_timeout(std::chrono::milliseconds(200));
 ```
 
 清除 timeout 传 `std::nullopt`。非阻塞暂时不可完成时返回 `WouldBlock`；POSIX 读写 timeout 到期内核也可能报告为 `WouldBlock`，跨平台代码应同时处理 `WouldBlock` 和 `TimedOut`。
+hostname 版本的连接 timeout 从 DNS 解析完成后开始计时，并由所有候选地址共享。
 
 ## UDP
 
