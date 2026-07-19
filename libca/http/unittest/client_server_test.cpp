@@ -1,0 +1,402 @@
+#include <gtest/gtest.h>
+
+#include <atomic>
+#include <chrono>
+#include <future>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "libca/http/http.hpp"
+
+namespace ca::http::test {
+namespace {
+
+class ServerRunner
+{
+public:
+    explicit ServerRunner(HttpServer server)
+        : server_(std::move(server))
+        , completion_(promise_.get_future())
+        , thread_([this] { promise_.set_value(server_.serve()); })
+    {}
+
+    ServerRunner(const ServerRunner&)            = delete;
+    ServerRunner& operator=(const ServerRunner&) = delete;
+
+    ~ServerRunner()
+    {
+        server_.stop();
+        if (thread_.joinable())
+            thread_.join();
+    }
+
+    HttpResult<void> finish()
+    {
+        server_.stop();
+        if (thread_.joinable())
+            thread_.join();
+        return completion_.get();
+    }
+
+private:
+    HttpServer                     server_;
+    std::promise<HttpResult<void>> promise_;
+    std::future<HttpResult<void>>  completion_;
+    std::thread                    thread_;
+};
+
+std::string body_text(const ca::core::Bytes& body)
+{
+    return std::string(reinterpret_cast<const char*>(body.as_ptr()), body.remaining());
+}
+
+ca::core::Bytes body_bytes(std::string_view body)
+{
+    return ca::core::Bytes::copy_from_slice(reinterpret_cast<const u8*>(body.data()), body.size());
+}
+
+HttpResponse text_response(u16 status, std::string_view body)
+{
+    HttpResponse response;
+    response.status = status;
+    response.body   = body_bytes(body);
+    EXPECT_TRUE(response.headers.append("Content-Type", "text/plain").is_ok());
+    return response;
+}
+
+HttpUrl server_url(const net::SocketAddress& address, std::string_view target)
+{
+    auto parsed =
+        HttpUrl::parse("http://127.0.0.1:" + std::to_string(address.port()) + std::string(target));
+    EXPECT_TRUE(parsed.is_ok()) << (parsed.is_err() ? parsed.unwrap_err().to_string() : "");
+    return std::move(parsed).unwrap();
+}
+
+HttpServer bind_server(HttpServerOptions options = HttpServerOptions())
+{
+    auto bound = HttpServer::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0), options);
+    EXPECT_TRUE(bound.is_ok()) << (bound.is_err() ? bound.unwrap_err().to_string() : "");
+    return std::move(bound).unwrap();
+}
+
+TEST(HttpClientServerTest, RoutesRequestsAndReusesSameOriginConnection)
+{
+    HttpServerOptions options;
+    options.worker_threads = 2;
+    auto server            = bind_server(options);
+    auto address_result    = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    std::mutex       peers_mutex;
+    std::vector<u16> peer_ports;
+    auto             record_peer = [&](const HttpServerRequestContext& context) {
+        std::lock_guard<std::mutex> lock(peers_mutex);
+        peer_ports.push_back(context.peer_address().port());
+    };
+
+    ASSERT_TRUE(server
+                    .route("GET",
+                           "/hello",
+                           [&](const HttpServerRequestContext& context) {
+                               record_peer(context);
+                               EXPECT_EQ(context.request().target, "/hello?q=1");
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(text_response(200, "hello")));
+                           })
+                    .is_ok());
+    ASSERT_TRUE(
+        server
+            .route("POST",
+                   "/echo",
+                   [&](const HttpServerRequestContext& context) {
+                       record_peer(context);
+                       HttpResponse response =
+                           text_response(200, body_text(context.request().body));
+                       EXPECT_TRUE(
+                           response.headers
+                               .set("X-Received-Host",
+                                    std::string(context.request().headers.get("Host").value_or("")))
+                               .is_ok());
+                       return ca::core::Ok(HttpServerResponse::buffered(std::move(response)));
+                   })
+            .is_ok());
+    ASSERT_EQ(server
+                  .route("GET",
+                         "/hello",
+                         [](const HttpServerRequestContext&) {
+                             return ca::core::Ok(
+                                 HttpServerResponse::buffered(text_response(200, "duplicate")));
+                         })
+                  .unwrap_err()
+                  .kind(),
+              HttpErrorKind::InvalidState);
+
+    ServerRunner runner(std::move(server));
+    auto         created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    auto client = std::move(created).unwrap();
+
+    auto hello = client.get(server_url(address, "/hello?q=1"));
+    ASSERT_TRUE(hello.is_ok()) << hello.unwrap_err().to_string();
+    EXPECT_EQ(hello.unwrap().status, 200);
+    EXPECT_EQ(body_text(hello.unwrap().body), "hello");
+    EXPECT_TRUE(client.has_open_connection());
+
+    HttpRequest echo_request;
+    echo_request.method = "POST";
+    echo_request.body   = body_bytes("payload");
+    ASSERT_TRUE(echo_request.headers.append("Host", "wrong.invalid").is_ok());
+    auto echo = client.request(server_url(address, "/echo"), std::move(echo_request));
+    ASSERT_TRUE(echo.is_ok()) << echo.unwrap_err().to_string();
+    EXPECT_EQ(echo.unwrap().status, 200);
+    EXPECT_EQ(body_text(echo.unwrap().body), "payload");
+    EXPECT_EQ(echo.unwrap().headers.get("X-Received-Host"),
+              "127.0.0.1:" + std::to_string(address.port()));
+
+    auto method_not_allowed = client.get(server_url(address, "/echo"));
+    ASSERT_TRUE(method_not_allowed.is_ok());
+    EXPECT_EQ(method_not_allowed.unwrap().status, 405);
+    EXPECT_EQ(method_not_allowed.unwrap().headers.get("Allow"), "POST");
+
+    auto not_found = client.get(server_url(address, "/missing"));
+    ASSERT_TRUE(not_found.is_ok());
+    EXPECT_EQ(not_found.unwrap().status, 404);
+
+    {
+        std::lock_guard<std::mutex> lock(peers_mutex);
+        ASSERT_EQ(peer_ports.size(), 2U);
+        EXPECT_EQ(peer_ports[0], peer_ports[1]);
+    }
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, StreamsChunkedResponseWithTrailersAndStopsIdleWorker)
+{
+    auto server         = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    ASSERT_TRUE(
+        server
+            .route("GET",
+                   "/events",
+                   [](const HttpServerRequestContext&) {
+                       HttpResponseHead head;
+                       EXPECT_TRUE(
+                           head.headers.append("Content-Type", "text/event-stream").is_ok());
+                       EXPECT_TRUE(head.headers.append("Trailer", "X-End").is_ok());
+                       HttpHeaders trailers;
+                       EXPECT_TRUE(trailers.append("X-End", "yes").is_ok());
+                       return ca::core::Ok(HttpServerResponse::chunked(
+                           std::move(head),
+                           [](Http1ChunkedBodyWriter& body, const ca::thread::StopToken& token) {
+                               EXPECT_FALSE(token.stop_requested());
+                               auto first = body.write_chunk("event: one\ndata: 1\n\n");
+                               if (first.is_err())
+                                   return first;
+                               auto flushed = body.flush();
+                               if (flushed.is_err())
+                                   return flushed;
+                               return body.write_chunk("event: two\ndata: 2\n\n");
+                           },
+                           std::move(trailers)));
+                   })
+            .is_ok());
+
+    ServerRunner runner(std::move(server));
+    auto         created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    auto response = client.get(server_url(address, "/events"));
+    ASSERT_TRUE(response.is_ok()) << response.unwrap_err().to_string();
+    EXPECT_EQ(response.unwrap().status, 200);
+    EXPECT_EQ(body_text(response.unwrap().body), "event: one\ndata: 1\n\nevent: two\ndata: 2\n\n");
+    EXPECT_EQ(response.unwrap().trailers.get("X-End"), "yes");
+    EXPECT_TRUE(client.has_open_connection());
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, MapsBodyLimitAndUnsupportedExpectation)
+{
+    HttpServerOptions options;
+    options.request_limits.max_body_bytes = 4;
+    auto server                           = bind_server(options);
+    auto address_result                   = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/upload",
+                           [](const HttpServerRequestContext& context) {
+                               return ca::core::Ok(HttpServerResponse::buffered(
+                                   text_response(200, body_text(context.request().body))));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    HttpRequest oversized;
+    oversized.method = "POST";
+    oversized.body   = body_bytes("hello");
+    auto too_large   = client.request(server_url(address, "/upload"), std::move(oversized));
+    ASSERT_TRUE(too_large.is_ok()) << too_large.unwrap_err().to_string();
+    EXPECT_EQ(too_large.unwrap().status, 413);
+    EXPECT_FALSE(client.has_open_connection());
+
+    HttpRequest expectation;
+    expectation.method = "POST";
+    ASSERT_TRUE(expectation.headers.append("Expect", "something-else").is_ok());
+    auto rejected = client.request(server_url(address, "/upload"), std::move(expectation));
+    ASSERT_TRUE(rejected.is_ok()) << rejected.unwrap_err().to_string();
+    EXPECT_EQ(rejected.unwrap().status, 417);
+    EXPECT_FALSE(client.has_open_connection());
+
+    HttpRequest continued;
+    continued.method = "POST";
+    continued.body   = body_bytes("data");
+    ASSERT_TRUE(continued.headers.append("Expect", "100-continue").is_ok());
+    auto accepted = client.request(server_url(address, "/upload"), std::move(continued));
+    ASSERT_TRUE(accepted.is_ok()) << accepted.unwrap_err().to_string();
+    EXPECT_EQ(accepted.unwrap().status, 200);
+    EXPECT_EQ(body_text(accepted.unwrap().body), "data");
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, RejectsConnectionsBeyondWorkerAndPendingCapacity)
+{
+    HttpServerOptions options;
+    options.worker_threads      = 1;
+    options.pending_connections = 1;
+    options.stop_poll_interval  = std::chrono::milliseconds(5);
+    auto server                 = bind_server(options);
+    auto address_result         = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+
+    std::promise<void> entered_promise;
+    auto               entered = entered_promise.get_future();
+    std::promise<void> gate_promise;
+    auto               gate = gate_promise.get_future().share();
+    std::atomic<bool>  first_handler{true};
+    ASSERT_TRUE(server
+                    .route("GET",
+                           "/block",
+                           [&](const HttpServerRequestContext&) {
+                               if (first_handler.exchange(false))
+                                   entered_promise.set_value();
+                               gate.wait();
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(text_response(200, "released")));
+                           })
+                    .is_ok());
+
+    ServerRunner runner(std::move(server));
+    const auto   url = server_url(address, "/block");
+    struct ClientOutcome
+    {
+        u16         status{0};
+        std::string error;
+    };
+    auto request = [url] {
+        HttpClientOptions client_options;
+        client_options.connect_timeout         = std::chrono::milliseconds(5000);
+        client_options.request_write_timeout   = std::chrono::milliseconds(5000);
+        client_options.response_header_timeout = std::chrono::milliseconds(5000);
+        client_options.response_body_timeout   = std::chrono::milliseconds(5000);
+        auto created                           = HttpClient::create(client_options);
+        if (created.is_err())
+            return ClientOutcome{0, created.unwrap_err().to_string()};
+        auto client   = std::move(created).unwrap();
+        auto response = client.get(url);
+        if (response.is_err())
+            return ClientOutcome{0, response.unwrap_err().to_string()};
+        return ClientOutcome{response.unwrap().status, {}};
+    };
+
+    auto first = std::async(std::launch::async, request);
+    ASSERT_EQ(entered.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    std::vector<std::future<ClientOutcome>> later;
+    later.push_back(std::async(std::launch::async, request));
+    later.push_back(std::async(std::launch::async, request));
+
+    bool       overload_ready = false;
+    const auto deadline       = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (!overload_ready && std::chrono::steady_clock::now() < deadline) {
+        for (auto& response : later) {
+            if (response.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+                overload_ready = true;
+                break;
+            }
+        }
+        if (!overload_ready)
+            std::this_thread::yield();
+    }
+    EXPECT_TRUE(overload_ready);
+    gate_promise.set_value();
+
+    const auto first_outcome = first.get();
+    EXPECT_EQ(first_outcome.status, 200) << first_outcome.error;
+    usize success_count  = first_outcome.status == 200 ? 1 : 0;
+    usize overload_count = 0;
+    for (auto& response : later) {
+        const auto outcome = response.get();
+        success_count += outcome.status == 200 ? 1 : 0;
+        overload_count += outcome.status == 503 ? 1 : 0;
+        EXPECT_TRUE(outcome.status == 200 || outcome.status == 503)
+            << "unexpected status " << outcome.status << ": " << outcome.error;
+    }
+    EXPECT_EQ(success_count, 2U);
+    EXPECT_EQ(overload_count, 1U);
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
+{
+    HttpClientOptions client_options;
+    client_options.connect_timeout = std::chrono::milliseconds(0);
+    EXPECT_EQ(HttpClient::create(client_options).unwrap_err().kind(), HttpErrorKind::InvalidState);
+
+    HttpServerOptions server_options;
+    server_options.pending_connections = 0;
+    auto invalid_server =
+        HttpServer::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0), server_options);
+    EXPECT_EQ(invalid_server.unwrap_err().kind(), HttpErrorKind::InvalidState);
+
+    auto server = bind_server();
+    EXPECT_EQ(server
+                  .route("GET",
+                         "missing-slash",
+                         [](const HttpServerRequestContext&) {
+                             return ca::core::Ok(
+                                 HttpServerResponse::buffered(text_response(200, "unused")));
+                         })
+                  .unwrap_err()
+                  .kind(),
+              HttpErrorKind::InvalidMessage);
+
+    auto created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+    auto https  = HttpUrl::parse("https://localhost/mcp");
+    ASSERT_TRUE(https.is_ok());
+    EXPECT_EQ(client.get(https.unwrap()).unwrap_err().kind(), HttpErrorKind::Unsupported);
+}
+
+}   // namespace
+}   // namespace ca::http::test
