@@ -258,7 +258,7 @@ TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展
 ## http
 
 建立在 net/io/thread 上的同步 HTTP/1.0/1.1 模块，提供独立于 TCP/TLS 的 codec、明文
-http client 与精确路由 server；可选 TLS 后续通过 stream adapter 扩展。
+http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 入口头文件：
 - `<libca/http/http.hpp>`（聚合头）
@@ -278,7 +278,7 @@ http client 与精确路由 server；可选 TLS 后续通过 stream adapter 扩�
 - `Http1Reader` / `Http1Writer`：完整缓冲或流式处理碎片化字节流、Content-Length、chunked、
   trailers、close-delimited response、HEAD/无 body 状态码和 keep-alive framing。
 - `Http1ChunkedBodyWriter`：逐 chunk 写入与显式 flush/finalize，支持 SSE 等低延迟输出。
-- `HttpClient`：完整缓冲 response、同源 keep-alive 复用、1xx 与分阶段总 deadline。
+- `HttpClient`：HTTP/HTTPS 完整缓冲 response、同源 keep-alive、TLS verification、1xx 与分阶段总 deadline。
 - `HttpServer`：method/path 精确路由、有界 worker/排队、keep-alive、stop-aware IO。
 - `HttpServerResponse`：handler 返回 buffered response 或 chunked producer。
 - `HttpLimits` / `HttpError`：start-line、header count/bytes、body 上限与结构化协议错误。

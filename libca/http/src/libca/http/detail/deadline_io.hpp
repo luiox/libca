@@ -16,12 +16,21 @@ class DeadlineReader final : public io::Reader
 {
 public:
     explicit DeadlineReader(net::TcpStream& stream) noexcept
-        : stream_(&stream)
+        : reader_(&stream)
+        , stream_(&stream)
+    {}
+
+    DeadlineReader(io::Reader& reader, net::TcpStream& stream,
+                   bool bidirectional_io = false) noexcept
+        : reader_(&reader)
+        , stream_(&stream)
+        , bidirectional_io_(bidirectional_io)
     {}
 
     DeadlineReader(net::TcpStream& stream, ca::thread::StopToken stop_token,
                    std::chrono::milliseconds stop_poll_interval) noexcept
-        : stream_(&stream)
+        : reader_(&stream)
+        , stream_(&stream)
         , stop_token_(std::move(stop_token))
         , stop_poll_interval_(stop_poll_interval)
     {}
@@ -54,7 +63,12 @@ public:
             auto       configured = stream_->set_read_timeout(wait);
             if (configured.is_err())
                 return ca::core::Err(configured.unwrap_err());
-            auto result = stream_->read(buffer, capacity);
+            if (bidirectional_io_) {
+                auto write_timeout = stream_->set_write_timeout(wait);
+                if (write_timeout.is_err())
+                    return ca::core::Err(write_timeout.unwrap_err());
+            }
+            auto result = reader_->read(buffer, capacity);
             if (result.is_err() && polling_enabled() && is_timeout(result.unwrap_err()))
                 continue;
             if (result.is_ok() && result.unwrap() != 0 && waiting_first_byte_) {
@@ -95,24 +109,35 @@ private:
         return ca::core::Ok(remaining);
     }
 
+    io::Reader*                           reader_{nullptr};
     net::TcpStream*                       stream_{nullptr};
     std::chrono::steady_clock::time_point deadline_{};
     std::chrono::milliseconds             continuation_{0};
     bool                                  waiting_first_byte_{false};
     ca::thread::StopToken                 stop_token_;
     std::chrono::milliseconds             stop_poll_interval_{0};
+    bool                                  bidirectional_io_{false};
 };
 
 class DeadlineWriter final : public io::Writer
 {
 public:
     explicit DeadlineWriter(net::TcpStream& stream) noexcept
-        : stream_(&stream)
+        : writer_(&stream)
+        , stream_(&stream)
+    {}
+
+    DeadlineWriter(io::Writer& writer, net::TcpStream& stream,
+                   bool bidirectional_io = false) noexcept
+        : writer_(&writer)
+        , stream_(&stream)
+        , bidirectional_io_(bidirectional_io)
     {}
 
     DeadlineWriter(net::TcpStream& stream, ca::thread::StopToken stop_token,
                    std::chrono::milliseconds stop_poll_interval) noexcept
-        : stream_(&stream)
+        : writer_(&stream)
+        , stream_(&stream)
         , stop_token_(std::move(stop_token))
         , stop_poll_interval_(stop_poll_interval)
     {}
@@ -144,14 +169,19 @@ public:
             auto       configured = stream_->set_write_timeout(wait);
             if (configured.is_err())
                 return ca::core::Err(configured.unwrap_err());
-            auto result = stream_->write(data, length);
+            if (bidirectional_io_) {
+                auto read_timeout = stream_->set_read_timeout(wait);
+                if (read_timeout.is_err())
+                    return ca::core::Err(read_timeout.unwrap_err());
+            }
+            auto result = writer_->write(data, length);
             if (result.is_err() && polling_enabled() && is_timeout(result.unwrap_err()))
                 continue;
             return result;
         }
     }
 
-    io::IoResult<void> flush() override { return stream_->flush(); }
+    io::IoResult<void> flush() override { return writer_->flush(); }
 
 private:
     bool polling_enabled() const noexcept
@@ -183,12 +213,14 @@ private:
         return ca::core::Ok(remaining);
     }
 
+    io::Writer*                           writer_{nullptr};
     net::TcpStream*                       stream_{nullptr};
     std::chrono::steady_clock::time_point deadline_{};
     std::chrono::milliseconds             idle_timeout_{0};
     bool                                  idle_mode_{false};
     ca::thread::StopToken                 stop_token_;
     std::chrono::milliseconds             stop_poll_interval_{0};
+    bool                                  bidirectional_io_{false};
 };
 
 }   // namespace ca::http::detail

@@ -119,3 +119,41 @@ jobs:
             echo "::endgroup::"
           done
           exit $failed
+
+  build-and-test-http-openssl:
+    name: build & test HTTP (linux, OpenSSL 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build perl
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v3.0.9
+          actions-cache-folder: '.xmake-cache'
+
+      - name: Cache xrepo packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.xmake/packages
+            ~/.local/share/xmake
+          key: libca-http-openssl3-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          restore-keys: |
+            libca-http-openssl3-linux-x64-xmake309-
+
+      - name: Configure HTTP with OpenSSL 3
+        run: |
+          xmake f -p linux --with_core=y --with_em=n --with_demo=n --with_tests=y --with_openssl=y -y
+
+      - name: Build and test HTTP with OpenSSL 3
+        run: |
+          xmake build libca_http_unittest
+          xmake run libca_http_unittest

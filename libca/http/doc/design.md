@@ -1,6 +1,7 @@
 ---
-version: 1.2
+version: 1.3
 update:
+2026-07-20 - 增加可选 OpenSSL 3 HTTPS client transport
 2026-07-19 - 增加同步 client、精确路由 server、有界并发与 stop-aware deadlines
 2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
 2026-07-19 - 完成 HTTP/1 数据模型、URL、headers 与同步 codec
@@ -20,6 +21,7 @@ update:
 - Content-Length、chunked、trailers、response close-delimited body。
 - 不可信报文的结构校验和资源限制。
 - 复用同源 keep-alive 连接的同步 client。
+- 可选 OpenSSL 3 HTTPS client transport。
 - 支持 buffered/chunked response 的精确路由 server。
 
 依赖方向为：
@@ -27,12 +29,13 @@ update:
 ```text
 libca_core <- libca_io <- libca_net -----> libca_http
           <- libca_thread ---------------^
+OpenSSL 3 -------------------------------^  (with_openssl 可选)
 ```
 
 本模块不实现通用多 origin 连接池、redirect、cookie、SSE event 语义层、压缩、代理、
-WebSocket、HTTP/2 或 TLS。TLS 后续通过实现相同 `Reader` / `Writer` 边界的可选 OpenSSL
-stream 接入，不能进入 HTTP/1 parser。MCP 等上层协议使用 JSON-RPC，不把 XML 引入 HTTP
-传输层。
+WebSocket、HTTP/2 或 TLS server。HTTPS client 通过实现相同 `Reader` / `Writer` 边界的
+私有 OpenSSL transport 接入，不能进入 HTTP/1 parser 或公开头文件。MCP 等上层协议使用
+JSON-RPC，不把 XML 引入 HTTP 传输层。
 
 ## 2. 数据与所有权
 
@@ -119,15 +122,23 @@ headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码
 
 ## 7. Client 与 Server
 
-`HttpClient` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同 http
+`HttpClient` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同
 origin 且双方 keep-alive framing 允许时复用连接；origin 变化、close-delimited response、
 CONNECT tunnel、协议错误或 IO 错误都会丢弃连接。request target 与 Host 固定取自 URL，
 调用方不能让连接 origin 与 Host 分离。当前 response 完整缓冲，下载体积受 `HttpLimits`
 控制；需要边读边处理时可直接使用 codec streaming API。
 
-client 的 connect、request write、response head 与 response body 使用各自总 deadline。
-1xx response 有数量上限；101/upgrade 与 https 在对应 transport 能力实现前明确返回
-`Unsupported`。
+client 的 connect、TLS handshake、request write、response head 与 response body 使用各自总
+deadline。1xx response 有数量上限；101/upgrade 明确返回 `Unsupported`。未启用
+`with_openssl` 时，https 在 TCP connect 前返回 `Unsupported`。
+
+TLS transport 最低接受 TLS 1.2，client ALPN 只声明 `http/1.1`。peer verification 默认开启，
+同时验证证书链和 URL DNS/IP identity；trust source 可使用 OpenSSL default paths、PEM CA
+bundle 或 hashed CA directory。`verify_peer=false` 是测试/开发逃生口，不做隐式降级。TLS
+对象只存在于私有实现，连接仍通过 deadline `Reader` / `Writer` 进入同一 HTTP/1 codec；由于
+`SSL_read` 可能写、`SSL_write` 可能读，TLS 路径每次 IO 同时设置底层 socket 的读写 timeout。
+只有 `close_notify` 被解释为正常 TLS EOF；直接 TCP EOF 映射为 `UnexpectedEof`，不能让
+close-delimited response 静默接受截断连接。
 
 `HttpServer` bind 后注册 method/path 精确路由，`serve()` 在当前线程管理 listener 与固定
 `ThreadPool`。worker 数加 pending queue 容量构成连接并发硬边界；队列满时 accept loop
@@ -171,6 +182,8 @@ server 识别 `Expect: 100-continue`，不支持的 expectation 返回 417；解
 - pre-routing middleware 顺序、短路、未知 method/path 覆盖与异常映射。
 - chunked producer、SSE flush、100-continue、413/417 与 stop 唤醒。
 - 单 worker/单 pending queue 下的确定性 503 背压。
+- OpenSSL HTTPS 的 CA/IP 校验、拒绝不受信或 identity 不匹配证书、显式关闭校验与 keep-alive。
+- TLS handshake 总 deadline、`close_notify` 与未清洁 TCP EOF 的差异。
 - CL/TE、冲突长度、重复/合并 Host、裸 LF、obs-fold、HTTP/1.0 TE 和截断 body。
 - start-line、header count/bytes 和 body 限制。
 - URL 的默认端口、query、fragment、IPv6 与非法 authority。
