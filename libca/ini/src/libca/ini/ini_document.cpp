@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <set>
 #include <utility>
 
 namespace ca::ini {
@@ -25,8 +26,19 @@ ca::str::Utf8String from_std(std::string s) {
     return ca::str::Utf8String::from_cstr(s.c_str());
 }
 
-// 剥首尾配对的单/双引号。若 value 以同一个引号字符开头且结尾，去掉两者。
-// 返回 Utf8String（持有）；输入视图内容必须是合法 UTF-8。
+// 判断 value 末尾引号是否被反斜杠转义：从末尾引号前一个字节起向前数连续反斜杠，
+// 奇数个表示转义（该引号不是闭合引号）。
+bool trailing_quote_escaped(const ca::u8* data, ca::usize quote_pos) {
+    ca::usize backslashes = 0;
+    while (quote_pos > 0 && data[quote_pos - 1] == '\\') {
+        ++backslashes;
+        --quote_pos;
+    }
+    return (backslashes % 2) != 0;
+}
+
+// 剥首尾配对的单/双引号。若 value 以同一个引号字符开头且结尾、且末尾引号未被转义，
+// 去掉两者。返回 Utf8String（持有）；输入视图内容必须是合法 UTF-8。
 ca::str::Utf8String strip_quotes(const ca::str::Utf8StringRef& value) {
     const ca::usize blen = value.byte_length();
     if (blen < 2) {
@@ -34,7 +46,8 @@ ca::str::Utf8String strip_quotes(const ca::str::Utf8StringRef& value) {
     }
     const ca::u8 first = value.byte_at(0);
     const ca::u8 last = value.byte_at(blen - 1);
-    if ((first == '"' || first == '\'') && first == last) {
+    if ((first == '"' || first == '\'') && first == last &&
+        !trailing_quote_escaped(value.data(), blen - 1)) {
         // 去掉首尾各一字节（引号是单字节 ASCII，切片落在码点边界）
         const ca::u8* p = value.data() + 1;
         return ca::str::Utf8String(p, blen - 2);
@@ -116,7 +129,7 @@ ca::str::Utf8String IniDocument::get_or(const ca::str::Utf8StringRef& section,
     if (value != nullptr) {
         return value->clone();
     }
-    return default_value.substr(0, default_value.length());
+    return ca::str::Utf8String(default_value.data(), default_value.byte_length());
 }
 
 // ============================================================================
@@ -194,7 +207,7 @@ void IniDocument::set(const ca::str::Utf8StringRef& section,
         auto key_it = section_it->second.find(to_std(key));
         if (key_it != section_it->second.end()) {
             auto& record = records_[key_it->second];
-            record.line.value = value.substr(0, value.length());
+            record.line.value = ca::str::Utf8String(value.data(), value.byte_length());
             rebuild_key_raw(key_it->second);
             // 同步更新 public_lines_（Utf8String 不可拷贝，逐字段 clone）。
             IniLine updated;
@@ -220,7 +233,7 @@ void IniDocument::set(const ca::str::Utf8StringRef& section,
 
         detail::LineRecord section_record;
         section_record.line.kind = IniLineKind::Section;
-        section_record.line.section = section.substr(0, section.length());
+        section_record.line.section = ca::str::Utf8String(section.data(), section.byte_length());
         section_record.raw = from_std("[" + sec + "]");
         section_record.line_ending = from_std(newline);
         records_.push_back(std::move(section_record));
@@ -230,9 +243,9 @@ void IniDocument::set(const ca::str::Utf8StringRef& section,
     // 新增 key 行用统一的 "key = value" 格式。
     detail::LineRecord key_record;
     key_record.line.kind = IniLineKind::KeyValue;
-    key_record.line.section = section.substr(0, section.length());
-    key_record.line.key = key.substr(0, key.length());
-    key_record.line.value = value.substr(0, value.length());
+    key_record.line.section = ca::str::Utf8String(section.data(), section.byte_length());
+    key_record.line.key = ca::str::Utf8String(key.data(), key.byte_length());
+    key_record.line.value = ca::str::Utf8String(value.data(), value.byte_length());
     key_record.key_suffix = from_std(" ");
     key_record.separator = from_std("=");
     key_record.value_prefix = from_std(" ");
@@ -315,17 +328,22 @@ std::vector<ca::str::Utf8String> IniDocument::sections() const {
 }
 
 std::vector<ca::str::Utf8String> IniDocument::keys(const ca::str::Utf8StringRef& section) const {
-    const std::string sec = to_std(section);
+    // 用 string_view 做匹配和去重，避免每次循环分配 std::string（Utf8String 的 data()
+    // 在 record 存活期间稳定，string_view 安全）。
+    const std::string_view sec_view(reinterpret_cast<const char*>(section.data()),
+                                    section.byte_length());
     std::vector<ca::str::Utf8String> result;
-    std::map<std::string, bool> seen;
+    std::set<std::string_view> seen;
     for (const auto& record : records_) {
-        if (record.line.kind == IniLineKind::KeyValue &&
-            to_std(record.line.section.ref()) == sec) {
-            const std::string k = to_std(record.line.key.ref());
-            if (seen.find(k) == seen.end()) {
-                seen[k] = true;
-                result.push_back(record.line.key.clone());
-            }
+        if (record.line.kind != IniLineKind::KeyValue) continue;
+        const std::string_view rec_sec(
+            reinterpret_cast<const char*>(record.line.section.data()),
+            record.line.section.byte_length());
+        if (rec_sec != sec_view) continue;
+        const std::string_view k_view(reinterpret_cast<const char*>(record.line.key.data()),
+                                      record.line.key.byte_length());
+        if (seen.insert(k_view).second) {
+            result.push_back(record.line.key.clone());
         }
     }
     return result;

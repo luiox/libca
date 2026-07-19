@@ -27,7 +27,7 @@ ca::str::Utf8String IniWriter::write(const IniDocument& document,
             output += options.line_ending;
         }
     }
-    return ca::str::Utf8String::from_cstr(output.c_str());
+    return ca::str::Utf8String(reinterpret_cast<const ca::u8*>(output.data()), output.size());
 }
 
 ca::Result<void, ca::str::Utf8String> IniWriter::write_file(
@@ -38,13 +38,15 @@ ca::Result<void, ca::str::Utf8String> IniWriter::write_file(
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
     std::ofstream output(path_str, std::ios::binary | std::ios::trunc);
     if (!output.is_open()) {
-        return ca::Err(ca::str::Utf8String::from_cstr("failed to open INI file for writing"));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("failed to open INI file for writing: " + path_str).c_str()));
     }
     ca::str::Utf8String text = write(document, options);
     output.write(reinterpret_cast<const char*>(text.data()),
                  static_cast<std::streamsize>(text.byte_length()));
     if (!output.good()) {
-        return ca::Err(ca::str::Utf8String::from_cstr("failed to write INI file"));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ("failed to write INI file: " + path_str).c_str()));
     }
     return ca::Ok();
 }

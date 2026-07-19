@@ -70,12 +70,25 @@ usize find_inline_comment(const std::string& value,
     return value.size();
 }
 
-// 判断 value 是否被首尾配对的引号包裹，若是返回 true 并写出引号字符。
+// 判断 value 末尾引号是否被反斜杠转义：从末尾引号前一个字节起向前数连续反斜杠，
+// 奇数个表示转义（该引号不是闭合引号）。
+bool trailing_quote_escaped(const std::string& value) {
+    std::size_t backslashes = 0;
+    std::size_t i = value.size() - 1;  // 指向末尾引号
+    while (i > 0 && value[i - 1] == '\\') {
+        ++backslashes;
+        --i;
+    }
+    return (backslashes % 2) != 0;
+}
+
+// 判断 value 是否被首尾配对的引号包裹（且末尾引号未被转义），若是返回 true 并写出引号字符。
 bool detect_quotes(const std::string& value, char& quote_char) {
     if (value.size() < 2) return false;
     const char first = value.front();
     const char last = value.back();
-    if ((first == '"' || first == '\'') && first == last) {
+    if ((first == '"' || first == '\'') && first == last &&
+        !trailing_quote_escaped(value)) {
         quote_char = first;
         return true;
     }
