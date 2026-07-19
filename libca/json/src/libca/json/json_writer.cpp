@@ -2,6 +2,7 @@
 
 #include "libca/str/utf8_string.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -25,6 +26,12 @@ public:
         if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
     }
     void write_float(ca::f64 v) {
+        // RFC 8259 不允许 NaN/Infinity（未定义字面量）；snprintf("%g") 会输出 "nan"/"inf"
+        // 产生非法 JSON。这里统一序列化为 null。
+        if (std::isnan(v) || std::isinf(v)) {
+            sb_.append("null");
+            return;
+        }
         char buf[64];
         // %.17g 保证 double round-trip 精度
         int n = std::snprintf(buf, sizeof(buf), "%.17g", static_cast<double>(v));

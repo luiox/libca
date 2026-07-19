@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <string>
 
 using namespace ca::json;
@@ -67,6 +69,16 @@ TEST(JsonWriterTest, WritesScalars) {
     EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_bool(false))), "false");
     EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_int(42))), "42");
     EXPECT_EQ(to_std(JsonWriter::write(JsonValue::make_int(-1))), "-1");
+}
+
+TEST(JsonWriterTest, SerializesNaNAndInfinityAsNull) {
+    // RFC 8259 不允许 NaN/Infinity；序列化为 null 保证输出仍是合法 JSON。
+    EXPECT_EQ(to_std(JsonWriter::write(
+        JsonValue::make_float(std::numeric_limits<ca::f64>::quiet_NaN()))), "null");
+    EXPECT_EQ(to_std(JsonWriter::write(
+        JsonValue::make_float(std::numeric_limits<ca::f64>::infinity()))), "null");
+    EXPECT_EQ(to_std(JsonWriter::write(
+        JsonValue::make_float(-std::numeric_limits<ca::f64>::infinity()))), "null");
 }
 
 TEST(JsonWriterTest, WritesString) {

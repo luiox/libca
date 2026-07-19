@@ -10,7 +10,6 @@
 
 #include "libca/json/json_value.hpp"
 #include "libca/str/utf8_string.hpp"
-#include "libca/str/utf8_string.hpp"
 
 namespace ca::json {
 

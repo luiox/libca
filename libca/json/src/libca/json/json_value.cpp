@@ -187,12 +187,16 @@ void JsonValue::append(JsonValue v) {
 
 const JsonValue& JsonValue::at(usize index) const noexcept {
     assert(type_ == JsonType::Array && "JsonValue::at on non-Array");
-    return std::get<ArrayStorage>(data_)[index];
+    const auto& arr = std::get<ArrayStorage>(data_);
+    assert(index < arr.size() && "JsonValue::at index out of bounds");
+    return arr[index];
 }
 
 JsonValue& JsonValue::at(usize index) noexcept {
     assert(type_ == JsonType::Array && "JsonValue::at on non-Array");
-    return std::get<ArrayStorage>(data_)[index];
+    auto& arr = std::get<ArrayStorage>(data_);
+    assert(index < arr.size() && "JsonValue::at index out of bounds");
+    return arr[index];
 }
 
 usize JsonValue::size() const noexcept {

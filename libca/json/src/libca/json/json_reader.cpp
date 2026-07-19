@@ -63,9 +63,10 @@ ca::Result<JsonValue, ParseError> JsonReader::read_file(
     }
     std::ostringstream buffer;
     buffer << input.rdbuf();
-    const std::string& text = buffer.str();
+    // 用值拷贝而非 const& 绑定临时量，避免依赖生命周期延长（脆弱）。NRVO 会消除拷贝。
+    std::string text = buffer.str();
 
-    // 注意：text 是局部 std::string，Utf8StringRef 在解析期间必须有效。
+    // text 是局部 std::string，Utf8StringRef 在解析期间必须有效。
     // read() 内部同步完成解析，所以 text 在返回前一直有效。
     ca::str::Utf8StringRef view = ca::str::Utf8StringRef::from_string_view(
         std::string_view(text.data(), text.size()));
