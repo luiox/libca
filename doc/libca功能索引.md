@@ -182,6 +182,43 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。深�
 - `libca/json/doc/json设计文档.md`
 - `libca/json/README.md`（快速示例）
 
+## toml
+
+TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 `Utf8StringRef` 指向
+所属 `TomlDocument` 内部的 `Utf8StringArena`，消灭零散堆分配，相同字符串自动去重。
+输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<TomlDocument, ParseError>`。
+
+入口头文件：
+- `<libca/toml/toml.hpp>`（聚合头）
+- `<libca/toml/toml_value.hpp>`
+- `<libca/toml/toml_document.hpp>`
+- `<libca/toml/toml_datetime.hpp>`
+- `<libca/toml/toml_reader.hpp>`
+- `<libca/toml/toml_writer.hpp>`
+- `<libca/toml/parse_error.hpp>`
+- `<libca/toml/source_location.hpp>`
+
+功能：
+- `TomlValue`：DOM 节点，10 种类型（String/Integer/Float/Boolean + 4 种 datetime 变体 +
+  Array/Table）。存 `Utf8StringRef` 而非 `Utf8String`，因此**可拷贝**（不像 json 的 move-only）。
+- `TomlDatetime`：4 种 datetime 变体共用结构（offset date-time / local date-time /
+  local date / local time），用 `Kind` 枚举区分。
+- `TomlDocument`：所有权根，持有 arena + root `TomlValue`。析构即释放 arena，
+  所有 `Utf8StringRef` 失效。
+- `TomlReader`：把字符串/文件解析为 `TomlDocument`，返回 `Result<TomlDocument, ParseError>`。
+  支持 TOML 1.0 全子集：4 种字符串、各进制整数、inf/nan、dotted keys、标准表/inline table/
+  数组表、4 种 datetime。
+- `TomlWriter`：序列化为 `Utf8String`，顶层 key=value 在前，子表以 `[a.b]` / `[[a.b]]`
+  表头分段在后；含换行字符串用 multiline basic string 输出。
+- `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
+- 整数超 i64 报错（与 TOML 严格语义一致，不降级 float）；重复 key / 重复 table header /
+  parent-after-child 表头全部报错。允许 UTF-8 BOM。
+
+设计与使用文档：
+- `libca/toml/doc/toml设计文档.md`
+- `libca/toml/doc/dev_plan.md`（开发接力文档，含 Arena 架构设计动机）
+- `libca/toml/README.md`（快速示例）
+
 ## net
 
 建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。
