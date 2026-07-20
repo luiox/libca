@@ -343,7 +343,7 @@ HttpResult<void> ServerTlsContext::load(const HttpTlsServerOptions&)
                                               "https requires a build with OpenSSL enabled"));
 }
 
-void* ServerTlsContext::native_handle() noexcept
+void* ServerTlsContext::native_handle() const noexcept
 {
     return nullptr;
 }
