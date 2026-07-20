@@ -135,6 +135,9 @@ public:
     static HttpResult<HttpServer> bind(const net::SocketAddress& address,
                                        const HttpServerOptions&  options = HttpServerOptions());
 
+    /// @brief 返回当前构建是否包含可选 OpenSSL HTTPS server transport。
+    static bool supports_https() noexcept;
+
     HttpServer(const HttpServer&)            = delete;
     HttpServer& operator=(const HttpServer&) = delete;
     HttpServer(HttpServer&& other) noexcept;

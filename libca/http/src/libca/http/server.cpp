@@ -207,6 +207,14 @@ public:
             if (serve_started_)
                 return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
                                                           "HTTP server can only serve once"));
+            // 配置了 options.tls 时,在进入 accept 循环前一次性加载证书链。
+            // SSL_CTX 构造完成后是只读结构,后续多 worker 并发 accept 共享此 ctx 安全。
+            if (options_.tls.has_value()) {
+                auto loaded = tls_context_.load(*options_.tls);
+                if (loaded.is_err())
+                    return ca::core::Err(std::move(loaded).unwrap_err());
+                tls_enabled_ = true;
+            }
             serve_started_ = true;
             running_.store(true, std::memory_order_release);
         }
@@ -297,11 +305,23 @@ private:
         if (nodelay.is_err())
             return ca::core::Err(
                 HttpError::from_io(nodelay.unwrap_err(), "configure accepted HTTP connection"));
-        // 纯 TCP 路径:直接包装成 TcpServerTransport。TLS 握手在后续提交接入,
-        // 届时此处根据 options_.tls 选择 TcpServerTransport 或 make_tls_server_transport。
-        auto transport = std::make_unique<detail::TcpServerTransport>(std::move(accepted.stream));
-        return ca::core::Ok(std::make_shared<ConnectionJob>(std::move(transport),
-                                                            std::move(accepted.peer_address)));
+
+        std::unique_ptr<detail::ServerTransport> transport;
+        if (tls_enabled_) {
+            // TLS 握手在 worker 线程外执行(此处),失败直接关闭连接,不进 handle_connection。
+            // handshake_timeout 由 options_.tls->handshake_timeout 决定。
+            auto secured = detail::make_tls_server_transport(std::move(accepted.stream),
+                                                              tls_context_,
+                                                              options_.tls->handshake_timeout);
+            if (secured.is_err())
+                return ca::core::Err(std::move(secured).unwrap_err());
+            transport = std::move(secured).unwrap();
+        }
+        else {
+            transport = std::make_unique<detail::TcpServerTransport>(std::move(accepted.stream));
+        }
+        return ca::core::Ok(
+            std::make_shared<ConnectionJob>(std::move(transport), std::move(accepted.peer_address)));
     }
 
     void send_overloaded(net::TcpStream& stream)
@@ -538,14 +558,15 @@ private:
     {
         // 用 deadline_io.hpp 的抽象构造函数:reader/writer 走 transport(TLS 时是 SSL),
         // 超时通过 transport 的底层 TcpStream 设置;同时绑定 stop_token 让 server 能
-        // 协作停止(对称原 (TcpStream&, StopToken, ms) 构造,只是把 reader/writer 换成抽象)。
-        // bidirectional_io=false 对纯 TCP;TLS 接入后会传 true(SSL 读写共享同一 state)。
+        // 协作停止。TLS 场景 bidirectional_io=true:SSL_read/write 共享同一 SSL state,
+        // 读时应同时设 write_timeout、写时应同时设 read_timeout,避免一边阻塞死锁。
+        const bool bidirectional = tls_enabled_;
         detail::DeadlineReader deadline_reader(
             *job.transport, job.transport->tcp_stream(), stop_source_.token(),
-            options_.stop_poll_interval, false);
+            options_.stop_poll_interval, bidirectional);
         detail::DeadlineWriter deadline_writer(
             *job.transport, job.transport->tcp_stream(), stop_source_.token(),
-            options_.stop_poll_interval, false);
+            options_.stop_poll_interval, bidirectional);
         Http1Reader reader(deadline_reader, options_.request_limits);
         Http1Writer writer(deadline_writer);
 
@@ -591,6 +612,8 @@ private:
     std::vector<Route>                 routes_;
     std::vector<HttpRequestMiddleware> middleware_;
     HttpRouteHandler                   fallback_;
+    detail::ServerTlsContext           tls_context_;
+    bool                               tls_enabled_{false};
     bool                               serve_started_{false};
     std::atomic<bool>                  running_{false};
 };
@@ -665,6 +688,11 @@ HttpResult<HttpServer> HttpServer::bind(const net::SocketAddress& address,
         return ca::core::Err(HttpError::from_io(local.unwrap_err(), "query HTTP listener"));
     return ca::core::Ok(HttpServer(
         std::make_shared<HttpServerImpl>(std::move(listener), std::move(local).unwrap(), options)));
+}
+
+bool HttpServer::supports_https() noexcept
+{
+    return detail::tls_server_available();
 }
 
 HttpServer::HttpServer(std::shared_ptr<HttpServerImpl> impl) noexcept

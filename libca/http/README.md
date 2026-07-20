@@ -2,8 +2,8 @@
 
 同步 HTTP/1.0/1.1 codec、client 与 server 模块，命名空间 `ca::http`。
 
-HTTPS client 是默认关闭的可选能力，启用时由 OpenSSL 3 提供 TLS transport；HTTP codec 与
-公开接口不暴露 OpenSSL 类型。设计边界见 `doc/design.md`，接口签名以头文件 Doxygen 注释为准。
+HTTPS client 与 HTTPS server 是默认关闭的可选能力，启用时由 OpenSSL 3 提供 TLS transport；HTTP codec
+与公开接口不暴露 OpenSSL 类型。设计边界见 `doc/design.md`，接口签名以头文件 Doxygen 注释为准。
 
 ```bash
 xmake f --with_core=y --with_em=n --with_openssl=y -y
@@ -188,3 +188,29 @@ head/body、response write 均有独立期限；accept loop 发送 503 并关闭
 `overload_response_timeout`，避免慢连接长时间阻塞后续 accept。`stop()` 请求协作取消，活动 IO
 最多一个 `stop_poll_interval` 后退出。单连接达到 `max_requests_per_connection` 后会发送
 `Connection: close`。
+
+### HTTPS server
+
+启用 `with_openssl` 后，把 `HttpTlsServerOptions` 填进 `HttpServerOptions::tls`，`serve()` 进入
+accept loop 前会一次性加载证书链与私钥构造 `SSL_CTX`，后续所有连接复用。未配置 `options.tls`
+（默认）时 server 行为完全是纯 HTTP。
+
+```cpp
+ca::http::HttpServerOptions options;
+options.tls->certificate_chain_file = "server.pem";   // leaf + intermediate
+options.tls->private_key_file       = "key.pem";
+options.tls->handshake_timeout      = std::chrono::seconds(10);
+
+auto address = ca::net::SocketAddress(ca::net::IpAddress::localhost_v4(), 8443);
+auto server  = ca::http::HttpServer::bind(address, options).unwrap();
+server.route("GET", "/health", [](const ca::http::HttpServerRequestContext&) {
+    return ca::core::Ok(ca::http::HttpServerResponse::buffered(
+        ca::http::HttpResponse{}));   // status 默认 200
+});
+server.serve();
+```
+
+`verify_client=true` 时启用 mTLS：客户端不提供证书会在 TLS 握手阶段被拒绝，配合 `ca_file` /
+`ca_directory` 指定信任 CA。证书校验失败不会进入 HTTP 处理，因此 401/403 等响应码只在已建立
+TLS 连接的 HTTP 层有效。未启用 OpenSSL 的构建调用 `HttpServer::supports_https()` 返回 false，
+配置了 `options.tls` 后 `serve()` 会在加载证书阶段返回 `Unsupported`。
