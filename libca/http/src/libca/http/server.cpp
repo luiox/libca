@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <utility>
@@ -10,6 +11,7 @@
 
 #include "libca/core/bytes.hpp"
 #include "libca/http/detail/deadline_io.hpp"
+#include "libca/http/detail/server_transport.hpp"
 #include "libca/thread/thread_pool.hpp"
 
 namespace ca::http {
@@ -24,13 +26,13 @@ struct Route
 
 struct ConnectionJob
 {
-    ConnectionJob(net::TcpStream value, net::SocketAddress peer)
-        : stream(std::move(value))
+    ConnectionJob(std::unique_ptr<detail::ServerTransport> value, net::SocketAddress peer)
+        : transport(std::move(value))
         , peer_address(std::move(peer))
     {}
 
-    net::TcpStream     stream;
-    net::SocketAddress peer_address;
+    std::unique_ptr<detail::ServerTransport> transport;
+    net::SocketAddress                       peer_address;
 };
 
 HttpResult<void> validate_options(const HttpServerOptions& options)
@@ -241,7 +243,7 @@ public:
                 continue;
             auto job = std::move(prepared).unwrap();
             if (stop_source_.stop_requested()) {
-                job->stream.shutdown(net::Shutdown::Both);
+                job->transport->tcp_stream().shutdown(net::Shutdown::Both);
                 break;
             }
 
@@ -255,7 +257,7 @@ public:
             }
             auto queued = std::move(submitted).unwrap();
             if (!queued.has_value())
-                send_overloaded(job->stream);
+                send_overloaded(job->transport->tcp_stream());
         }
 
         stop();
@@ -295,7 +297,10 @@ private:
         if (nodelay.is_err())
             return ca::core::Err(
                 HttpError::from_io(nodelay.unwrap_err(), "configure accepted HTTP connection"));
-        return ca::core::Ok(std::make_shared<ConnectionJob>(std::move(accepted.stream),
+        // 纯 TCP 路径:直接包装成 TcpServerTransport。TLS 握手在后续提交接入,
+        // 届时此处根据 options_.tls 选择 TcpServerTransport 或 make_tls_server_transport。
+        auto transport = std::make_unique<detail::TcpServerTransport>(std::move(accepted.stream));
+        return ca::core::Ok(std::make_shared<ConnectionJob>(std::move(transport),
                                                             std::move(accepted.peer_address)));
     }
 
@@ -531,10 +536,16 @@ private:
 
     void handle_connection(ConnectionJob& job)
     {
+        // 用 deadline_io.hpp 的抽象构造函数:reader/writer 走 transport(TLS 时是 SSL),
+        // 超时通过 transport 的底层 TcpStream 设置;同时绑定 stop_token 让 server 能
+        // 协作停止(对称原 (TcpStream&, StopToken, ms) 构造,只是把 reader/writer 换成抽象)。
+        // bidirectional_io=false 对纯 TCP;TLS 接入后会传 true(SSL 读写共享同一 state)。
         detail::DeadlineReader deadline_reader(
-            job.stream, stop_source_.token(), options_.stop_poll_interval);
+            *job.transport, job.transport->tcp_stream(), stop_source_.token(),
+            options_.stop_poll_interval, false);
         detail::DeadlineWriter deadline_writer(
-            job.stream, stop_source_.token(), options_.stop_poll_interval);
+            *job.transport, job.transport->tcp_stream(), stop_source_.token(),
+            options_.stop_poll_interval, false);
         Http1Reader reader(deadline_reader, options_.request_limits);
         Http1Writer writer(deadline_writer);
 
