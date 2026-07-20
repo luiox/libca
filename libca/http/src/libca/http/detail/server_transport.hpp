@@ -7,6 +7,7 @@
 #include "libca/io/reader.hpp"
 #include "libca/io/writer.hpp"
 #include "libca/net/tcp.hpp"
+#include "libca/thread/stop_token.hpp"
 
 namespace ca::http {
 
@@ -87,8 +88,8 @@ bool tls_server_available() noexcept;
 /// 仅在启用 with_openssl 时返回有效 transport;否则返回 Unsupported 错误。
 HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
     net::TcpStream stream, const ServerTlsContext& context,
-    std::chrono::milliseconds handshake_timeout);
+    std::chrono::milliseconds handshake_timeout, ca::thread::StopToken stop_token,
+    std::chrono::milliseconds stop_poll_interval);
 
 }   // namespace detail
 }   // namespace ca::http
-

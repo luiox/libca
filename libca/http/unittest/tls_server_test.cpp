@@ -461,6 +461,48 @@ TEST(HttpTlsServerTest, HandshakeTimeoutClosesConnection)
     EXPECT_TRUE(read.is_err() || read.unwrap() == 0);
 }
 
+TEST(HttpTlsServerTest, SlowHandshakeDoesNotBlockLaterConnections)
+{
+    TlsServerTestMaterials materials;
+    HttpServerOptions      options;
+    options.tls                    = server_tls_options(materials);
+    options.tls->handshake_timeout = std::chrono::milliseconds(1000);
+    options.worker_threads         = 2;
+    options.idle_timeout           = std::chrono::milliseconds(1000);
+    options.stop_poll_interval     = std::chrono::milliseconds(5);
+    const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
+    auto         server        = make_server_with_route(address, options, "/hello", 200, "hello");
+    auto         bound_address = server.local_address().unwrap();
+    ScopedServer scoped(std::move(server));
+
+    auto stalled = net::TcpStream::connect(
+        net::SocketAddress(net::IpAddress::localhost_v4(), bound_address.port()));
+    ASSERT_TRUE(stalled.is_ok());
+    auto stalled_stream = std::move(stalled).unwrap();
+
+    auto client_options                    = client_tls_options(materials);
+    client_options.connect_timeout         = std::chrono::milliseconds(500);
+    client_options.tls_handshake_timeout   = std::chrono::milliseconds(500);
+    client_options.response_header_timeout = std::chrono::milliseconds(500);
+    auto client                            = HttpClient::create(client_options).unwrap();
+    auto response                          = client.get(https_url(bound_address.port(), "/hello"));
+    ASSERT_TRUE(response.is_ok()) << response.unwrap_err().to_string();
+    EXPECT_EQ(response.unwrap().status, 200);
+
+    stalled_stream.shutdown(net::Shutdown::Both);
+}
+
+TEST(HttpTlsServerTest, RejectsNonPositiveHandshakeTimeout)
+{
+    HttpServerOptions options;
+    options.tls                    = HttpTlsServerOptions{};
+    options.tls->handshake_timeout = std::chrono::milliseconds(0);
+    const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
+    auto                     bound = HttpServer::bind(address, options);
+    ASSERT_TRUE(bound.is_err());
+    EXPECT_EQ(bound.unwrap_err().kind(), HttpErrorKind::InvalidState);
+}
+
 }   // namespace
 }   // namespace ca::http::test
 

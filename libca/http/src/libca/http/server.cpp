@@ -26,13 +26,13 @@ struct Route
 
 struct ConnectionJob
 {
-    ConnectionJob(std::unique_ptr<detail::ServerTransport> value, net::SocketAddress peer)
-        : transport(std::move(value))
+    ConnectionJob(net::TcpStream value, net::SocketAddress peer)
+        : stream(std::move(value))
         , peer_address(std::move(peer))
     {}
 
-    std::unique_ptr<detail::ServerTransport> transport;
-    net::SocketAddress                       peer_address;
+    net::TcpStream     stream;
+    net::SocketAddress peer_address;
 };
 
 HttpResult<void> validate_options(const HttpServerOptions& options)
@@ -49,6 +49,9 @@ HttpResult<void> validate_options(const HttpServerOptions& options)
         options.request_limits.max_header_count == 0 || options.request_limits.max_body_bytes == 0)
         return ca::core::Err(HttpError::from_kind(
             HttpErrorKind::InvalidState, "all HTTP request parsing limits must be positive"));
+    if (options.tls.has_value() && options.tls->handshake_timeout.count() <= 0)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "TLS handshake timeout must be positive"));
     return ca::core::Ok();
 }
 
@@ -251,7 +254,7 @@ public:
                 continue;
             auto job = std::move(prepared).unwrap();
             if (stop_source_.stop_requested()) {
-                job->transport->tcp_stream().shutdown(net::Shutdown::Both);
+                job->stream.shutdown(net::Shutdown::Both);
                 break;
             }
 
@@ -264,8 +267,12 @@ public:
                 break;
             }
             auto queued = std::move(submitted).unwrap();
-            if (!queued.has_value())
-                send_overloaded(job->transport->tcp_stream());
+            if (!queued.has_value()) {
+                if (tls_enabled_)
+                    job->stream.shutdown(net::Shutdown::Both);
+                else
+                    send_overloaded(job->stream);
+            }
         }
 
         stop();
@@ -306,22 +313,8 @@ private:
             return ca::core::Err(
                 HttpError::from_io(nodelay.unwrap_err(), "configure accepted HTTP connection"));
 
-        std::unique_ptr<detail::ServerTransport> transport;
-        if (tls_enabled_) {
-            // TLS 握手在 worker 线程外执行(此处),失败直接关闭连接,不进 handle_connection。
-            // handshake_timeout 由 options_.tls->handshake_timeout 决定。
-            auto secured = detail::make_tls_server_transport(std::move(accepted.stream),
-                                                              tls_context_,
-                                                              options_.tls->handshake_timeout);
-            if (secured.is_err())
-                return ca::core::Err(std::move(secured).unwrap_err());
-            transport = std::move(secured).unwrap();
-        }
-        else {
-            transport = std::make_unique<detail::TcpServerTransport>(std::move(accepted.stream));
-        }
-        return ca::core::Ok(
-            std::make_shared<ConnectionJob>(std::move(transport), std::move(accepted.peer_address)));
+        return ca::core::Ok(std::make_shared<ConnectionJob>(std::move(accepted.stream),
+                                                            std::move(accepted.peer_address)));
     }
 
     void send_overloaded(net::TcpStream& stream)
@@ -556,19 +549,38 @@ private:
 
     void handle_connection(ConnectionJob& job)
     {
+        std::unique_ptr<detail::ServerTransport> transport;
+        if (tls_enabled_) {
+            auto secured = detail::make_tls_server_transport(std::move(job.stream),
+                                                             tls_context_,
+                                                             options_.tls->handshake_timeout,
+                                                             stop_source_.token(),
+                                                             options_.stop_poll_interval);
+            if (secured.is_err())
+                return;
+            transport = std::move(secured).unwrap();
+        }
+        else {
+            transport = std::make_unique<detail::TcpServerTransport>(std::move(job.stream));
+        }
+
         // 用 deadline_io.hpp 的抽象构造函数:reader/writer 走 transport(TLS 时是 SSL),
         // 超时通过 transport 的底层 TcpStream 设置;同时绑定 stop_token 让 server 能
         // 协作停止。TLS 场景 bidirectional_io=true:SSL_read/write 共享同一 SSL state,
         // 读时应同时设 write_timeout、写时应同时设 read_timeout,避免一边阻塞死锁。
-        const bool bidirectional = tls_enabled_;
-        detail::DeadlineReader deadline_reader(
-            *job.transport, job.transport->tcp_stream(), stop_source_.token(),
-            options_.stop_poll_interval, bidirectional);
-        detail::DeadlineWriter deadline_writer(
-            *job.transport, job.transport->tcp_stream(), stop_source_.token(),
-            options_.stop_poll_interval, bidirectional);
-        Http1Reader reader(deadline_reader, options_.request_limits);
-        Http1Writer writer(deadline_writer);
+        const bool             bidirectional = tls_enabled_;
+        detail::DeadlineReader deadline_reader(*transport,
+                                               transport->tcp_stream(),
+                                               stop_source_.token(),
+                                               options_.stop_poll_interval,
+                                               bidirectional);
+        detail::DeadlineWriter deadline_writer(*transport,
+                                               transport->tcp_stream(),
+                                               stop_source_.token(),
+                                               options_.stop_poll_interval,
+                                               bidirectional);
+        Http1Reader            reader(deadline_reader, options_.request_limits);
+        Http1Writer            writer(deadline_writer);
 
         for (usize count = 0; count < options_.max_requests_per_connection; ++count) {
             if (stop_source_.stop_requested())

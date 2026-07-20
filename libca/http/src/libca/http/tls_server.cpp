@@ -167,12 +167,19 @@ private:
 };
 
 HttpResult<void> perform_handshake(SSL* ssl, net::TcpStream& stream,
-                                   std::chrono::milliseconds timeout)
+                                   std::chrono::milliseconds timeout,
+                                   ca::thread::StopToken     stop_token,
+                                   std::chrono::milliseconds stop_poll_interval)
 {
     // 对称 tls_client.cpp 的 perform_handshake:用底层 socket 超时驱动,
     // SSL_ERROR_WANT_READ/WRITE 时循环重试。SSL_connect 在此换为 SSL_accept。
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     for (;;) {
+        if (stop_token.stop_requested())
+            return ca::core::Err(
+                HttpError::from_io(io::IoError::from_kind(io::IoErrorKind::ConnectionAborted,
+                                                          "TLS handshake cancelled by server stop"),
+                                   "perform TLS handshake"));
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline)
             return ca::core::Err(
@@ -182,11 +189,13 @@ HttpResult<void> perform_handshake(SSL* ssl, net::TcpStream& stream,
         auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
         if (remaining.count() == 0)
             remaining = std::chrono::milliseconds(1);
-        auto configured = stream.set_read_timeout(remaining);
+        const auto wait =
+            stop_token.stop_possible() ? std::min(remaining, stop_poll_interval) : remaining;
+        auto configured = stream.set_read_timeout(wait);
         if (configured.is_err())
             return ca::core::Err(HttpError::from_io(std::move(configured).unwrap_err(),
                                                     "configure TLS handshake read timeout"));
-        auto write_timeout = stream.set_write_timeout(remaining);
+        auto write_timeout = stream.set_write_timeout(wait);
         if (write_timeout.is_err())
             return ca::core::Err(HttpError::from_io(std::move(write_timeout).unwrap_err(),
                                                     "configure TLS handshake write timeout"));
@@ -201,7 +210,8 @@ HttpResult<void> perform_handshake(SSL* ssl, net::TcpStream& stream,
             continue;
         auto error = ssl_io_error(ssl, result, "TLS handshake");
         if (error.kind() == io::IoErrorKind::Interrupted ||
-            error.kind() == io::IoErrorKind::WouldBlock)
+            error.kind() == io::IoErrorKind::WouldBlock ||
+            error.kind() == io::IoErrorKind::TimedOut)
             continue;
         return ca::core::Err(HttpError::from_io(std::move(error), "perform TLS handshake"));
     }
@@ -262,16 +272,17 @@ HttpResult<void> ServerTlsContext::load(const HttpTlsServerOptions& options)
     if (options.verify_client) {
         ERR_clear_error();
         const bool custom_trust = !options.ca_file.empty() || !options.ca_directory.empty();
-        if (custom_trust) {
-            const int loaded = SSL_CTX_load_verify_locations(
-                context.get(),
-                options.ca_file.empty() ? nullptr : options.ca_file.c_str(),
-                options.ca_directory.empty() ? nullptr : options.ca_directory.c_str());
-            if (loaded != 1)
-                return ca::core::Err(tls_configuration_error("configure TLS client CA"));
-        }
-        SSL_CTX_set_verify(context.get(),
-                            SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+        const int  loaded =
+            custom_trust
+                 ? SSL_CTX_load_verify_locations(
+                      context.get(),
+                      options.ca_file.empty() ? nullptr : options.ca_file.c_str(),
+                      options.ca_directory.empty() ? nullptr : options.ca_directory.c_str())
+                 : SSL_CTX_set_default_verify_paths(context.get());
+        if (loaded != 1)
+            return ca::core::Err(tls_configuration_error("configure TLS client CA"));
+        SSL_CTX_set_verify(
+            context.get(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
     }
     else {
         SSL_CTX_set_verify(context.get(), SSL_VERIFY_NONE, nullptr);
@@ -296,12 +307,13 @@ bool tls_server_available() noexcept
 
 HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
     net::TcpStream stream, const ServerTlsContext& context,
-    std::chrono::milliseconds handshake_timeout)
+    std::chrono::milliseconds handshake_timeout, ca::thread::StopToken stop_token,
+    std::chrono::milliseconds stop_poll_interval)
 {
     auto* ctx = static_cast<SSL_CTX*>(context.native_handle());
     if (ctx == nullptr)
-        return ca::core::Err(HttpError::from_kind(
-            HttpErrorKind::InvalidState, "TLS server context is not initialized"));
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "TLS server context is not initialized"));
 
     ERR_clear_error();
     SslPtr ssl(SSL_new(ctx));
@@ -317,7 +329,8 @@ HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
     if (SSL_set_fd(ssl.get(), static_cast<int>(raw_socket)) != 1)
         return ca::core::Err(tls_configuration_error("attach TLS socket"));
 
-    auto handshaken = perform_handshake(ssl.get(), stream, handshake_timeout);
+    auto handshaken = perform_handshake(
+        ssl.get(), stream, handshake_timeout, std::move(stop_token), stop_poll_interval);
     if (handshaken.is_err())
         return ca::core::Err(std::move(handshaken).unwrap_err());
 
@@ -354,7 +367,8 @@ bool tls_server_available() noexcept
 }
 
 HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
-    net::TcpStream, const ServerTlsContext&, std::chrono::milliseconds)
+    net::TcpStream, const ServerTlsContext&, std::chrono::milliseconds, ca::thread::StopToken,
+    std::chrono::milliseconds)
 {
     return ca::core::Err(HttpError::from_kind(HttpErrorKind::Unsupported,
                                               "https requires a build with OpenSSL enabled"));
