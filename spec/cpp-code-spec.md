@@ -7,12 +7,11 @@ update:
 
 # libca C++ 编码规范
 
-> 适用范围：`libca/` 下所有 C++ 模块（`core`/`str`/`fs`/`crypto`/`time`/`collection`/`utility` 等，文件后缀 `.hpp`/`.cpp`）。
+> 适用范围：`libca/` 下所有 C++ 模块（`core`/`str`/`fs`/`crypto`/`time`/`collection`/`utility`/`ui` 等，文件后缀 `.hpp`/`.cpp`）。
 > **本文件是 libca C++ 代码风格的唯一权威来源。** 与其它文档冲突时以本文为准。
 >
 > 不适用于：
 > - **em 系列（C99）** → 见 `prompt/em_code_rule.md`（权威），`doc/01_C代码风格规范.md`、`doc/02_单元测试规范.md` 是其配套说明。em 因部分嵌入式编译器兼容性，规则与本文不同（如头文件守卫用 `#ifndef`）。
-> - **libca.core/**（旧桌面代码，legacy，不约束新规范）。
 >
 > 设计目标：Rust 语义对齐 + 现代 C++17 实践，作为标准库的补充。
 

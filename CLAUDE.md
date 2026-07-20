@@ -4,11 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository shape
 
-This is a library monorepo built with **xmake**, split into two independently-shipped halves plus a legacy tree:
+This is a library monorepo built with **xmake**, split into two independently-shipped halves:
 
 - **`libca/`** — modern C++17 desktop infrastructure. Per-module layout `libca/<mod>/src/libca/<mod>/*.hpp|cpp` with Google Test in `libca/<mod>/unittest/*_test.cpp`. This is the half under active refactor. **Module inventory below.**
 - **`libca.em/`** — embedded **C99** components for MCUs (`libca.em/src/em_*`). Driver/bus/protocol/shell/crypto code with on-MCU constraints. See `libca.em/README.md` for the module + driver catalog.
-- **`libca.core/`** — older C++ desktop code (`base`, `network`, `database`, `event`, `io`, `thread`, `platform/win`, `old/`). Treat as legacy; prefer adding new C++ work under `libca/`.
 
 The two code styles are governed by **different, authoritative rule files** — read the relevant one before writing code (see Coding rules below).
 
@@ -24,10 +23,11 @@ Check this table before building anything new under `libca/`. **API usage lives 
 | **crypto** | 哈希/CRC/base64 | `sha256`, `md5`, `sha1`, `crc`, `base64` | `ca::crypto` | 可用(缺文档/测试薄) | — |
 | **time** | 日期时间 | `DateTime` | `ca::time` | 可用(薄) | — |
 | **collection** | 不可变列表/流 | `immutable_list`, `stream` | `ca` | 雏形(薄,杠杆高) | — |
-| opt / reflect / zip | — | — | — | **空,未开始** | — |
+| **ui** | Win32 GUI（窗口/按钮/消息框/防截屏），Windows-only | `Window`, `Button`, `MessageBox` | `ca::ui` | 雏形 | `libca/ui/doc/` |
+| opt / reflect | — | — | — | **空,未开始** | — |
 | log / utility | 有码但**未接入构建** | — | — | 暂勿依赖 | — |
 
-只有 `core / crypto / fs / str / time / collection` 接进了 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
+`core / crypto / fs / str / time / collection / thread / io / net / http / process / ini / json / csv / toml / ui` 已接进 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
 
 Compatibility policy: libca does not maintain separate API freeze lists and does not promise strict long-term API/ABI compatibility. Prefer smooth source evolution, but breaking changes are allowed when they improve ownership semantics, error models, or module boundaries. Document meaningful breakage in README, CHANGELOG, or the relevant module docs.
 
@@ -37,7 +37,7 @@ Configuration is global via xmake options (`with_core`, `with_em`, `with_demo`, 
 
 ```bash
 xmake f -y                              # configure (defaults: core+em+demo on, tests OFF)
-xmake f -y --with_tests=y               # configure WITH C++ gtest targets (libca/libca.core)
+xmake f -y --with_tests=y               # configure WITH C++ gtest targets (libca)
 xmake f -y --with_em=n                  # C++ only
 xmake f -y --with_core=n                # embedded only
 xmake                                   # build all enabled targets

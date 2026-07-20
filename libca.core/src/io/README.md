@@ -1,2 +1,0 @@
-io主要是输入输出，还有就是io多路复用，采取evpp那种Channel的抽象设计思路，统一所有的IO
-同时借鉴Java的nio，把io多路复用封装为Selectors。打算默认Linux下采用epoll实现
