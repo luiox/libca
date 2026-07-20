@@ -64,7 +64,14 @@ TEST(CharsetConverterTest, InvalidUtf8Rejected) {
     // 0xFF 是非法 UTF-8 起始字节。
     auto wide = CharsetConverter::utf8_to_wide("\xFF");
     EXPECT_TRUE(wide.is_err());
-    EXPECT_NE(wide.unwrap_err().code(), core::StatusCode::OK);
+    EXPECT_EQ(wide.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(CharsetConverterTest, InvalidUtf16Rejected) {
+    const std::wstring invalid{static_cast<wchar_t>(0xD800)};
+    auto utf8 = CharsetConverter::wide_to_utf8(invalid);
+    ASSERT_TRUE(utf8.is_err());
+    EXPECT_EQ(utf8.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
 }
 
 #else  // !defined(_WIN32)

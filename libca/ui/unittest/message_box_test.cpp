@@ -31,4 +31,10 @@ TEST(MessageBoxTest, InfoReturnsStatusResult) {
     EXPECT_TRUE(result.is_ok());
 }
 
+TEST(MessageBoxTest, RejectsInvalidUtf8WithoutOpeningDialog) {
+    auto result = MessageBox::info("\xFF", "test message");
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
 }  // namespace ca::ui

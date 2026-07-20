@@ -1,7 +1,4 @@
-/// @file message_box.hpp
-/// @brief Win32 MessageBox 包装。
-/// @author Canrad
-/// @date 2026/07/20
+// Win32 MessageBox 包装。
 
 #pragma once
 
@@ -28,7 +25,8 @@ public:
         : title_(std::move(title)), message_(std::move(message)) {}
 
     /// @brief 弹出信息框（::MessageBoxW，MB_ICONINFORMATION）。
-    /// @return 用户点击的按钮 ID（IDOK/IDCANCEL 等），失败返回 INTERNAL Status。
+    /// @return 用户点击的按钮 ID（IDOK/IDCANCEL 等）；文本不是合法 UTF-8 时返回
+    /// `INVALID_ARGUMENT`，系统调用失败时返回 `INTERNAL`。
     core::StatusResult<int> show() const;
 
     /// @brief 一次性弹出信息框，等价于 `MessageBox(title, message).show()`。

@@ -1,7 +1,7 @@
 # libca Core CI（Linux，不含 libca.em）
 #
-# 范围：新 core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http,ui}）+ 其 unittest。
-# 不编译 libca.em（嵌入式模拟层）。libca/ui 是 Windows-only 子库，Linux 上不定义 target，自动跳过。
+# 范围：Linux 可用的 core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http}）+ 其 unittest。
+# 不编译 libca.em（嵌入式模拟层）和 Windows-only 的 libca/ui。
 #
 # 历史背景：仓库早期存在旧的 libca.core/（带点目录，桌面端 legacy 代码），
 # 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）。
@@ -74,16 +74,15 @@ jobs:
         run: |
           # xmake build 一次只接受一个 target，用循环逐个编。
           # 显式点名新 libca 子库 + 其 unittest，避免 demo 干扰。
-          # libca_ui 是 Windows-only，Linux 上 xmake.lua 不定义 target，build 会自动跳过。
           # 若某子库在 Linux 暂未就绪，可先从此列表移除，逐步收敛。
           set -e
           TARGETS=(
             libca_core libca_str libca_fs libca_crypto libca_time libca_collection libca_process
-            libca_thread libca_io libca_net libca_http libca_ui
+            libca_thread libca_io libca_net libca_http
             libca_core_unittest libca_str_unittest libca_fs_unittest
             libca_crypto_unittest libca_time_unittest libca_collection_unittest
             libca_process_unittest libca_thread_unittest libca_io_unittest libca_net_unittest
-            libca_http_unittest libca_ui_unittest
+            libca_http_unittest
           )
           for t in "${TARGETS[@]}"; do
             echo "::group::xmake build $t"

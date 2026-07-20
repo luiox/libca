@@ -6,10 +6,11 @@ Windows-only 的极简 Win32 GUI 工具模块。
 
 提供基于 Win32 API 的窗口、按钮、消息框与"防截屏"工具，命名空间 `ca::ui`。
 **仅在 Windows 平台编译**，其它平台 `xmake.lua` 不定义任何 target。
+模块依赖 `libca_core` 与 `libca_str`，界面文本统一按 UTF-8 输入并经 `CharsetConverter` 转换。
 
 ## 当前能力
 
-- `Window` / `WindowManager`：HWND → `Window*` 调度，WNDCLASS 注册，消息循环
+- `Window` / `WindowManager`：创建期即建立 HWND → `Window*` 调度，管理窗口与消息循环生命周期
 - `Control` / `Button`：builder 风格的子控件（仅 `Button`，后续可扩展）
 - `MessageBox`：包装 Win32 `::MessageBoxW`
 - `capture_guard`：通过 `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` 把

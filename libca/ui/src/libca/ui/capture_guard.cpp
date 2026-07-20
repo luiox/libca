@@ -35,7 +35,7 @@ BOOL CALLBACK enum_windows_proc(HWND hwnd, LPARAM lparam)
 {
     auto* ctx = reinterpret_cast<EnumContext*>(lparam);
     char  window_class[256] = {0};
-    if (GetClassNameA(hwnd, window_class, sizeof(window_class)) > 0) {
+    if (GetClassNameA(hwnd, window_class, static_cast<int>(sizeof(window_class) - 1)) > 0) {
         if (std::strcmp(window_class, ctx->target_class) == 0) {
             if (SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) {
                 ctx->succeeded = true;

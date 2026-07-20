@@ -1,13 +1,6 @@
-/// @file charset.hpp
-/// @brief Windows 代码页（GBK / 本地 ANSI）与 UTF-8 / wchar 互转工具。
-/// @author Canrad
-/// @date 2026/07/20
-/// @note
-/// - 实现基于 Win32 `MultiByteToWideChar` / `WideCharToMultiByte`，**仅在 Windows 上可用**。
-/// - 在非 Windows 平台，所有方法返回 `UNIMPLEMENTED` 错误，但头文件仍可包含，
-///   便于跨平台代码引用 `CharsetConverter` 类型签名。
-/// - 取代了旧 `libca.core/src/base/Charset.{hpp,cpp}` 的混合（libiconv + Win32 + `<codecvt>`）
-///   实现，去掉了 iconv 外部依赖、C++17 弃用的 `<codecvt>` 以及固定 255 字节缓冲截断等 bug。
+// Windows 代码页（GBK / 本地 ANSI）与 UTF-8 / wchar 互转工具。
+// 实现基于 Win32 `MultiByteToWideChar` / `WideCharToMultiByte`，仅在 Windows 上可用。
+// 非 Windows 平台的方法返回 `UNIMPLEMENTED`，但头文件仍可跨平台包含。
 
 #pragma once
 
@@ -35,10 +28,12 @@ public:
 
     /// @brief UTF-8 字符串转 `std::wstring`（Windows 上为 UTF-16LE）。
     /// @param utf8 输入 UTF-8 字节序列，**必须是合法 UTF-8**，否则返回 `INVALID_ARGUMENT`。
+    /// @return 转换结果；输入超过 Win32 API 长度上限时返回 `INVALID_ARGUMENT`。
     static core::StatusResult<std::wstring> utf8_to_wide(std::string_view utf8);
 
     /// @brief `std::wstring`（Windows 上为 UTF-16LE）转 UTF-8 字符串。
     /// @param wide 输入 wchar 序列，**必须是合法 UTF-16**，否则返回 `INVALID_ARGUMENT`。
+    /// @return 转换结果；输入超过 Win32 API 长度上限时返回 `INVALID_ARGUMENT`。
     static core::StatusResult<std::string> wide_to_utf8(std::wstring_view wide);
 
     /// @brief 本地 ANSI 代码页（CP_ACP）字符串转 `std::wstring`。
