@@ -396,9 +396,12 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 ## 暂未作为主线使用的代码
 
-- `libca.core/`：旧 C++ 桌面代码，作为 legacy 参考，新增 C++ 工作优先放在 `libca/`。
 - `libca/log/`、`libca/utility/`：有代码但未接入 `libca/xmake.lua`，使用前先确认是否要纳入主线。
-- `libca/opt/`、`libca/reflect/`、`zip` 相关内容：规划或实验性质，使用前先看当前代码状态。
+- `libca/opt/`、`libca/reflect/`：规划或实验性质，使用前先看当前代码状态。
+
+> 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
+> 代码页转换）和 `libca/ui`（Win32 GUI）。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
+> 等空壳或占位实现未迁移，未来重新设计的需求见 `doc/proposals/`。
 
 ## 变更策略
 

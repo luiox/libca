@@ -5,7 +5,7 @@ set_xmakever("2.8.3")
 option("with_core")
     set_default(true)
     set_showmenu(true)
-    set_description("Enable libca.core targets")
+    set_description("Enable libca (C++ core) targets")
 option_end()
 
 option("with_em")
@@ -96,7 +96,6 @@ if has_config("with_em") then
 end
 
 if has_config("with_core") then
-    includes("libca.core")
     includes("libca")
 end
 

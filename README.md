@@ -6,9 +6,8 @@ C/C++ 基础设施库集合。一个仓库，三个相对独立的部分：
 |------|------|------|------|
 | **`libca/`** | C++17 | 桌面端基础设施（Rust 语义对齐的现代 C++ 标准库补充） | 本文档 §libca |
 | **`libca.em/`** | C99 | 嵌入式 MCU 组件（驱动/总线/协议/shell） | `libca.em/README.md` |
-| **`libca.core/`** | C++ | 旧桌面代码（legacy，逐步被 `libca/` 取代） | — |
 
-> 三者构建上由根 `xmake.lua` 的 `with_core` / `with_em` / `with_demo` 开关解耦，可单独构建。
+> 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` / `with_demo` 开关解耦，可单独构建。
 > 本 README 的详细部分聚焦 **libca**（桌面 C++）。嵌入式见 `libca.em/README.md`。
 
 ## 构建与测试
