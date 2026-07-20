@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-07-20 - 新增代码页转换工具章节（CharsetConverter，从 libca.core 迁移并去 iconv）
 2026-07-13 - 合并 str-spec.md 的设计性内容（所有权分层、Pool/Arena/Twine 选型与生命周期契约），删除逐接口清单
 2026-07-06 - 首版，补充 str 模块职责、UTF-8 类型族与 StringUtil 字节工具边界
 ---
@@ -10,7 +11,7 @@ update:
 > 本文讲 str 模块的架构、设计边界与选型。**具体接口签名与逐方法说明见各头文件的 Doxygen 注释**，
 > 本文不重复 API 清单。涉及的头文件：
 > `utf8_string.hpp`、`utf8_string_pool.hpp`、`utf8_string_arena.hpp`、`utf8_twine.hpp`、
-> `utf16_string.hpp`、`cstring.hpp`、`wstring.hpp`、`conversion.hpp`、`char_util.hpp`、`string_util.hpp`。
+> `utf16_string.hpp`、`cstring.hpp`、`wstring.hpp`、`conversion.hpp`、`charset.hpp`、`char_util.hpp`、`string_util.hpp`。
 
 ## 1. 模块定位
 
@@ -115,13 +116,33 @@ URL-safe 文本工具放在 `StringUtil` 中，因为它们处理的是 UTF-8 �
 
 decode 类接口返回 `Result<std::string, std::string>`，因为非法输入需要把错误原因交给调用方。Base64url 解码采用严格模式，会拒绝非法字符、非法 padding、非法长度和非零尾部填充位，避免同一字节串出现多个可接受编码。
 
-## 5. 依赖与错误模型
+## 5. 代码页转换工具（CharsetConverter）
+
+`CharsetConverter`（`charset.hpp`）从旧 `libca.core/src/base/Charset.{hpp,cpp}` 迁移而来。
+旧实现混用 Win32 `MultiByteToWideChar` + libiconv + C++17 弃用的 `<codecvt>`，存在多处
+bug（iconv 失败判断用 `== 0` 而非 `==(iconv_t)-1`、固定 255 字节栈缓冲截断、`new wchar_t[0]`
+不检查等），且依赖未 vendor 的 libiconv。迁移时统一为：
+
+- **后端只保留 Win32 API**：`MultiByteToWideChar` / `WideCharToMultiByte`，去除 libiconv
+  和 `<codecvt>` 依赖。GBK / GB2312 都通过 CP_936 处理（GBK 是 GB2312 超集，CP_936 在
+  现代 Windows 上等价于 GBK）；本地代码页用 CP_ACP。
+- **错误模型改为 `ca::core::Status` / `StatusResult<T>`**：非法 UTF-8 / UTF-16 返回
+  `INVALID_ARGUMENT`，Win32 调用失败返回 `INTERNAL` 并附 `GetLastError()`。
+- **跨平台头文件**：非 Windows 平台所有方法返回 `UNIMPLEMENTED`，但头文件可被任意平台
+  引用，便于跨平台代码引用同一签名走错误分支。
+- **删除未实现的桩**：旧 `mstrToU16str` / `mstrToU32str` / `Charset::encode` 等声明但未定义
+  的方法直接删除；UTF-8 ↔ UTF-16 raw 转换由已有 `conversion.hpp` 的 `utf8ToUtf16` 等提供。
+
+GBK 等中文遗留码页是 Windows 概念，新库不打算为它引入跨平台依赖。如果未来确有跨平台
+中文转码需求，应基于 ICU 或平台原生 API 单独设计，而不是复活 libiconv 路径。
+
+## 6. 依赖与错误模型
 
 str 只依赖 core。需要错误传播的轻量文本工具使用 `Result<T, std::string>`；领域错误枚举暂不引入，避免为很小的解析错误建立过重类型。
 
 公共头文件写使用说明，`.cpp` 只保留实现关键点注释。设计文档不重复 API 清单，只解释为什么这样分层。
 
-## 6. 测试策略
+## 7. 测试策略
 
 测试位于 `libca/str/unittest/`，按组件拆分。重点覆盖：
 
