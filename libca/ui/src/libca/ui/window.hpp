@@ -1,9 +1,5 @@
-/// @file window.hpp
-/// @brief Win32 顶层窗口与窗口管理器。
-/// @author Canrad
-/// @date 2026/07/20
-/// @note 仅 Windows 平台可用。其它平台包含本头文件会因为缺少 `<windows.h>` 失败，
-///       因此调用方需要用 `#if defined(_WIN32)` 守卫包含语句。
+// Win32 顶层窗口与窗口管理器。
+// 仅 Windows 平台可用；调用方需要用 `#if defined(_WIN32)` 守卫包含语句。
 
 #pragma once
 
@@ -29,14 +25,14 @@ class Control;
 /// `create()` 完成窗口类注册与窗口创建。这样避免了旧实现中"构造时 hInstance 还是
 /// nullptr 却调 RegisterClassEx"的初始化顺序 bug。
 ///
-/// `Window` 不允许拷贝（持有 HWND 与控件所有权），允许移动。
+/// `Window` 不允许拷贝或移动（持有 HWND 与控件所有权）。
 class Window
 {
 public:
     /// @brief 构造一个未创建的窗口，记录标题与初始位置/尺寸。
     Window(std::string title, int x, int y, int width, int height);
 
-    /// @brief 析构时从 WindowManager 移除登记。
+    /// @brief 析构时销毁子控件和底层窗口，并从 WindowManager 移除登记。
     virtual ~Window();
 
     Window(const Window&)            = delete;
@@ -63,11 +59,13 @@ public:
     /// @brief 把子控件交给窗口持有（共享所有权）。
     void add_control(std::shared_ptr<Control> control);
 
-    /// @brief 可重写的消息处理；默认调用 `DefWindowProc`。
+    /// @brief 可重写的消息处理；默认分派控件命令、处理窗口退出并调用 `DefWindowProc`。
     /// @note 派生类重写时未处理的消息应转发回本基类实现，避免消息被静默吞掉。
     virtual LRESULT handle_messages(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 private:
+    static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
     std::string                          title_;
     int                                  x_;
     int                                  y_;

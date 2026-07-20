@@ -1,7 +1,4 @@
-/// @file button.hpp
-/// @brief Win32 按钮控件，builder 风格 API。
-/// @author Canrad
-/// @date 2026/07/20
+// Win32 按钮控件，builder 风格 API。
 
 #pragma once
 
@@ -28,7 +25,7 @@ struct ClickEvent
 /// 用法：
 /// @code
 /// auto btn = ca::ui::Button::make(window);
-/// btn->set_text("OK")->set_x(10)->set_y(10)->create();
+/// btn->set_text("OK").set_x(10).set_y(10).create();
 /// btn->set_click_handler([](ca::ui::ClickEvent&) { /* ... */ });
 /// @endcode
 class Button : public Control
@@ -69,9 +66,12 @@ public:
     core::Status create();
 
     /// @brief 返回按钮 HWND；未 create() 前为 nullptr。
-    HWND native_handle() const noexcept { return hwnd_; }
+    HWND native_handle() const noexcept override { return hwnd_; }
 
-    /// @brief 派发点击事件给已注册的回调。由全局 WindowProc 在收到 BN_CLICKED 时调用。
+    /// @brief 处理父窗口转发的按钮通知。
+    void handle_command(WORD notification) override;
+
+    /// @brief 派发点击事件给已注册的回调。由父窗口收到 `BN_CLICKED` 时调用。
     void dispatch_click();
 
 private:

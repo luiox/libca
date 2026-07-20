@@ -1,13 +1,5 @@
-/// @file capture_guard.hpp
-/// @brief 屏幕捕获排除工具（基于 SetWindowDisplayAffinity）。
-/// @author Canrad
-/// @date 2026/07/20
-/// @note
-/// - 旧实现位于 libca.core/src/platform/win/win_util.cpp，是一个无命名空间的全局
-///   EnumWindowsProc，且依赖 `<windows.h>` 传递拉入 `<cstring>`。本版本命名空间化为
-///   `ca::ui` 并显式包含所有依赖。
-/// - `WDA_EXCLUDEFROMCAPTURE` 需要 Windows 10 version 2004+，旧版本会失败；
-///   本函数直接把 SetWindowDisplayAffinity 的成败返回给调用方。
+// 屏幕捕获排除工具（基于 SetWindowDisplayAffinity）。
+// `WDA_EXCLUDEFROMCAPTURE` 需要 Windows 10 version 2004+；旧版本会返回失败。
 
 #pragma once
 

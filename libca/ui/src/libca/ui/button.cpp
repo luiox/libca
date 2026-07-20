@@ -6,6 +6,8 @@
 
 #include "button.hpp"
 
+#include "libca/str/charset.hpp"
+
 #include <string>
 
 namespace ca::ui {
@@ -17,29 +19,27 @@ Button::Button(Window* parent)
 
 Button::~Button()
 {
-    if (hwnd_ != nullptr)
+    if (hwnd_ != nullptr && IsWindow(hwnd_))
         DestroyWindow(hwnd_);
+    hwnd_ = nullptr;
 }
 
 core::Status Button::create()
 {
-    // 标题 UTF-8 → UTF-16，CreateWindowExW 要求宽字符。
-    int wide_len = MultiByteToWideChar(CP_UTF8,
-                                       0,
-                                       text_.data(),
-                                       static_cast<int>(text_.size()),
-                                       nullptr,
-                                       0);
-    std::wstring wide_text(static_cast<usize>(wide_len), L'\0');
-    MultiByteToWideChar(CP_UTF8,
-                        0,
-                        text_.data(),
-                        static_cast<int>(text_.size()),
-                        &wide_text[0],
-                        wide_len);
+    if (hwnd_ != nullptr)
+        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS,
+                               "Button has already been created");
 
-    // 父窗口 HWND 通过 Window::native_handle() 取得。
-    HWND parent_hwnd = (parent() != nullptr) ? parent()->native_handle() : nullptr;
+    HWND parent_hwnd = parent() != nullptr ? parent()->native_handle() : nullptr;
+    if (parent_hwnd == nullptr || !IsWindow(parent_hwnd))
+        return core::ErrStatus(core::StatusCode::FAILED_PRECONDITION,
+                               "Button parent window has not been created");
+
+    // 标题 UTF-8 → UTF-16，CreateWindowExW 要求宽字符。
+    auto converted = str::CharsetConverter::utf8_to_wide(text_);
+    if (converted.is_err())
+        return std::move(converted).unwrap_err();
+    auto wide_text = std::move(converted).unwrap();
 
     hwnd_ = CreateWindowExW(0,
                             L"BUTTON",
@@ -48,9 +48,8 @@ core::Status Button::create()
                             x_, y_, width_, height_,
                             parent_hwnd,
                             nullptr,
-                            (parent() != nullptr) ? reinterpret_cast<HINSTANCE>(
-                                GetWindowLongPtr(parent_hwnd, GWLP_HINSTANCE))
-                                                  : GetModuleHandle(nullptr),
+                            reinterpret_cast<HINSTANCE>(
+                                GetWindowLongPtrW(parent_hwnd, GWLP_HINSTANCE)),
                             nullptr);
     if (hwnd_ == nullptr) {
         const DWORD err = GetLastError();
@@ -59,9 +58,13 @@ core::Status Button::create()
                                    std::to_string(static_cast<unsigned long>(err)));
     }
 
-    // 把 Button* 存到 GWLP_USERDATA，让 WindowProc 收到 BN_CLICKED 时能反查。
-    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     return core::OkStatus();
+}
+
+void Button::handle_command(WORD notification)
+{
+    if (notification == BN_CLICKED)
+        dispatch_click();
 }
 
 void Button::dispatch_click()

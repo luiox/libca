@@ -10,6 +10,8 @@
 #    define WIN32_LEAN_AND_MEAN
 #    define NOMINMAX
 #    include <windows.h>
+
+#    include <climits>
 #endif
 
 namespace ca::str {
@@ -22,10 +24,18 @@ namespace {
 // 失败时把操作名 + GetLastError() 一并塞进 message，方便排查编码或缓冲问题。
 core::Status wide_convert_error(const char* operation)
 {
+    const DWORD error = GetLastError();
     return core::ErrStatus(
-        core::StatusCode::INTERNAL,
+        error == ERROR_NO_UNICODE_TRANSLATION ? core::StatusCode::INVALID_ARGUMENT
+                                              : core::StatusCode::INTERNAL,
         std::string(operation) + " failed with Windows error " +
-            std::to_string(static_cast<unsigned long>(GetLastError())));
+            std::to_string(static_cast<unsigned long>(error)));
+}
+
+core::Status input_too_large(const char* operation)
+{
+    return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                           std::string(operation) + " input exceeds the Win32 API length limit");
 }
 
 // 多字节 → 宽字符的通用实现：先用 0 长度探测输出大小，再分配并真正转换。
@@ -36,6 +46,8 @@ core::StatusResult<std::wstring> multi_byte_to_wide(unsigned int code_page, std:
 {
     if (input.empty())
         return core::Ok<std::wstring>(std::wstring{});
+    if (input.size() > static_cast<usize>(INT_MAX))
+        return core::Err(input_too_large("MultiByteToWideChar"));
 
     const DWORD flags = (code_page == CP_UTF8) ? MB_ERR_INVALID_CHARS : 0;
 
@@ -68,6 +80,8 @@ core::StatusResult<std::string> wide_to_multi_byte(unsigned int code_page, std::
 {
     if (input.empty())
         return core::Ok<std::string>(std::string{});
+    if (input.size() > static_cast<usize>(INT_MAX))
+        return core::Err(input_too_large("WideCharToMultiByte"));
 
     const DWORD flags = (code_page == CP_UTF8) ? WC_ERR_INVALID_CHARS : 0;
 

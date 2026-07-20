@@ -1,8 +1,4 @@
-/// @file ui.hpp
-/// @brief libca::ui 聚合头文件。一次 `#include <libca/ui/ui.hpp>` 引入全部组件。
-/// @author Canrad
-/// @date 2026/07/20
-/// @note 仅 Windows 平台可用（依赖 `<windows.h>`）。
+// libca::ui 聚合头文件。仅 Windows 平台可用（依赖 `<windows.h>`）。
 
 #pragma once
 

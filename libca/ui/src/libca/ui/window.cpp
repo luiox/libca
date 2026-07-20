@@ -6,7 +6,8 @@
 
 #include "window.hpp"
 
-#include "button.hpp"
+#include "control.hpp"
+#include "libca/str/charset.hpp"
 
 #include <cstring>
 #include <string>
@@ -18,32 +19,6 @@ namespace {
 // 窗口类名固定，所有 Window 实例共享同一个 WNDCLASS。
 // 用宽字符（WNDCLASSEXW + RegisterClassExW）避免在 NT 系统上被内部 A→W 转换。
 constexpr const wchar_t* kWindowClassName = L"ca::ui::Window";
-
-// 全局 WindowProc：把消息派发回对应 C++ Window 对象。WindowProc 是 Win32 注册类时
-// 必须给出的 C 风格回调，无法直接捕获 this，所以走 WindowManager 单例查找。
-LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-    Window* window = WindowManager::get_instance().get_window(hwnd);
-    if (window != nullptr) {
-        // Button 等子控件的 WM_COMMAND 通知在此处理：HIWORD(wparam) 是通知码，
-        // lParam 是控件 HWND。BN_CLICKED 时按控件 HWND 找 Button 派发点击。
-        if (msg == WM_COMMAND && HIWORD(wparam) == BN_CLICKED) {
-            HWND ctrl_hwnd = reinterpret_cast<HWND>(lparam);
-            // 子控件由 Window 持有，遍历找匹配 HWND 的 Button。
-            // 实际控件通过 add_control 登记；Button 的 dispatch_click 是 no-op
-            // 如果未设置 handler，因此可以直接调用。
-            // 注意：这里无法直接从 HWND 反查 Button*，因为 Button 不登记到 manager。
-            // 为简单起见，Button 自己通过 GWLP_USERDATA 存指针（见 button.cpp）。
-            if (ctrl_hwnd != nullptr) {
-                auto* btn = reinterpret_cast<Button*>(GetWindowLongPtr(ctrl_hwnd, GWLP_USERDATA));
-                if (btn != nullptr)
-                    btn->dispatch_click();
-            }
-        }
-        return window->handle_messages(hwnd, msg, wparam, lparam);
-    }
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
-}
 
 }  // namespace
 
@@ -58,18 +33,60 @@ Window::Window(std::string title, int x, int y, int width, int height)
 
 Window::~Window()
 {
-    if (hwnd_ != nullptr)
-        WindowManager::get_instance().remove_window(hwnd_);
+    controls_.clear();
+    if (hwnd_ != nullptr) {
+        const HWND hwnd = hwnd_;
+        if (!DestroyWindow(hwnd)) {
+            hwnd_ = nullptr;
+            WindowManager::get_instance().remove_window(hwnd);
+        }
+    }
+}
+
+LRESULT CALLBACK Window::window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+    auto&   manager = WindowManager::get_instance();
+    Window* window  = manager.get_window(hwnd);
+    if (msg == WM_NCCREATE) {
+        auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+        window       = static_cast<Window*>(create->lpCreateParams);
+        if (window != nullptr) {
+            window->hwnd_ = hwnd;
+            manager.add_window(hwnd, window);
+        }
+    }
+    if (window == nullptr)
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
+
+    const LRESULT result = window->handle_messages(hwnd, msg, wparam, lparam);
+    if (msg == WM_NCDESTROY) {
+        manager.remove_window(hwnd);
+        if (window->hwnd_ == hwnd)
+            window->hwnd_ = nullptr;
+    }
+    return result;
 }
 
 core::Status Window::create(HINSTANCE instance)
 {
+    if (hwnd_ != nullptr)
+        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS,
+                               "Window has already been created");
+    if (instance == nullptr)
+        return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                               "Window HINSTANCE must not be null");
+
+    auto converted = str::CharsetConverter::utf8_to_wide(title_);
+    if (converted.is_err())
+        return std::move(converted).unwrap_err();
+    auto wide_title = std::move(converted).unwrap();
+
     instance_ = instance;
 
     WNDCLASSEXW wcex{};
     wcex.cbSize        = sizeof(WNDCLASSEXW);
     wcex.style         = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc   = window_proc;
+    wcex.lpfnWndProc   = Window::window_proc;
     wcex.hInstance     = instance_;
     wcex.hCursor       = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
@@ -85,21 +102,6 @@ core::Status Window::create(HINSTANCE instance)
         }
     }
 
-    // 标题 UTF-8 → UTF-16，CreateWindowExW 要求宽字符。
-    int wide_len = MultiByteToWideChar(CP_UTF8,
-                                       0,
-                                       title_.data(),
-                                       static_cast<int>(title_.size()),
-                                       nullptr,
-                                       0);
-    std::wstring wide_title(static_cast<usize>(wide_len), L'\0');
-    MultiByteToWideChar(CP_UTF8,
-                        0,
-                        title_.data(),
-                        static_cast<int>(title_.size()),
-                        &wide_title[0],
-                        wide_len);
-
     hwnd_ = CreateWindowExW(0,
                             kWindowClassName,
                             wide_title.c_str(),
@@ -108,15 +110,13 @@ core::Status Window::create(HINSTANCE instance)
                             nullptr,
                             nullptr,
                             instance_,
-                            nullptr);
+                            this);
     if (hwnd_ == nullptr) {
         const DWORD err = GetLastError();
         return core::ErrStatus(core::StatusCode::INTERNAL,
                                "CreateWindowExW failed with Windows error " +
                                    std::to_string(static_cast<unsigned long>(err)));
     }
-
-    WindowManager::get_instance().add_window(hwnd_, this);
     return core::OkStatus();
 }
 
@@ -143,11 +143,25 @@ void Window::hide()
 
 void Window::add_control(std::shared_ptr<Control> control)
 {
-    controls_.push_back(std::move(control));
+    if (control != nullptr)
+        controls_.push_back(std::move(control));
 }
 
 LRESULT Window::handle_messages(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    if (msg == WM_COMMAND) {
+        const HWND control_hwnd = reinterpret_cast<HWND>(lparam);
+        for (const auto& control : controls_) {
+            if (control->native_handle() == control_hwnd) {
+                control->handle_command(HIWORD(wparam));
+                return 0;
+            }
+        }
+    }
+    if (msg == WM_DESTROY) {
+        PostQuitMessage(0);
+        return 0;
+    }
     // 默认消息处理。派生类重写后未处理的消息应转发回这里。
     return DefWindowProcW(hwnd, msg, wparam, lparam);
 }

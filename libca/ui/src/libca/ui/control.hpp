@@ -1,7 +1,4 @@
-/// @file control.hpp
-/// @brief Win32 子控件基类。
-/// @author Canrad
-/// @date 2026/07/20
+// Win32 子控件基类。
 
 #pragma once
 
@@ -29,6 +26,13 @@ public:
 
     /// @brief 返回父窗口。
     Window* parent() const noexcept { return parent_; }
+
+    /// @brief 返回底层 HWND；尚未创建时返回 nullptr。
+    virtual HWND native_handle() const noexcept = 0;
+
+    /// @brief 处理父窗口转发的 `WM_COMMAND` 通知。
+    /// @param notification `HIWORD(wParam)` 中的控件通知码。
+    virtual void handle_command(WORD notification) = 0;
 
 private:
     Window* parent_;
