@@ -35,6 +35,20 @@ public:
         , stop_poll_interval_(stop_poll_interval)
     {}
 
+    /// @brief 抽象 transport 路径:reader 走任意 io::Reader(如 TLS transport),
+    /// 超时仍通过底层 TcpStream 设置;附带 stop_token 让 server 能协作停止。
+    /// @param bidirectional_io TLS 场景传 true:SSL 读写共享同一 state,
+    /// 读时应同时设 write_timeout、写时应同时设 read_timeout。
+    DeadlineReader(io::Reader& reader, net::TcpStream& stream, ca::thread::StopToken stop_token,
+                   std::chrono::milliseconds stop_poll_interval,
+                   bool                     bidirectional_io = false) noexcept
+        : reader_(&reader)
+        , stream_(&stream)
+        , stop_token_(std::move(stop_token))
+        , stop_poll_interval_(stop_poll_interval)
+        , bidirectional_io_(bidirectional_io)
+    {}
+
     void start(std::chrono::milliseconds timeout) noexcept
     {
         waiting_first_byte_ = false;
@@ -140,6 +154,17 @@ public:
         , stream_(&stream)
         , stop_token_(std::move(stop_token))
         , stop_poll_interval_(stop_poll_interval)
+    {}
+
+    /// @brief 抽象 transport 路径,对称 DeadlineReader 的同名构造。
+    DeadlineWriter(io::Writer& writer, net::TcpStream& stream, ca::thread::StopToken stop_token,
+                   std::chrono::milliseconds stop_poll_interval,
+                   bool                     bidirectional_io = false) noexcept
+        : writer_(&writer)
+        , stream_(&stream)
+        , stop_token_(std::move(stop_token))
+        , stop_poll_interval_(stop_poll_interval)
+        , bidirectional_io_(bidirectional_io)
     {}
 
     void start(std::chrono::milliseconds timeout) noexcept

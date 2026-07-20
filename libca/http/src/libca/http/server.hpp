@@ -83,6 +83,30 @@ using HttpRouteHandler =
 using HttpRequestMiddleware =
     std::function<HttpResult<std::optional<HttpServerResponse>>(const HttpServerRequestContext&)>;
 
+/// @brief 可选 OpenSSL HTTPS server 的证书与客户端校验配置。
+struct HttpTlsServerOptions
+{
+    /// @brief PEM 证书链文件路径(leaf 证书在前,后跟 intermediate)。
+    std::string certificate_chain_file;
+
+    /// @brief PEM 私钥文件路径;私钥可与证书链同文件,也可独立。
+    std::string private_key_file;
+
+    /// @brief 可选 PEM CA bundle 文件,用于校验客户端证书;与 ca_directory 同时为空时,
+    /// verify_client=true 会回退到 OpenSSL 默认 trust paths。
+    std::string ca_file;
+
+    /// @brief 可选 OpenSSL hashed CA directory,用于校验客户端证书。
+    std::string ca_directory;
+
+    /// @brief 是否要求并校验客户端证书(mTLS)。
+    /// @note 为 true 时,无客户端证书的连接会在 TLS 握手阶段被拒绝。
+    bool verify_client{false};
+
+    /// @brief TLS 握手总期限;超时直接关闭连接,不进入 HTTP 处理。
+    std::chrono::milliseconds handshake_timeout{10000};
+};
+
 /// @brief 同步 HTTP server 的 listener、期限和有界并发配置。
 struct HttpServerOptions
 {
@@ -98,6 +122,9 @@ struct HttpServerOptions
     std::chrono::milliseconds stop_poll_interval{10};   ///< accept 与阻塞 IO 的 stop 检查间隔。
     HttpLimits request_limits;                          ///< request 解析限制。
     bool       tcp_nodelay{true};   ///< 是否为 accepted stream 启用 TCP_NODELAY。
+    /// @brief 启用 HTTPS server 的配置;空 optional 时为纯 HTTP(默认)。
+    /// @note 仅在构建启用 with_openssl 时实际生效;未启用时配置了也会握手失败。
+    std::optional<HttpTlsServerOptions> tls;
 };
 
 /// @brief 精确路由、有界并发且可协作停止的同步 HTTP/1 server。
@@ -107,6 +134,9 @@ public:
     /// @brief bind listener 并创建尚未进入 accept loop 的 server。
     static HttpResult<HttpServer> bind(const net::SocketAddress& address,
                                        const HttpServerOptions&  options = HttpServerOptions());
+
+    /// @brief 返回当前构建是否包含可选 OpenSSL HTTPS server transport。
+    static bool supports_https() noexcept;
 
     HttpServer(const HttpServer&)            = delete;
     HttpServer& operator=(const HttpServer&) = delete;

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <utility>
@@ -10,6 +11,7 @@
 
 #include "libca/core/bytes.hpp"
 #include "libca/http/detail/deadline_io.hpp"
+#include "libca/http/detail/server_transport.hpp"
 #include "libca/thread/thread_pool.hpp"
 
 namespace ca::http {
@@ -47,6 +49,9 @@ HttpResult<void> validate_options(const HttpServerOptions& options)
         options.request_limits.max_header_count == 0 || options.request_limits.max_body_bytes == 0)
         return ca::core::Err(HttpError::from_kind(
             HttpErrorKind::InvalidState, "all HTTP request parsing limits must be positive"));
+    if (options.tls.has_value() && options.tls->handshake_timeout.count() <= 0)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "TLS handshake timeout must be positive"));
     return ca::core::Ok();
 }
 
@@ -205,6 +210,14 @@ public:
             if (serve_started_)
                 return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
                                                           "HTTP server can only serve once"));
+            // 配置了 options.tls 时,在进入 accept 循环前一次性加载证书链。
+            // SSL_CTX 构造完成后是只读结构,后续多 worker 并发 accept 共享此 ctx 安全。
+            if (options_.tls.has_value()) {
+                auto loaded = tls_context_.load(*options_.tls);
+                if (loaded.is_err())
+                    return ca::core::Err(std::move(loaded).unwrap_err());
+                tls_enabled_ = true;
+            }
             serve_started_ = true;
             running_.store(true, std::memory_order_release);
         }
@@ -254,8 +267,12 @@ public:
                 break;
             }
             auto queued = std::move(submitted).unwrap();
-            if (!queued.has_value())
-                send_overloaded(job->stream);
+            if (!queued.has_value()) {
+                if (tls_enabled_)
+                    job->stream.shutdown(net::Shutdown::Both);
+                else
+                    send_overloaded(job->stream);
+            }
         }
 
         stop();
@@ -295,6 +312,7 @@ private:
         if (nodelay.is_err())
             return ca::core::Err(
                 HttpError::from_io(nodelay.unwrap_err(), "configure accepted HTTP connection"));
+
         return ca::core::Ok(std::make_shared<ConnectionJob>(std::move(accepted.stream),
                                                             std::move(accepted.peer_address)));
     }
@@ -531,12 +549,38 @@ private:
 
     void handle_connection(ConnectionJob& job)
     {
-        detail::DeadlineReader deadline_reader(
-            job.stream, stop_source_.token(), options_.stop_poll_interval);
-        detail::DeadlineWriter deadline_writer(
-            job.stream, stop_source_.token(), options_.stop_poll_interval);
-        Http1Reader reader(deadline_reader, options_.request_limits);
-        Http1Writer writer(deadline_writer);
+        std::unique_ptr<detail::ServerTransport> transport;
+        if (tls_enabled_) {
+            auto secured = detail::make_tls_server_transport(std::move(job.stream),
+                                                             tls_context_,
+                                                             options_.tls->handshake_timeout,
+                                                             stop_source_.token(),
+                                                             options_.stop_poll_interval);
+            if (secured.is_err())
+                return;
+            transport = std::move(secured).unwrap();
+        }
+        else {
+            transport = std::make_unique<detail::TcpServerTransport>(std::move(job.stream));
+        }
+
+        // 用 deadline_io.hpp 的抽象构造函数:reader/writer 走 transport(TLS 时是 SSL),
+        // 超时通过 transport 的底层 TcpStream 设置;同时绑定 stop_token 让 server 能
+        // 协作停止。TLS 场景 bidirectional_io=true:SSL_read/write 共享同一 SSL state,
+        // 读时应同时设 write_timeout、写时应同时设 read_timeout,避免一边阻塞死锁。
+        const bool             bidirectional = tls_enabled_;
+        detail::DeadlineReader deadline_reader(*transport,
+                                               transport->tcp_stream(),
+                                               stop_source_.token(),
+                                               options_.stop_poll_interval,
+                                               bidirectional);
+        detail::DeadlineWriter deadline_writer(*transport,
+                                               transport->tcp_stream(),
+                                               stop_source_.token(),
+                                               options_.stop_poll_interval,
+                                               bidirectional);
+        Http1Reader            reader(deadline_reader, options_.request_limits);
+        Http1Writer            writer(deadline_writer);
 
         for (usize count = 0; count < options_.max_requests_per_connection; ++count) {
             if (stop_source_.stop_requested())
@@ -580,6 +624,8 @@ private:
     std::vector<Route>                 routes_;
     std::vector<HttpRequestMiddleware> middleware_;
     HttpRouteHandler                   fallback_;
+    detail::ServerTlsContext           tls_context_;
+    bool                               tls_enabled_{false};
     bool                               serve_started_{false};
     std::atomic<bool>                  running_{false};
 };
@@ -654,6 +700,11 @@ HttpResult<HttpServer> HttpServer::bind(const net::SocketAddress& address,
         return ca::core::Err(HttpError::from_io(local.unwrap_err(), "query HTTP listener"));
     return ca::core::Ok(HttpServer(
         std::make_shared<HttpServerImpl>(std::move(listener), std::move(local).unwrap(), options)));
+}
+
+bool HttpServer::supports_https() noexcept
+{
+    return detail::tls_server_available();
 }
 
 HttpServer::HttpServer(std::shared_ptr<HttpServerImpl> impl) noexcept
