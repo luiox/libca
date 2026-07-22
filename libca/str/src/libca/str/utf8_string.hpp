@@ -332,7 +332,7 @@ private:
 
 /// @brief 构建 Utf8String 的可变构建器（追加写入，build() 校验并产出）。
 /// @note **Provisional**：暴露可变缓冲/容量语义，下游暂勿写入公共接口。
-///       append(const u8*, usize) 接受未校验字节，非法直到 build() 才暴露。
+///       按长度 append 接受未校验字节，非法直到 build() 才暴露。
 class Utf8StringBuilder {
 public:
     Utf8StringBuilder() noexcept;
@@ -347,6 +347,8 @@ public:
     Utf8StringBuilder& append(const Utf8StringRef& str);
     Utf8StringBuilder& append(const Utf8String& str);
     Utf8StringBuilder& append(const char* cstr);
+    /// @brief 追加指定长度的 char 字节序列，不要求以 NUL 结尾。
+    Utf8StringBuilder& append(const char* data, usize byte_length);
     Utf8StringBuilder& append(const u8* data, usize byte_length);
     bool append_code_point(u32 cp);
 

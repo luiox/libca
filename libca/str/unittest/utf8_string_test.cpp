@@ -787,6 +787,18 @@ TEST(Utf8StringBuilderTest, BuildOrEmpty_Valid) {
     EXPECT_STREQ(s.c_str(), "Hello");
 }
 
+TEST(Utf8StringBuilderTest, AppendCharBufferWithExplicitLength) {
+    const char data[] = {'A', '\0', 'B', 'X'};
+    Utf8StringBuilder b;
+
+    EXPECT_EQ(&b.append(data, 3), &b);
+    EXPECT_EQ(&b.append(static_cast<const char*>(nullptr), 0), &b);
+
+    auto s = b.build();
+    EXPECT_EQ(s.byte_length(), 3);
+    EXPECT_EQ(std::memcmp(s.data(), data, 3), 0);
+}
+
 TEST(Utf8StringBuilderTest, BuildOrEmpty_Invalid) {
     // 通过 append raw bytes 放入非法序列
     u8 bad[] = {0xFF, 0xFE};

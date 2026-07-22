@@ -410,6 +410,10 @@ Utf8StringBuilder& Utf8StringBuilder::append(const char* cstr) {
     return append(reinterpret_cast<const u8*>(cstr), std::strlen(cstr));
 }
 
+Utf8StringBuilder& Utf8StringBuilder::append(const char* data, usize byte_len) {
+    return append(reinterpret_cast<const u8*>(data), byte_len);
+}
+
 Utf8StringBuilder& Utf8StringBuilder::append(const u8* data, usize byte_len) {
     if (byte_len == 0) return *this;
     auto needed = byte_length_ + byte_len;
