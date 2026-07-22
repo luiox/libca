@@ -186,8 +186,6 @@ bare key（`A-Za-z0-9_-` 且非空）原样输出；否则用 basic string 包�
 3. **variant 内含 `vector<TomlValue>` / `vector<pair<...>>` 的循环依赖**：用 `std::pair`
    做 table 成员（pair 由标准库完整定义），不要用自定义 struct。
 4. **不要用 `std::from_chars`**：mingw 工具链对 float 支持不全。用 `strtoll`/`strtod`。
-5. **`Utf8StringBuilder::append` 没有 `(const char*, usize)` 重载**（会和 `(const u8*, usize)`
-   冲突）。需要按长度追加字节时用 `append(reinterpret_cast<const u8*>(s), len)`。
-6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y --with_em=n`。
+5. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y --with_em=n`。
    不指定平台会回落 mingw，gtest 编译失败。
-7. **行尾注释不能以 `\` 结尾**：`advance();  // \` 会触发 MSVC 的 C4010 警告（行继续符）。
+6. **行尾注释不能以 `\` 结尾**：`advance();  // \` 会触发 MSVC 的 C4010 警告（行继续符）。

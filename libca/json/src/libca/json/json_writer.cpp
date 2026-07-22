@@ -23,7 +23,7 @@ public:
     void write_int(ca::i64 v) {
         char buf[32];
         int n = std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(v));
-        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
     }
     void write_float(ca::f64 v) {
         // RFC 8259 不允许 NaN/Infinity（未定义字面量）；snprintf("%g") 会输出 "nan"/"inf"
@@ -35,10 +35,10 @@ public:
         char buf[64];
         // %.17g 保证 double round-trip 精度
         int n = std::snprintf(buf, sizeof(buf), "%.17g", static_cast<double>(v));
-        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
     }
 
-    void write_raw(const char* s, ca::usize len) { sb_.append(reinterpret_cast<const u8*>(s), len); }
+    void write_raw(const char* s, ca::usize len) { sb_.append(s, len); }
 
     // 字符串转义输出。
     void write_string(const ca::str::Utf8StringRef& s) {
@@ -60,8 +60,7 @@ public:
                         // 控制字符转 \u00XX
                         char buf[8];
                         int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf),
-                                              static_cast<ca::usize>(n));
+                        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
                     } else if (options_.ensure_ascii && c >= 0x80) {
                         // 非 ASCII：解码 UTF-8 码点，输出 \uXXXX（BMP）或 surrogate pair
                         write_escaped_utf8(data, len, i);
@@ -111,14 +110,14 @@ private:
             // 非法首字节：当作单字节
             char buf[8];
             int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-            if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+            if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
             return;
         }
         if (i + extra >= len) {
             // 截断，同上兜底
             char buf[8];
             int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-            if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+            if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
             return;
         }
         for (usize k = 1; k <= extra; ++k) {
@@ -127,7 +126,7 @@ private:
                 // 非法续字节
                 char buf[8];
                 int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+                if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
                 return;
             }
             cp = (cp << 6) | (cc & 0x3F);
@@ -137,7 +136,7 @@ private:
         if (cp <= 0xFFFF) {
             char buf[8];
             int n = std::snprintf(buf, sizeof(buf), "\\u%04x", cp);
-            if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+            if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
         } else {
             // 输出 surrogate pair
             const u32 v = cp - 0x10000;
@@ -145,7 +144,7 @@ private:
             const u32 lo = 0xDC00 + (v & 0x3FF);
             char buf[16];
             int n = std::snprintf(buf, sizeof(buf), "\\u%04x\\u%04x", hi, lo);
-            if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+            if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
         }
     }
 };

@@ -24,7 +24,7 @@ public:
 
     void emit(const char* s) { sb_.append(s); }
     void emit(const char* s, ca::usize len) {
-        sb_.append(reinterpret_cast<const u8*>(s), len);
+        sb_.append(s, len);
     }
     void emit_char(char c) {
         u8 b = static_cast<u8>(c);
@@ -46,7 +46,7 @@ public:
     void write_integer(ca::i64 v) {
         char buf[32];
         int n = std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(v));
-        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
     }
 
     void write_float(ca::f64 v) {
@@ -68,7 +68,7 @@ public:
                 buf[n] = '.'; buf[n+1] = '0'; n += 2;
             }
         }
-        sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+        sb_.append(buf, static_cast<ca::usize>(n));
     }
 
     void write_datetime(const TomlDatetime& dt) {
@@ -154,7 +154,7 @@ public:
                 break;
             }
         }
-        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
     }
 
     // ---- 字符串序列化 ----
@@ -191,7 +191,7 @@ public:
                     if (c < 0x20) {
                         char buf[8];
                         int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+                        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
                     } else {
                         sb_.append(&c, 1);
                     }
@@ -219,7 +219,7 @@ public:
                     if (c < 0x20) {
                         char buf[8];
                         int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        if (n > 0) sb_.append(reinterpret_cast<const u8*>(buf), static_cast<ca::usize>(n));
+                        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
                     } else {
                         sb_.append(&c, 1);
                     }
@@ -242,7 +242,7 @@ public:
             if (!ok) { bare = false; break; }
         }
         if (bare) {
-            sb_.append(reinterpret_cast<const u8*>(data), len);
+            sb_.append(data, len);
         } else {
             write_basic_string(data, len);
         }
