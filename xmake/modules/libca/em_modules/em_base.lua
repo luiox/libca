@@ -34,6 +34,7 @@ function get_handler()
 
             inject.add_include(target, state, src_root)
             inject.add_file(target, state, path.join(base_dir, "debug.c"))
+            inject.add_file(target, state, path.join(base_dir, "macro_util.c"))
             inject.add_file(target, state, path.join(base_dir, "memory_util.c"))
             inject.add_file(target, state, path.join(base_dir, "string_util.c"))
 

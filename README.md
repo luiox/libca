@@ -1,13 +1,13 @@
 # libca
 
-C/C++ 基础设施库集合。一个仓库，三个相对独立的部分：
+C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
 
 | 部分 | 语言 | 面向 | 入口 |
 |------|------|------|------|
 | **`libca/`** | C++17 | 桌面端基础设施（Rust 语义对齐的现代 C++ 标准库补充） | 本文档 §libca |
 | **`libca.em/`** | C99 | 嵌入式 MCU 组件（驱动/总线/协议/shell） | `libca.em/README.md` |
 
-> 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` / `with_demo` 开关解耦，可单独构建。
+> 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` 开关解耦，可单独构建；`with_demo` 控制 em 外部集成示例。
 > 本 README 的详细部分聚焦 **libca**（桌面 C++）。嵌入式见 `libca.em/README.md`。
 
 ## 构建与测试
@@ -34,7 +34,7 @@ xmake run libca_fs_unittest    # 跑单个模块测试
 - **现代 C++17**，作为标准库的补充，不是替代。
 - **API 文档写在头文件**（Doxygen 注释）——查头文件即得「怎么用」。
 - **文档只做导航和设计说明**：总功能索引用来找模块；各模块设计文档只讲思想、类型组织和关键取舍，不维护接口清单。
-- **编码规范**：`spec/cpp-code-spec.md`（libca C++ 唯一权威）。
+- **编码规范**：`prompt/code_rule.md`（libca C++ 唯一权威）。
 - **不做严格兼容承诺**：尽量保持常用接口平滑演进；必要的不兼容改动通过 README、CHANGELOG 或模块文档通知下游。
 
 ## 依赖分层
@@ -65,10 +65,14 @@ L3  业务 / 上层
 | **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
 | **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
 | **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
+| **json** / **toml** | JSON / TOML DOM、解析与写出 | `json.hpp`、`toml.hpp` | `ca::json` / `ca::toml` | 主线 | `json/doc/json设计文档.md` / `toml/doc/toml设计文档.md` |
+| **io** | Reader/Writer、buffer 与 native stream 抽象 | `io.hpp`、`reader.hpp`、`writer.hpp` | `ca::io` | 主线 | `libca/io/doc/design.md` |
+| **net** / **http** | Socket/DNS/TCP/UDP 与 HTTP client/server | `net.hpp`、`http.hpp` | `ca::net` / `ca::http` | 主线 | `net/doc/design.md` / `http/doc/design.md` |
+| **ui** | Win32 窗口、控件、消息框与防截屏 | `ui.hpp`、`window.hpp`、`capture_guard.hpp` | `ca::ui` | 可用（Windows） | `libca/ui/doc/ui设计文档.md` |
 | opt / reflect / zip | 规划中 | — | — | **空** | — |
 | log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / process / csv / ini / io / net / http）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / json / csv / toml / ui）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定

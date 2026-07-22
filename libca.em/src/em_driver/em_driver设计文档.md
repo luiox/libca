@@ -31,6 +31,7 @@ return function(ctx)
     return {
         name = "led",
         dir = "led",
+        deps = {},
         src = {"led.c"},
         port_config = {
             mode = {
@@ -53,6 +54,7 @@ return function(ctx)
     return {
         name = "led",
         dir = "led",
+        deps = {"em_util"},
         src = {"led.c"},
         port_config = {
             mode = {
@@ -71,10 +73,11 @@ end
 
 1. manifest 固定路径：`src/em_driver/<name>/<name>.lua`。
 2. `src` 为必填，且文件必须存在。
-3. `port_config.mode` 为必填。
-4. 用户传 `port` 时，只注入用户端口文件。
-5. 用户不传 `port` 时，不注入任何 port 源码。
-6. `port_config` 中每个配置项必须有 `default` 与 `values`，解释器按用户值映射到 `add_defines`。
+3. `deps`为可选字符串列表，声明除`em_base`外的module依赖，用户必须显式添加。
+4. `port_config.mode` 为必填。
+5. 用户传 `port` 时，只注入用户端口文件。
+6. 用户不传 `port` 时，不注入任何 port 源码。
+7. `port_config` 中每个配置项必须有 `default` 与 `values`，解释器按用户值映射到 `add_defines`。
 
 ## 扩展新驱动流程
 

@@ -1,21 +1,28 @@
 -- em_util module handler
 
-local inject = import("libca.em_inject")
+local source_handler = import("libca.em_source_handler")
 
 function get_handler()
-    return {
+    return source_handler.make({
+        name = "em_util",
         deps = {"em_base"},
-        handle = function (target, state)
-            local src_root = path.join(state.root, "libca.em", "src")
-            local util_dir = path.join(src_root, "em_util")
-
-            inject.add_include(target, state, src_root)
-            for _, f in ipairs(os.files(path.join(util_dir, "**.c"))) do
-                local name = path.filename(f)
-                if name:sub(1, 5) ~= "test-" then
-                    inject.add_file(target, state, f)
-                end
-            end
-        end
-    }
+        sources = {
+            "bitmap.c",
+            "bits_util.c",
+            "crc.c",
+            "doubly_linked_list.c",
+            "doubly_list.c",
+            "endian_util.c",
+            "filter.c",
+            "lifo.c",
+            "math_util.c",
+            "mem_view.c",
+            "memory_pool.c",
+            "pid.c",
+            "queue.c",
+            "singly_list.c",
+            "soft_timer.c",
+            "stack.c"
+        }
+    })
 end

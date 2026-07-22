@@ -46,6 +46,14 @@ function register_driver(name, handler)
     if type(handle) ~= "function" then
         raise("libca.em: driver '%s' handler must define handle()", tostring(name))
     end
+    if handler.deps ~= nil and type(handler.deps) ~= "table" then
+        raise("libca.em: driver '%s' dependencies must be list(table)", tostring(name))
+    end
+    for _, dep_name in ipairs(handler.deps or {}) do
+        if type(dep_name) ~= "string" or dep_name == "" then
+            raise("libca.em: driver '%s' dependency must be non-empty string", tostring(name))
+        end
+    end
 
     _drivers[name] = handler
 end
@@ -73,4 +81,20 @@ end
 
 function get_driver(name)
     return _drivers[name]
+end
+
+function list_modules()
+    local names = {}
+    local seen = {}
+    for name, _ in pairs(_module_paths) do
+        seen[name] = true
+        table.insert(names, name)
+    end
+    for name, _ in pairs(_modules) do
+        if not seen[name] then
+            table.insert(names, name)
+        end
+    end
+    table.sort(names)
+    return names
 end
