@@ -4,13 +4,14 @@
 target("libca_collection")
     set_kind("headeronly")
     set_group("libs")
-    add_headerfiles("src/libca/collection/*.hpp")
+    add_headerfiles("src/(libca/collection/*.hpp)")
     add_includedirs("src", {public = true})
     add_deps("libca_core")
 
 if has_config("with_tests") then
 target("libca_collection_unittest")
     set_kind("binary")
+    set_default(false)
     set_group("libs/test")
     add_deps("libca_collection")
     add_links("libca_core")
