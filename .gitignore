@@ -20,3 +20,9 @@ testdemo/
 mcp/GDB-MCP/
 
 /.zcode
+/build-clang
+/build-cpp-msvc
+/build-em-contract
+/build-em-msvc
+/build-install-stage
+/build-msvc
