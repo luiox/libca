@@ -77,6 +77,13 @@ local function _load_driver_manifest(state, driver_name)
     if type(manifest.name) ~= "string" or manifest.name == "" then
         raise("libca.em: em_driver.%s manifest.name must be non-empty string", tostring(driver_name))
     end
+    if manifest.name ~= driver_name then
+        raise(
+            "libca.em: em_driver.%s manifest.name mismatch: %s",
+            tostring(driver_name),
+            tostring(manifest.name)
+        )
+    end
     if type(manifest.dir) ~= "string" or manifest.dir == "" then
         raise("libca.em: em_driver.%s manifest.dir must be non-empty string", tostring(driver_name))
     end
@@ -90,6 +97,16 @@ local function _load_driver_manifest(state, driver_name)
     end
     if type(cfg_map.mode) ~= "table" then
         raise("libca.em: em_driver.%s.port_config.mode must be table", tostring(driver_name))
+    end
+
+    manifest.deps = manifest.deps or {}
+    if type(manifest.deps) ~= "table" then
+        raise("libca.em: em_driver.%s.deps must be list(table)", tostring(driver_name))
+    end
+    for _, dep_name in ipairs(manifest.deps) do
+        if type(dep_name) ~= "string" or dep_name == "" then
+            raise("libca.em: em_driver.%s.deps item must be non-empty string", tostring(driver_name))
+        end
     end
 
     return manifest
@@ -184,4 +201,8 @@ function handle_driver(target, state, driver_name, opts)
     _inject_sources(target, state, manifest)
     _inject_port_config(target, state, manifest, opts)
     _inject_ports(target, state, manifest, opts)
+end
+
+function get_dependencies(state, driver_name)
+    return _load_driver_manifest(state, driver_name).deps
 end

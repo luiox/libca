@@ -23,7 +23,10 @@
 -- 外部集成必须用 import 方式，em.setup() 必须指定 root
 local em = import("libca.em")
 em.setup(target, { root = "path/to/libca" })
-em.add_libs(target, "em_base", "em_util")  -- 必须显式列出所有依赖
+em.add_libs(target, {
+    em_util = {},
+    em_base = {}
+})  -- 必须显式列出所有依赖，表内顺序无关
 ```
 - em_driver 通过 `.lua` 描述文件声明 port_config 模式（`em_driver/<name>/<name>.lua`），不是直接加 src
 

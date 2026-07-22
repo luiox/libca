@@ -11,12 +11,14 @@ target("app")
     on_load(function (target)
         local em = import("libca.em")
         em.setup(target, {root = path.join(os.scriptdir(), "..")})
-        em.add_libs(target, "em_base")
-        em.add_libs(target, "em_driver", {
-            led = {
-                mode = "extern",
-                port = {path.join(os.scriptdir(), "board", "port_led.c")}
-            }
+        em.add_libs(target, {
+            em_driver = {
+                led = {
+                    mode = "extern",
+                    port = {path.join(os.scriptdir(), "board", "port_led.c")}
+                }
+            },
+            em_base = {}
         })
     end)
 ```
@@ -46,6 +48,8 @@ em.add_libs(target, "em_driver", {
 
 1. `mode`：来自驱动 manifest 的 `port_config.mode`。
 2. `port`：端口文件绝对路径列表。
+
+驱动manifest可以通过`deps`声明除`em_base`外的module依赖，用户必须在同一target的`add_libs`请求中显式添加。
 
 ## 端口规则
 

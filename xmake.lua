@@ -44,8 +44,12 @@ if has_config("with_openssl") then
     add_requires("openssl3")
 end
 
-set_languages("c99")
-set_languages("cxx17")
+if is_plat("windows") then
+    -- Xmake maps c99 to /TP for MSVC; C11 keeps em sources in C mode.
+    set_languages("c11", "cxx17")
+else
+    set_languages("c99", "cxx17")
+end
 
 add_rules("mode.debug", "mode.release", "mode.coverage")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})

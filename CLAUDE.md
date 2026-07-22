@@ -46,7 +46,7 @@ xmake                                   # build all enabled targets
 Tests are grouped; the CI splits them by half:
 
 ```bash
-xmake test -g core/test                 # run all C++ tests (matches Core CI)
+xmake test -g libs/test                 # run all C++ tests (matches Core CI)
 xmake test -g em/test                   # run all embedded C tests (matches EM CI)
 xmake test -g em/test -v                # verbose
 ```
@@ -93,10 +93,21 @@ When another project consumes `libca.em`, it uses the source-package importer (e
 ```lua
 local em = import("libca.em")
 em.setup(target, { root = "path/to/libca" })   -- root is required
-em.add_libs(target, "em_base", "em_util")       -- must list every dependency explicitly
+em.add_libs(target, {
+    em_util = {},
+    em_base = {}
+})                                               -- explicit dependencies; order does not matter
 ```
 
-`em_driver` components are declared via a per-driver `.lua` descriptor (`em_driver/<name>/<name>.lua`) that defines a `port_config` pattern, rather than being added as plain sources. Module/driver specs are registered through `em_registry.lua` / `register_module` / `register_driver`.
+`add_libs` accepts either the canonical module table above or the compatible single-module form
+`em.add_libs(target, "em_base", opts)`. All calls made in `on_load` are validated and applied together in dependency
+order, so call order is irrelevant and a repeated module keeps its latest options. Dependencies are never added
+implicitly.
+
+`em_driver` components are declared via a per-driver `.lua` descriptor (`em_driver/<name>/<name>.lua`) that defines
+static `src`, optional `deps`, and a `port_config` pattern, rather than being added as plain sources. Module/driver specs
+are registered through `em_registry.lua` / `register_module` / `register_driver`. `em_eimui` remains a host-side SDL
+prototype and is intentionally absent from the MCU source-package catalog.
 
 ## Git & PRs
 

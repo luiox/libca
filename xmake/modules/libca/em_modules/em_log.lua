@@ -4,7 +4,7 @@ local inject = import("libca.em_inject")
 
 function get_handler()
     return {
-        deps = {"em_base"},
+        deps = {"em_base", "em_dstream", "em_format", "em_platform"},
         handle = function (target, state, opts)
             opts = opts or {}
 
@@ -16,14 +16,13 @@ function get_handler()
                 raise("libca.em: em_log.backend must be string")
             end
 
-            local backend_file = path.join(log_dir, backend .. ".c")
-            if not os.isfile(backend_file) then
-                raise("libca.em: em_log backend source not found: %s", backend_file)
+            if backend ~= "simple_logger" then
+                raise("libca.em: em_log unsupported backend '%s'", tostring(backend))
             end
 
             inject.add_include(target, state, src_root)
             inject.add_file(target, state, path.join(log_dir, "log.c"))
-            inject.add_file(target, state, backend_file)
+            inject.add_file(target, state, path.join(log_dir, "simple_logger.c"))
         end
     }
 end

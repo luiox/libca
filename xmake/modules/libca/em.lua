@@ -7,8 +7,8 @@ function setup(target, opts)
     core.setup(target, opts, registry)
 end
 
-function add_libs(target, name, opts)
-    core.add_libs(target, name, opts, registry)
+function add_libs(target, modules, opts)
+    core.add_libs(target, modules, opts, registry)
 end
 
 function get_state(target)
@@ -21,4 +21,8 @@ end
 
 function register_driver(name, spec)
     registry.register_driver(name, spec)
+end
+
+function list_modules()
+    return registry.list_modules()
 end

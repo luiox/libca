@@ -3,6 +3,7 @@ return function(ctx)
     return {
         name = "tofxxf",
         dir = "tofxxf",
+        deps = {"em_util"},
         src = {"tofxxf.c"},
         port_config = {
             mode = {

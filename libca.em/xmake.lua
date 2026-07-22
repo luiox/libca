@@ -19,3 +19,7 @@ includes("src/em_test")
 includes("src/em_util")
 
 includes("unittests")
+
+if has_config("with_demo") then
+    includes("demo")
+end
