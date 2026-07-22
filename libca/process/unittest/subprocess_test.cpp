@@ -109,6 +109,17 @@ TEST(CommandTest, ReusesCommandAndPreservesArgumentBoundaries)
     EXPECT_EQ(second.unwrap().stdout_data, "contains spaces|");
 }
 
+TEST(CommandTest, EnvironmentOverridePreservesInheritedVariables)
+{
+    auto command = child_command("--subprocess-env");
+    command.env("LIBCA_PROCESS_OVERRIDE", "value with spaces");
+
+    auto result = command.output();
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    EXPECT_TRUE(result.unwrap().status.success());
+    EXPECT_EQ(result.unwrap().stdout_data, "inherited|value with spaces");
+}
+
 TEST(CommandTest, WaitWithOutputDrainsLargeStandardStreams)
 {
     auto command = child_command("--subprocess-large-output");

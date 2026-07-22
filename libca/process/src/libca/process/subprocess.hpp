@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "libca/core/status.hpp"
@@ -222,6 +223,8 @@ public:
     Command& args(std::vector<std::string> values);
     /// @brief 设置子进程工作目录。
     Command& current_dir(std::string path);
+    /// @brief 设置或覆盖一个子进程环境变量，同时保留其他继承环境变量。
+    Command& env(std::string key, std::string value);
     /// @brief 配置标准输入。
     Command& stdin(Stdio stdio);
     /// @brief 配置标准输出。
@@ -239,6 +242,7 @@ public:
 private:
     std::string                program_;
     std::vector<std::string>   args_;
+    std::vector<std::pair<std::string, std::string>> env_;
     std::optional<std::string> current_dir_;
     Stdio                      stdin_{Stdio::inherit()};
     Stdio                      stdout_{Stdio::inherit()};

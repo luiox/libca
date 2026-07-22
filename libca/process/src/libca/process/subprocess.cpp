@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdlib>
+#include <cwchar>
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -108,6 +110,8 @@ bool utf8_to_utf16(const std::string& value, std::wstring& converted)
 // （故结尾 *2）。CreateProcessW 不做 shell 解析，子进程靠 CRT 按此规则还原 argv。
 std::wstring quote_argument(const std::wstring& value)
 {
+    if (!value.empty() && value.find_first_of(L" \t\n\v\"") == std::wstring::npos)
+        return value;
     std::wstring output(L"\"");
     usize        slashes = 0;
     for (wchar_t ch : value) {
@@ -147,6 +151,70 @@ StatusResult<std::wstring> command_line(const std::string&              program_
         result += quote_argument(wide_arg);
     }
     return Ok(std::move(result));
+}
+
+bool environment_key_equal(const std::wstring& left, const std::wstring& right)
+{
+    return CompareStringOrdinal(left.data(),
+                                static_cast<int>(left.size()),
+                                right.data(),
+                                static_cast<int>(right.size()),
+                                TRUE) == CSTR_EQUAL;
+}
+
+StatusResult<std::vector<wchar_t>> environment_block(
+    const std::vector<std::pair<std::string, std::string>>& overrides)
+{
+    std::vector<std::pair<std::wstring, std::wstring>> values;
+    wchar_t*                                           inherited = GetEnvironmentStringsW();
+    if (inherited == nullptr)
+        return Err(system_error("GetEnvironmentStringsW"));
+    for (const wchar_t* entry = inherited; *entry != L'\0'; entry += std::wcslen(entry) + 1) {
+        const wchar_t* separator = std::wcschr(entry + (*entry == L'=' ? 1 : 0), L'=');
+        if (separator == nullptr)
+            continue;
+        values.emplace_back(std::wstring(entry, separator), std::wstring(separator + 1));
+    }
+    FreeEnvironmentStringsW(inherited);
+
+    for (const auto& [key, value] : overrides) {
+        if (key.empty() || key.find('=') != std::string::npos)
+            return Err(ErrStatus(StatusCode::INVALID_ARGUMENT,
+                                 "environment variable key must not be empty or contain '='"));
+        std::wstring wide_key;
+        std::wstring wide_value;
+        if (!utf8_to_utf16(key, wide_key) || !utf8_to_utf16(value, wide_value))
+            return Err(ErrStatus(StatusCode::INVALID_ARGUMENT,
+                                 "environment variable is not valid UTF-8"));
+        const auto existing = std::find_if(values.begin(), values.end(), [&](const auto& entry) {
+            return environment_key_equal(entry.first, wide_key);
+        });
+        if (existing == values.end())
+            values.emplace_back(std::move(wide_key), std::move(wide_value));
+        else
+            existing->second = std::move(wide_value);
+    }
+    std::sort(values.begin(), values.end(), [](const auto& left, const auto& right) {
+        return CompareStringOrdinal(left.first.data(),
+                                    static_cast<int>(left.first.size()),
+                                    right.first.data(),
+                                    static_cast<int>(right.first.size()),
+                                    TRUE) == CSTR_LESS_THAN;
+    });
+
+    usize length = 1;
+    for (const auto& [key, value] : values)
+        length += key.size() + value.size() + 2;
+    std::vector<wchar_t> block;
+    block.reserve(length);
+    for (const auto& [key, value] : values) {
+        block.insert(block.end(), key.begin(), key.end());
+        block.push_back(L'=');
+        block.insert(block.end(), value.begin(), value.end());
+        block.push_back(L'\0');
+    }
+    block.push_back(L'\0');
+    return Ok(std::move(block));
 }
 
 HANDLE open_null_handle()
@@ -633,6 +701,17 @@ Command& Command::current_dir(std::string path)
     current_dir_ = std::move(path);
     return *this;
 }
+Command& Command::env(std::string key, std::string value)
+{
+    const auto existing = std::find_if(env_.begin(), env_.end(), [&](const auto& entry) {
+        return entry.first == key;
+    });
+    if (existing == env_.end())
+        env_.emplace_back(std::move(key), std::move(value));
+    else
+        existing->second = std::move(value);
+    return *this;
+}
 Command& Command::stdin(Stdio stdio)
 {
     stdin_ = stdio;
@@ -653,10 +732,23 @@ StatusResult<Child> Command::spawn() const
 {
     if (program_.empty())
         return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "program must not be empty"));
+    for (const auto& [key, value] : env_) {
+        (void)value;
+        if (key.empty() || key.find('=') != std::string::npos)
+            return Err(ErrStatus(StatusCode::INVALID_ARGUMENT,
+                                 "environment variable key must not be empty or contain '='"));
+    }
 #if defined(_WIN32)
     auto line = command_line(program_, args_);
     if (line.is_err())
         return Err(line.unwrap_err());
+    std::vector<wchar_t> environment;
+    if (!env_.empty()) {
+        auto block = environment_block(env_);
+        if (block.is_err())
+            return Err(block.unwrap_err());
+        environment = std::move(block).unwrap();
+    }
     std::wstring   working;
     const wchar_t* working_ptr = nullptr;
     if (current_dir_ && !utf8_to_utf16(*current_dir_, working))
@@ -734,13 +826,15 @@ StatusResult<Child> Command::spawn() const
     std::vector<wchar_t> mutable_line(text.begin(), text.end());
     mutable_line.push_back(L'\0');
     PROCESS_INFORMATION info{};
+    const DWORD creation_flags =
+        env_.empty() ? CREATE_NO_WINDOW : CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT;
     if (!CreateProcessW(nullptr,
                         mutable_line.data(),
                         nullptr,
                         nullptr,
                         TRUE,
-                        CREATE_NO_WINDOW,
-                        nullptr,
+                        creation_flags,
+                        environment.empty() ? nullptr : environment.data(),
                         working_ptr,
                         &startup,
                         &info)) {
@@ -845,6 +939,13 @@ StatusResult<Child> Command::spawn() const
         }
         for (int descriptor : {parent_in, parent_out, parent_err, child_in, child_out, child_err, exec_read}) {
             if (descriptor >= 0 && descriptor > STDERR_FILENO) ::close(descriptor);
+        }
+        for (const auto& [key, value] : env_) {
+            if (setenv(key.c_str(), value.c_str(), 1) != 0) {
+                const int error = errno;
+                write_exec_error(exec_write, error);
+                _exit(127);
+            }
         }
         execvp(argv[0], argv.data());
         const int error = errno;
