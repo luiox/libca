@@ -18,7 +18,7 @@ xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于�
 xmake f -p windows -a x64 --with_tests=y --with_em=n --with_demo=n -y  # 配置(带测试,仅C++)
 xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_em=n --with_demo=n -y  # 启用 HTTPS client
 xmake                          # 构建
-xmake test -g core/test        # 跑全部 C++ 测试(对应 CI)
+xmake test -g libs/test        # 跑全部 C++ 测试(对应 CI)
 xmake run libca_fs_unittest    # 跑单个模块测试
 ```
 

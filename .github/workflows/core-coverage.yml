@@ -24,10 +24,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Install system deps (lcov)
+    - name: Install system deps
       run: |
         sudo apt-get update
-        sudo apt-get install -y lcov
+        sudo apt-get install -y cmake ninja-build lcov
 
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
@@ -36,13 +36,13 @@ jobs:
         actions-cache-folder: '.xmake-cache'
 
     - name: Configure (core coverage mode)
-      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n -y -vD
+      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n --with_tests=y -y -vD
 
     - name: Build core tests
-      run: xmake build -v
+      run: xmake build -g libs -v
 
     - name: Run core tests
-      run: xmake test -g core/test -v
+      run: xmake test -g libs/test -v
 
     - name: Collect core coverage (lcov)
       run: |

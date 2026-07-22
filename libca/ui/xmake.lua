@@ -18,6 +18,7 @@ if has_config("with_tests") and is_plat("windows") then
 target("libca_ui_unittest")
     set_kind("binary")
     set_default(false)
+    add_tests("default")
     set_group("libs/test")
     add_deps("libca_ui")
     add_links("libca_ui", "libca_str", "libca_core")

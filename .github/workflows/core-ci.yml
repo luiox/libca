@@ -70,54 +70,11 @@ jobs:
           # -y：xrepo 安装 gtest 的交互确认自动通过。
           xmake f -p linux --with_core=y --with_em=n --with_demo=n --with_tests=y -y
 
-      - name: Build new-core targets
-        run: |
-          # xmake build 一次只接受一个 target，用循环逐个编。
-          # 显式点名新 libca 子库 + 其 unittest，避免 demo 干扰。
-          # 若某子库在 Linux 暂未就绪，可先从此列表移除，逐步收敛。
-          set -e
-          TARGETS=(
-            libca_core libca_str libca_fs libca_crypto libca_time libca_collection libca_process
-            libca_thread libca_io libca_net libca_http
-            libca_core_unittest libca_str_unittest libca_fs_unittest
-            libca_crypto_unittest libca_time_unittest libca_collection_unittest
-            libca_process_unittest libca_thread_unittest libca_io_unittest libca_net_unittest
-            libca_http_unittest
-          )
-          for t in "${TARGETS[@]}"; do
-            echo "::group::xmake build $t"
-            xmake build "$t"
-            echo "::endgroup::"
-          done
+      - name: Build C++ libraries
+        run: xmake build -g libs -v
 
       - name: Run unit tests
-        run: |
-          set -e
-          TESTS=(
-            libca_core_unittest
-            libca_str_unittest
-            libca_fs_unittest
-            libca_crypto_unittest
-            libca_time_unittest
-            libca_collection_unittest
-            libca_process_unittest
-            libca_thread_unittest
-            libca_io_unittest
-            libca_net_unittest
-            libca_http_unittest
-          )
-          failed=0
-          for t in "${TESTS[@]}"; do
-            echo "::group::xmake run $t"
-            if xmake run "$t"; then
-              echo "PASS: $t"
-            else
-              echo "::error::FAIL: $t"
-              failed=1
-            fi
-            echo "::endgroup::"
-          done
-          exit $failed
+        run: xmake test -g libs/test -v
 
   build-and-test-http-openssl:
     name: build & test HTTP (linux, OpenSSL 3)

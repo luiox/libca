@@ -14,6 +14,7 @@ if has_config("with_tests") then
 target("libca_io_unittest")
     set_kind("binary")
     set_default(false)
+    add_tests("default")
     set_group("libs/test")
     add_deps("libca_io")
     add_links("libca_io", "libca_core")
