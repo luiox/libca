@@ -16,6 +16,7 @@ if has_config("with_tests") then
 target("libca_toml_unittest")
     set_kind("binary")
     set_default(false)
+    add_tests("default")
     set_group("libs/test")
     add_deps("libca_toml")
     add_links("libca_toml", "libca_str", "libca_core")
