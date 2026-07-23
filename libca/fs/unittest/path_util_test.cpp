@@ -270,4 +270,32 @@ TEST(PathUtilTest, Split_Empty)
     EXPECT_TRUE(parts.empty());
 }
 
+// Windows Unicode 路径回归：中文路径的解析/拼接不应丢字。
+TEST(PathUtilTest, UnicodePath_FilenameStemExtension)
+{
+    EXPECT_EQ(PathUtil::filename(u8"目录/文件.txt"), u8"文件.txt");
+    EXPECT_EQ(PathUtil::stem(u8"目录/文件.txt"), u8"文件");
+    EXPECT_EQ(PathUtil::extension(u8"目录/文件.txt"), ".txt");
+    EXPECT_EQ(PathUtil::parent(u8"目录/文件.txt"), u8"目录");
+}
+
+TEST(PathUtilTest, UnicodePath_JoinPreservesCharacters)
+{
+    auto joined = PathUtil::join(u8"中文目录", u8"子文件.txt");
+    EXPECT_EQ(joined, u8"中文目录/子文件.txt");
+}
+
+TEST(PathUtilTest, UnicodePath_NormalizePreservesCharacters)
+{
+    EXPECT_EQ(PathUtil::normalize(u8"目录/./文件.txt"), u8"目录/文件.txt");
+}
+
+TEST(PathUtilTest, UnicodePath_SplitPreservesCharacters)
+{
+    auto parts = PathUtil::split(u8"目录/文件.txt");
+    ASSERT_EQ(parts.size(), 2u);
+    EXPECT_EQ(parts[0], u8"目录");
+    EXPECT_EQ(parts[1], u8"文件.txt");
+}
+
 }}}  // namespace ca::fs::test

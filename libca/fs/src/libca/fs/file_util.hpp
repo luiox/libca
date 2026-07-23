@@ -38,6 +38,11 @@ struct FileMetadata
 /// 封装 std::filesystem，提供类似 Java FileUtil 的便捷静态接口。
 /// 可能失败且需知原因的操作返回 ca::Result<T, FsError>（结构化错误码，可用 to_string 转可读字符串）；
 /// 纯查询/只关心成败的操作返回裸 bool 或哨兵值。不向外抛异常。
+///
+/// @note 所有 `std::string` 路径参数一律按 **UTF-8** 编码。内部统一用
+///       `std::filesystem::u8path` 构造路径，在 Windows 上正确按 UTF-8 解码为
+///       原生 wchar_t 路径，避免 `std::filesystem::path(std::string)` 按本地代码页
+///       （ACP）解析导致中文/非 ASCII 路径有损。
 class FileUtil
 {
 public:

@@ -659,4 +659,76 @@ TEST(FileUtilTest, IsReadable_NonExistent)
     EXPECT_FALSE(FileUtil::is_writable("/nonexistent/path"));
 }
 
+// Windows Unicode 路径回归：验证含中文/非 ASCII 的路径在全链路无有损转换。
+// 原因：std::filesystem::path(std::string) 在 Windows 上按本地代码页（ACP）解析，
+// 修复后内部统一用 std::filesystem::u8path，正确按 UTF-8 解码为 wchar_t。
+// 这些用例在 Linux/macOS 恒过（u8path 为 no-op），Windows 中文系统代码页下才能暴露原 bug。
+TEST(FileUtilTest, UnicodePathRoundTrip)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    // 含中文目录与文件名。make_path 内部走 PathUtil::join（已 u8path 化）。
+    const std::string relDir = u8"测试目录";
+    const std::string relFile = u8"测试目录/中文文件.txt";
+    auto dirPath = tmp.make_path(relDir);
+    auto filePath = tmp.make_path(relFile);
+
+    // create_directories + write_text + exists + read_all_text + size。
+    EXPECT_TRUE(FileUtil::create_directories(dirPath));
+    EXPECT_TRUE(FileUtil::write_text(filePath, u8"内容").is_ok());
+    EXPECT_TRUE(FileUtil::exists(filePath));
+    EXPECT_TRUE(FileUtil::is_file(filePath));
+
+    auto text = FileUtil::read_all_text(filePath);
+    ASSERT_TRUE(text.is_ok());
+    EXPECT_EQ(text.unwrap(), std::string(u8"内容"));
+
+    EXPECT_GT(FileUtil::size(filePath), 0);
+
+    // read_all_bytes 同路径也能正确读回。
+    auto bytes = FileUtil::read_all_bytes(filePath);
+    ASSERT_TRUE(bytes.is_ok());
+
+    EXPECT_TRUE(FileUtil::remove(filePath));
+    EXPECT_FALSE(FileUtil::exists(filePath));
+}
+
+TEST(FileUtilTest, UnicodePathCopyMoveAndBackup)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto src = tmp.make_path(u8"源文件.txt");
+    auto dst = tmp.make_path(u8"目标文件.txt");
+    EXPECT_TRUE(FileUtil::write_text(src, u8"数据").is_ok());
+
+    EXPECT_TRUE(FileUtil::copy(src, dst));
+    EXPECT_TRUE(FileUtil::exists(dst));
+
+    auto backupResult = FileUtil::backup(dst);
+    ASSERT_TRUE(backupResult.is_ok()) << to_string(backupResult.unwrap_err());
+    EXPECT_TRUE(FileUtil::exists(backupResult.unwrap()));
+
+    // move 到含中文子目录。
+    auto subDir = tmp.make_path(u8"子目录");
+    EXPECT_TRUE(FileUtil::create_directories(subDir));
+    auto moved = PathUtil::join(subDir, u8"移动后.txt");
+    EXPECT_TRUE(FileUtil::move(src, moved));
+    EXPECT_FALSE(FileUtil::exists(src));
+    EXPECT_TRUE(FileUtil::exists(moved));
+}
+
+TEST(FileUtilTest, UnicodePathIsReadableWritable)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto filePath = tmp.make_path(u8"可读写文件.txt");
+    FileUtil::create_file(filePath);
+
+    EXPECT_TRUE(FileUtil::is_readable(filePath));
+    EXPECT_TRUE(FileUtil::is_writable(filePath));
+}
+
 }}}  // namespace ca::fs::test

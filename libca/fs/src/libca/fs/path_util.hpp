@@ -7,7 +7,12 @@ namespace ca { namespace fs {
 
 /// 路径字符串操作工具类
 ///
-/// 纯字符串运算，不接触文件系统，所有方法均不抛异常。
+/// 路径解析与拼接运算，内部基于 `std::filesystem::path`；除 `to_absolute` 外不访问
+/// 文件系统。所有方法均不抛异常。
+///
+/// @note 所有 `std::string` 路径参数一律按 **UTF-8** 编码，内部统一用
+///       `std::filesystem::u8path` 构造路径，避免 Windows 上按本地代码页解析导致
+///       中文/非 ASCII 路径有损。
 class PathUtil
 {
 public:
