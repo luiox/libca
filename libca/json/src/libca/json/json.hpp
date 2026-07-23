@@ -15,3 +15,4 @@
 #include "libca/json/json_dom_builder.hpp"
 #include "libca/json/json_reader.hpp"
 #include "libca/json/json_writer.hpp"
+#include "libca/json/json_schema.hpp"
