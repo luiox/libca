@@ -40,11 +40,7 @@ void JsonDomBuilder::on_array_end(const SourceLocation&) {
     // 弹出当前 array 栈帧，作为完成的 value 喂给父
     Frame frame = std::move(stack_.back());
     stack_.pop_back();
-    JsonValue arr = JsonValue::make_array();
-    for (auto& item : frame.array_items) {
-        arr.append(std::move(item));
-    }
-    emit_value(std::move(arr));
+    emit_value(JsonValue::make_array_from(std::move(frame.array_items)));
 }
 
 void JsonDomBuilder::on_object_start(const SourceLocation&) {
@@ -57,11 +53,7 @@ void JsonDomBuilder::on_object_start(const SourceLocation&) {
 void JsonDomBuilder::on_object_end(const SourceLocation&) {
     Frame frame = std::move(stack_.back());
     stack_.pop_back();
-    JsonValue obj = JsonValue::make_object();
-    for (auto& m : frame.object_items) {
-        obj.set(std::move(m.first), std::move(m.second));
-    }
-    emit_value(std::move(obj));
+    emit_value(JsonValue::make_object_from(std::move(frame.object_items)));
 }
 
 void JsonDomBuilder::on_object_key(ca::str::Utf8StringRef key, const SourceLocation&) {

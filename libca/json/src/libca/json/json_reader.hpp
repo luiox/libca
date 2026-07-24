@@ -30,6 +30,9 @@ public:
     /// @param options 解析选项。
     /// @return 成功返回 JsonDocument（含 arena + root）；失败返回 ParseError。
     ///         返回的 document 内 Utf8StringRef 与输入视图生命周期解耦（已 intern 入池）。
+    /// @note 重复 key 语义：对象内出现同名 key 时，**保序保留全部**成员，不做去重，
+    ///       `JsonValue::find()` 返回首个匹配。RFC 8259 未规定重复 key 处理，本库选择
+    ///       首个优先且不丢弃后续副本。（此前实现为后者覆盖前者，为消除 O(n^2) 装配已调整。）
     static ca::Result<JsonDocument, ParseError> read(
         const ca::str::Utf8StringRef& input,
         const JsonReaderOptions& options = JsonReaderOptions());
@@ -38,6 +41,7 @@ public:
     /// @param path 文件路径。
     /// @param options 解析选项。
     /// @return 成功返回 JsonDocument；打开失败或格式错误返回 ParseError。
+    /// @note 重复 key 语义同 read()：保序保留全部，find() 返回首个。
     static ca::Result<JsonDocument, ParseError> read_file(
         const ca::str::Utf8StringRef& path,
         const JsonReaderOptions& options = JsonReaderOptions());
