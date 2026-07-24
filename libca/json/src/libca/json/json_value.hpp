@@ -138,10 +138,12 @@ public:
 
     /// @brief 查找 key（只读）。未找到返回 nullptr。
     /// @warning 类型必须为 Object，否则断言失败。
+    /// @note 存在重复 key 时（如经 make_object_from 装配的解析结果）返回**首个**匹配。
     const JsonValue* find(const ca::str::Utf8StringRef& key) const noexcept;
 
     /// @brief 查找 key（可修改）。未找到返回 nullptr。
     /// @warning 类型必须为 Object，否则断言失败。
+    /// @note 存在重复 key 时返回**首个**匹配。
     JsonValue* find(const ca::str::Utf8StringRef& key) noexcept;
 
     /// @brief 移除 key。@return 实际移除时返回 true。
