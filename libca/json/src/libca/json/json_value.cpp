@@ -112,6 +112,20 @@ JsonValue JsonValue::make_object() {
     return j;
 }
 
+JsonValue JsonValue::make_array_from(ArrayStorage&& items) noexcept {
+    JsonValue j;
+    j.type_ = JsonType::Array;
+    j.data_ = std::move(items);
+    return j;
+}
+
+JsonValue JsonValue::make_object_from(ObjectStorage&& members) noexcept {
+    JsonValue j;
+    j.type_ = JsonType::Object;
+    j.data_ = std::move(members);
+    return j;
+}
+
 // ============================================================================
 // 类型查询
 // ============================================================================

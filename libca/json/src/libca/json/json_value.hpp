@@ -72,6 +72,15 @@ public:
     static JsonValue make_array();
     static JsonValue make_object();
 
+    /// @brief 由已构建好的数组存储直接构造（移动接管，O(1)）。
+    /// @note 供 DOM 装配等已知元素序列的场景使用，避免逐个 append。
+    static JsonValue make_array_from(ArrayStorage&& items) noexcept;
+
+    /// @brief 由已构建好的对象存储直接构造（移动接管，O(1)）。
+    /// @warning 不做 key 去重：调用方需保证 key 唯一（解析器按 JSON 语义保序，
+    ///          重复 key 全部保留，find() 返回首个）。用于避免 set() 的 O(n^2) 去重。
+    static JsonValue make_object_from(ObjectStorage&& members) noexcept;
+
     // ---- 类型查询 ----
 
     JsonType type() const noexcept;

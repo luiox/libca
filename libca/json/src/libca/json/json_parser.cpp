@@ -325,7 +325,33 @@ bool JsonParser::parse_string_into(ca::str::Utf8StringRef& out) {
     SourceLocation start = loc_;
     advance();  // 消费开头的 "
 
+    const usize content_begin = pos_;
+
+    // 快路径：先扫描一遍，若整段无转义（无 '\\'）也无非法控制字符，直接从输入缓冲
+    // intern 原文切片——省掉 Utf8StringBuilder 的逐字节追加与 build_or_empty 的一次
+    // 额外 UTF-8 校验+堆分配。绝大多数 JSON 字符串走这条路径。
+    while (pos_ < byte_length_) {
+        const u8 c = data_[pos_];
+        if (c == '"') {
+            out = arena_.intern(data_ + content_begin, pos_ - content_begin);
+            advance();  // 消费结尾的 "
+            return !failed_;
+        }
+        if (c == '\\') break;  // 含转义 → 转入慢路径
+        if (c < 0x20) {
+            fail(start, "unescaped control character in string");
+            return false;
+        }
+        advance();
+    }
+    if (pos_ >= byte_length_) {
+        fail(start, "unterminated string");
+        return false;
+    }
+
+    // 慢路径：存在转义。先把已扫描的无转义前缀整段拷入 builder，再逐段处理剩余内容。
     ca::str::Utf8StringBuilder sb;
+    sb.append(data_ + content_begin, pos_ - content_begin);
     while (!failed_) {
         if (at_end()) {
             fail(start, "unterminated string");
@@ -414,9 +440,15 @@ bool JsonParser::parse_string_into(ca::str::Utf8StringRef& out) {
             fail(start, "unescaped control character in string");
             return false;
         } else {
-            // 普通字节（含 UTF-8 多字节序列的任意字节）原样追加
-            sb.append(&c, 1);
-            advance();
+            // 普通字节段：连续扫描到下一个 '"' / '\\' / 控制字符，成段一次性追加，
+            // 避免逐字节 append。
+            const usize run_begin = pos_;
+            while (pos_ < byte_length_) {
+                const u8 rc = data_[pos_];
+                if (rc == '"' || rc == '\\' || rc < 0x20) break;
+                advance();
+            }
+            sb.append(data_ + run_begin, pos_ - run_begin);
         }
     }
     out = arena_.intern(sb.build_or_empty());

@@ -164,6 +164,33 @@ TEST(JsonReaderTest, RejectsIncompleteUnicodeEscape) {
     EXPECT_TRUE(JsonReader::read(R("\"\\u12\"")).is_err());
 }
 
+// 无转义字符串走快路径（直接从输入缓冲 intern 切片），须与原文一致。
+TEST(JsonReaderTest, FastPathPlainString) {
+    auto doc = read_ok("\"hello world 你好\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("hello world 你好"));
+}
+
+// 转义位于中段：前缀走快扫描、遇 '\\' 转慢路径，前缀须被完整保留。
+TEST(JsonReaderTest, SlowPathPreservesPrefixBeforeEscape) {
+    auto doc = read_ok("\"abc\\ndef\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("abc\ndef"));
+}
+
+// 慢路径中转义之后的普通字节段（成段追加）须完整保留。
+TEST(JsonReaderTest, SlowPathPreservesRunAfterEscape) {
+    auto doc = read_ok("\"\\tlong_tail_after_escape\"");
+    EXPECT_EQ(doc.root().as_string(), Utf8String::from_cstr("\tlong_tail_after_escape"));
+}
+
+// 重复 key：解析保序、全部保留，find() 返回首个（DOM 装配不再逐个 set 去重）。
+TEST(JsonReaderTest, DuplicateKeysPreservedFindReturnsFirst) {
+    auto doc = read_ok("{\"k\":1,\"k\":2}");
+    ASSERT_TRUE(doc.root().is_object());
+    EXPECT_EQ(doc.root().as_object().size(), 2u);
+    ASSERT_NE(doc.root().find(R("k")), nullptr);
+    EXPECT_EQ(doc.root().find(R("k"))->as_int(), 1);
+}
+
 // ============================================================================
 // 数组与对象
 // ============================================================================
