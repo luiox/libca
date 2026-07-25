@@ -20,7 +20,7 @@ CStringRef::CStringRef(const char* data, usize length) noexcept : data_(data), l
 CStringRef::CStringRef(const CString& str) noexcept : data_(str.data()), length_(str.length()) {}
 
 usize CStringRef::length() const noexcept { return length_; }
-bool CStringRef::isEmpty() const noexcept { return length_ == 0; }
+bool CStringRef::is_empty() const noexcept { return length_ == 0; }
 const char* CStringRef::data() const noexcept { return data_; }
 
 char CStringRef::at(usize index) const { return data_[index]; }
@@ -102,12 +102,12 @@ CString CString::clone() const {
     return c;
 }
 
-CString CString::fromCStr(const char* cstr) { return CString(cstr); }
+CString CString::from_cstr(const char* cstr) { return CString(cstr); }
 
 usize CString::length() const noexcept { return length_; }
-bool CString::isEmpty() const noexcept { return length_ == 0; }
+bool CString::is_empty() const noexcept { return length_ == 0; }
 const char* CString::data() const noexcept { return data_; }
-const char* CString::cStr() const noexcept { return data_; }
+const char* CString::c_str() const noexcept { return data_; }
 char CString::at(usize index) const { return data_[index]; }
 
 CStringRef CString::ref() const noexcept { return CStringRef(data_, length_); }
@@ -127,37 +127,37 @@ bool CString::operator!=(const CStringRef& other) const noexcept { return !ref()
 // CStringRef — 新增操作
 // ============================================================================
 
-bool CStringRef::startsWith(const CStringRef& prefix) const noexcept {
+bool CStringRef::starts_with(const CStringRef& prefix) const noexcept {
     if (prefix.length_ > length_) return false;
     return std::memcmp(data_, prefix.data_, prefix.length_) == 0;
 }
 
-bool CStringRef::endsWith(const CStringRef& suffix) const noexcept {
+bool CStringRef::ends_with(const CStringRef& suffix) const noexcept {
     if (suffix.length_ > length_) return false;
     return std::memcmp(data_ + length_ - suffix.length_, suffix.data_, suffix.length_) == 0;
 }
 
-CStringRef CStringRef::trimStart() const noexcept {
+CStringRef CStringRef::trim_start() const noexcept {
     usize i = 0;
     while (i < length_ && std::isspace(static_cast<unsigned char>(data_[i]))) ++i;
     return slice(i, length_);
 }
 
-CStringRef CStringRef::trimEnd() const noexcept {
+CStringRef CStringRef::trim_end() const noexcept {
     usize i = length_;
     while (i > 0 && std::isspace(static_cast<unsigned char>(data_[i - 1]))) --i;
     return slice(0, i);
 }
 
 CStringRef CStringRef::trim() const noexcept {
-    auto r = trimStart();
-    return r.trimEnd();
+    auto r = trim_start();
+    return r.trim_end();
 }
 
 std::vector<CStringRef> CStringRef::split(const CStringRef& delimiter) const {
     std::vector<CStringRef> result;
-    if (isEmpty()) return result;
-    if (delimiter.isEmpty()) { result.push_back(*this); return result; }
+    if (is_empty()) return result;
+    if (delimiter.is_empty()) { result.push_back(*this); return result; }
 
     usize start = 0;
     while (true) {
@@ -175,22 +175,22 @@ std::vector<CStringRef> CStringRef::split(const CStringRef& delimiter) const {
     return result;
 }
 
-CString CStringRef::toLower() const {
+CString CStringRef::to_lower() const {
     CStringBuilder b;
     for (usize i = 0; i < length_; ++i)
         b.append(static_cast<char>(std::tolower(static_cast<unsigned char>(data_[i]))));
     return b.build();
 }
 
-CString CStringRef::toUpper() const {
+CString CStringRef::to_upper() const {
     CStringBuilder b;
     for (usize i = 0; i < length_; ++i)
         b.append(static_cast<char>(std::toupper(static_cast<unsigned char>(data_[i]))));
     return b.build();
 }
 
-CString CStringRef::replaceAll(const CStringRef& from, const CStringRef& to) const {
-    if (from.isEmpty()) return CString(data_, length_);
+CString CStringRef::replace_all(const CStringRef& from, const CStringRef& to) const {
+    if (from.is_empty()) return CString(data_, length_);
     auto parts = split(from);
     CStringBuilder b;
     for (usize i = 0; i < parts.size(); ++i) {
@@ -205,15 +205,15 @@ CString CStringRef::replaceAll(const CStringRef& from, const CStringRef& to) con
 // CString — 新增操作（委托给 ref）
 // ============================================================================
 
-bool CString::startsWith(const CStringRef& prefix) const noexcept { return ref().startsWith(prefix); }
-bool CString::endsWith(const CStringRef& suffix) const noexcept   { return ref().endsWith(suffix); }
+bool CString::starts_with(const CStringRef& prefix) const noexcept { return ref().starts_with(prefix); }
+bool CString::ends_with(const CStringRef& suffix) const noexcept   { return ref().ends_with(suffix); }
 CStringRef CString::trim() const noexcept       { return ref().trim(); }
-CStringRef CString::trimStart() const noexcept   { return ref().trimStart(); }
-CStringRef CString::trimEnd() const noexcept     { return ref().trimEnd(); }
+CStringRef CString::trim_start() const noexcept   { return ref().trim_start(); }
+CStringRef CString::trim_end() const noexcept     { return ref().trim_end(); }
 std::vector<CStringRef> CString::split(const CStringRef& d) const { return ref().split(d); }
-CString CString::toLower() const    { return ref().toLower(); }
-CString CString::toUpper() const    { return ref().toUpper(); }
-CString CString::replaceAll(const CStringRef& from, const CStringRef& to) const { return ref().replaceAll(from, to); }
+CString CString::to_lower() const    { return ref().to_lower(); }
+CString CString::to_upper() const    { return ref().to_upper(); }
+CString CString::replace_all(const CStringRef& from, const CStringRef& to) const { return ref().replace_all(from, to); }
 
 
 // ============================================================================
@@ -305,7 +305,7 @@ void CStringBuilder::reserve(usize cap) {
 
 usize CStringBuilder::capacity() const noexcept { return capacity_; }
 usize CStringBuilder::length() const noexcept { return length_; }
-bool CStringBuilder::isEmpty() const noexcept { return length_ == 0; }
+bool CStringBuilder::is_empty() const noexcept { return length_ == 0; }
 void CStringBuilder::clear() noexcept { length_ = 0; }
 CString CStringBuilder::build() const { return CString(buffer_, length_); }
 

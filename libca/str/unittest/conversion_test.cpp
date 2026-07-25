@@ -12,14 +12,14 @@ namespace ca::str {
 
 TEST(ConversionTest, Utf8ToCString) {
     Utf8String u8("Hello 世界");
-    auto cs = toCString(u8.ref());
+    auto cs = to_cstring(u8.ref());
     EXPECT_EQ(cs.length(), u8.byte_length());
-    EXPECT_STREQ(cs.cStr(), "Hello 世界");
+    EXPECT_STREQ(cs.c_str(), "Hello 世界");
 }
 
 TEST(ConversionTest, CStringToUtf8) {
     CString cs("ABC");
-    auto u8 = toUtf8String(cs.ref());
+    auto u8 = to_utf8_string(cs.ref());
     EXPECT_EQ(u8.length(), 3);
     EXPECT_EQ(u8.byte_length(), 3);
     EXPECT_EQ(u8.code_point_at(0), 'A');
@@ -27,8 +27,8 @@ TEST(ConversionTest, CStringToUtf8) {
 
 TEST(ConversionTest, Utf8CStringRoundtrip) {
     Utf8String orig("Hello 世界 🌍");
-    auto cs = toCString(orig.ref());
-    auto back = toUtf8String(cs.ref());
+    auto cs = to_cstring(orig.ref());
+    auto back = to_utf8_string(cs.ref());
     EXPECT_EQ(orig, back);
 }
 
@@ -38,28 +38,28 @@ TEST(ConversionTest, Utf8CStringRoundtrip) {
 
 TEST(ConversionTest, Utf8ToWString) {
     Utf8String u8("Hello");
-    auto ws = toWString(u8.ref());
+    auto ws = to_wstring(u8.ref());
     EXPECT_EQ(ws.length(), 5);
 }
 
 TEST(ConversionTest, WStringToUtf8) {
     WString ws(L"ABC");
-    auto u8 = toUtf8String(ws.ref());
+    auto u8 = to_utf8_string(ws.ref());
     EXPECT_EQ(u8.length(), 3);
     EXPECT_EQ(u8.code_point_at(0), 'A');
 }
 
 TEST(ConversionTest, Utf8WStringRoundtrip) {
     Utf8String orig("Hello World");
-    auto ws = toWString(orig.ref());
-    auto back = toUtf8String(ws.ref());
+    auto ws = to_wstring(orig.ref());
+    auto back = to_utf8_string(ws.ref());
     EXPECT_EQ(orig, back);
 }
 
 TEST(ConversionTest, Utf8WStringUnicodeRoundtrip) {
     Utf8String orig("你好世界 😀");
-    auto ws = toWString(orig.ref());
-    auto back = toUtf8String(ws.ref());
+    auto ws = to_wstring(orig.ref());
+    auto back = to_utf8_string(ws.ref());
     EXPECT_EQ(orig, back);
 }
 
@@ -69,21 +69,21 @@ TEST(ConversionTest, Utf8WStringUnicodeRoundtrip) {
 
 TEST(ConversionTest, CStringToWString) {
     CString cs("ABC");
-    auto ws = toWString(cs.ref());
+    auto ws = to_wstring(cs.ref());
     EXPECT_EQ(ws.length(), 3);
 }
 
 TEST(ConversionTest, WStringToCString) {
     WString ws(L"Hello");
-    auto cs = toCString(ws.ref());
+    auto cs = to_cstring(ws.ref());
     EXPECT_EQ(cs.length(), 5);
-    EXPECT_STREQ(cs.cStr(), "Hello");
+    EXPECT_STREQ(cs.c_str(), "Hello");
 }
 
 TEST(ConversionTest, CStringWStringRoundtrip) {
     CString orig("Hello World");
-    auto ws = toWString(orig.ref());
-    auto back = toCString(ws.ref());
+    auto ws = to_wstring(orig.ref());
+    auto back = to_cstring(ws.ref());
     EXPECT_TRUE(orig == back);
 }
 
@@ -94,21 +94,21 @@ TEST(ConversionTest, CStringWStringRoundtrip) {
 TEST(ConversionTest, Utf8ToUtf16Length) {
     // "AB" → 2 u16
     const u8 ascii[] = {0x41, 0x42};
-    EXPECT_EQ(utf8ToUtf16Length(ascii, 2), 2);
+    EXPECT_EQ(utf8_to_utf16_length(ascii, 2), 2);
 
     // '😀' (4字节) → 2 u16 (代理对)
     const u8 emoji[] = {0xF0, 0x9F, 0x98, 0x80};
-    EXPECT_EQ(utf8ToUtf16Length(emoji, 4), 2);
+    EXPECT_EQ(utf8_to_utf16_length(emoji, 4), 2);
 
     // "A😀" → 1 + 2 = 3 u16
     const u8 mix[] = {0x41, 0xF0, 0x9F, 0x98, 0x80};
-    EXPECT_EQ(utf8ToUtf16Length(mix, 5), 3);
+    EXPECT_EQ(utf8_to_utf16_length(mix, 5), 3);
 }
 
 TEST(ConversionTest, Utf8ToUtf16) {
     const u8 input[] = {0x41, 0xF0, 0x9F, 0x98, 0x80};  // "A😀"
     u16 output[4] = {};
-    auto n = utf8ToUtf16(input, 5, output);
+    auto n = utf8_to_utf16(input, 5, output);
     EXPECT_EQ(n, 3);
     EXPECT_EQ(output[0], 0x41);
     EXPECT_EQ(output[1], 0xD83D);  // 😀 高位代理
@@ -118,17 +118,17 @@ TEST(ConversionTest, Utf8ToUtf16) {
 TEST(ConversionTest, Utf16ToUtf8Length) {
     // "AB" → 2 bytes
     const u16 ascii[] = {0x41, 0x42};
-    EXPECT_EQ(utf16ToUtf8Length(ascii, 2), 2);
+    EXPECT_EQ(utf16_to_utf8_length(ascii, 2), 2);
 
     // 代理对 → 4 bytes
     const u16 surrogates[] = {0xD83D, 0xDE00};
-    EXPECT_EQ(utf16ToUtf8Length(surrogates, 2), 4);
+    EXPECT_EQ(utf16_to_utf8_length(surrogates, 2), 4);
 }
 
 TEST(ConversionTest, Utf16ToUtf8) {
     const u16 input[] = {0x41, 0xD83D, 0xDE00};  // "A😀"
     u8 output[8] = {};
-    auto n = utf16ToUtf8(input, 3, output);
+    auto n = utf16_to_utf8(input, 3, output);
     EXPECT_EQ(n, 5);
     EXPECT_EQ(output[0], 0x41);
     // bytes 1-4 should be 😀
@@ -142,11 +142,11 @@ TEST(ConversionTest, Utf16Utf8Roundtrip) {
     const u8 orig[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
     // UTF-8 → UTF-16
     u16 utf16[8] = {};
-    auto n16 = utf8ToUtf16(orig, 8, utf16);
+    auto n16 = utf8_to_utf16(orig, 8, utf16);
     EXPECT_GT(n16, 0);
     // UTF-16 → UTF-8
     u8 utf8[12] = {};
-    auto n8 = utf16ToUtf8(utf16, n16, utf8);
+    auto n8 = utf16_to_utf8(utf16, n16, utf8);
     EXPECT_EQ(n8, 8);
     EXPECT_TRUE(std::memcmp(orig, utf8, 8) == 0);
 }
@@ -154,17 +154,17 @@ TEST(ConversionTest, Utf16Utf8Roundtrip) {
 TEST(ConversionTest, Utf16ToUtf8RejectsDanglingLeadSurrogate) {
     // 末尾孤立高代理：此前会越界读 utf16[i+1]，现应安全返回 0。
     const u16 dangling[] = {0x0041, 0xD83D};  // 'A' + 孤立高代理
-    EXPECT_EQ(utf16ToUtf8Length(dangling, 2), 0u);
+    EXPECT_EQ(utf16_to_utf8_length(dangling, 2), 0u);
     u8 out[8] = {};
-    EXPECT_EQ(utf16ToUtf8(dangling, 2, out), 0u);
+    EXPECT_EQ(utf16_to_utf8(dangling, 2, out), 0u);
 }
 
 TEST(ConversionTest, Utf16ToUtf8RejectsLeadWithoutTrail) {
     // 高代理后接非 trail 码元。
     const u16 bad[] = {0xD83D, 0x0041};
-    EXPECT_EQ(utf16ToUtf8Length(bad, 2), 0u);
+    EXPECT_EQ(utf16_to_utf8_length(bad, 2), 0u);
     u8 out[8] = {};
-    EXPECT_EQ(utf16ToUtf8(bad, 2, out), 0u);
+    EXPECT_EQ(utf16_to_utf8(bad, 2, out), 0u);
 }
 
 // ============================================================================
@@ -253,19 +253,19 @@ TEST(ConversionTest, Latin1EmptyInputs) {
 
 TEST(ConversionTest, EmptyUtf8ToCString) {
     Utf8String empty;
-    auto cs = toCString(empty.ref());
-    EXPECT_TRUE(cs.isEmpty());
+    auto cs = to_cstring(empty.ref());
+    EXPECT_TRUE(cs.is_empty());
 }
 
 TEST(ConversionTest, EmptyCStringToUtf8) {
     CString cs("");
-    auto u8 = toUtf8String(cs.ref());
+    auto u8 = to_utf8_string(cs.ref());
     EXPECT_TRUE(u8.is_empty());
 }
 
 TEST(ConversionTest, EmptyWStringToUtf8) {
     WString ws(L"");
-    auto u8 = toUtf8String(ws.ref());
+    auto u8 = to_utf8_string(ws.ref());
     EXPECT_TRUE(u8.is_empty());
 }
 
