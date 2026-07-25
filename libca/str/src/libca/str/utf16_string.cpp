@@ -308,12 +308,12 @@ Utf8String Utf16StringRef::to_utf8_string() const
     if (length_ == 0)
         return Utf8String();
 
-    const auto byte_count = utf16ToUtf8Length(raw_data(), length_);
+    const auto byte_count = utf16_to_utf8_length(raw_data(), length_);
     if (byte_count == 0)
         throw std::runtime_error("Utf16StringRef::to_utf8_string: invalid UTF-16 sequence");
 
     std::vector<ca::u8> buffer(byte_count);
-    const auto written = utf16ToUtf8(raw_data(), length_, buffer.data());
+    const auto written = utf16_to_utf8(raw_data(), length_, buffer.data());
     if (written != byte_count)
         throw std::runtime_error("Utf16StringRef::to_utf8_string: failed to encode UTF-8");
     return Utf8String(buffer.data(), byte_count);
@@ -373,12 +373,12 @@ Utf16String Utf16String::from_utf8_string(const Utf8StringRef& str)
     if (str.is_empty())
         return Utf16String();
 
-    const auto unit_count = utf8ToUtf16Length(str.data(), str.byte_length());
+    const auto unit_count = utf8_to_utf16_length(str.data(), str.byte_length());
     if (unit_count == 0)
         throw std::runtime_error("Utf16String::from_utf8_string: invalid UTF-8 sequence");
 
     std::vector<ca::u16> units(unit_count);
-    const auto written = utf8ToUtf16(str.data(), str.byte_length(), units.data());
+    const auto written = utf8_to_utf16(str.data(), str.byte_length(), units.data());
     if (written != unit_count)
         throw std::runtime_error("Utf16String::from_utf8_string: failed to encode UTF-16");
     return Utf16String(units.data(), unit_count);

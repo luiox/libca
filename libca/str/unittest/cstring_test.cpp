@@ -9,7 +9,7 @@ namespace ca::str {
 
 TEST(CStringRefTest, DefaultConstructor) {
     CStringRef ref;
-    EXPECT_TRUE(ref.isEmpty());
+    EXPECT_TRUE(ref.is_empty());
     EXPECT_EQ(ref.length(), 0);
 }
 
@@ -33,7 +33,7 @@ TEST(CStringRefTest, Substr) {
     CStringRef ref(data, 11);
     auto s = ref.substr(6, 5);
     EXPECT_EQ(s.length(), 5);
-    EXPECT_STREQ(s.cStr(), "World");
+    EXPECT_STREQ(s.c_str(), "World");
 }
 
 TEST(CStringRefTest, Compare) {
@@ -49,14 +49,14 @@ TEST(CStringRefTest, Compare) {
 
 TEST(CStringTest, DefaultConstructor) {
     CString s;
-    EXPECT_TRUE(s.isEmpty());
-    EXPECT_EQ(s.cStr()[0], '\0');
+    EXPECT_TRUE(s.is_empty());
+    EXPECT_EQ(s.c_str()[0], '\0');
 }
 
 TEST(CStringTest, FromCStr) {
     CString s("Hello World");
     EXPECT_EQ(s.length(), 11);
-    EXPECT_STREQ(s.cStr(), "Hello World");
+    EXPECT_STREQ(s.c_str(), "Hello World");
 }
 
 TEST(CStringTest, Clone) {
@@ -70,7 +70,7 @@ TEST(CStringTest, Move) {
     CString s1("Test");
     CString s2(std::move(s1));
     EXPECT_EQ(s2.length(), 4);
-    EXPECT_TRUE(s1.isEmpty());
+    EXPECT_TRUE(s1.is_empty());
 }
 
 TEST(CStringTest, Equality) {
@@ -88,26 +88,26 @@ TEST(CStringBuilderTest, Append) {
     CStringBuilder b;
     b.append("Hello").append(" World");
     EXPECT_EQ(b.length(), 11);
-    EXPECT_STREQ(b.build().cStr(), "Hello World");
+    EXPECT_STREQ(b.build().c_str(), "Hello World");
 }
 
 TEST(CStringBuilderTest, AppendChar) {
     CStringBuilder b;
     b.append('A').append('B').append('C');
     EXPECT_EQ(b.length(), 3);
-    EXPECT_STREQ(b.build().cStr(), "ABC");
+    EXPECT_STREQ(b.build().c_str(), "ABC");
 }
 
 TEST(CStringBuilderTest, Clear) {
     CStringBuilder b;
     b.append("Hello");
     b.clear();
-    EXPECT_TRUE(b.isEmpty());
+    EXPECT_TRUE(b.is_empty());
 }
 
 TEST(CStringBuilderTest, BuildEmpty) {
     CStringBuilder b;
-    EXPECT_TRUE(b.build().isEmpty());
+    EXPECT_TRUE(b.build().is_empty());
 }
 
 }  // namespace ca::str

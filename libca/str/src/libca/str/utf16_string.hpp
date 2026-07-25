@@ -126,7 +126,7 @@ public:
     /// @brief 判断两个 UTF-16 code unit 序列是否完全相等。
     bool equals(const Utf16StringRef& other) const noexcept;
 
-    /// @brief 返回 Java `String.hashCode()` 兼容的 32-bit hash。
+    /// @brief 返回 Java `String.hash_code()` 兼容的 32-bit hash。
     ca::i32 hash_code() const noexcept;
 
     /// @brief 拼接当前视图和 other，返回新的拥有型字符串。

@@ -5,7 +5,7 @@ namespace ca::str {
 
 TEST(WStringRefTest, Default) {
     WStringRef ref;
-    EXPECT_TRUE(ref.isEmpty());
+    EXPECT_TRUE(ref.is_empty());
 }
 
 TEST(WStringRefTest, FromData) {
@@ -25,7 +25,7 @@ TEST(WStringRefTest, Slice) {
 
 TEST(WStringTest, Default) {
     WString s;
-    EXPECT_TRUE(s.isEmpty());
+    EXPECT_TRUE(s.is_empty());
 }
 
 TEST(WStringTest, FromWStr) {
@@ -70,7 +70,7 @@ TEST(WStringBuilderTest, Clear) {
     WStringBuilder b;
     b.append(L"Hello");
     b.clear();
-    EXPECT_TRUE(b.isEmpty());
+    EXPECT_TRUE(b.is_empty());
 }
 
 }  // namespace ca::str

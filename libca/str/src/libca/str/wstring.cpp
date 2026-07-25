@@ -20,7 +20,7 @@ WStringRef::WStringRef(const wchar_t* data, usize length) noexcept : data_(data)
 WStringRef::WStringRef(const WString& str) noexcept : data_(str.data()), length_(str.length()) {}
 
 usize WStringRef::length() const noexcept { return length_; }
-bool WStringRef::isEmpty() const noexcept { return length_ == 0; }
+bool WStringRef::is_empty() const noexcept { return length_ == 0; }
 const wchar_t* WStringRef::data() const noexcept { return data_; }
 wchar_t WStringRef::at(usize index) const { return data_[index]; }
 
@@ -99,12 +99,12 @@ WString WString::clone() const {
     return w;
 }
 
-WString WString::fromWStr(const wchar_t* wstr) { return WString(wstr); }
+WString WString::from_wstr(const wchar_t* wstr) { return WString(wstr); }
 
 usize WString::length() const noexcept { return length_; }
-bool WString::isEmpty() const noexcept { return length_ == 0; }
+bool WString::is_empty() const noexcept { return length_ == 0; }
 const wchar_t* WString::data() const noexcept { return data_; }
-const wchar_t* WString::wStr() const noexcept { return data_; }
+const wchar_t* WString::w_str() const noexcept { return data_; }
 wchar_t WString::at(usize index) const { return data_[index]; }
 
 WStringRef WString::ref() const noexcept { return WStringRef(data_, length_); }
@@ -124,37 +124,37 @@ bool WString::operator!=(const WStringRef& other) const noexcept { return !ref()
 // WStringRef — 新增操作
 // ============================================================================
 
-bool WStringRef::startsWith(const WStringRef& prefix) const noexcept {
+bool WStringRef::starts_with(const WStringRef& prefix) const noexcept {
     if (prefix.length_ > length_) return false;
     return std::wmemcmp(data_, prefix.data_, prefix.length_) == 0;
 }
 
-bool WStringRef::endsWith(const WStringRef& suffix) const noexcept {
+bool WStringRef::ends_with(const WStringRef& suffix) const noexcept {
     if (suffix.length_ > length_) return false;
     return std::wmemcmp(data_ + length_ - suffix.length_, suffix.data_, suffix.length_) == 0;
 }
 
-WStringRef WStringRef::trimStart() const noexcept {
+WStringRef WStringRef::trim_start() const noexcept {
     usize i = 0;
     while (i < length_ && iswspace(static_cast<wint_t>(data_[i]))) ++i;
     return slice(i, length_);
 }
 
-WStringRef WStringRef::trimEnd() const noexcept {
+WStringRef WStringRef::trim_end() const noexcept {
     usize i = length_;
     while (i > 0 && iswspace(static_cast<wint_t>(data_[i - 1]))) --i;
     return slice(0, i);
 }
 
 WStringRef WStringRef::trim() const noexcept {
-    auto r = trimStart();
-    return r.trimEnd();
+    auto r = trim_start();
+    return r.trim_end();
 }
 
 std::vector<WStringRef> WStringRef::split(const WStringRef& delimiter) const {
     std::vector<WStringRef> result;
-    if (isEmpty()) return result;
-    if (delimiter.isEmpty()) { result.push_back(*this); return result; }
+    if (is_empty()) return result;
+    if (delimiter.is_empty()) { result.push_back(*this); return result; }
 
     usize start = 0;
     while (true) {
@@ -172,22 +172,22 @@ std::vector<WStringRef> WStringRef::split(const WStringRef& delimiter) const {
     return result;
 }
 
-WString WStringRef::toLower() const {
+WString WStringRef::to_lower() const {
     WStringBuilder b;
     for (usize i = 0; i < length_; ++i)
         b.append(static_cast<wchar_t>(towlower(static_cast<wint_t>(data_[i]))));
     return b.build();
 }
 
-WString WStringRef::toUpper() const {
+WString WStringRef::to_upper() const {
     WStringBuilder b;
     for (usize i = 0; i < length_; ++i)
         b.append(static_cast<wchar_t>(towupper(static_cast<wint_t>(data_[i]))));
     return b.build();
 }
 
-WString WStringRef::replaceAll(const WStringRef& from, const WStringRef& to) const {
-    if (from.isEmpty()) return WString(data_, length_);
+WString WStringRef::replace_all(const WStringRef& from, const WStringRef& to) const {
+    if (from.is_empty()) return WString(data_, length_);
     auto parts = split(from);
     WStringBuilder b;
     for (usize i = 0; i < parts.size(); ++i) {
@@ -202,15 +202,15 @@ WString WStringRef::replaceAll(const WStringRef& from, const WStringRef& to) con
 // WString — 新增操作（委托给 ref）
 // ============================================================================
 
-bool WString::startsWith(const WStringRef& prefix) const noexcept { return ref().startsWith(prefix); }
-bool WString::endsWith(const WStringRef& suffix) const noexcept   { return ref().endsWith(suffix); }
+bool WString::starts_with(const WStringRef& prefix) const noexcept { return ref().starts_with(prefix); }
+bool WString::ends_with(const WStringRef& suffix) const noexcept   { return ref().ends_with(suffix); }
 WStringRef WString::trim() const noexcept       { return ref().trim(); }
-WStringRef WString::trimStart() const noexcept   { return ref().trimStart(); }
-WStringRef WString::trimEnd() const noexcept     { return ref().trimEnd(); }
+WStringRef WString::trim_start() const noexcept   { return ref().trim_start(); }
+WStringRef WString::trim_end() const noexcept     { return ref().trim_end(); }
 std::vector<WStringRef> WString::split(const WStringRef& d) const { return ref().split(d); }
-WString WString::toLower() const    { return ref().toLower(); }
-WString WString::toUpper() const    { return ref().toUpper(); }
-WString WString::replaceAll(const WStringRef& from, const WStringRef& to) const { return ref().replaceAll(from, to); }
+WString WString::to_lower() const    { return ref().to_lower(); }
+WString WString::to_upper() const    { return ref().to_upper(); }
+WString WString::replace_all(const WStringRef& from, const WStringRef& to) const { return ref().replace_all(from, to); }
 
 
 // ============================================================================
@@ -302,7 +302,7 @@ void WStringBuilder::reserve(usize cap) {
 
 usize WStringBuilder::capacity() const noexcept { return capacity_; }
 usize WStringBuilder::length() const noexcept { return length_; }
-bool WStringBuilder::isEmpty() const noexcept { return length_ == 0; }
+bool WStringBuilder::is_empty() const noexcept { return length_ == 0; }
 void WStringBuilder::clear() noexcept { length_ = 0; }
 WString WStringBuilder::build() const { return WString(buffer_, length_); }
 

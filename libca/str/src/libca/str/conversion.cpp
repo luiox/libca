@@ -18,12 +18,12 @@ namespace ca::str {
 // Utf8String ↔ CString
 // ============================================================================
 
-CString toCString(const Utf8StringRef& str) {
+CString to_cstring(const Utf8StringRef& str) {
     // Utf8String 内部是 u8[] = UTF-8 编码 → 直接当 char[] 拷贝
     return CString(reinterpret_cast<const char*>(str.data()), str.byte_length());
 }
 
-Utf8String toUtf8String(const CStringRef& str) {
+Utf8String to_utf8_string(const CStringRef& str) {
     // C 字符串的 char 数据视为 UTF-8 编码
     return Utf8String(reinterpret_cast<const u8*>(str.data()), str.length());
 }
@@ -33,7 +33,7 @@ Utf8String toUtf8String(const CStringRef& str) {
 // Utf8String ↔ WString
 // ============================================================================
 
-WString toWString(const Utf8StringRef& str) {
+WString to_wstring(const Utf8StringRef& str) {
     auto  data = str.data();
     auto  len  = str.byte_length();
 
@@ -45,7 +45,7 @@ WString toWString(const Utf8StringRef& str) {
     while (pos < len) {
         auto clen = utf8_code_point_bytes(data[pos]);
         if (clen == 0 || pos + clen > len) {
-            throw std::runtime_error("toWString: invalid UTF-8 sequence");
+            throw std::runtime_error("to_wstring: invalid UTF-8 sequence");
         }
         auto cp = utf8_decode_code_point(data + pos);
 #if defined(_WIN32)
@@ -88,7 +88,7 @@ WString toWString(const Utf8StringRef& str) {
     return WString(buf.get(), wcCount);
 }
 
-Utf8String toUtf8String(const WStringRef& str) {
+Utf8String to_utf8_string(const WStringRef& str) {
     auto data = str.data();
     auto len  = str.length();
 
@@ -101,16 +101,16 @@ Utf8String toUtf8String(const WStringRef& str) {
         auto wc = static_cast<u16>(data[i]);
         if (Utf16Char(wc).is_lead_surrogate()) {
             if (i + 1 >= len) {
-                throw std::runtime_error("toUtf8String: truncated surrogate pair");
+                throw std::runtime_error("to_utf8_string: truncated surrogate pair");
             }
             auto low = static_cast<u16>(data[i + 1]);
             if (!Utf16Char(low).is_trail_surrogate()) {
-                throw std::runtime_error("toUtf8String: invalid surrogate pair");
+                throw std::runtime_error("to_utf8_string: invalid surrogate pair");
             }
             cp = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
             ++i;  // 消耗低位代理
         } else if (Utf16Char(wc).is_trail_surrogate()) {
-            throw std::runtime_error("toUtf8String: unexpected trail surrogate");
+            throw std::runtime_error("to_utf8_string: unexpected trail surrogate");
         } else {
             cp = wc;
         }
@@ -120,7 +120,7 @@ Utf8String toUtf8String(const WStringRef& str) {
 #endif
         // 检查码点合法性
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
-            throw std::runtime_error("toUtf8String: invalid code point");
+            throw std::runtime_error("to_utf8_string: invalid code point");
         }
         if (cp <= 0x7F)       byteCount += 1;
         else if (cp <= 0x7FF) byteCount += 2;
@@ -159,16 +159,16 @@ Utf8String toUtf8String(const WStringRef& str) {
 // CString ↔ WString（经 UTF-8 中转）
 // ============================================================================
 
-WString toWString(const CStringRef& str) {
+WString to_wstring(const CStringRef& str) {
     // CString → Utf8String → WString
-    auto utf8 = toUtf8String(str);
-    return toWString(utf8.ref());
+    auto utf8 = to_utf8_string(str);
+    return to_wstring(utf8.ref());
 }
 
-CString toCString(const WStringRef& str) {
+CString to_cstring(const WStringRef& str) {
     // WString → Utf8String → CString
-    auto utf8 = toUtf8String(str);
-    return toCString(utf8.ref());
+    auto utf8 = to_utf8_string(str);
+    return to_cstring(utf8.ref());
 }
 
 
@@ -176,7 +176,7 @@ CString toCString(const WStringRef& str) {
 // UTF-8 ↔ raw UTF-16 工具
 // ============================================================================
 
-usize utf8ToUtf16Length(const u8* utf8, usize byteLength) noexcept {
+usize utf8_to_utf16_length(const u8* utf8, usize byteLength) noexcept {
     usize pos = 0;
     usize count = 0;
     while (pos < byteLength) {
@@ -192,7 +192,7 @@ usize utf8ToUtf16Length(const u8* utf8, usize byteLength) noexcept {
     return count;
 }
 
-usize utf8ToUtf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
+usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
     usize pos = 0;
     usize out = 0;
     while (pos < byteLength) {
@@ -215,7 +215,7 @@ usize utf8ToUtf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
     return out;
 }
 
-usize utf16ToUtf8Length(const u16* utf16, usize unitCount) noexcept {
+usize utf16_to_utf8_length(const u16* utf16, usize unitCount) noexcept {
     usize byteCount = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
@@ -237,7 +237,7 @@ usize utf16ToUtf8Length(const u16* utf16, usize unitCount) noexcept {
     return byteCount;
 }
 
-usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
+usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
     usize out = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;

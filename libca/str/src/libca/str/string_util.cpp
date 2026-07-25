@@ -48,13 +48,13 @@ namespace {
 
 // ==================== 大小写转换 ====================
 
-std::string StringUtil::toLowerCase(const std::string& input) {
+std::string StringUtil::to_lower_case(const std::string& input) {
     std::string str = input;
     std::transform(str.begin(), str.end(), str.begin(), ::tolower);
     return str;
 }
 
-std::string StringUtil::toUpperCase(const std::string& input) {
+std::string StringUtil::to_upper_case(const std::string& input) {
     std::string str = input;
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
     return str;
@@ -71,42 +71,42 @@ std::string StringUtil::capitalize(const std::string& input) {
 
 // ==================== 字符串转数值 ====================
 
-char StringUtil::toChar(const std::string& input) {
+char StringUtil::to_char(const std::string& input) {
     char c = 0;
     std::istringstream ss(input);
     ss >> c;
     return c;
 }
 
-short StringUtil::toShort(const std::string& input) {
+short StringUtil::to_short(const std::string& input) {
     short s = 0;
     std::istringstream ss(input);
     ss >> s;
     return s;
 }
 
-int StringUtil::toInt(const std::string& input) {
+int StringUtil::to_int(const std::string& input) {
     int i = 0;
     std::istringstream ss(input);
     ss >> i;
     return i;
 }
 
-long StringUtil::toLong(const std::string& input) {
+long StringUtil::to_long(const std::string& input) {
     long l = 0;
     std::istringstream ss(input);
     ss >> l;
     return l;
 }
 
-float StringUtil::toFloat(const std::string& input) {
+float StringUtil::to_float(const std::string& input) {
     float f = 0.0f;
     std::istringstream ss(input);
     ss >> f;
     return f;
 }
 
-double StringUtil::toDouble(const std::string& input) {
+double StringUtil::to_double(const std::string& input) {
     double d = 0.0;
     std::istringstream ss(input);
     ss >> d;
@@ -141,15 +141,15 @@ std::string StringUtil::toString(double d) {
 
 // ==================== 修剪 ====================
 
-std::string StringUtil::trimStart(const std::string& input) {
-    return trimStart(input, " \r\n");
+std::string StringUtil::trim_start(const std::string& input) {
+    return trim_start(input, " \r\n");
 }
 
-std::string StringUtil::trimStart(const std::string& input, char trim) {
-    return trimStart(input, std::string(1, trim).c_str());
+std::string StringUtil::trim_start(const std::string& input, char trim) {
+    return trim_start(input, std::string(1, trim).c_str());
 }
 
-std::string StringUtil::trimStart(const std::string& input, const char* trims) {
+std::string StringUtil::trim_start(const std::string& input, const char* trims) {
     std::string str = input;
     auto found = str.find_first_not_of(trims);
     if (found != std::string::npos)
@@ -159,15 +159,15 @@ std::string StringUtil::trimStart(const std::string& input, const char* trims) {
     return str;
 }
 
-std::string StringUtil::trimEnd(const std::string& input) {
-    return trimEnd(input, " \r\n");
+std::string StringUtil::trim_end(const std::string& input) {
+    return trim_end(input, " \r\n");
 }
 
-std::string StringUtil::trimEnd(const std::string& input, char trim) {
-    return trimEnd(input, std::string(1, trim).c_str());
+std::string StringUtil::trim_end(const std::string& input, char trim) {
+    return trim_end(input, std::string(1, trim).c_str());
 }
 
-std::string StringUtil::trimEnd(const std::string& input, const char* delims) {
+std::string StringUtil::trim_end(const std::string& input, const char* delims) {
     std::string str = input;
     auto found = str.find_last_not_of(delims);
     if (found != std::string::npos)
@@ -186,7 +186,7 @@ std::string StringUtil::trim(const std::string& input, char trim) {
 }
 
 std::string StringUtil::trim(const std::string& input, const char* trims) {
-    return trimEnd(trimStart(input, trims), trims);
+    return trim_end(trim_start(input, trims), trims);
 }
 
 // ==================== 拆分与合并 ====================
@@ -271,7 +271,7 @@ int StringUtil::compare(const std::string& strA, const std::string& strB, bool i
 
 // ==================== 判断 ====================
 
-bool StringUtil::isNumeric(const std::string& input) {
+bool StringUtil::is_numeric(const std::string& input) {
     if (input.empty()) return false;
     size_t start = (input[0] == '-') ? 1 : 0;
     if (start >= input.length()) return false;
@@ -283,39 +283,39 @@ bool StringUtil::isNumeric(const std::string& input) {
     return true;
 }
 
-bool StringUtil::isUnreservedUrlChar(char ch) {
-    return isAsciiAlnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~';
+bool StringUtil::is_unreserved_url_char(char ch) {
+    return is_ascii_alnum(ch) || ch == '-' || ch == '.' || ch == '_' || ch == '~';
 }
 
-bool StringUtil::isAsciiLower(char ch) {
+bool StringUtil::is_ascii_lower(char ch) {
     return ch >= 'a' && ch <= 'z';
 }
 
-bool StringUtil::isAsciiUpper(char ch) {
+bool StringUtil::is_ascii_upper(char ch) {
     return ch >= 'A' && ch <= 'Z';
 }
 
-bool StringUtil::isAsciiAlpha(char ch) {
-    return isAsciiLower(ch) || isAsciiUpper(ch);
+bool StringUtil::is_ascii_alpha(char ch) {
+    return is_ascii_lower(ch) || is_ascii_upper(ch);
 }
 
-bool StringUtil::isAsciiDigit(char ch) {
+bool StringUtil::is_ascii_digit(char ch) {
     return ch >= '0' && ch <= '9';
 }
 
-bool StringUtil::isAsciiAlnum(char ch) {
-    return isAsciiAlpha(ch) || isAsciiDigit(ch);
+bool StringUtil::is_ascii_alnum(char ch) {
+    return is_ascii_alpha(ch) || is_ascii_digit(ch);
 }
 
-char StringUtil::asciiToLower(char ch) {
-    if (isAsciiUpper(ch)) {
+char StringUtil::ascii_to_lower(char ch) {
+    if (is_ascii_upper(ch)) {
         return static_cast<char>(ch - 'A' + 'a');
     }
     return ch;
 }
 
-char StringUtil::asciiToUpper(char ch) {
-    if (isAsciiLower(ch)) {
+char StringUtil::ascii_to_upper(char ch) {
+    if (is_ascii_lower(ch)) {
         return static_cast<char>(ch - 'a' + 'A');
     }
     return ch;
@@ -323,7 +323,7 @@ char StringUtil::asciiToUpper(char ch) {
 
 // ==================== URL / percent 编码 ====================
 
-std::string StringUtil::percentEncode(const std::string& input, bool space_as_plus) {
+std::string StringUtil::percent_encode(const std::string& input, bool space_as_plus) {
     std::string output;
     output.reserve(input.size());
 
@@ -331,7 +331,7 @@ std::string StringUtil::percentEncode(const std::string& input, bool space_as_pl
         char ch = static_cast<char>(byte);
         if (space_as_plus && ch == ' ') {
             output.push_back('+');
-        } else if (isUnreservedUrlChar(ch)) {
+        } else if (is_unreserved_url_char(ch)) {
             output.push_back(ch);
         } else {
             output.push_back('%');
@@ -343,7 +343,7 @@ std::string StringUtil::percentEncode(const std::string& input, bool space_as_pl
     return output;
 }
 
-ca::core::Result<std::string, std::string> StringUtil::percentDecode(const std::string& input,
+ca::core::Result<std::string, std::string> StringUtil::percent_decode(const std::string& input,
                                                                       bool plus_as_space) {
     std::string output;
     output.reserve(input.size());
@@ -374,13 +374,13 @@ ca::core::Result<std::string, std::string> StringUtil::percentDecode(const std::
     return ca::core::Ok(std::move(output));
 }
 
-std::string StringUtil::urlEncodeComponent(const std::string& input) {
-    return percentEncode(input, true);
+std::string StringUtil::url_encode_component(const std::string& input) {
+    return percent_encode(input, true);
 }
 
-ca::core::Result<std::string, std::string> StringUtil::urlDecodeComponent(
+ca::core::Result<std::string, std::string> StringUtil::url_decode_component(
     const std::string& input) {
-    return percentDecode(input, true);
+    return percent_decode(input, true);
 }
 
 std::string StringUtil::base64UrlEncode(const std::string& input, bool padding) {
@@ -468,12 +468,12 @@ ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
 
 // ==================== 前缀/后缀/包含 ====================
 
-bool StringUtil::startsWith(const std::string& input, const std::string& prefix) {
+bool StringUtil::starts_with(const std::string& input, const std::string& prefix) {
     if (input.length() < prefix.length()) return false;
     return input.compare(0, prefix.length(), prefix) == 0;
 }
 
-bool StringUtil::endsWith(const std::string& input, const std::string& suffix) {
+bool StringUtil::ends_with(const std::string& input, const std::string& suffix) {
     if (input.length() < suffix.length()) return false;
     return input.compare(input.length() - suffix.length(), suffix.length(), suffix) == 0;
 }

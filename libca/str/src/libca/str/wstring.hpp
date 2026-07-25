@@ -26,7 +26,7 @@ public:
     WStringRef(const WString& str) noexcept;
 
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     const wchar_t* data() const noexcept;
     wchar_t at(usize index) const;
 
@@ -34,23 +34,23 @@ public:
     WString substr(usize start, usize count) const;
 
     // ---- 前缀/后缀 ----
-    bool startsWith(const WStringRef& prefix) const noexcept;
-    bool endsWith(const WStringRef& suffix) const noexcept;
+    bool starts_with(const WStringRef& prefix) const noexcept;
+    bool ends_with(const WStringRef& suffix) const noexcept;
 
     // ---- 修剪 ----
     WStringRef trim() const noexcept;
-    WStringRef trimStart() const noexcept;
-    WStringRef trimEnd() const noexcept;
+    WStringRef trim_start() const noexcept;
+    WStringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
     std::vector<WStringRef> split(const WStringRef& delimiter) const;
 
     // ---- 大小写转换 ----
-    WString toLower() const;
-    WString toUpper() const;
+    WString to_lower() const;
+    WString to_upper() const;
 
     // ---- 替换 ----
-    WString replaceAll(const WStringRef& from, const WStringRef& to) const;
+    WString replace_all(const WStringRef& from, const WStringRef& to) const;
 
     // ---- 比较 ----
 
@@ -75,12 +75,12 @@ public:
     WString& operator=(WString&& other) noexcept;
 
     WString clone() const;
-    static WString fromWStr(const wchar_t* wstr);
+    static WString from_wstr(const wchar_t* wstr);
 
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     const wchar_t* data() const noexcept;
-    const wchar_t* wStr() const noexcept;
+    const wchar_t* w_str() const noexcept;
     wchar_t at(usize index) const;
 
     WStringRef ref() const noexcept;
@@ -89,14 +89,14 @@ public:
 
     // ---- 前缀/后缀 ----
 
-    bool startsWith(const WStringRef& prefix) const noexcept;
-    bool endsWith(const WStringRef& suffix) const noexcept;
+    bool starts_with(const WStringRef& prefix) const noexcept;
+    bool ends_with(const WStringRef& suffix) const noexcept;
 
     // ---- 修剪 ----
 
     WStringRef trim() const noexcept;
-    WStringRef trimStart() const noexcept;
-    WStringRef trimEnd() const noexcept;
+    WStringRef trim_start() const noexcept;
+    WStringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
 
@@ -104,12 +104,12 @@ public:
 
     // ---- 大小写转换 ----
 
-    WString toLower() const;
-    WString toUpper() const;
+    WString to_lower() const;
+    WString to_upper() const;
 
     // ---- 替换 ----
 
-    WString replaceAll(const WStringRef& from, const WStringRef& to) const;
+    WString replace_all(const WStringRef& from, const WStringRef& to) const;
 
     // ---- 比较 ----
 
@@ -148,7 +148,7 @@ public:
     void reserve(usize capacity);
     usize capacity() const noexcept;
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     void clear() noexcept;
 
     WString build() const;

@@ -32,7 +32,7 @@ public:
     CStringRef(const CString& str) noexcept;
 
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     const char* data() const noexcept;
 
     char at(usize index) const;
@@ -40,23 +40,23 @@ public:
     CString substr(usize start, usize count) const;
 
     // ---- 前缀/后缀 ----
-    bool startsWith(const CStringRef& prefix) const noexcept;
-    bool endsWith(const CStringRef& suffix) const noexcept;
+    bool starts_with(const CStringRef& prefix) const noexcept;
+    bool ends_with(const CStringRef& suffix) const noexcept;
 
     // ---- 修剪 ----
     CStringRef trim() const noexcept;
-    CStringRef trimStart() const noexcept;
-    CStringRef trimEnd() const noexcept;
+    CStringRef trim_start() const noexcept;
+    CStringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
     std::vector<CStringRef> split(const CStringRef& delimiter) const;
 
     // ---- 大小写转换 ----
-    CString toLower() const;
-    CString toUpper() const;
+    CString to_lower() const;
+    CString to_upper() const;
 
     // ---- 替换 ----
-    CString replaceAll(const CStringRef& from, const CStringRef& to) const;
+    CString replace_all(const CStringRef& from, const CStringRef& to) const;
 
     // ---- 比较 ----
     int compare(const CStringRef& other) const noexcept;
@@ -83,12 +83,12 @@ public:
     CString& operator=(CString&& other) noexcept;
 
     CString clone() const;
-    static CString fromCStr(const char* cstr);
+    static CString from_cstr(const char* cstr);
 
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     const char* data() const noexcept;
-    const char* cStr() const noexcept;
+    const char* c_str() const noexcept;
 
     char at(usize index) const;
     CStringRef ref() const noexcept;
@@ -97,14 +97,14 @@ public:
 
     // ---- 前缀/后缀 ----
 
-    bool startsWith(const CStringRef& prefix) const noexcept;
-    bool endsWith(const CStringRef& suffix) const noexcept;
+    bool starts_with(const CStringRef& prefix) const noexcept;
+    bool ends_with(const CStringRef& suffix) const noexcept;
 
     // ---- 修剪 ----
 
     CStringRef trim() const noexcept;
-    CStringRef trimStart() const noexcept;
-    CStringRef trimEnd() const noexcept;
+    CStringRef trim_start() const noexcept;
+    CStringRef trim_end() const noexcept;
 
     // ---- 拆分 ----
 
@@ -112,12 +112,12 @@ public:
 
     // ---- 大小写转换 ----
 
-    CString toLower() const;
-    CString toUpper() const;
+    CString to_lower() const;
+    CString to_upper() const;
 
     // ---- 替换 ----
 
-    CString replaceAll(const CStringRef& from, const CStringRef& to) const;
+    CString replace_all(const CStringRef& from, const CStringRef& to) const;
 
     // ---- 比较 ----
 
@@ -159,7 +159,7 @@ public:
     void reserve(usize capacity);
     usize capacity() const noexcept;
     usize length() const noexcept;
-    bool isEmpty() const noexcept;
+    bool is_empty() const noexcept;
     void clear() noexcept;
 
     CString build() const;
