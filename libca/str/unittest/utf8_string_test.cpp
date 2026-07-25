@@ -466,6 +466,48 @@ TEST(Utf8StringTest, Substr) {
     EXPECT_STREQ(sub.c_str(), "世界");
 }
 
+// ---- to_lower / to_upper：ASCII 快路径 + 混合/边界 ----
+
+TEST(Utf8StringRefTest, ToLowerAscii) {
+    Utf8String s("Hello, WORLD 123!");
+    EXPECT_STREQ(s.ref().to_lower().c_str(), "hello, world 123!");
+}
+
+TEST(Utf8StringRefTest, ToUpperAscii) {
+    Utf8String s("Hello, world 123!");
+    EXPECT_STREQ(s.ref().to_upper().c_str(), "HELLO, WORLD 123!");
+}
+
+TEST(Utf8StringRefTest, ToLowerUpperEmpty) {
+    Utf8String s("");
+    EXPECT_TRUE(s.ref().to_lower().is_empty());
+    EXPECT_TRUE(s.ref().to_upper().is_empty());
+}
+
+TEST(Utf8StringRefTest, ToLowerMixedAsciiAndNonAscii) {
+    // 非 ASCII 段落回 locale 感知路径；ASCII 段走快路径。二者拼接须正确。
+    Utf8String s("AbC世界XyZ");
+    auto lower = s.ref().to_lower();
+    EXPECT_STREQ(lower.c_str(), "abc世界xyz");
+    EXPECT_EQ(lower.length(), 8);  // 6 ASCII + 2 CJK 码点
+}
+
+TEST(Utf8StringRefTest, ToUpperMixedAsciiAndNonAscii) {
+    Utf8String s("aB世cD");
+    EXPECT_STREQ(s.ref().to_upper().c_str(), "AB世CD");
+}
+
+TEST(Utf8StringRefTest, ToLowerLongCrossesBatchBoundary) {
+    // 超过 ASCII 快路径内部 256 字节缓冲的边界，验证分段追加无遗漏。
+    std::string src(1000, 'X');
+    Utf8String s(src.c_str());
+    auto lower = s.ref().to_lower();
+    EXPECT_EQ(lower.byte_length(), 1000u);
+    EXPECT_EQ(lower.c_str()[0], 'x');
+    EXPECT_EQ(lower.c_str()[999], 'x');
+    EXPECT_EQ(std::string(lower.c_str()), std::string(1000, 'x'));
+}
+
 TEST(Utf8StringTest, Compare) {
     Utf8String a("ABC");
     Utf8String b("ABD");
