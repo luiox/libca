@@ -27,4 +27,19 @@ target("libca_str_unittest")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+
+-- 性能基准：独立 main，不依赖 gtest，不注册进 xmake test（不默认构建）。
+-- 用 `xmake build libca_str_benchmark && xmake run libca_str_benchmark`。
+target("libca_str_benchmark")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/benchmark")
+    add_deps("libca_str")
+    add_links("libca_str", "libca_core")
+    add_files("benchmark/*.cpp")
+    add_includedirs("src")
+    set_rundir("$(projectdir)")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
 end
