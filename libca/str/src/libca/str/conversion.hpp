@@ -75,4 +75,48 @@ usize utf16ToUtf8Length(const u16* utf16, usize unitCount) noexcept;
 // 返回写入的 u8 个数，0 表示输入非法
 usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept;
 
+
+// ============================================================================
+// UTF-8 ↔ UTF-32 (u32 码点数组) 工具
+// ============================================================================
+// 跨平台：直接以 u32 承载码点，不依赖 wchar_t 的平台宽度（Windows 上 wchar_t 为
+// UTF-16，无法承载单个 astral 码点）。非法 UTF-8 / 非法码点（代理项、>U+10FFFF）返回 0。
+
+// 计算 UTF-8 转成 UTF-32 后的码点（u32 单元）个数。返回 0 表示输入非法。
+usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept;
+
+// UTF-8 → UTF-32：utf32 缓冲区应能容纳至少 utf8_to_utf32_length 个 u32。
+// 返回写入的 u32 个数，0 表示输入非法。
+usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept;
+
+// 计算 UTF-32 转成 UTF-8 后的字节数。任一码点非法（代理项 / >U+10FFFF）返回 0。
+usize utf32_to_utf8_length(const u32* utf32, usize count) noexcept;
+
+// UTF-32 → UTF-8：utf8 缓冲区应能容纳至少 utf32_to_utf8_length 个 u8。
+// 返回写入的 u8 个数，0 表示输入含非法码点。
+usize utf32_to_utf8(const u32* utf32, usize count, u8* utf8) noexcept;
+
+
+// ============================================================================
+// Latin-1 (ISO-8859-1) ↔ UTF-8 工具
+// ============================================================================
+// Latin-1 每字节 0x00-0xFF 对应码点 U+0000..U+00FF。跨平台、无外部依赖。
+
+// 计算 Latin-1 转成 UTF-8 后的字节数（0x00-0x7F 占 1 字节，0x80-0xFF 占 2 字节）。
+usize latin1_to_utf8_length(const u8* latin1, usize length) noexcept;
+
+// Latin-1 → UTF-8：utf8 缓冲区应能容纳至少 latin1_to_utf8_length 个 u8。
+// 恒成功（每个 Latin-1 字节都是合法码点），返回写入的 u8 个数。
+usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept;
+
+// 计算 UTF-8 转成 Latin-1 后的字节数（= 码点数）。
+// 输入非法 UTF-8，或含 >U+00FF 的码点（Latin-1 不可表示）时返回哨兵。
+// 用返回值区分 0（空输入合法）与不可表示：见 UTF8_TO_LATIN1_INVALID。
+static constexpr usize UTF8_TO_LATIN1_INVALID = usize(-1);
+usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept;
+
+// UTF-8 → Latin-1：latin1 缓冲区应能容纳至少 utf8_to_latin1_length 个 u8。
+// 返回写入的 u8 个数；输入非法或含 >U+00FF 码点时返回 UTF8_TO_LATIN1_INVALID。
+usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept;
+
 }  // namespace ca::str

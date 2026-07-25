@@ -152,6 +152,86 @@ TEST(ConversionTest, Utf16Utf8Roundtrip) {
 }
 
 // ============================================================================
+// UTF-8 ↔ UTF-32
+// ============================================================================
+
+TEST(ConversionTest, Utf8ToUtf32BasicAndAstral) {
+    // 'A' + 中(U+4E2D) + 😀(U+1F600)
+    const u8 input[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
+    EXPECT_EQ(utf8_to_utf32_length(input, 8), 3u);
+    u32 out[3] = {};
+    auto n = utf8_to_utf32(input, 8, out);
+    ASSERT_EQ(n, 3u);
+    EXPECT_EQ(out[0], 0x41u);
+    EXPECT_EQ(out[1], 0x4E2Du);
+    EXPECT_EQ(out[2], 0x1F600u);
+}
+
+TEST(ConversionTest, Utf32ToUtf8Roundtrip) {
+    const u32 cps[] = {0x41, 0x4E2D, 0x1F600};
+    auto len = utf32_to_utf8_length(cps, 3);
+    ASSERT_EQ(len, 8u);
+    u8 out[8] = {};
+    auto n = utf32_to_utf8(cps, 3, out);
+    ASSERT_EQ(n, 8u);
+    const u8 expect[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
+    EXPECT_TRUE(std::memcmp(out, expect, 8) == 0);
+}
+
+TEST(ConversionTest, Utf32RejectsSurrogateAndOutOfRange) {
+    u32 sur[] = {0xD800};
+    EXPECT_EQ(utf32_to_utf8_length(sur, 1), 0u);
+    u32 big[] = {0x110000};
+    EXPECT_EQ(utf32_to_utf8_length(big, 1), 0u);
+    u8 buf[4] = {};
+    EXPECT_EQ(utf32_to_utf8(sur, 1, buf), 0u);
+}
+
+TEST(ConversionTest, Utf8ToUtf32RejectsInvalid) {
+    const u8 bad[] = {0x80};  // 独立续字节，非法首字节
+    EXPECT_EQ(utf8_to_utf32_length(bad, 1), 0u);
+}
+
+// ============================================================================
+// Latin-1 ↔ UTF-8
+// ============================================================================
+
+TEST(ConversionTest, Latin1ToUtf8) {
+    // 'A'(0x41) + é(0xE9, U+00E9) + ÿ(0xFF, U+00FF)
+    const u8 latin1[] = {0x41, 0xE9, 0xFF};
+    EXPECT_EQ(latin1_to_utf8_length(latin1, 3), 5u);  // 1 + 2 + 2
+    u8 out[5] = {};
+    auto n = latin1_to_utf8(latin1, 3, out);
+    ASSERT_EQ(n, 5u);
+    const u8 expect[] = {0x41, 0xC3, 0xA9, 0xC3, 0xBF};
+    EXPECT_TRUE(std::memcmp(out, expect, 5) == 0);
+}
+
+TEST(ConversionTest, Utf8ToLatin1Roundtrip) {
+    const u8 utf8[] = {0x41, 0xC3, 0xA9, 0xC3, 0xBF};
+    auto len = utf8_to_latin1_length(utf8, 5);
+    ASSERT_EQ(len, 3u);
+    u8 out[3] = {};
+    auto n = utf8_to_latin1(utf8, 5, out);
+    ASSERT_EQ(n, 3u);
+    const u8 expect[] = {0x41, 0xE9, 0xFF};
+    EXPECT_TRUE(std::memcmp(out, expect, 3) == 0);
+}
+
+TEST(ConversionTest, Utf8ToLatin1RejectsUnrepresentable) {
+    // 中(U+4E2D) 超出 Latin-1 范围
+    const u8 utf8[] = {0xE4, 0xB8, 0xAD};
+    EXPECT_EQ(utf8_to_latin1_length(utf8, 3), UTF8_TO_LATIN1_INVALID);
+    u8 out[3] = {};
+    EXPECT_EQ(utf8_to_latin1(utf8, 3, out), UTF8_TO_LATIN1_INVALID);
+}
+
+TEST(ConversionTest, Latin1EmptyInputs) {
+    EXPECT_EQ(latin1_to_utf8_length(nullptr, 0), 0u);
+    EXPECT_EQ(utf8_to_latin1_length(nullptr, 0), 0u);
+}
+
+// ============================================================================
 // 空字符串转换
 // ============================================================================
 

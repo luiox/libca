@@ -254,4 +254,125 @@ usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
     return out;
 }
 
+
+// ============================================================================
+// UTF-8 ↔ UTF-32
+// ============================================================================
+
+usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept {
+    usize pos = 0;
+    usize count = 0;
+    while (pos < byteLength) {
+        auto clen = utf8_code_point_bytes(utf8[pos]);
+        if (clen == 0 || pos + clen > byteLength)
+            return 0;
+        auto cp = utf8_decode_code_point(utf8 + pos);
+        if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return 0;
+        ++count;
+        pos += clen;
+    }
+    return count;
+}
+
+usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept {
+    usize pos = 0;
+    usize out = 0;
+    while (pos < byteLength) {
+        auto clen = utf8_code_point_bytes(utf8[pos]);
+        if (clen == 0 || pos + clen > byteLength)
+            return 0;
+        auto cp = utf8_decode_code_point(utf8 + pos);
+        if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return 0;
+        utf32[out++] = cp;
+        pos += clen;
+    }
+    return out;
+}
+
+usize utf32_to_utf8_length(const u32* utf32, usize count) noexcept {
+    usize byteCount = 0;
+    for (usize i = 0; i < count; ++i) {
+        u32 cp = utf32[i];
+        if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return 0;
+        if (cp <= 0x7F)        byteCount += 1;
+        else if (cp <= 0x7FF)  byteCount += 2;
+        else if (cp <= 0xFFFF) byteCount += 3;
+        else                   byteCount += 4;
+    }
+    return byteCount;
+}
+
+usize utf32_to_utf8(const u32* utf32, usize count, u8* utf8) noexcept {
+    usize out = 0;
+    for (usize i = 0; i < count; ++i) {
+        auto n = utf8_encode_code_point(utf32[i], utf8 + out);
+        if (n == 0)  // utf8_encode_code_point 已拒绝代理项 / >U+10FFFF
+            return 0;
+        out += n;
+    }
+    return out;
+}
+
+
+// ============================================================================
+// Latin-1 (ISO-8859-1) ↔ UTF-8
+// ============================================================================
+
+usize latin1_to_utf8_length(const u8* latin1, usize length) noexcept {
+    usize byteCount = 0;
+    for (usize i = 0; i < length; ++i)
+        byteCount += (latin1[i] < 0x80) ? 1 : 2;
+    return byteCount;
+}
+
+usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept {
+    usize out = 0;
+    for (usize i = 0; i < length; ++i) {
+        u8 b = latin1[i];
+        if (b < 0x80) {
+            utf8[out++] = b;
+        } else {
+            // U+0080..U+00FF → 2 字节 UTF-8
+            utf8[out++] = static_cast<u8>(0xC0 | (b >> 6));
+            utf8[out++] = static_cast<u8>(0x80 | (b & 0x3F));
+        }
+    }
+    return out;
+}
+
+usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept {
+    usize pos = 0;
+    usize count = 0;
+    while (pos < byteLength) {
+        auto clen = utf8_code_point_bytes(utf8[pos]);
+        if (clen == 0 || pos + clen > byteLength)
+            return UTF8_TO_LATIN1_INVALID;
+        auto cp = utf8_decode_code_point(utf8 + pos);
+        if (cp > 0x00FF)  // Latin-1 只能表示 U+0000..U+00FF
+            return UTF8_TO_LATIN1_INVALID;
+        ++count;
+        pos += clen;
+    }
+    return count;
+}
+
+usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept {
+    usize pos = 0;
+    usize out = 0;
+    while (pos < byteLength) {
+        auto clen = utf8_code_point_bytes(utf8[pos]);
+        if (clen == 0 || pos + clen > byteLength)
+            return UTF8_TO_LATIN1_INVALID;
+        auto cp = utf8_decode_code_point(utf8 + pos);
+        if (cp > 0x00FF)
+            return UTF8_TO_LATIN1_INVALID;
+        latin1[out++] = static_cast<u8>(cp);
+        pos += clen;
+    }
+    return out;
+}
+
 }  // namespace ca::str
