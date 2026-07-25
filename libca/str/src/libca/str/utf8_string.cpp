@@ -363,6 +363,20 @@ Utf8String Utf8String::from_data_unchecked(const u8* data, usize byte_len) noexc
     return s;
 }
 
+Utf8String Utf8String::from_validated(const u8* data, usize byte_len, usize cp_count) {
+    if (data == nullptr || byte_len == 0)
+        return Utf8String();
+
+    Utf8String s;
+    delete[] s.data_;
+    s.data_ = new u8[byte_len + 1];
+    std::memcpy(s.data_, data, byte_len);
+    s.data_[byte_len] = '\0';
+    s.byte_length_    = byte_len;
+    s.length_         = cp_count;
+    return s;
+}
+
 
 // ============================================================================
 // Utf8StringBuilder
@@ -450,9 +464,14 @@ Utf8String Utf8StringBuilder::build() const {
 }
 
 Utf8String Utf8StringBuilder::build_or_empty() const noexcept {
-    if (!utf8_is_valid(buffer_, byte_length_))
+    if (byte_length_ == 0)
         return Utf8String();
-    return Utf8String(buffer_, byte_length_);
+    // 单趟校验+计数：utf8_count_code_points 合法返回码点数、非法返回 0，
+    // 直接分流。避免此前 utf8_is_valid 一趟 + 构造里 utf8_count_code_points 再一趟。
+    usize cp_count = utf8_count_code_points(buffer_, byte_length_);
+    if (cp_count == 0)
+        return Utf8String();
+    return Utf8String::from_validated(buffer_, byte_length_, cp_count);
 }
 
 
@@ -636,6 +655,7 @@ std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) 
 
 Utf8String Utf8StringRef::to_lower() const {
     Utf8StringBuilder b;
+    b.reserve(byte_length_);  // 大小写转换后长度多数不变，预留原字节数免多次 grow。
     usize pos = 0;
     while (pos < byte_length_) {
         auto ch = Utf8Char::fromRaw(data_ + pos);
@@ -647,6 +667,7 @@ Utf8String Utf8StringRef::to_lower() const {
 
 Utf8String Utf8StringRef::to_upper() const {
     Utf8StringBuilder b;
+    b.reserve(byte_length_);
     usize pos = 0;
     while (pos < byte_length_) {
         auto ch = Utf8Char::fromRaw(data_ + pos);
@@ -659,8 +680,15 @@ Utf8String Utf8StringRef::to_upper() const {
 Utf8String Utf8StringRef::replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const {
     if (from.is_empty()) return Utf8String(data_, byte_length_);
     auto parts = split(from);
-    // 用 to 连接各部分
+    // 用 to 连接各部分。预估结果长度：原文 + 每处替换的长度差（可能为负，用带饱和的估算）。
     Utf8StringBuilder b;
+    if (parts.size() > 1) {
+        usize seps = parts.size() - 1;
+        usize base = byte_length_ >= seps * from.byte_length() ? byte_length_ - seps * from.byte_length() : 0;
+        b.reserve(base + seps * to.byte_length());
+    } else {
+        b.reserve(byte_length_);
+    }
     for (usize i = 0; i < parts.size(); ++i) {
         if (i > 0) b.append(to);
         b.append(parts[i]);

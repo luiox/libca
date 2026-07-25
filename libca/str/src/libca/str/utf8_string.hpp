@@ -327,6 +327,12 @@ private:
 
     // 内部初始化：从 src 复制 byte_len 字节，校验 UTF-8，计算码点个数
     void init(const u8* src, usize byte_len);
+
+    // 内部：从已校验字节 + 已知码点数复制构造，跳过重复校验/计数。
+    // 调用方须保证 data 为合法 UTF-8 且 cp_count 准确（如刚经 utf8_count_code_points 得到）。
+    static Utf8String from_validated(const u8* data, usize byte_len, usize cp_count);
+
+    friend class Utf8StringBuilder;
 };
 
 
