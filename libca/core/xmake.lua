@@ -30,3 +30,18 @@ target("libca_core_unittest")
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end
+
+-- 性能基准：独立 main，不依赖 gtest，不注册进 xmake test（不默认构建）。
+-- 用 `xmake build libca_core_benchmark && xmake run libca_core_benchmark`。
+target("libca_core_benchmark")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/benchmark")
+    add_deps("libca_core")
+    add_links("libca_core")
+    add_files("benchmark/*.cpp")
+    add_includedirs("src")
+    set_rundir("$(projectdir)")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
