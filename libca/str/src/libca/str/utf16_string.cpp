@@ -29,7 +29,7 @@ bool encode_code_point(ca::u32 cp, Char16& high, Char16& low) noexcept
 
     Utf16Char high_char;
     Utf16Char low_char;
-    if (!Utf16Char::encodePair(cp, high_char, low_char))
+    if (!Utf16Char::encode_pair(cp, high_char, low_char))
         return false;
     high = Char16(high_char.unit());
     low = Char16(low_char.unit());
@@ -38,7 +38,7 @@ bool encode_code_point(ca::u32 cp, Char16& high, Char16& low) noexcept
 
 ca::u32 decode_pair(Char16 high, Char16 low) noexcept
 {
-    return Utf16Char::decodePair(Utf16Char(high.unit()), Utf16Char(low.unit()));
+    return Utf16Char::decode_pair(Utf16Char(high.unit()), Utf16Char(low.unit()));
 }
 
 bool matches_at(const Char16* data, ca::usize length, const Utf16StringRef& needle, ca::usize offset) noexcept

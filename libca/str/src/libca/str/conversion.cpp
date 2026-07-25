@@ -72,7 +72,7 @@ WString toWString(const Utf8StringRef& str) {
 #if defined(_WIN32)
         if (cp >= 0x10000 && cp <= 0x10FFFF) {
             Utf16Char high, low;
-            Utf16Char::encodePair(cp, high, low);
+            Utf16Char::encode_pair(cp, high, low);
             buf[outIdx++] = static_cast<wchar_t>(high.unit());
             buf[outIdx++] = static_cast<wchar_t>(low.unit());
         } else {
@@ -99,17 +99,17 @@ Utf8String toUtf8String(const WStringRef& str) {
 #if defined(_WIN32)
         // Windows: wchar_t = UTF-16LE
         auto wc = static_cast<u16>(data[i]);
-        if (Utf16Char(wc).isLeadSurrogate()) {
+        if (Utf16Char(wc).is_lead_surrogate()) {
             if (i + 1 >= len) {
                 throw std::runtime_error("toUtf8String: truncated surrogate pair");
             }
             auto low = static_cast<u16>(data[i + 1]);
-            if (!Utf16Char(low).isTrailSurrogate()) {
+            if (!Utf16Char(low).is_trail_surrogate()) {
                 throw std::runtime_error("toUtf8String: invalid surrogate pair");
             }
-            cp = Utf16Char::decodePair(Utf16Char(wc), Utf16Char(low));
+            cp = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
             ++i;  // 消耗低位代理
-        } else if (Utf16Char(wc).isTrailSurrogate()) {
+        } else if (Utf16Char(wc).is_trail_surrogate()) {
             throw std::runtime_error("toUtf8String: unexpected trail surrogate");
         } else {
             cp = wc;
@@ -135,11 +135,11 @@ Utf8String toUtf8String(const WStringRef& str) {
         u32 cp;
 #if defined(_WIN32)
         auto wc = static_cast<u16>(data[i]);
-        if (Utf16Char(wc).isLeadSurrogate()) {
+        if (Utf16Char(wc).is_lead_surrogate()) {
             auto low = static_cast<u16>(data[i + 1]);
-            cp = Utf16Char::decodePair(Utf16Char(wc), Utf16Char(low));
+            cp = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
             ++i;
-        } else if (Utf16Char(wc).isTrailSurrogate()) {
+        } else if (Utf16Char(wc).is_trail_surrogate()) {
             continue;  // 不应到达
         } else {
             cp = wc;
@@ -204,7 +204,7 @@ usize utf8ToUtf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
             return 0;
         if (cp >= 0x10000) {
             Utf16Char high, low;
-            Utf16Char::encodePair(cp, high, low);
+            Utf16Char::encode_pair(cp, high, low);
             utf16[out++] = high.unit();
             utf16[out++] = low.unit();
         } else {
@@ -219,12 +219,12 @@ usize utf16ToUtf8Length(const u16* utf16, usize unitCount) noexcept {
     usize byteCount = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
-        if (Utf16Char(utf16[i]).isLeadSurrogate()) {
-            if (i + 1 >= unitCount || !Utf16Char(utf16[i + 1]).isTrailSurrogate())
+        if (Utf16Char(utf16[i]).is_lead_surrogate()) {
+            if (i + 1 >= unitCount || !Utf16Char(utf16[i + 1]).is_trail_surrogate())
                 return 0;
-            cp = Utf16Char::decodePair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
+            cp = Utf16Char::decode_pair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
             ++i;
-        } else if (Utf16Char(utf16[i]).isTrailSurrogate()) {
+        } else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
             return 0;
         } else {
             cp = utf16[i];
@@ -241,14 +241,14 @@ usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
     usize out = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
-        if (Utf16Char(utf16[i]).isLeadSurrogate()) {
+        if (Utf16Char(utf16[i]).is_lead_surrogate()) {
             // 高代理必须后接一个 trail 代理：先查边界再取下一码元，避免末尾孤立
             // 高代理时越界读 utf16[i+1]，并拒绝非 trail 的非法搭配。
-            if (i + 1 >= unitCount || !Utf16Char(utf16[i + 1]).isTrailSurrogate())
+            if (i + 1 >= unitCount || !Utf16Char(utf16[i + 1]).is_trail_surrogate())
                 return 0;
-            cp = Utf16Char::decodePair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
+            cp = Utf16Char::decode_pair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
             ++i;
-        } else if (Utf16Char(utf16[i]).isTrailSurrogate()) {
+        } else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
             return 0;
         } else {
             cp = utf16[i];

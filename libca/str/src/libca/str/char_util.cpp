@@ -21,7 +21,7 @@ namespace ca::str {
 // Utf8Char
 // ============================================================================
 
-Utf8Char Utf8Char::fromRaw(const u8* bytes) noexcept {
+Utf8Char Utf8Char::from_raw(const u8* bytes) noexcept {
     if (bytes == nullptr) return Utf8Char(0);
     auto b0 = bytes[0];
     if ((b0 & 0x80) == 0)
@@ -47,8 +47,8 @@ Utf8Char Utf8Char::fromRaw(const u8* bytes) noexcept {
     return Utf8Char(0);  // 非法
 }
 
-Utf8Char Utf8Char::fromRaw(const char* bytes) noexcept {
-    return fromRaw(reinterpret_cast<const u8*>(bytes));
+Utf8Char Utf8Char::from_raw(const char* bytes) noexcept {
+    return from_raw(reinterpret_cast<const u8*>(bytes));
 }
 
 usize Utf8Char::encode(u8* out) const noexcept {
@@ -112,7 +112,7 @@ static bool isLatinAlpha(u32 cp) noexcept {
 }
 
 // 判断码点是否为字母（含非拉丁文字）
-bool Utf8Char::isAlpha() const noexcept {
+bool Utf8Char::is_alpha() const noexcept {
     if (cp_ <= 0x7F)
         return std::isalpha(static_cast<int>(cp_)) != 0;
     if (isLatinAlpha(cp_) || isCjk(cp_) || isHangul(cp_) || isKatakanaHiragana(cp_))
@@ -124,7 +124,7 @@ bool Utf8Char::isAlpha() const noexcept {
     return iswalpha(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isDigit() const noexcept {
+bool Utf8Char::is_digit() const noexcept {
     if (cp_ <= 0x7F)
         return std::isdigit(static_cast<int>(cp_)) != 0;
     // 全角数字 ０-９ (U+FF10-U+FF19)
@@ -133,11 +133,11 @@ bool Utf8Char::isDigit() const noexcept {
     return iswdigit(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isAlnum() const noexcept {
-    return isAlpha() || isDigit();
+bool Utf8Char::is_alnum() const noexcept {
+    return is_alpha() || is_digit();
 }
 
-bool Utf8Char::isSpace() const noexcept {
+bool Utf8Char::is_space() const noexcept {
     if (cp_ <= 0x7F)
         return std::isspace(static_cast<int>(cp_)) != 0;
     // Unicode 空白字符
@@ -152,19 +152,19 @@ bool Utf8Char::isSpace() const noexcept {
     return iswspace(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isLower() const noexcept {
+bool Utf8Char::is_lower() const noexcept {
     if (cp_ <= 0x7F)
         return std::islower(static_cast<int>(cp_)) != 0;
     return iswlower(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isUpper() const noexcept {
+bool Utf8Char::is_upper() const noexcept {
     if (cp_ <= 0x7F)
         return std::isupper(static_cast<int>(cp_)) != 0;
     return iswupper(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isPunct() const noexcept {
+bool Utf8Char::is_punct() const noexcept {
     if (cp_ <= 0x7F)
         return std::ispunct(static_cast<int>(cp_)) != 0;
     if (isCjk(cp_) || isHangul(cp_) || isKatakanaHiragana(cp_))
@@ -172,7 +172,7 @@ bool Utf8Char::isPunct() const noexcept {
     return iswpunct(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isPrint() const noexcept {
+bool Utf8Char::is_print() const noexcept {
     if (cp_ <= 0x7F)
         return std::isprint(static_cast<int>(cp_)) != 0;
     if (cp_ <= 0x9F)  // C1 控制字符
@@ -180,7 +180,7 @@ bool Utf8Char::isPrint() const noexcept {
     return true;  // 非 ASCII 且非控制 → 可打印
 }
 
-bool Utf8Char::isCntrl() const noexcept {
+bool Utf8Char::is_cntrl() const noexcept {
     if (cp_ <= 0x7F)
         return std::iscntrl(static_cast<int>(cp_)) != 0;
     // C1 控制字符 (0x80~0x9F)
@@ -189,7 +189,7 @@ bool Utf8Char::isCntrl() const noexcept {
     return iswcntrl(static_cast<wint_t>(cp_)) != 0;
 }
 
-bool Utf8Char::isXDigit() const noexcept {
+bool Utf8Char::is_xdigit() const noexcept {
     if (cp_ <= 0x7F)
         return std::isxdigit(static_cast<int>(cp_)) != 0;
     // 全角十六进制数字 A-F, a-f
@@ -199,7 +199,7 @@ bool Utf8Char::isXDigit() const noexcept {
     return iswxdigit(static_cast<wint_t>(cp_)) != 0;
 }
 
-Utf8Char Utf8Char::toLower() const noexcept {
+Utf8Char Utf8Char::to_lower() const noexcept {
     if (cp_ <= 0x7F)
         return Utf8Char(static_cast<u32>(std::tolower(static_cast<int>(cp_))));
     auto result = towlower(static_cast<wint_t>(cp_));
@@ -208,7 +208,7 @@ Utf8Char Utf8Char::toLower() const noexcept {
     return Utf8Char(static_cast<u32>(result));
 }
 
-Utf8Char Utf8Char::toUpper() const noexcept {
+Utf8Char Utf8Char::to_upper() const noexcept {
     if (cp_ <= 0x7F)
         return Utf8Char(static_cast<u32>(std::toupper(static_cast<int>(cp_))));
     auto result = towupper(static_cast<wint_t>(cp_));

@@ -598,8 +598,8 @@ bool Utf8StringRef::ends_with(const Utf8StringRef& suffix) const noexcept {
 Utf8StringRef Utf8StringRef::trim_start() const noexcept {
     usize pos = 0;
     while (pos < byte_length_) {
-        auto ch = Utf8Char::fromRaw(data_ + pos);
-        if (!ch.isSpace()) break;
+        auto ch = Utf8Char::from_raw(data_ + pos);
+        if (!ch.is_space()) break;
         pos += utf8_code_point_bytes_safe(data_[pos]);
     }
     return slice(pos, byte_length_);
@@ -611,8 +611,8 @@ Utf8StringRef Utf8StringRef::trim_end() const noexcept {
         usize prev = pos - 1;
         while (prev > 0 && (data_[prev] & 0xC0) == 0x80)
             --prev;
-        auto ch = Utf8Char::fromRaw(data_ + prev);
-        if (!ch.isSpace()) break;
+        auto ch = Utf8Char::from_raw(data_ + prev);
+        if (!ch.is_space()) break;
         pos = prev;
     }
     return slice(0, pos);
@@ -672,8 +672,8 @@ Utf8String Utf8StringRef::to_lower() const {
             }
             if (n) b.append(buf, n);
         } else {
-            auto ch = Utf8Char::fromRaw(data_ + pos);
-            b.append_code_point(ch.toLower().codePoint());
+            auto ch = Utf8Char::from_raw(data_ + pos);
+            b.append_code_point(ch.to_lower().code_point());
             pos += utf8_code_point_bytes_safe(data_[pos]);
         }
     }
@@ -697,8 +697,8 @@ Utf8String Utf8StringRef::to_upper() const {
             }
             if (n) b.append(buf, n);
         } else {
-            auto ch = Utf8Char::fromRaw(data_ + pos);
-            b.append_code_point(ch.toUpper().codePoint());
+            auto ch = Utf8Char::from_raw(data_ + pos);
+            b.append_code_point(ch.to_upper().code_point());
             pos += utf8_code_point_bytes_safe(data_[pos]);
         }
     }
