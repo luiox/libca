@@ -658,9 +658,24 @@ Utf8String Utf8StringRef::to_lower() const {
     b.reserve(byte_length_);  // 大小写转换后长度多数不变，预留原字节数免多次 grow。
     usize pos = 0;
     while (pos < byte_length_) {
-        auto ch = Utf8Char::fromRaw(data_ + pos);
-        b.append_code_point(ch.toLower().codePoint());
-        pos += utf8_code_point_bytes_safe(data_[pos]);
+        const u8 c = data_[pos];
+        if (c < 0x80) {
+            // ASCII 快路径：成段扫描连续 ASCII，位运算换算(A-Z→a-z)后整段追加，
+            // 绕过逐码点 decode/encode 与 towlower 的 locale 库调用。
+            // 注：固定按 C locale 处理 A-Z；非 ASCII 才落回下方 locale 感知路径。
+            u8 buf[256];
+            usize n = 0;
+            while (pos < byte_length_ && data_[pos] < 0x80) {
+                const u8 ch = data_[pos++];
+                buf[n++] = (ch >= 'A' && ch <= 'Z') ? static_cast<u8>(ch + 32) : ch;
+                if (n == sizeof(buf)) { b.append(buf, n); n = 0; }
+            }
+            if (n) b.append(buf, n);
+        } else {
+            auto ch = Utf8Char::fromRaw(data_ + pos);
+            b.append_code_point(ch.toLower().codePoint());
+            pos += utf8_code_point_bytes_safe(data_[pos]);
+        }
     }
     return b.build();
 }
@@ -670,9 +685,22 @@ Utf8String Utf8StringRef::to_upper() const {
     b.reserve(byte_length_);
     usize pos = 0;
     while (pos < byte_length_) {
-        auto ch = Utf8Char::fromRaw(data_ + pos);
-        b.append_code_point(ch.toUpper().codePoint());
-        pos += utf8_code_point_bytes_safe(data_[pos]);
+        const u8 c = data_[pos];
+        if (c < 0x80) {
+            // ASCII 快路径：位运算换算(a-z→A-Z)后成段追加。见 to_lower 说明。
+            u8 buf[256];
+            usize n = 0;
+            while (pos < byte_length_ && data_[pos] < 0x80) {
+                const u8 ch = data_[pos++];
+                buf[n++] = (ch >= 'a' && ch <= 'z') ? static_cast<u8>(ch - 32) : ch;
+                if (n == sizeof(buf)) { b.append(buf, n); n = 0; }
+            }
+            if (n) b.append(buf, n);
+        } else {
+            auto ch = Utf8Char::fromRaw(data_ + pos);
+            b.append_code_point(ch.toUpper().codePoint());
+            pos += utf8_code_point_bytes_safe(data_[pos]);
+        }
     }
     return b.build();
 }
