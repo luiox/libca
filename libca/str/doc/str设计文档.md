@@ -131,7 +131,7 @@ bug（iconv 失败判断用 `== 0` 而非 `==(iconv_t)-1`、固定 255 字节栈
 - **跨平台头文件**：非 Windows 平台所有方法返回 `UNIMPLEMENTED`，但头文件可被任意平台
   引用，便于跨平台代码引用同一签名走错误分支。
 - **删除未实现的桩**：旧 `mstrToU16str` / `mstrToU32str` / `Charset::encode` 等声明但未定义
-  的方法直接删除；UTF-8 ↔ UTF-16 raw 转换由已有 `conversion.hpp` 的 `utf8ToUtf16` 等提供。
+  的方法直接删除；UTF-8 ↔ UTF-16 raw 转换由已有 `conversion.hpp` 的 `utf8_to_utf16` 等提供。
 
 GBK 等中文遗留码页是 Windows 概念，新库不打算为它引入跨平台依赖。如果未来确有跨平台
 中文转码需求，应基于 ICU 或平台原生 API 单独设计，而不是复活 libiconv 路径。
