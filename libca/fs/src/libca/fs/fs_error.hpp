@@ -19,6 +19,10 @@ enum class FsError
     PermissionDenied,   ///< 权限不足
     AlreadyExists,      ///< CREATE_NEW 模式下文件已存在
     DiskFull,           ///< 磁盘空间不足（写满）
+    IsADirectory,       ///< 期望文件却是目录
+    DirectoryNotEmpty,  ///< 删除/覆盖非空目录
+    NameTooLong,        ///< 路径或文件名过长
+    TooManyOpenFiles,   ///< 进程/系统打开文件数超限
     Unknown,            ///< 未分类异常
 };
 

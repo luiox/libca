@@ -27,11 +27,17 @@ FsError classify_fs_error(const std::error_code& ec) noexcept
     switch (cond) {
         case std::errc::no_such_file_or_directory:    return FsError::FileNotFound;
         case std::errc::not_a_directory:              return FsError::NotADirectory;
+        case std::errc::is_a_directory:               return FsError::IsADirectory;
+        case std::errc::directory_not_empty:          return FsError::DirectoryNotEmpty;
         case std::errc::permission_denied:            return FsError::PermissionDenied;
+        case std::errc::operation_not_permitted:      return FsError::PermissionDenied;
+        case std::errc::read_only_file_system:        return FsError::PermissionDenied;
         case std::errc::file_exists:                  return FsError::AlreadyExists;
         case std::errc::no_space_on_device:           return FsError::DiskFull;
-        case std::errc::read_only_file_system:        return FsError::PermissionDenied;
         case std::errc::no_buffer_space:              return FsError::DiskFull;
+        case std::errc::filename_too_long:            return FsError::NameTooLong;
+        case std::errc::too_many_files_open:          return FsError::TooManyOpenFiles;
+        case std::errc::too_many_files_open_in_system: return FsError::TooManyOpenFiles;
         default:                                       return FsError::Unknown;
     }
 }

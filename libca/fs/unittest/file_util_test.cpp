@@ -731,4 +731,23 @@ TEST(FileUtilTest, UnicodePathIsReadableWritable)
     EXPECT_TRUE(FileUtil::is_writable(filePath));
 }
 
+// ==================== FsError 映射 ====================
+
+// 新增错误码都有可读字符串，且未回退到 "unknown error"（防止漏加 to_string 分支）。
+TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
+    const FsError codes[] = {
+        FsError::IsADirectory, FsError::DirectoryNotEmpty,
+        FsError::NameTooLong,  FsError::TooManyOpenFiles,
+    };
+    for (auto e : codes) {
+        auto s = to_string(e);
+        EXPECT_FALSE(s.empty());
+        EXPECT_NE(s, "unknown error") << "缺少 to_string 分支的错误码: " << static_cast<int>(e);
+    }
+    EXPECT_EQ(to_string(FsError::IsADirectory), "is a directory");
+    EXPECT_EQ(to_string(FsError::DirectoryNotEmpty), "directory not empty");
+    EXPECT_EQ(to_string(FsError::NameTooLong), "name too long");
+    EXPECT_EQ(to_string(FsError::TooManyOpenFiles), "too many open files");
+}
+
 }}}  // namespace ca::fs::test

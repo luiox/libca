@@ -15,6 +15,10 @@ std::string to_string(FsError e)
         case FsError::PermissionDenied: return "permission denied";
         case FsError::AlreadyExists:    return "file already exists";
         case FsError::DiskFull:         return "disk full";
+        case FsError::IsADirectory:     return "is a directory";
+        case FsError::DirectoryNotEmpty: return "directory not empty";
+        case FsError::NameTooLong:      return "name too long";
+        case FsError::TooManyOpenFiles: return "too many open files";
         case FsError::Unknown:          return "unknown error";
     }
     return "unknown error";
