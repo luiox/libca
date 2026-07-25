@@ -40,14 +40,23 @@ public:
     }
 
     /// @brief 返回算术类型的绝对值；无符号类型原样返回。
+    /// @note 有符号整数最小值（如 INT_MIN）的数学绝对值不可表示：本函数按二进制补码
+    ///       经无符号取反（well-defined，回绕后仍为最小值本身），**不触发有符号溢出 UB**，
+    ///       但返回值仍为负——调用方需自行避免对最小值求绝对值。浮点取反无此问题。
     template<typename T>
     static constexpr T abs(T value) noexcept
     {
         static_assert(std::is_arithmetic<T>::value, "MathUtil::abs requires an arithmetic type");
         if constexpr (std::is_unsigned<T>::value) {
             return value;
+        } else if constexpr (std::is_integral<T>::value) {
+            // 经无符号取反规避 -min() 的有符号溢出 UB。
+            using U = std::make_unsigned_t<T>;
+            return value < static_cast<T>(0)
+                       ? static_cast<T>(static_cast<U>(0) - static_cast<U>(value))
+                       : value;
         } else {
-            return value < static_cast<T>(0) ? static_cast<T>(-value) : value;
+            return value < static_cast<T>(0) ? -value : value;
         }
     }
 

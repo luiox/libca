@@ -52,6 +52,54 @@ TEST(ResultTest, CopyOk) {
     EXPECT_EQ(r1.unwrap(), 42);
 }
 
+// ==================== 赋值（此前隐式删除，见回归测试） ====================
+
+TEST(ResultTest, MoveAssignOkOverErr) {
+    Result<std::string, int> dst = Err(7);
+    Result<std::string, int> src = Ok(std::string("hello"));
+    dst = std::move(src);
+    EXPECT_TRUE(dst.is_ok());
+    EXPECT_EQ(dst.unwrap(), "hello");
+}
+
+TEST(ResultTest, MoveAssignErrOverOk) {
+    Result<std::string, int> dst = Ok(std::string("x"));
+    Result<std::string, int> src = Err(99);
+    dst = std::move(src);
+    ASSERT_TRUE(dst.is_err());
+    EXPECT_EQ(dst.unwrap_err(), 99);
+}
+
+TEST(ResultTest, CopyAssignPreservesSource) {
+    Result<int, std::string> dst = Err(std::string("boom"));
+    Result<int, std::string> src = Ok(42);
+    dst = src;
+    EXPECT_EQ(dst.unwrap(), 42);
+    EXPECT_EQ(src.unwrap(), 42);  // 拷贝赋值不动源
+}
+
+TEST(ResultTest, SelfAssignMoveIsSafe) {
+    Result<std::string, int> r = Ok(std::string("keep"));
+    Result<std::string, int>& ref = r;
+    r = std::move(ref);  // 自赋值不应破坏内容
+    ASSERT_TRUE(r.is_ok());
+    EXPECT_EQ(r.unwrap(), "keep");
+}
+
+TEST(ResultTest, VoidResultAssign) {
+    Result<void, int> dst = Err(3);
+    Result<void, int> src = Ok();
+    dst = std::move(src);
+    EXPECT_TRUE(dst.is_ok());
+}
+
+TEST(ResultTest, ReassignInLoop) {
+    Result<std::string, int> r = Err(0);
+    for (int i = 1; i <= 3; ++i) r = Ok(std::to_string(i));
+    ASSERT_TRUE(r.is_ok());
+    EXPECT_EQ(r.unwrap(), "3");
+}
+
 // ==================== unwrap / unwrap_or / unwrap_err ====================
 
 TEST(ResultTest, UnwrapOk) {

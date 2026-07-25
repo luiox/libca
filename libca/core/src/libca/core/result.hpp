@@ -620,6 +620,10 @@ template<typename E>
 struct Storage<void, E> {
     typedef typename std::aligned_storage<sizeof(E), alignof(E)>::type type;
 
+    Storage()
+        : initialized_(false)
+    { }
+
     void construct(types::Ok<void>)
     {
         initialized_ = true;
@@ -757,6 +761,39 @@ struct Result {
             details::Constructor<T, E>::copy(other.storage_, storage_, details::err_tag());
             ok_ = false;
         }
+    }
+
+    Result& operator=(Result&& other) {
+        if (this != &other) {
+            // 先析构当前持有值：destroy 内部按 initialized_ 幂等，析构后 initialized_=false。
+            if (ok_)
+                storage_.destroy(details::ok_tag());
+            else
+                storage_.destroy(details::err_tag());
+            // 先置 ok_ 再重建：若元素移动构造抛出，initialized_ 仍为 false，
+            // ~Result 走到 destroy 时是 no-op，不会读到半构造对象。
+            ok_ = other.is_ok();
+            if (ok_)
+                details::Constructor<T, E>::move(std::move(other.storage_), storage_, details::ok_tag());
+            else
+                details::Constructor<T, E>::move(std::move(other.storage_), storage_, details::err_tag());
+        }
+        return *this;
+    }
+
+    Result& operator=(const Result& other) {
+        if (this != &other) {
+            if (ok_)
+                storage_.destroy(details::ok_tag());
+            else
+                storage_.destroy(details::err_tag());
+            ok_ = other.is_ok();
+            if (ok_)
+                details::Constructor<T, E>::copy(other.storage_, storage_, details::ok_tag());
+            else
+                details::Constructor<T, E>::copy(other.storage_, storage_, details::err_tag());
+        }
+        return *this;
     }
 
     ~Result() {

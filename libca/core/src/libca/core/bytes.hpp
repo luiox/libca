@@ -216,7 +216,8 @@ inline u8 Bytes::get_u8() {
 }
 
 inline void Bytes::copy_to_slice(u8* dst, usize len) {
-    if (pos_ + len > len_) throw std::out_of_range("Bytes::copy_to_slice underflow");
+    // 用减法比较避免 pos_ + len 溢出回绕（pos_ <= len_ 恒成立，len_ - pos_ 安全）。
+    if (len > len_ - pos_) throw std::out_of_range("Bytes::copy_to_slice underflow");
     std::memcpy(dst, ptr_ + pos_, len);
     pos_ += len;
 }
