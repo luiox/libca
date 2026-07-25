@@ -171,6 +171,8 @@ void BytesMut::advance(usize cnt) {
 }
 
 void BytesMut::reserve(usize additional) {
+    // len_ + additional 可能溢出回绕；先判溢出再判是否需要扩容。
+    if (additional > SIZE_MAX - len_) throw std::length_error("BytesMut::reserve size overflow");
     usize needed = len_ + additional;
     if (needed > capacity_) {
         grow(needed);
@@ -375,6 +377,8 @@ bool BytesMut::equals(const BytesMut& other) const noexcept {
 // ── 内部辅助 ──
 
 void BytesMut::ensure_writable(usize needed) {
+    // len_ + needed 可能溢出回绕，导致 required 变小、跳过 grow，随后 memcpy 越界写堆。
+    if (needed > SIZE_MAX - len_) throw std::length_error("BytesMut::ensure_writable size overflow");
     usize required = len_ + needed;
     if (required <= capacity_) return;
     grow(required);
