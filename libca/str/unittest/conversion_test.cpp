@@ -151,6 +151,22 @@ TEST(ConversionTest, Utf16Utf8Roundtrip) {
     EXPECT_TRUE(std::memcmp(orig, utf8, 8) == 0);
 }
 
+TEST(ConversionTest, Utf16ToUtf8RejectsDanglingLeadSurrogate) {
+    // 末尾孤立高代理：此前会越界读 utf16[i+1]，现应安全返回 0。
+    const u16 dangling[] = {0x0041, 0xD83D};  // 'A' + 孤立高代理
+    EXPECT_EQ(utf16ToUtf8Length(dangling, 2), 0u);
+    u8 out[8] = {};
+    EXPECT_EQ(utf16ToUtf8(dangling, 2, out), 0u);
+}
+
+TEST(ConversionTest, Utf16ToUtf8RejectsLeadWithoutTrail) {
+    // 高代理后接非 trail 码元。
+    const u16 bad[] = {0xD83D, 0x0041};
+    EXPECT_EQ(utf16ToUtf8Length(bad, 2), 0u);
+    u8 out[8] = {};
+    EXPECT_EQ(utf16ToUtf8(bad, 2, out), 0u);
+}
+
 // ============================================================================
 // UTF-8 ↔ UTF-32
 // ============================================================================

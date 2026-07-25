@@ -242,6 +242,10 @@ usize utf16ToUtf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
         if (Utf16Char(utf16[i]).isLeadSurrogate()) {
+            // 高代理必须后接一个 trail 代理：先查边界再取下一码元，避免末尾孤立
+            // 高代理时越界读 utf16[i+1]，并拒绝非 trail 的非法搭配。
+            if (i + 1 >= unitCount || !Utf16Char(utf16[i + 1]).isTrailSurrogate())
+                return 0;
             cp = Utf16Char::decodePair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
             ++i;
         } else if (Utf16Char(utf16[i]).isTrailSurrogate()) {
