@@ -242,32 +242,20 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
         this_path.append(reinterpret_cast<const char*>(segments[i].data()),
                          segments[i].byte_length());
     }
-    auto path_starts_with = [](const std::string& a, const std::string& prefix) {
-        if (a.size() < prefix.size()) return false;
-        if (a.compare(0, prefix.size(), prefix) != 0) return false;
-        // a 必须正好在 prefix 末尾结束，或其后是 kPathSep（表示 a 是 prefix 的子路径）。
-        return a.size() == prefix.size() || a[prefix.size()] == kPathSep;
-    };
-
-    // 重复检测：
-    //   - 普通 [a.b]：若 a.b 已被 header 定义，或 a.b 的子路径已被 header 定义，报错。
-    //     （"子路径已定义" 表示父表 a.b 已隐式创建——不能再 [a.b] 命名。）
+    // 重复检测（两组哈希集合，O(1)）：
+    //   - 普通 [a.b]：若 a.b 已被 header 定义（defined_paths_），或 a.b 是某个已定义
+    //     header 的严格前缀（implicit_parents_，即已被子表头隐式创建），报错。
     //   - 数组表 [[a.b]]：每个 [[a.b]] 都追加一个新元素，不视为重复；
     //     但若 a.b 已被普通 [header] 定义过，或已存在为非 array，报错。
     if (!array_of_tables) {
-        for (const auto& s : defined_headers_) {
-            const std::string stored(reinterpret_cast<const char*>(s.data()), s.byte_length());
-            // 完全相同 → 重复定义。
-            if (stored == this_path) {
-                fail(header_loc, "table redefined");
-                return false;
-            }
-            // this_path 是已定义路径的前缀（即 this_path 表已被某个子表头隐式创建）。
-            // 例：已定义 [a.b]，现在写 [a] —— a 已是 a.b 的隐式父。
-            if (path_starts_with(stored, this_path)) {
-                fail(header_loc, "table already defined implicitly by a sub-table");
-                return false;
-            }
+        if (defined_paths_.count(this_path) != 0) {
+            fail(header_loc, "table redefined");
+            return false;
+        }
+        // 例：已定义 [a.b]，现在写 [a] —— a 已是 a.b 的隐式父。
+        if (implicit_parents_.count(this_path) != 0) {
+            fail(header_loc, "table already defined implicitly by a sub-table");
+            return false;
         }
     } else {
         // [[a.b]]：若 a.b 已被普通 header 定义，报错；若 a.b 已是 array 则正常追加。
@@ -396,8 +384,8 @@ bool TomlParser::parse_key_value(const std::vector<ca::str::Utf8StringRef>& segm
     return !failed_;
 }
 
-// 已定义表头路径集合的辅助：用拼接字符串比较。
-// defined_headers_ 存的是路径串（用 \x1F 分隔）。
+// 记录 header 完整路径与其全部严格前缀（用 \x1F 分隔的路径串）。
+// 前缀进 implicit_parents_：这些父表已被本 header 隐式创建，之后不可再显式 [命名]。
 void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& segments,
                                      ca::usize last_index) {
     std::string path;
@@ -405,9 +393,9 @@ void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& 
         if (i > 0) path.push_back(kPathSep);
         path.append(reinterpret_cast<const char*>(segments[i].data()),
                     segments[i].byte_length());
+        if (i < last_index) implicit_parents_.insert(path);
     }
-    ca::str::Utf8String stored = ca::str::Utf8String::from_cstr(path.c_str());
-    defined_headers_.push_back(std::move(stored));
+    defined_paths_.insert(std::move(path));
 }
 
 // ============================================================================

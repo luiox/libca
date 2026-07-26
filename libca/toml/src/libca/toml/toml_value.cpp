@@ -1,21 +1,32 @@
 #include "libca/toml/toml_value.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <utility>
 
 namespace ca::toml {
+
+namespace {
+
+// key 的字节视图（指向 arena，生命周期随所属 document）。空 key 安全回落。
+std::string_view key_view(const ca::str::Utf8StringRef& key) noexcept {
+    if (key.data() == nullptr || key.byte_length() == 0) return {};
+    return std::string_view(reinterpret_cast<const char*>(key.data()), key.byte_length());
+}
+
+}  // namespace
 
 // ============================================================================
 // 构造 / 析构 / 移动
 // ============================================================================
 
 // 默认 Table：TOML 文档根、子表未显式构造时都是 Table。
-TomlValue::TomlValue() noexcept : type_(TomlType::Table), data_(TableStorage{}) {}
+TomlValue::TomlValue() noexcept : type_(TomlType::Table), data_(TableData{}) {}
 
 TomlValue::TomlValue(TomlValue&& other) noexcept
     : type_(other.type_), data_(std::move(other.data_)) {
     other.type_ = TomlType::Table;
-    other.data_ = TableStorage{};
+    other.data_ = TableData{};
 }
 
 TomlValue& TomlValue::operator=(TomlValue&& other) noexcept {
@@ -23,7 +34,7 @@ TomlValue& TomlValue::operator=(TomlValue&& other) noexcept {
         type_ = other.type_;
         data_ = std::move(other.data_);
         other.type_ = TomlType::Table;
-        other.data_ = TableStorage{};
+        other.data_ = TableData{};
     }
     return *this;
 }
@@ -52,12 +63,14 @@ TomlValue TomlValue::clone() const {
             break;
         }
         case TomlType::Table: {
-            TableStorage dup;
-            const auto& src = std::get<TableStorage>(data_);
-            dup.reserve(src.size());
-            for (const auto& m : src) {
-                dup.push_back(TableMember{m.first, m.second.clone()});
+            TableData dup;
+            const auto& src = std::get<TableData>(data_);
+            dup.members.reserve(src.members.size());
+            for (const auto& m : src.members) {
+                dup.members.push_back(TableMember{m.first, m.second.clone()});
             }
+            // 索引的 string_view 指向 arena（clone 共享同一 arena），可直接复制。
+            dup.index = src.index;
             copy.data_ = std::move(dup);
             break;
         }
@@ -145,7 +158,7 @@ TomlValue TomlValue::make_array() {
 TomlValue TomlValue::make_table() {
     TomlValue t;
     t.type_ = TomlType::Table;
-    t.data_ = TableStorage{};
+    t.data_ = TableData{};
     return t;
 }
 
@@ -231,12 +244,7 @@ TomlValue::ArrayStorage& TomlValue::as_array() noexcept {
 
 const TomlValue::TableStorage& TomlValue::as_table() const noexcept {
     assert(type_ == TomlType::Table && "TomlValue::as_table on non-Table");
-    return std::get<TableStorage>(data_);
-}
-
-TomlValue::TableStorage& TomlValue::as_table() noexcept {
-    assert(type_ == TomlType::Table && "TomlValue::as_table on non-Table");
-    return std::get<TableStorage>(data_);
+    return std::get<TableData>(data_).members;
 }
 
 // ============================================================================
@@ -289,44 +297,44 @@ ca::usize TomlValue::size() const noexcept {
 
 void TomlValue::set(ca::str::Utf8StringRef key, TomlValue v) {
     assert(type_ == TomlType::Table && "TomlValue::set on non-Table");
-    auto& tbl = std::get<TableStorage>(data_);
-    for (auto& m : tbl) {
-        if (m.first == key) {
-            m.second = std::move(v);
-            return;
-        }
+    auto& tbl = std::get<TableData>(data_);
+    const auto k = key_view(key);
+    auto it = tbl.index.find(k);
+    if (it != tbl.index.end()) {
+        tbl.members[it->second].second = std::move(v);
+        return;
     }
-    tbl.push_back(TableMember{key, std::move(v)});
+    tbl.index.emplace(k, tbl.members.size());
+    tbl.members.push_back(TableMember{key, std::move(v)});
 }
 
 const TomlValue* TomlValue::find(const ca::str::Utf8StringRef& key) const noexcept {
     assert(type_ == TomlType::Table && "TomlValue::find on non-Table");
-    const auto& tbl = std::get<TableStorage>(data_);
-    for (const auto& m : tbl) {
-        if (m.first == key) return &m.second;
-    }
-    return nullptr;
+    const auto& tbl = std::get<TableData>(data_);
+    auto it = tbl.index.find(key_view(key));
+    return it == tbl.index.end() ? nullptr : &tbl.members[it->second].second;
 }
 
 TomlValue* TomlValue::find(const ca::str::Utf8StringRef& key) noexcept {
     assert(type_ == TomlType::Table && "TomlValue::find on non-Table");
-    auto& tbl = std::get<TableStorage>(data_);
-    for (auto& m : tbl) {
-        if (m.first == key) return &m.second;
-    }
-    return nullptr;
+    auto& tbl = std::get<TableData>(data_);
+    auto it = tbl.index.find(key_view(key));
+    return it == tbl.index.end() ? nullptr : &tbl.members[it->second].second;
 }
 
 bool TomlValue::remove(const ca::str::Utf8StringRef& key) noexcept {
     assert(type_ == TomlType::Table && "TomlValue::remove on non-Table");
-    auto& tbl = std::get<TableStorage>(data_);
-    for (auto it = tbl.begin(); it != tbl.end(); ++it) {
-        if (it->first == key) {
-            tbl.erase(it);
-            return true;
-        }
+    auto& tbl = std::get<TableData>(data_);
+    auto it = tbl.index.find(key_view(key));
+    if (it == tbl.index.end()) return false;
+    const ca::usize removed = it->second;
+    tbl.members.erase(tbl.members.begin() + static_cast<std::ptrdiff_t>(removed));
+    tbl.index.erase(it);
+    // 后续成员整体前移一位，同步修正索引。
+    for (auto& entry : tbl.index) {
+        if (entry.second > removed) --entry.second;
     }
-    return false;
+    return true;
 }
 
 }  // namespace ca::toml
