@@ -137,9 +137,11 @@ io::IoResult<usize> UdpSocket::receive(u8* buffer, usize capacity)
                 nullptr) == SOCKET_ERROR) {
         const i64 code = detail::last_socket_error_code();
         // Windows 收到超过缓冲区的报文时返回 WSAEMSGSIZE 但数据仍然投递（被截断）；
-        // 此处忽略该错以匹配 POSIX recvfrom 的截断语义，返回实际读到的字节数。
+        // 此处忽略该错以匹配 POSIX recvfrom 的截断语义。注意失败路径上 count
+        // 出参未定义，截断时缓冲区被填满，须显式回填 request。
         if (code != WSAEMSGSIZE)
             return ca::core::Err(detail::socket_error_from_code(code, "receive UDP"));
+        count = static_cast<DWORD>(request);
     }
 #else
     const ssize_t count = ::recv(detail::to_native_socket(socket_.get()), output, request, 0);
@@ -214,8 +216,10 @@ io::IoResult<UdpReceiveResult> UdpSocket::receive_from(u8* buffer, usize capacit
                     nullptr,
                     nullptr) == SOCKET_ERROR) {
         const i64 code = detail::last_socket_error_code();
+        // 同 receive：WSAEMSGSIZE 失败路径上 count 未定义，截断时须回填 request。
         if (code != WSAEMSGSIZE)
             return ca::core::Err(detail::socket_error_from_code(code, "recvfrom UDP"));
+        count = static_cast<DWORD>(request);
     }
 #else
     const ssize_t count = ::recvfrom(detail::to_native_socket(socket_.get()),
