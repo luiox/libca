@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <ctime>
+#include "libca/core/result.hpp"
+
 #include <string>
 #include <tuple>
 
@@ -18,8 +19,9 @@ public:
     /// @brief 由年/月/日构造，不做合法性校验。
     Date(int year, int month, int day);
 
-    /// @brief 解析 ISO 格式字符串 "YYYY-MM-DD"。
-    explicit Date(const std::string& date);
+    /// @brief 解析 ISO 格式字符串 "YYYY-MM-DD"（只校验前 10 字符的格式，不校验字段范围）。
+    /// @return 格式非法返回 Err（预期解析失败走 Result，不抛异常）。
+    static ca::core::Result<Date, std::string> from_string(const std::string& date);
 
     int year() const noexcept { return year_; }
     int month() const noexcept { return month_; }
@@ -27,7 +29,7 @@ public:
 
     /// @brief 格式化为 "YYYY-MM-DD"。
     /// @return 固定 10 字符 ISO 格式字符串。
-    std::string toString() const;
+    std::string to_string() const;
 
 private:
     int year_;
@@ -41,8 +43,9 @@ public:
     /// @brief 由时/分/秒构造，不做合法性校验。
     Time(int hour, int minute, int second);
 
-    /// @brief 解析格式字符串 "HH:MM:SS"。
-    explicit Time(const std::string& time);
+    /// @brief 解析格式字符串 "HH:MM:SS"（只校验前 8 字符的格式，不校验字段范围）。
+    /// @return 格式非法返回 Err（预期解析失败走 Result，不抛异常）。
+    static ca::core::Result<Time, std::string> from_string(const std::string& time);
 
     int hour() const noexcept { return hour_; }
     int minute() const noexcept { return minute_; }
@@ -50,7 +53,7 @@ public:
 
     /// @brief 格式化为 "HH:MM:SS"。
     /// @return 固定 8 字符格式字符串。
-    std::string toString() const;
+    std::string to_string() const;
 
 private:
     int hour_;
