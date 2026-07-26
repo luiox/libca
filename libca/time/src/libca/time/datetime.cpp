@@ -59,10 +59,20 @@ std::string Time::toString() const {
 
 std::tuple<Date, Time> DateTime::now() {
     std::time_t t = std::time(nullptr);
-    struct tm* now = std::localtime(&t);
+    // std::localtime 返回共享静态存储（非线程安全）且可能返回 nullptr，
+    // 改用平台的可重入版本写入栈上 tm；极端失败时兜底返回 epoch。
+    struct tm now {};
+#if defined(_WIN32)
+    const bool ok = localtime_s(&now, &t) == 0;
+#else
+    const bool ok = localtime_r(&t, &now) != nullptr;
+#endif
+    if (!ok) {
+        return std::make_tuple(Date(1970, 1, 1), Time(0, 0, 0));
+    }
     return std::make_tuple(
-        Date(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday),
-        Time(now->tm_hour, now->tm_min, now->tm_sec)
+        Date(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday),
+        Time(now.tm_hour, now.tm_min, now.tm_sec)
     );
 }
 
