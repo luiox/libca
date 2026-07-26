@@ -14,20 +14,31 @@ namespace {
 
     constexpr char kBase64Pad = '=';
 
-    i32 base64CharIndex(char c) {
-        for (usize i = 0; i < sizeof(kBase64Chars) - 1; ++i)
-            if (kBase64Chars[i] == c) return static_cast<i32>(i);
-        return -1;
+    // 256 项反查表：字符 → 6bit 值，非法字符为 -1。编译期生成，解码 O(1) 查找。
+    struct Base64ReverseTable {
+        i8 map[256];
+        constexpr Base64ReverseTable() : map{} {
+            for (i32 i = 0; i < 256; ++i) map[i] = -1;
+            for (i32 i = 0; i < 64; ++i) map[static_cast<u8>(kBase64Chars[i])] = static_cast<i8>(i);
+        }
+    };
+    constexpr Base64ReverseTable kReverse{};
+
+    inline i32 base64_char_index(char c) {
+        return kReverse.map[static_cast<u8>(c)];
     }
 }
 
-std::string base64Encode(const char* src, size_t len) {
+std::string base64_encode(ca::core::ByteSlice data)
+{
+    const u8* src = data.data();
+    const usize len = data.size();
     std::string ret;
     ret.reserve(len * 4 / 3 + 4);
-    for (size_t i = 0; i < len; i += 3) {
-        const u8 first = static_cast<u8>(src[i]);
-        const u8 second = i + 1 < len ? static_cast<u8>(src[i + 1]) : 0;
-        const u8 third = i + 2 < len ? static_cast<u8>(src[i + 2]) : 0;
+    for (usize i = 0; i < len; i += 3) {
+        const u8 first = src[i];
+        const u8 second = i + 1 < len ? src[i + 1] : 0;
+        const u8 third = i + 2 < len ? src[i + 2] : 0;
 
         ret += kBase64Chars[(first >> 2) & 0b111111];
         ret += kBase64Chars[((first & 0b11) << 4) | ((second >> 4) & 0b1111)];
@@ -46,35 +57,6 @@ std::string base64Encode(const char* src, size_t len) {
     return ret;
 }
 
-std::vector<char> base64Decode(const std::string& src) {
-    std::vector<char> ret;
-    ret.reserve(src.length() * 3 / 4 + 4);
-    for (size_t i = 0; i < src.length(); i += 4) {
-        if (i + 3 >= src.length()) break;
-        i32 b1 = base64CharIndex(src[i]);
-        i32 b2 = base64CharIndex(src[i + 1]);
-        if (b1 < 0 || b2 < 0) break;
-
-        ret.push_back(static_cast<char>((b1 << 2) | ((b2 >> 4) & 0b11)));
-
-        if (src[i + 2] == kBase64Pad) break;
-        i32 b3 = base64CharIndex(src[i + 2]);
-        if (b3 < 0) break;
-        ret.push_back(static_cast<char>(((b2 & 0b1111) << 4) | ((b3 >> 2) & 0b1111)));
-
-        if (src[i + 3] == kBase64Pad) break;
-        i32 b4 = base64CharIndex(src[i + 3]);
-        if (b4 < 0) break;
-        ret.push_back(static_cast<char>(((b3 & 0b11) << 6) | b4));
-    }
-    return ret;
-}
-
-std::string base64_encode(ca::core::ByteSlice data)
-{
-    return base64Encode(reinterpret_cast<const char*>(data.data()), data.size());
-}
-
 Result<Bytes, CryptoError> base64_decode(const std::string& src)
 {
     if ((src.size() % 4) != 0)
@@ -87,8 +69,8 @@ Result<Bytes, CryptoError> base64_decode(const std::string& src)
         const char c2 = src[i + 2];
         const char c3 = src[i + 3];
 
-        const i32 b0 = base64CharIndex(c0);
-        const i32 b1 = base64CharIndex(c1);
+        const i32 b0 = base64_char_index(c0);
+        const i32 b1 = base64_char_index(c1);
         if (b0 < 0 || b1 < 0)
             return Err(CryptoError::INVALID_BASE64);
 
@@ -104,7 +86,7 @@ Result<Bytes, CryptoError> base64_decode(const std::string& src)
         output.put_u8(static_cast<u8>((b0 << 2) | ((b1 >> 4) & 0x03)));
 
         if (!pad2) {
-            const i32 b2 = base64CharIndex(c2);
+            const i32 b2 = base64_char_index(c2);
             if (b2 < 0)
                 return Err(CryptoError::INVALID_BASE64);
             if (pad3 && (b2 & 0x03) != 0)
@@ -112,7 +94,7 @@ Result<Bytes, CryptoError> base64_decode(const std::string& src)
             output.put_u8(static_cast<u8>(((b1 & 0x0F) << 4) | ((b2 >> 2) & 0x0F)));
 
             if (!pad3) {
-                const i32 b3 = base64CharIndex(c3);
+                const i32 b3 = base64_char_index(c3);
                 if (b3 < 0)
                     return Err(CryptoError::INVALID_BASE64);
                 output.put_u8(static_cast<u8>(((b2 & 0x03) << 6) | b3));

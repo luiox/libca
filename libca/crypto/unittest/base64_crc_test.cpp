@@ -7,24 +7,37 @@
 
 using namespace ca::crypto;
 
+namespace {
+
+ca::core::ByteSlice slice_of(const char* text) {
+    return ca::core::ByteSlice(reinterpret_cast<const ca::u8*>(text), std::strlen(text));
+}
+
+std::string encode_str(const char* text) {
+    return base64_encode(slice_of(text));
+}
+
+}  // namespace
+
 // ============================================================
 // Base64 tests
 // ============================================================
 
 TEST(Base64Test, emptyString) {
-    EXPECT_EQ(base64Encode("", 0), "");
-    EXPECT_EQ(base64Encode(std::string()), "");
-    EXPECT_TRUE(base64Decode("").empty());
+    EXPECT_EQ(base64_encode(ca::core::ByteSlice()), "");
+    auto decoded = base64_decode("");
+    ASSERT_TRUE(decoded.is_ok());
+    EXPECT_TRUE(decoded.unwrap().is_empty());
 }
 
 TEST(Base64Test, rfc4648TestVectors) {
     // RFC 4648 Section 10 test vectors
-    EXPECT_EQ(base64Encode("f", 1), "Zg==");
-    EXPECT_EQ(base64Encode("fo", 2), "Zm8=");
-    EXPECT_EQ(base64Encode("foo", 3), "Zm9v");
-    EXPECT_EQ(base64Encode("foob", 4), "Zm9vYg==");
-    EXPECT_EQ(base64Encode("fooba", 5), "Zm9vYmE=");
-    EXPECT_EQ(base64Encode("foobar", 6), "Zm9vYmFy");
+    EXPECT_EQ(encode_str("f"), "Zg==");
+    EXPECT_EQ(encode_str("fo"), "Zm8=");
+    EXPECT_EQ(encode_str("foo"), "Zm9v");
+    EXPECT_EQ(encode_str("foob"), "Zm9vYg==");
+    EXPECT_EQ(encode_str("fooba"), "Zm9vYmE=");
+    EXPECT_EQ(encode_str("foobar"), "Zm9vYmFy");
 }
 
 TEST(Base64Test, encodeDecodeRoundtrip) {
@@ -40,9 +53,11 @@ TEST(Base64Test, encodeDecodeRoundtrip) {
         "abcd",
     };
     for (const auto& tc : testCases) {
-        auto encoded = base64Encode(tc, std::strlen(tc));
-        auto decoded = base64Decode(encoded);
-        std::string decodedStr(decoded.begin(), decoded.end());
+        auto encoded = encode_str(tc);
+        auto decoded = base64_decode(encoded);
+        ASSERT_TRUE(decoded.is_ok()) << tc;
+        auto bytes = decoded.unwrap();
+        std::string decodedStr(reinterpret_cast<const char*>(bytes.as_ptr()), bytes.len());
         EXPECT_EQ(decodedStr, tc);
     }
 }
@@ -52,23 +67,29 @@ TEST(Base64Test, binaryDataRoundtrip) {
         0x00, 0x01, 0x02, 0xFF, 0xFE, 0x80, 0x7F, 0x00,
         0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x90
     };
-    auto encoded = base64Encode(reinterpret_cast<const char*>(data), sizeof(data));
-    auto decoded = base64Decode(encoded);
-    ASSERT_EQ(decoded.size(), sizeof(data));
-    EXPECT_EQ(std::memcmp(decoded.data(), data, sizeof(data)), 0);
+    auto encoded = base64_encode(ca::core::ByteSlice(data, sizeof(data)));
+    auto decoded = base64_decode(encoded);
+    ASSERT_TRUE(decoded.is_ok());
+    auto bytes = decoded.unwrap();
+    ASSERT_EQ(bytes.len(), sizeof(data));
+    EXPECT_EQ(std::memcmp(bytes.as_ptr(), data, sizeof(data)), 0);
 }
 
 TEST(Base64Test, paddingVariants) {
     // 1 byte  -> 2 padding
-    EXPECT_EQ(base64Encode("a", 1), "YQ==");
+    EXPECT_EQ(encode_str("a"), "YQ==");
     // 2 bytes -> 1 padding
-    EXPECT_EQ(base64Encode("ab", 2), "YWI=");
+    EXPECT_EQ(encode_str("ab"), "YWI=");
     // 3 bytes -> no padding
-    EXPECT_EQ(base64Encode("abc", 3), "YWJj");
+    EXPECT_EQ(encode_str("abc"), "YWJj");
 }
 
-TEST(Base64Test, stdStringOverload) {
-    EXPECT_EQ(base64Encode(std::string("Hello")), "SGVsbG8=");
+TEST(Base64Test, rejectsInvalidInput) {
+    // 旧实现遇到这些输入会静默返回截断数据；严格解码必须显式报错。
+    EXPECT_TRUE(base64_decode("Zg=").is_err());       // 长度非 4 的倍数
+    EXPECT_TRUE(base64_decode("Zm9v!Zm9v!!!").is_err()); // 非法字符
+    EXPECT_TRUE(base64_decode("Zg==Zm8=").is_err());  // padding 后还有数据
+    EXPECT_TRUE(base64_decode("=Zg=").is_err());      // padding 出现在头部
 }
 
 // ============================================================
