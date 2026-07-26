@@ -229,6 +229,39 @@ TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 
 - `libca/toml/doc/dev_plan.md`（开发接力文档，含 Arena 架构设计动机）
 - `libca/toml/README.md`（快速示例）
 
+## xml
+
+XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena
+架构**：DOM 节点存 `Utf8StringRef` 指向所属 `XmlDocument` 内部的 `Utf8StringArena`。
+输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<XmlDocument, ParseError>`。
+命名空间不特殊处理（`prefix:local` 整体为名字）；DOCTYPE/DTD、自定义实体、非声明 PI
+**明确报错拒绝**（非静默忽略）。
+
+入口头文件：
+- `<libca/xml/xml.hpp>`（聚合头）
+- `<libca/xml/xml_node.hpp>`
+- `<libca/xml/xml_document.hpp>`
+- `<libca/xml/xml_reader.hpp>`
+- `<libca/xml/xml_writer.hpp>`
+- `<libca/xml/parse_error.hpp>`
+- `<libca/xml/source_location.hpp>`
+
+功能：
+- `XmlNode`：统一 DOM 节点，4 种形态（Element/Text/Comment/Cdata）。Element 有名字 +
+  属性（保序 + O(1) 索引）+ 子节点（**支持混合内容**）。存 `Utf8StringRef` 因此**可拷贝**。
+  导航 `first_element(name)` / `text()` / `attribute(key)`。
+- `XmlDocument`：所有权根，持 arena + 声明 + prolog/epilog + root 元素。析构即释放 arena。
+- `XmlReader`：把字符串/文件解析为 `XmlDocument`，返回 `Result<XmlDocument, ParseError>`。
+  支持元素/属性/文本/注释（保留为节点）/CDATA/混合内容、命名实体 + 数字字符引用、XML 声明、
+  BOM/CRLF。`trim_whitespace`（默认开）丢弃元素间纯空白文本节点。
+- `XmlWriter`：序列化为 `Utf8String`，缩进美化但对混合内容保真（含文本的元素整体行内输出）。
+- `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
+- 多根、闭合标签不匹配、重复属性、未知实体、DOCTYPE/DTD、非声明 PI 全部报错。
+
+设计与使用文档：
+- `libca/xml/doc/xml设计文档.md`
+- `libca/xml/README.md`（快速示例）
+
 ## net
 
 建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。
