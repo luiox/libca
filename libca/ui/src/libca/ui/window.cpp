@@ -9,7 +9,6 @@
 #include "control.hpp"
 #include "libca/str/charset.hpp"
 
-#include <cstring>
 #include <string>
 
 namespace ca::ui {
@@ -36,10 +35,12 @@ Window::~Window()
     controls_.clear();
     if (hwnd_ != nullptr) {
         const HWND hwnd = hwnd_;
-        if (!DestroyWindow(hwnd)) {
-            hwnd_ = nullptr;
-            WindowManager::get_instance().remove_window(hwnd);
-        }
+        hwnd_ = nullptr;
+        DestroyWindow(hwnd);
+        // 成功路径 WM_NCDESTROY 已同步自摘；失败/跨线程等异常路径在此兜底移除，
+        // erase 幂等，重复移除无害。此前只在 DestroyWindow 失败分支清理，
+        // WM_NCDESTROY 未派发时会在管理器留下悬空指针。
+        WindowManager::get_instance().remove_window(hwnd);
     }
 }
 

@@ -12,7 +12,7 @@
 
 namespace ca::ui {
 
-core::StatusResult<int> MessageBox::show() const
+core::StatusResult<int> MessageDialog::show() const
 {
     auto wide_message = str::CharsetConverter::utf8_to_wide(message_);
     if (wide_message.is_err())
@@ -35,9 +35,9 @@ core::StatusResult<int> MessageBox::show() const
     return core::Ok(result);
 }
 
-core::StatusResult<int> MessageBox::info(const std::string& title, const std::string& message)
+core::StatusResult<int> MessageDialog::info(const std::string& title, const std::string& message)
 {
-    return MessageBox(title, message).show();
+    return MessageDialog(title, message).show();
 }
 
 }  // namespace ca::ui

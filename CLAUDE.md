@@ -23,7 +23,7 @@ Check this table before building anything new under `libca/`. **API usage lives 
 | **crypto** | 哈希/CRC/base64 | `sha256`, `md5`, `sha1`, `crc`, `base64` | `ca::crypto` | 可用(缺文档/测试薄) | — |
 | **time** | 日期时间 | `DateTime` | `ca::time` | 可用(薄) | — |
 | **collection** | 不可变列表/流 | `immutable_list`, `stream` | `ca` | 雏形(薄,杠杆高) | — |
-| **ui** | Win32 GUI（窗口/按钮/消息框/防截屏），Windows-only | `Window`, `Button`, `MessageBox` | `ca::ui` | 雏形 | `libca/ui/doc/` |
+| **ui** | Win32 GUI（窗口/按钮/消息框/防截屏），Windows-only | `Window`, `Button`, `MessageDialog` | `ca::ui` | 雏形 | `libca/ui/doc/` |
 | opt / reflect | — | — | — | **空,未开始** | — |
 | log / utility | 有码但**未接入构建** | — | — | 暂勿依赖 | — |
 

@@ -16,12 +16,15 @@ namespace ca::ui {
 ///
 /// 提供两种用法：
 /// - 静态 `info(title, message)` 直接弹信息框；
-/// - 构造实例 `MessageBox mb(title, message); mb.show();`，便于先准备参数。
-class MessageBox
+/// - 构造实例 `MessageDialog dlg(title, message); dlg.show();`，便于先准备参数。
+///
+/// @note 不叫 MessageBox：windows.h 定义了 `#define MessageBox MessageBoxW`，
+///       同名类会被宏静默改写，ANSI 构建或 #undef 后即破坏 ABI/编译。
+class MessageDialog
 {
 public:
     /// @brief 构造，记录标题与内容。
-    MessageBox(std::string title, std::string message)
+    MessageDialog(std::string title, std::string message)
         : title_(std::move(title)), message_(std::move(message)) {}
 
     /// @brief 弹出信息框（::MessageBoxW，MB_ICONINFORMATION）。
@@ -29,7 +32,7 @@ public:
     /// `INVALID_ARGUMENT`，系统调用失败时返回 `INTERNAL`。
     core::StatusResult<int> show() const;
 
-    /// @brief 一次性弹出信息框，等价于 `MessageBox(title, message).show()`。
+    /// @brief 一次性弹出信息框，等价于 `MessageDialog(title, message).show()`。
     static core::StatusResult<int> info(const std::string& title, const std::string& message);
 
 private:

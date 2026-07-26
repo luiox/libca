@@ -23,16 +23,16 @@ bool interactive_enabled()
 
 // 默认跳过，避免 ::MessageBoxW 在交互桌面阻塞 CI。
 // 设置 LIBCA_UI_INTERACTIVE=1 时才真正弹窗，验证 StatusResult 形态。
-TEST(MessageBoxTest, InfoReturnsStatusResult) {
+TEST(MessageDialogTest, InfoReturnsStatusResult) {
     if (!interactive_enabled()) {
-        GTEST_SKIP() << "skip interactive MessageBox; set LIBCA_UI_INTERACTIVE=1 to enable";
+        GTEST_SKIP() << "skip interactive MessageDialog; set LIBCA_UI_INTERACTIVE=1 to enable";
     }
-    auto result = MessageBox::info("libca_ui_test", "test message");
+    auto result = MessageDialog::info("libca_ui_test", "test message");
     EXPECT_TRUE(result.is_ok());
 }
 
-TEST(MessageBoxTest, RejectsInvalidUtf8WithoutOpeningDialog) {
-    auto result = MessageBox::info("\xFF", "test message");
+TEST(MessageDialogTest, RejectsInvalidUtf8WithoutOpeningDialog) {
+    auto result = MessageDialog::info("\xFF", "test message");
     ASSERT_TRUE(result.is_err());
     EXPECT_EQ(result.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
 }
