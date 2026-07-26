@@ -97,7 +97,7 @@ TEST(CsvWriterTest, WritesEscapedCsvText) {
     CsvWriterOptions options;
     options.line_ending = "\r\n";
 
-    auto text = CsvWriter::write(document, options);
+    auto text = CsvWriter::write(document, options).unwrap();
 
     EXPECT_EQ(S(text),
               "id,note\r\n"
@@ -171,7 +171,7 @@ TEST(CsvIoTest, Utf8RoundTrip) {
                             reinterpret_cast<const ca::u8*>("\xE5\xBC\xA0\xE4\xB8\x89"), 6),
                         document.intern_field(
                             reinterpret_cast<const ca::u8*>("30"), 2)}));
-    auto text = CsvWriter::write(document);
+    auto text = CsvWriter::write(document).unwrap();
     auto back = CsvReader::read(Utf8StringRef::from_string_view(
         std::string_view(reinterpret_cast<const char*>(text.data()), text.byte_length())));
     ASSERT_TRUE(back.is_ok());
@@ -213,7 +213,7 @@ TEST(CsvIoTest, NonUtf8RoundTripWithValidateOff) {
 
     CsvWriterOptions opts;
     opts.validate_utf8 = false;
-    auto text = CsvWriter::write(document, opts);
+    auto text = CsvWriter::write(document, opts).unwrap();
     auto back = CsvReader::read(Utf8StringRef::from_string_view(
         std::string_view(reinterpret_cast<const char*>(text.data()), text.byte_length())));
     ASSERT_TRUE(back.is_ok());
@@ -227,10 +227,10 @@ TEST(CsvIoTest, NonUtf8RoundTripWithValidateOff) {
     EXPECT_EQ(back_doc.rows()[0][1], "ok");
 }
 
-TEST(CsvWriterTest, ValidateUtf8DefaultThrowsOnInvalidBytes) {
-    // validate_utf8 默认 true：字段含非法 UTF-8 时 write 抛异常（保留旧行为）。
+TEST(CsvWriterTest, ValidateUtf8DefaultReturnsErrOnInvalidBytes) {
+    // validate_utf8 默认 true：字段含非法 UTF-8 时 write 返回 Err（不抛异常）。
     const ca::u8 bytes[] = {0xFF, 0xFE, 0xFD};
     CsvDocument document;
     document.add_row(CsvRow({document.intern_field(bytes, 3)}));
-    EXPECT_THROW(CsvWriter::write(document), std::runtime_error);
+    EXPECT_TRUE(CsvWriter::write(document).is_err());
 }

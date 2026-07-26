@@ -50,15 +50,15 @@ document.add_row(CsvRow({document.intern_field(reinterpret_cast<const ca::u8*>("
 CsvWriterOptions options;
 options.line_ending = "\r\n";
 
-Utf8String text = CsvWriter::write(document, options);
+Utf8String text = CsvWriter::write(document, options).unwrap();
 ```
 
 字段须先经 `CsvDocument::intern_field`（`intern_raw`）入池得到 `Utf8StringRef` 再构造 `CsvRow`。
-`CsvWriter::write` 返回 `Utf8String`。Writer 默认只在必要时加引号：字段含分隔符、引号、
-换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
+`CsvWriter::write` 返回 `Result<Utf8String, Utf8String>`。Writer 默认只在必要时加引号：
+字段含分隔符、引号、换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
 
-> 默认 `validate_utf8 = true`：输出 Utf8String 校验 UTF-8，字段含非 UTF-8 字节会抛
-> `std::runtime_error`。字段含任意字节时设 `options.validate_utf8 = false`，writer 经
+> 默认 `validate_utf8 = true`：输出前校验 UTF-8，字段含非 UTF-8 字节时返回 Err（不抛
+> 异常）。字段含任意字节时设 `options.validate_utf8 = false`，writer 经
 > `Utf8String::from_data_unchecked` 不校验按原始字节输出。
 
 ## 读写文件

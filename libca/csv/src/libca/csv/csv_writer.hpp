@@ -33,10 +33,10 @@ struct CsvWriterOptions {
 
     /// @brief 输出 Utf8String 时是否校验 UTF-8。
     /// @details CSV 字段可能含非 UTF-8 字节（RFC 4180 不规定编码）。默认 true：
-    ///          字段含非法 UTF-8 时 write() 抛 `std::runtime_error`。设为 false 后，
-    ///          writer 经 `Utf8String::from_data_unchecked` 不校验按原始字节输出，
-    ///          字段中的非 UTF-8 字节原样保留。注意：不校验时码点数 length 取保守值
-    ///          （= 字节长度），按码点迭代行为不准。
+    ///          字段含非法 UTF-8 时 write() 返回 Err（预期失败走 Result，不抛异常）。
+    ///          设为 false 后，writer 经 `Utf8String::from_data_unchecked` 不校验按
+    ///          原始字节输出，字段中的非 UTF-8 字节原样保留。注意：不校验时码点数
+    ///          length 取保守值（= 字节长度），按码点迭代行为不准。
     bool validate_utf8 = true;
 };
 
@@ -44,7 +44,8 @@ struct CsvWriterOptions {
 class CsvWriter {
 public:
     /// @brief 将文档序列化为 Utf8String。
-    static ca::str::Utf8String write(
+    /// @return 成功返回序列化文本；validate_utf8 开启且字段含非法 UTF-8 时返回错误说明。
+    static ca::Result<ca::str::Utf8String, ca::str::Utf8String> write(
         const CsvDocument& document,
         const CsvWriterOptions& options = CsvWriterOptions());
 
