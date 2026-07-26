@@ -46,6 +46,8 @@ GUI 操作（窗口、按钮、消息框、防截屏）封装成 RAII / builder 
 
 ### 2.3 消息框（message_box.hpp）
 
+- 类型名 `MessageDialog`：不叫 `MessageBox`，因 windows.h 定义 `#define MessageBox MessageBoxW`，
+  同名类会被宏静默改写。
 - 静态方法 `info(title, message)`：直接调 `::MessageBoxW(nullptr, ...)`，
   弹出系统信息框。
 - 非静态方法 `show()`：构造时记下标题/内容，调用时弹出。
@@ -74,7 +76,7 @@ GUI 操作（窗口、按钮、消息框、防截屏）封装成 RAII / builder 
 
 ## 4. 错误模型
 
-GUI 错误（文本转换、窗口创建、注册类、MessageBox 调用失败）通过 `ca::core::Status` /
+GUI 错误（文本转换、窗口创建、注册类、消息框调用失败）通过 `ca::core::Status` /
 `StatusResult<T>` 反馈。非法 UTF-8 返回 `INVALID_ARGUMENT`，调用顺序错误返回
 `FAILED_PRECONDITION` / `ALREADY_EXISTS`，Win32 系统调用失败返回 `INTERNAL`。
 

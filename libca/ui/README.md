@@ -12,7 +12,7 @@ Windows-only 的极简 Win32 GUI 工具模块。
 
 - `Window` / `WindowManager`：创建期即建立 HWND → `Window*` 调度，管理窗口与消息循环生命周期
 - `Control` / `Button`：builder 风格的子控件（仅 `Button`，后续可扩展）
-- `MessageBox`：包装 Win32 `::MessageBoxW`
+- `MessageDialog`：包装 Win32 `::MessageBoxW`（不叫 `MessageBox` 是为避开 windows.h 的同名宏）
 - `capture_guard`：通过 `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` 把
   目标窗口排除出屏幕捕获
 
