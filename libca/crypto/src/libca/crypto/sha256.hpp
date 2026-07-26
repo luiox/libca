@@ -12,16 +12,16 @@ public:
     enum { BlockSize = 512 / 8, HashBytes = 32 };
 
     SHA256();
-    std::string operator()(const void* data, size_t numBytes);
+    std::string operator()(const void* data, size_t num_bytes);
     std::string operator()(const std::string& text);
-    void add(const void* data, size_t numBytes);
-    std::string getHash();
-    void getHash(unsigned char buffer[HashBytes]);
+    void add(const void* data, size_t num_bytes);
+    std::string get_hash();
+    void get_hash(unsigned char buffer[HashBytes]);
     void reset();
 
 private:
-    void processBlock(const void* data);
-    void processBuffer();
+    void process_block(const void* data);
+    void process_buffer();
 
     uint64_t num_bytes_ = 0;
     size_t buffer_size_ = 0;

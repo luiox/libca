@@ -90,7 +90,7 @@ namespace
 
 
 // process a full block
-void SHA3::processBlock(const void* data)
+void SHA3::process_block(const void* data)
 {
 #if defined(__BYTE_ORDER) && (__BYTE_ORDER != 0) && (__BYTE_ORDER == __BIG_ENDIAN)
 #define LITTLEENDIAN(x) swap(x)
@@ -172,52 +172,52 @@ void SHA3::processBlock(const void* data)
 
 
 // add arbitrary number of bytes
-void SHA3::add(const void* data, size_t numBytes)
+void SHA3::add(const void* data, size_t num_bytes)
 {
   const uint8_t* current = (const uint8_t*) data;
 
   // copy data to buffer
   if (m_bufferSize > 0)
   {
-    while (numBytes > 0 && m_bufferSize < m_blockSize)
+    while (num_bytes > 0 && m_bufferSize < m_blockSize)
     {
       m_buffer[m_bufferSize++] = *current++;
-      numBytes--;
+      num_bytes--;
     }
   }
 
   // full buffer
   if (m_bufferSize == m_blockSize)
   {
-    processBlock((void*)m_buffer);
+    process_block((void*)m_buffer);
     m_numBytes  += m_blockSize;
     m_bufferSize = 0;
   }
 
   // no more data ?
-  if (numBytes == 0)
+  if (num_bytes == 0)
     return;
 
   // process full blocks
-  while (numBytes >= m_blockSize)
+  while (num_bytes >= m_blockSize)
   {
-    processBlock(current);
+    process_block(current);
     current    += m_blockSize;
     m_numBytes += m_blockSize;
-    numBytes   -= m_blockSize;
+    num_bytes   -= m_blockSize;
   }
 
   // keep remaining bytes in buffer
-  while (numBytes > 0)
+  while (num_bytes > 0)
   {
     m_buffer[m_bufferSize++] = *current++;
-    numBytes--;
+    num_bytes--;
   }
 }
 
 
 // process everything left in the internal buffer
-void SHA3::processBuffer()
+void SHA3::process_buffer()
 {
   // add padding
   size_t offset = m_bufferSize;
@@ -230,12 +230,12 @@ void SHA3::processBuffer()
   // and add a single set bit
   m_buffer[offset - 1] |= 0x80;
 
-  processBlock(m_buffer);
+  process_block(m_buffer);
 }
 
 
 // return latest hash as 16 hex characters
-std::string SHA3::getHash()
+std::string SHA3::get_hash()
 {
   // save hash state
   uint64_t oldHash[StateSize];
@@ -243,7 +243,7 @@ std::string SHA3::getHash()
     oldHash[i] = m_hash[i];
 
   // process remaining bytes
-  processBuffer();
+  process_buffer();
 
   // convert hash to string
   static const char dec2hex[16 + 1] = "0123456789abcdef";
@@ -284,11 +284,11 @@ std::string SHA3::getHash()
 
 
 // compute SHA3 of a memory block
-std::string SHA3::operator()(const void* data, size_t numBytes)
+std::string SHA3::operator()(const void* data, size_t num_bytes)
 {
   reset();
-  add(data, numBytes);
-  return getHash();
+  add(data, num_bytes);
+  return get_hash();
 }
 
 
@@ -297,7 +297,7 @@ std::string SHA3::operator()(const std::string& text)
 {
   reset();
   add(text.c_str(), text.size());
-  return getHash();
+  return get_hash();
 }
 
 } // namespace ca::crypto

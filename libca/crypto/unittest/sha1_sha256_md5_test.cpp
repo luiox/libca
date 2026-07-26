@@ -31,7 +31,7 @@ TEST(SHA1Test, streamingApi) {
     SHA1 sha1;
     sha1.add("Hello ", 6);
     sha1.add("World", 5);
-    EXPECT_EQ(sha1.getHash(), "0a4d55a8d778e5022fab701977c5d840bbc486d0");
+    EXPECT_EQ(sha1.get_hash(), "0a4d55a8d778e5022fab701977c5d840bbc486d0");
 }
 
 TEST(SHA1Test, resetReuse) {
@@ -44,7 +44,7 @@ TEST(SHA1Test, rawBytes) {
     SHA1 sha1;
     unsigned char hash[20];
     sha1.add("abc", 3);
-    sha1.getHash(hash);
+    sha1.get_hash(hash);
     EXPECT_EQ(hash[0], 0xa9);
     EXPECT_EQ(hash[1], 0x99);
     EXPECT_EQ(hash[2], 0x3e);
