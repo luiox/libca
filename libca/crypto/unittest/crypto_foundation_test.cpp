@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+// 聚合头编译健康检查：任何头文件语法损坏都会在这里暴露。
+#include "libca/crypto/crypto.hpp"  // IWYU pragma: keep
+
 #include "libca/crypto/base64.hpp"
 #include "libca/crypto/crypto_util.hpp"
 #include "libca/crypto/hex.hpp"
