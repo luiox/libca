@@ -29,6 +29,33 @@ ByteSlice bytes(const Bytes& data)
 
 }  // namespace
 
+// ============================================================
+// constant_time_eq（安全敏感原语，直接行为测试）
+// ============================================================
+
+TEST(ConstantTimeEqTest, EqualContent)
+{
+    EXPECT_TRUE(constant_time_eq(bytes(std::string("secret")), bytes(std::string("secret"))));
+}
+
+TEST(ConstantTimeEqTest, DifferentContentSameLength)
+{
+    EXPECT_FALSE(constant_time_eq(bytes(std::string("secret")), bytes(std::string("secreu"))));
+    // 仅首字节不同 / 仅末字节不同，两侧都必须判不等。
+    EXPECT_FALSE(constant_time_eq(bytes(std::string("Xecret")), bytes(std::string("secret"))));
+}
+
+TEST(ConstantTimeEqTest, DifferentLength)
+{
+    EXPECT_FALSE(constant_time_eq(bytes(std::string("secret")), bytes(std::string("secre"))));
+    EXPECT_FALSE(constant_time_eq(bytes(std::string("")), bytes(std::string("x"))));
+}
+
+TEST(ConstantTimeEqTest, BothEmpty)
+{
+    EXPECT_TRUE(constant_time_eq(ca::core::ByteSlice(), ca::core::ByteSlice()));
+}
+
 TEST(HexTest, EncodeDecodeRoundtrip)
 {
     const std::string input("Hello\0World", 11);
