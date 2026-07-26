@@ -1,9 +1,15 @@
 #include "bytes.hpp"
 
-#include <algorithm>
 #include <cstring>
 
 namespace ca::core {
+
+const char* to_cstr(BytesError e) noexcept {
+    switch (e) {
+        case BytesError::Underflow: return "Underflow";
+    }
+    return "Unknown";
+}
 
 // ============================================================================
 // Bytes
@@ -25,9 +31,10 @@ Bytes Bytes::copy_from_slice(const u8* data, usize len) {
     return Bytes(raw, len, std::move(storage));
 }
 
-void Bytes::advance(usize cnt) {
-    if (cnt > remaining()) throw std::out_of_range("Bytes::advance past end");
+Result<void, BytesError> Bytes::advance(usize cnt) {
+    if (cnt > remaining()) return Err(BytesError::Underflow);
     pos_ += cnt;
+    return Ok();
 }
 
 Bytes Bytes::slice(usize begin, usize end) const {
@@ -42,44 +49,44 @@ Bytes Bytes::slice(usize begin, usize end) const {
     return b;
 }
 
-// ── 类型化读（Bytes） ──
+// ── 类型化读（Bytes）。剩余不足返回 Err(BytesError::Underflow)，游标不动。 ──
 
-u16 Bytes::get_u16_be() {
-    if (pos_ + 2 > len_) throw std::out_of_range("Bytes::get_u16 underflow");
+Result<u16, BytesError> Bytes::get_u16_be() {
+    if (pos_ + 2 > len_) return Err(BytesError::Underflow);
     u16 v = (static_cast<u16>(ptr_[pos_]) << 8) | static_cast<u16>(ptr_[pos_ + 1]);
     pos_ += 2;
-    return v;
+    return Ok(v);
 }
 
-u16 Bytes::get_u16_le() {
-    if (pos_ + 2 > len_) throw std::out_of_range("Bytes::get_u16_le underflow");
+Result<u16, BytesError> Bytes::get_u16_le() {
+    if (pos_ + 2 > len_) return Err(BytesError::Underflow);
     u16 v = (static_cast<u16>(ptr_[pos_ + 1]) << 8) | static_cast<u16>(ptr_[pos_]);
     pos_ += 2;
-    return v;
+    return Ok(v);
 }
 
-u32 Bytes::get_u32_be() {
-    if (pos_ + 4 > len_) throw std::out_of_range("Bytes::get_u32 underflow");
+Result<u32, BytesError> Bytes::get_u32_be() {
+    if (pos_ + 4 > len_) return Err(BytesError::Underflow);
     u32 v = (static_cast<u32>(ptr_[pos_])     << 24) |
             (static_cast<u32>(ptr_[pos_ + 1]) << 16) |
             (static_cast<u32>(ptr_[pos_ + 2]) <<  8) |
              static_cast<u32>(ptr_[pos_ + 3]);
     pos_ += 4;
-    return v;
+    return Ok(v);
 }
 
-u32 Bytes::get_u32_le() {
-    if (pos_ + 4 > len_) throw std::out_of_range("Bytes::get_u32_le underflow");
+Result<u32, BytesError> Bytes::get_u32_le() {
+    if (pos_ + 4 > len_) return Err(BytesError::Underflow);
     u32 v = (static_cast<u32>(ptr_[pos_ + 3]) << 24) |
             (static_cast<u32>(ptr_[pos_ + 2]) << 16) |
             (static_cast<u32>(ptr_[pos_ + 1]) <<  8) |
              static_cast<u32>(ptr_[pos_]);
     pos_ += 4;
-    return v;
+    return Ok(v);
 }
 
-u64 Bytes::get_u64_be() {
-    if (pos_ + 8 > len_) throw std::out_of_range("Bytes::get_u64 underflow");
+Result<u64, BytesError> Bytes::get_u64_be() {
+    if (pos_ + 8 > len_) return Err(BytesError::Underflow);
     u64 v = (static_cast<u64>(ptr_[pos_])     << 56) |
             (static_cast<u64>(ptr_[pos_ + 1]) << 48) |
             (static_cast<u64>(ptr_[pos_ + 2]) << 40) |
@@ -89,11 +96,11 @@ u64 Bytes::get_u64_be() {
             (static_cast<u64>(ptr_[pos_ + 6]) <<  8) |
              static_cast<u64>(ptr_[pos_ + 7]);
     pos_ += 8;
-    return v;
+    return Ok(v);
 }
 
-u64 Bytes::get_u64_le() {
-    if (pos_ + 8 > len_) throw std::out_of_range("Bytes::get_u64_le underflow");
+Result<u64, BytesError> Bytes::get_u64_le() {
+    if (pos_ + 8 > len_) return Err(BytesError::Underflow);
     u64 v = (static_cast<u64>(ptr_[pos_ + 7]) << 56) |
             (static_cast<u64>(ptr_[pos_ + 6]) << 48) |
             (static_cast<u64>(ptr_[pos_ + 5]) << 40) |
@@ -103,28 +110,38 @@ u64 Bytes::get_u64_le() {
             (static_cast<u64>(ptr_[pos_ + 1]) <<  8) |
              static_cast<u64>(ptr_[pos_]);
     pos_ += 8;
-    return v;
+    return Ok(v);
 }
 
-i16 Bytes::get_i16_be() { return static_cast<i16>(get_u16_be()); }
-i16 Bytes::get_i16_le() { return static_cast<i16>(get_u16_le()); }
-i32 Bytes::get_i32_be() { return static_cast<i32>(get_u32_be()); }
-i32 Bytes::get_i32_le() { return static_cast<i32>(get_u32_le()); }
-i64 Bytes::get_i64_be() { return static_cast<i64>(get_u64_be()); }
-i64 Bytes::get_i64_le() { return static_cast<i64>(get_u64_le()); }
-
-f32 Bytes::get_f32_be() {
-    u32 bits = get_u32_be();
-    f32 v;
-    std::memcpy(&v, &bits, sizeof(f32));
-    return v;
+Result<i16, BytesError> Bytes::get_i16_be() {
+    return get_u16_be().map([](u16 v) { return static_cast<i16>(v); });
+}
+Result<i16, BytesError> Bytes::get_i16_le() {
+    return get_u16_le().map([](u16 v) { return static_cast<i16>(v); });
+}
+Result<i32, BytesError> Bytes::get_i32_be() {
+    return get_u32_be().map([](u32 v) { return static_cast<i32>(v); });
+}
+Result<i32, BytesError> Bytes::get_i32_le() {
+    return get_u32_le().map([](u32 v) { return static_cast<i32>(v); });
+}
+Result<i64, BytesError> Bytes::get_i64_be() {
+    return get_u64_be().map([](u64 v) { return static_cast<i64>(v); });
+}
+Result<i64, BytesError> Bytes::get_i64_le() {
+    return get_u64_le().map([](u64 v) { return static_cast<i64>(v); });
 }
 
-f64 Bytes::get_f64_be() {
-    u64 bits = get_u64_be();
-    f64 v;
-    std::memcpy(&v, &bits, sizeof(f64));
-    return v;
+Result<f32, BytesError> Bytes::get_f32_be() {
+    return get_u32_be().map([](u32 bits) {
+        f32 v; std::memcpy(&v, &bits, sizeof(f32)); return v;
+    });
+}
+
+Result<f64, BytesError> Bytes::get_f64_be() {
+    return get_u64_be().map([](u64 bits) {
+        f64 v; std::memcpy(&v, &bits, sizeof(f64)); return v;
+    });
 }
 
 
@@ -165,9 +182,10 @@ BytesMut& BytesMut::operator=(const BytesMut& other) {
     return *this;
 }
 
-void BytesMut::advance(usize cnt) {
-    if (cnt > remaining()) throw std::out_of_range("BytesMut::advance past end");
+Result<void, BytesError> BytesMut::advance(usize cnt) {
+    if (cnt > remaining()) return Err(BytesError::Underflow);
     pos_ += cnt;
+    return Ok();
 }
 
 void BytesMut::reserve(usize additional) {
@@ -267,42 +285,42 @@ void BytesMut::put_f64_be(f64 val) {
 
 // ── 类型化读（BytesMut） ──
 
-u16 BytesMut::get_u16_be() {
-    if (pos_ + 2 > len_) throw std::out_of_range("BytesMut::get_u16 underflow");
+Result<u16, BytesError> BytesMut::get_u16_be() {
+    if (pos_ + 2 > len_) return Err(BytesError::Underflow);
     u16 v = (static_cast<u16>(data_[pos_]) << 8) | static_cast<u16>(data_[pos_ + 1]);
     pos_ += 2;
-    return v;
+    return Ok(v);
 }
 
-u16 BytesMut::get_u16_le() {
-    if (pos_ + 2 > len_) throw std::out_of_range("BytesMut::get_u16_le underflow");
+Result<u16, BytesError> BytesMut::get_u16_le() {
+    if (pos_ + 2 > len_) return Err(BytesError::Underflow);
     u16 v = (static_cast<u16>(data_[pos_ + 1]) << 8) | static_cast<u16>(data_[pos_]);
     pos_ += 2;
-    return v;
+    return Ok(v);
 }
 
-u32 BytesMut::get_u32_be() {
-    if (pos_ + 4 > len_) throw std::out_of_range("BytesMut::get_u32 underflow");
+Result<u32, BytesError> BytesMut::get_u32_be() {
+    if (pos_ + 4 > len_) return Err(BytesError::Underflow);
     u32 v = (static_cast<u32>(data_[pos_])     << 24) |
             (static_cast<u32>(data_[pos_ + 1]) << 16) |
             (static_cast<u32>(data_[pos_ + 2]) <<  8) |
              static_cast<u32>(data_[pos_ + 3]);
     pos_ += 4;
-    return v;
+    return Ok(v);
 }
 
-u32 BytesMut::get_u32_le() {
-    if (pos_ + 4 > len_) throw std::out_of_range("BytesMut::get_u32_le underflow");
+Result<u32, BytesError> BytesMut::get_u32_le() {
+    if (pos_ + 4 > len_) return Err(BytesError::Underflow);
     u32 v = (static_cast<u32>(data_[pos_ + 3]) << 24) |
             (static_cast<u32>(data_[pos_ + 2]) << 16) |
             (static_cast<u32>(data_[pos_ + 1]) <<  8) |
              static_cast<u32>(data_[pos_]);
     pos_ += 4;
-    return v;
+    return Ok(v);
 }
 
-u64 BytesMut::get_u64_be() {
-    if (pos_ + 8 > len_) throw std::out_of_range("BytesMut::get_u64 underflow");
+Result<u64, BytesError> BytesMut::get_u64_be() {
+    if (pos_ + 8 > len_) return Err(BytesError::Underflow);
     u64 v = (static_cast<u64>(data_[pos_])     << 56) |
             (static_cast<u64>(data_[pos_ + 1]) << 48) |
             (static_cast<u64>(data_[pos_ + 2]) << 40) |
@@ -312,11 +330,11 @@ u64 BytesMut::get_u64_be() {
             (static_cast<u64>(data_[pos_ + 6]) <<  8) |
              static_cast<u64>(data_[pos_ + 7]);
     pos_ += 8;
-    return v;
+    return Ok(v);
 }
 
-u64 BytesMut::get_u64_le() {
-    if (pos_ + 8 > len_) throw std::out_of_range("BytesMut::get_u64_le underflow");
+Result<u64, BytesError> BytesMut::get_u64_le() {
+    if (pos_ + 8 > len_) return Err(BytesError::Underflow);
     u64 v = (static_cast<u64>(data_[pos_ + 7]) << 56) |
             (static_cast<u64>(data_[pos_ + 6]) << 48) |
             (static_cast<u64>(data_[pos_ + 5]) << 40) |
@@ -326,28 +344,38 @@ u64 BytesMut::get_u64_le() {
             (static_cast<u64>(data_[pos_ + 1]) <<  8) |
              static_cast<u64>(data_[pos_]);
     pos_ += 8;
-    return v;
+    return Ok(v);
 }
 
-i16 BytesMut::get_i16_be() { return static_cast<i16>(get_u16_be()); }
-i16 BytesMut::get_i16_le() { return static_cast<i16>(get_u16_le()); }
-i32 BytesMut::get_i32_be() { return static_cast<i32>(get_u32_be()); }
-i32 BytesMut::get_i32_le() { return static_cast<i32>(get_u32_le()); }
-i64 BytesMut::get_i64_be() { return static_cast<i64>(get_u64_be()); }
-i64 BytesMut::get_i64_le() { return static_cast<i64>(get_u64_le()); }
-
-f32 BytesMut::get_f32_be() {
-    u32 bits = get_u32_be();
-    f32 v;
-    std::memcpy(&v, &bits, sizeof(f32));
-    return v;
+Result<i16, BytesError> BytesMut::get_i16_be() {
+    return get_u16_be().map([](u16 v) { return static_cast<i16>(v); });
+}
+Result<i16, BytesError> BytesMut::get_i16_le() {
+    return get_u16_le().map([](u16 v) { return static_cast<i16>(v); });
+}
+Result<i32, BytesError> BytesMut::get_i32_be() {
+    return get_u32_be().map([](u32 v) { return static_cast<i32>(v); });
+}
+Result<i32, BytesError> BytesMut::get_i32_le() {
+    return get_u32_le().map([](u32 v) { return static_cast<i32>(v); });
+}
+Result<i64, BytesError> BytesMut::get_i64_be() {
+    return get_u64_be().map([](u64 v) { return static_cast<i64>(v); });
+}
+Result<i64, BytesError> BytesMut::get_i64_le() {
+    return get_u64_le().map([](u64 v) { return static_cast<i64>(v); });
 }
 
-f64 BytesMut::get_f64_be() {
-    u64 bits = get_u64_be();
-    f64 v;
-    std::memcpy(&v, &bits, sizeof(f64));
-    return v;
+Result<f32, BytesError> BytesMut::get_f32_be() {
+    return get_u32_be().map([](u32 bits) {
+        f32 v; std::memcpy(&v, &bits, sizeof(f32)); return v;
+    });
+}
+
+Result<f64, BytesError> BytesMut::get_f64_be() {
+    return get_u64_be().map([](u64 bits) {
+        f64 v; std::memcpy(&v, &bits, sizeof(f64)); return v;
+    });
 }
 
 // ── 冻结 ──

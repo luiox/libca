@@ -1,6 +1,7 @@
 #pragma once
 
 #include "datatype.hpp"
+#include "result.hpp"
 
 #include <cstring>
 #include <memory>
@@ -9,11 +10,23 @@
 /// @file bytes.hpp
 /// @brief 字节序列三件套：ByteSlice（非拥有视图）、Bytes（不可变共享）、BytesMut（可变缓冲）。
 ///        适合协议解析与序列化。类型化读写显式区分端序（_be 大端/network、_le 小端）。
-/// @note 越界一律抛 std::out_of_range，不静默截断。
+/// @note 错误模型分两类，对齐全库 Result：
+///       - **读游标类**（get_*/advance/copy_to_slice）：输入截断是解析的正常预期，
+///         返回 `Result<T, BytesError>`，剩余不足时得到 `Err(BytesError::Underflow)`，不抛异常。
+///       - **索引越界类**（slice/sub_slice 给了非法下标）：属调用方编程错误，仍抛 std::out_of_range。
+///       - 分配尺寸溢出（reserve/ensure_writable）：抛 std::length_error（极端防御，正常不可达）。
 
 namespace ca::core {
 
 class BytesMut;
+
+/// @brief 字节读取错误。目前只有一种：剩余字节不足以完成本次读取。
+enum class BytesError {
+    Underflow,  ///< 剩余可读字节不足（输入被截断）
+};
+
+/// FsError 风格：转可读字符串，便于日志。
+const char* to_cstr(BytesError e) noexcept;
 
 /// @brief 非拥有只读字节视图，对标 Rust &[u8]。
 /// @warning 不持有数据，调用方须保证底层数据生命周期覆盖视图使用期。
@@ -66,33 +79,35 @@ public:
 
     // ── 读游标 ──
     usize remaining() const noexcept;  ///< 剩余可读字节
-    /// @brief 前进读游标 cnt 字节。@throw std::out_of_range 越界。
-    void  advance(usize cnt);
+    /// @brief 前进读游标 cnt 字节。剩余不足返回 Err(Underflow)，游标不动。
+    Result<void, BytesError> advance(usize cnt);
 
     // ── 零拷贝切片 ──
-    /// @brief 返回 [begin, end) 的零拷贝切片（共享存储）。@throw std::out_of_range 越界。
+    /// @brief 返回 [begin, end) 的零拷贝切片（共享存储）。
+    /// @throw std::out_of_range 下标非法（编程错误，非输入截断）。
     Bytes slice(usize begin, usize end) const;
 
     // ── 类型化读（前进游标，后缀 _be = 大端/network order，_le = 小端） ──
-    u8   get_u8();
-    u16  get_u16_be();
-    u16  get_u16_le();
-    u32  get_u32_be();
-    u32  get_u32_le();
-    u64  get_u64_be();
-    u64  get_u64_le();
-    i16  get_i16_be();
-    i16  get_i16_le();
-    i32  get_i32_be();
-    i32  get_i32_le();
-    i64  get_i64_be();
-    i64  get_i64_le();
-    f32  get_f32_be();
-    f64  get_f64_be();
+    // 剩余不足返回 Err(BytesError::Underflow)，游标不动。
+    Result<u8,  BytesError> get_u8();
+    Result<u16, BytesError> get_u16_be();
+    Result<u16, BytesError> get_u16_le();
+    Result<u32, BytesError> get_u32_be();
+    Result<u32, BytesError> get_u32_le();
+    Result<u64, BytesError> get_u64_be();
+    Result<u64, BytesError> get_u64_le();
+    Result<i16, BytesError> get_i16_be();
+    Result<i16, BytesError> get_i16_le();
+    Result<i32, BytesError> get_i32_be();
+    Result<i32, BytesError> get_i32_le();
+    Result<i64, BytesError> get_i64_be();
+    Result<i64, BytesError> get_i64_le();
+    Result<f32, BytesError> get_f32_be();
+    Result<f64, BytesError> get_f64_be();
 
     // ── 批量读 ──
-    /// @brief 复制 len 字节到 dst 并前进游标。@throw std::out_of_range 剩余不足。
-    void copy_to_slice(u8* dst, usize len);
+    /// @brief 复制 len 字节到 dst 并前进游标。剩余不足返回 Err(Underflow)，不复制、游标不动。
+    Result<void, BytesError> copy_to_slice(u8* dst, usize len);
 
 private:
     friend class BytesMut;
@@ -129,8 +144,8 @@ public:
 
     // ── 读游标 ──
     usize remaining() const noexcept;   ///< 剩余可读字节
-    /// @brief 前进读游标 cnt 字节。@throw std::out_of_range 越界。
-    void  advance(usize cnt);
+    /// @brief 前进读游标 cnt 字节。剩余不足返回 Err(Underflow)，游标不动。
+    Result<void, BytesError> advance(usize cnt);
 
     // ── 写剩余空间 ──
     usize remaining_mut() const noexcept; ///< 剩余可写容量
@@ -160,22 +175,22 @@ public:
     void put_f32_be(f32 val);
     void put_f64_be(f64 val);
 
-    // ── 类型化读（前进游标） ──
-    u8   get_u8();
-    u16  get_u16_be();
-    u16  get_u16_le();
-    u32  get_u32_be();
-    u32  get_u32_le();
-    u64  get_u64_be();
-    u64  get_u64_le();
-    i16  get_i16_be();
-    i16  get_i16_le();
-    i32  get_i32_be();
-    i32  get_i32_le();
-    i64  get_i64_be();
-    i64  get_i64_le();
-    f32  get_f32_be();
-    f64  get_f64_be();
+    // ── 类型化读（前进游标）。剩余不足返回 Err(BytesError::Underflow)，游标不动。 ──
+    Result<u8,  BytesError> get_u8();
+    Result<u16, BytesError> get_u16_be();
+    Result<u16, BytesError> get_u16_le();
+    Result<u32, BytesError> get_u32_be();
+    Result<u32, BytesError> get_u32_le();
+    Result<u64, BytesError> get_u64_be();
+    Result<u64, BytesError> get_u64_le();
+    Result<i16, BytesError> get_i16_be();
+    Result<i16, BytesError> get_i16_le();
+    Result<i32, BytesError> get_i32_be();
+    Result<i32, BytesError> get_i32_le();
+    Result<i64, BytesError> get_i64_be();
+    Result<i64, BytesError> get_i64_le();
+    Result<f32, BytesError> get_f32_be();
+    Result<f64, BytesError> get_f64_be();
 
     // ── 冻结为不可变 Bytes ──
     /// @brief 转为不可变 Bytes，转移所有权；调用后本对象清空。
@@ -210,16 +225,17 @@ inline bool Bytes::is_empty() const noexcept { return len_ == 0; }
 inline const u8* Bytes::as_ptr() const noexcept { return ptr_ + pos_; }
 inline usize Bytes::remaining() const noexcept { return len_ - pos_; }
 
-inline u8 Bytes::get_u8() {
-    if (pos_ + 1 > len_) throw std::out_of_range("Bytes::get_u8 underflow");
-    return ptr_[pos_++];
+inline Result<u8, BytesError> Bytes::get_u8() {
+    if (pos_ + 1 > len_) return Err(BytesError::Underflow);
+    return Ok(ptr_[pos_++]);
 }
 
-inline void Bytes::copy_to_slice(u8* dst, usize len) {
+inline Result<void, BytesError> Bytes::copy_to_slice(u8* dst, usize len) {
     // 用减法比较避免 pos_ + len 溢出回绕（pos_ <= len_ 恒成立，len_ - pos_ 安全）。
-    if (len > len_ - pos_) throw std::out_of_range("Bytes::copy_to_slice underflow");
+    if (len > len_ - pos_) return Err(BytesError::Underflow);
     std::memcpy(dst, ptr_ + pos_, len);
     pos_ += len;
+    return Ok();
 }
 
 
@@ -246,9 +262,9 @@ inline void BytesMut::put_u8(u8 val) {
     data_[len_++] = val;
 }
 
-inline u8 BytesMut::get_u8() {
-    if (pos_ + 1 > len_) throw std::out_of_range("BytesMut::get_u8 underflow");
-    return data_[pos_++];
+inline Result<u8, BytesError> BytesMut::get_u8() {
+    if (pos_ + 1 > len_) return Err(BytesError::Underflow);
+    return Ok(data_[pos_++]);
 }
 
 inline bool BytesMut::operator==(const BytesMut& other) const noexcept { return equals(other); }
