@@ -12,21 +12,30 @@ TEST(DateTest, constructFromYMD) {
     EXPECT_EQ(d.day(), 31);
 }
 
-TEST(DateTest, constructFromString) {
-    Date d("2026-05-31");
+TEST(DateTest, fromString) {
+    auto r = Date::from_string("2026-05-31");
+    ASSERT_TRUE(r.is_ok());
+    Date d = r.unwrap();
     EXPECT_EQ(d.year(), 2026);
     EXPECT_EQ(d.month(), 5);
     EXPECT_EQ(d.day(), 31);
 }
 
+TEST(DateTest, fromStringRejectsInvalid) {
+    EXPECT_TRUE(Date::from_string("").is_err());
+    EXPECT_TRUE(Date::from_string("2026").is_err());
+    EXPECT_TRUE(Date::from_string("2026/05/31").is_err());
+    EXPECT_TRUE(Date::from_string("20a6-05-31").is_err());
+}
+
 TEST(DateTest, toString) {
     Date d(2026, 1, 2);
-    EXPECT_EQ(d.toString(), "2026-01-02");
+    EXPECT_EQ(d.to_string(), "2026-01-02");
 }
 
 TEST(DateTest, roundtrip) {
     Date d1(2026, 5, 31);
-    Date d2(d1.toString());
+    Date d2 = Date::from_string(d1.to_string()).unwrap();
     EXPECT_EQ(d1.year(), d2.year());
     EXPECT_EQ(d1.month(), d2.month());
     EXPECT_EQ(d1.day(), d2.day());
@@ -39,21 +48,30 @@ TEST(TimeTest, constructFromHMS) {
     EXPECT_EQ(t.second(), 0);
 }
 
-TEST(TimeTest, constructFromString) {
-    Time t("14:30:00");
+TEST(TimeTest, fromString) {
+    auto r = Time::from_string("14:30:00");
+    ASSERT_TRUE(r.is_ok());
+    Time t = r.unwrap();
     EXPECT_EQ(t.hour(), 14);
     EXPECT_EQ(t.minute(), 30);
     EXPECT_EQ(t.second(), 0);
 }
 
+TEST(TimeTest, fromStringRejectsInvalid) {
+    EXPECT_TRUE(Time::from_string("").is_err());
+    EXPECT_TRUE(Time::from_string("14:30").is_err());
+    EXPECT_TRUE(Time::from_string("14-30-00").is_err());
+    EXPECT_TRUE(Time::from_string("1a:30:00").is_err());
+}
+
 TEST(TimeTest, toString) {
     Time t(9, 5, 3);
-    EXPECT_EQ(t.toString(), "09:05:03");
+    EXPECT_EQ(t.to_string(), "09:05:03");
 }
 
 TEST(TimeTest, roundtrip) {
     Time t1(14, 30, 0);
-    Time t2(t1.toString());
+    Time t2 = Time::from_string(t1.to_string()).unwrap();
     EXPECT_EQ(t1.hour(), t2.hour());
     EXPECT_EQ(t1.minute(), t2.minute());
     EXPECT_EQ(t1.second(), t2.second());
