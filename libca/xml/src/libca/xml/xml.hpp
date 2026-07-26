@@ -11,3 +11,4 @@
 #include "libca/xml/xml_document.hpp"
 #include "libca/xml/xml_node.hpp"
 #include "libca/xml/xml_reader.hpp"
+#include "libca/xml/xml_writer.hpp"
