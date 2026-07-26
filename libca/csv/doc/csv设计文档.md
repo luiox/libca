@@ -43,7 +43,7 @@ Reader/Writer 可以分别演进。
 IO 边界与 json/ini/toml 一致：
 
 - `CsvReader::read` 接受 `Utf8StringRef`（零拷贝指向原文本）。
-- `CsvWriter::write` 返回 `Utf8String`。
+- `CsvWriter::write` 返回 `Result<Utf8String, Utf8String>`。
 - 错误用 `ParseError{SourceLocation, Utf8String}`（位置 + 消息）。
 - 文件路径参数用 `Utf8StringRef`。
 
@@ -70,12 +70,11 @@ v1.3 这两点障碍已被解除：
 
 ### CsvWriter 输出非 UTF-8 字段
 
-`CsvWriter::write` 返回 `Utf8String`。`Utf8String` 的标准构造函数校验 UTF-8，因此
-writer 输出非 UTF-8 字段需要绕过校验。本模块提供 `CsvWriterOptions::validate_utf8`
-开关（默认 `true`，保持旧行为）：
+`CsvWriter::write` 返回 `Result<Utf8String, Utf8String>`。writer 输出非 UTF-8 字段
+需要绕过校验。本模块提供 `CsvWriterOptions::validate_utf8` 开关（默认 `true`）：
 
-- `validate_utf8 = true`（默认）：输出经标准 `Utf8String(const u8*, usize)` 构造，校验
-  UTF-8；字段含非法字节时抛 `std::runtime_error`。
+- `validate_utf8 = true`（默认）：先经 `utf8_to_utf32_length` 非抛校验；字段含非法
+  字节时返回 Err（预期失败走 Result，不抛异常）。
 - `validate_utf8 = false`：输出经 `Utf8String::from_data_unchecked` 构造，**不校验 UTF-8**，
   按原始字节保留，与 `CsvDocument::intern_raw` 入池语义对齐。代价：Utf8String 的码点数
   length 取保守值（= 字节长度），按码点迭代行为不准——但 CSV 字段就是字节序列，按码点

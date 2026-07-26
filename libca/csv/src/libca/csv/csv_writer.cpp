@@ -1,5 +1,7 @@
 #include "libca/csv/csv_writer.hpp"
 
+#include "libca/str/conversion.hpp"
+
 #include <fstream>
 #include <ostream>
 #include <sstream>
@@ -88,18 +90,25 @@ void write_to_stream(std::ostream& output,
 
 }  // namespace
 
-ca::str::Utf8String CsvWriter::write(
+ca::Result<ca::str::Utf8String, ca::str::Utf8String> CsvWriter::write(
     const CsvDocument& document,
     const CsvWriterOptions& options) {
     std::ostringstream output;
     write_to_stream(output, document, options);
     const std::string text = output.str();
+    const auto* bytes = reinterpret_cast<const ca::u8*>(text.data());
     if (options.validate_utf8) {
-        return ca::str::Utf8String(reinterpret_cast<const ca::u8*>(text.data()), text.size());
+        // utf8_to_utf32_length 对非法输入返回 0（空输入合法，须特判）。
+        if (!text.empty() && ca::str::utf8_to_utf32_length(bytes, text.size()) == 0) {
+            return ca::Err(ca::str::Utf8String::from_cstr(
+                "CSV output contains invalid UTF-8 bytes; "
+                "set validate_utf8=false to write raw bytes"));
+        }
+        // 已校验合法，validating 构造不会失败，且缓存精确码点数。
+        return ca::Ok(ca::str::Utf8String(bytes, text.size()));
     }
     // 字段含非 UTF-8 字节时绕过校验，按原始字节输出（与 CsvDocument::intern_raw 语义对齐）。
-    return ca::str::Utf8String::from_data_unchecked(
-        reinterpret_cast<const ca::u8*>(text.data()), text.size());
+    return ca::Ok(ca::str::Utf8String::from_data_unchecked(bytes, text.size()));
 }
 
 ca::Result<void, ca::str::Utf8String> CsvWriter::write_file(

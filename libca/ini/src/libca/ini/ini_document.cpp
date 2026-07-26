@@ -1,6 +1,7 @@
 #include "libca/ini/ini_document.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdlib>
 #include <set>
 #include <utility>
@@ -164,18 +165,15 @@ ca::Result<ca::i64, ca::str::Utf8String> IniDocument::get_int(
             ("INI key not found: " + to_std(key)).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
-    try {
-        std::size_t pos = 0;
-        long long v = std::stoll(s, &pos);
-        if (pos != s.size()) {
-            return ca::Err(ca::str::Utf8String::from_cstr(
-                ("INI value is not a valid integer: " + to_std(*value)).c_str()));
-        }
-        return ca::Ok(static_cast<ca::i64>(v));
-    } catch (...) {
+    // strtoll 无异常（同 toml 解析器模式）：ERANGE、未整串消费、空串均判非法。
+    errno = 0;
+    char* end = nullptr;
+    const long long v = std::strtoll(s.c_str(), &end, 10);
+    if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ("INI value is not a valid integer: " + to_std(*value)).c_str()));
     }
+    return ca::Ok(static_cast<ca::i64>(v));
 }
 
 ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
@@ -187,18 +185,15 @@ ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
             ("INI key not found: " + to_std(key)).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
-    try {
-        std::size_t pos = 0;
-        double v = std::stod(s, &pos);
-        if (pos != s.size()) {
-            return ca::Err(ca::str::Utf8String::from_cstr(
-                ("INI value is not a valid number: " + to_std(*value)).c_str()));
-        }
-        return ca::Ok(static_cast<ca::f64>(v));
-    } catch (...) {
+    // strtod 无异常；溢出（ERANGE）与 stod 一致按非法处理。
+    errno = 0;
+    char* end = nullptr;
+    const double v = std::strtod(s.c_str(), &end);
+    if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ("INI value is not a valid number: " + to_std(*value)).c_str()));
     }
+    return ca::Ok(static_cast<ca::f64>(v));
 }
 
 ca::Result<bool, ca::str::Utf8String> IniDocument::get_bool(
