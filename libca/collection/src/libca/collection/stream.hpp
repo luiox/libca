@@ -1,8 +1,8 @@
 /// @file stream.hpp
 /// @brief Stream — 基于迭代器范围的惰性流式处理（header-only 模板）。
 ///
-/// 命名空间 ca::collection。提供类似 Java Stream 的 filter/map/collect/forEach
-/// 入口：filter 与 map 仅暂存谓词，真正求值发生在 forEach / collect 等终止操作。
+/// 命名空间 ca::collection。提供类似 Java Stream 的 filter/map/collect/for_each
+/// 入口：filter 与 map 仅暂存谓词，真正求值发生在 for_each / collect 等终止操作。
 
 #pragma once
 
@@ -15,7 +15,7 @@ namespace ca::collection {
 /// @tparam T   元素值类型。
 /// @tparam Iter 迭代器类型，需支持 `*it` 和 `++it`。
 ///
-/// filter() / map() 暂存谓词不立即求值；forEach() / collect() 才遍历并应用。
+/// filter() / map() 暂存谓词不立即求值；for_each() / collect() 才遍历并应用。
 /// 当前实现仅支持单段 filter + 单段 map（后设置覆盖前设置）。
 template<typename T, typename Iter>
 class Stream {
@@ -43,7 +43,7 @@ public:
 
     /// @brief 遍历并应用 consumer，对每个通过 filter 的元素执行操作。
     /// @return *this。
-    Stream& forEach(std::function<void(value_type)> consumer) {
+    Stream& for_each(std::function<void(value_type)> consumer) {
         for (auto it = begin_; it != end_; ++it) {
             if (!filter_ || filter_(*it)) {
                 auto val = *it;

@@ -349,7 +349,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `ArrayList<T>`：基于 `std::vector` 的拥有型可变顺序容器。
 - `HashMap<K, V>` / `HashSet<T>`：基于 `std::unordered_map` / `std::unordered_set` 的哈希容器。
 - `ImmutableList<T>`：构造后不可修改的列表，支持范围 for 与随机访问。
-- `Stream`：基于迭代器范围的惰性 `filter/map/forEach/collect`。
+- `Stream`：基于迭代器范围的惰性 `filter/map/for_each/collect`。
 
 设计文档：
 - `libca/collection/doc/collection设计文档.md`

@@ -387,7 +387,7 @@ namespace impl {
     struct Else<Result<T, F> (Arg)> {
 
         template<typename E, typename Func>
-        static Result<T, F> orElse(const Result<T, E>& result, Func func) {
+        static Result<T, F> or_else_impl(const Result<T, E>& result, Func func) {
             static_assert(
                     std::is_same<E, Arg>::value ||
                     std::is_convertible<E, Arg>::value,
@@ -402,7 +402,7 @@ namespace impl {
         }
 
         template<typename E, typename Func>
-        static Result<void, F> orElse(const Result<void, E>& result, Func func) {
+        static Result<void, F> or_else_impl(const Result<void, E>& result, Func func) {
             if (result.is_err()) {
                 auto res = func(result.storage().template get<E>());
                 return res;
@@ -417,7 +417,7 @@ namespace impl {
     struct Else<Result<T, F> (void)> {
 
         template<typename E, typename Func>
-        static Result<T, F> orElse(const Result<T, E>& result, Func func) {
+        static Result<T, F> or_else_impl(const Result<T, E>& result, Func func) {
             static_assert(std::is_same<T, void>::value,
                     "Can not call a void-callback on a non-void Result");
 
@@ -430,7 +430,7 @@ namespace impl {
         }
 
         template<typename E, typename Func>
-        static Result<void, F> orElse(const Result<void, E>& result, Func func) {
+        static Result<void, F> or_else_impl(const Result<void, E>& result, Func func) {
             if (result.is_err()) {
                 auto res = func();
                 return res;
@@ -552,7 +552,7 @@ template<typename T, typename E, typename Func,
        >
 >
 Ret or_else(const Result<T, E>& result, Func func) {
-    return Or::Else<Func>::orElse(result, func);
+    return Or::Else<Func>::or_else_impl(result, func);
 }
 
 struct ok_tag { };

@@ -115,27 +115,27 @@ double StringUtil::to_double(const std::string& input) {
 
 // ==================== 数值转字符串 ====================
 
-std::string StringUtil::toString(char c) {
+std::string StringUtil::to_string(char c) {
     return std::string(1, c);
 }
 
-std::string StringUtil::toString(short s) {
+std::string StringUtil::to_string(short s) {
     return std::to_string(s);
 }
 
-std::string StringUtil::toString(int i) {
+std::string StringUtil::to_string(int i) {
     return std::to_string(i);
 }
 
-std::string StringUtil::toString(long l) {
+std::string StringUtil::to_string(long l) {
     return std::to_string(l);
 }
 
-std::string StringUtil::toString(float f) {
+std::string StringUtil::to_string(float f) {
     return std::to_string(f);
 }
 
-std::string StringUtil::toString(double d) {
+std::string StringUtil::to_string(double d) {
     return std::to_string(d);
 }
 

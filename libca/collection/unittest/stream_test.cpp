@@ -49,10 +49,10 @@ TEST(StreamTest, filterThenMap) {
     EXPECT_EQ(result[2], 60);
 }
 
-TEST(StreamTest, forEach) {
+TEST(StreamTest, ForEach) {
     std::vector<int> vec = {1, 2, 3};
     std::vector<int> output;
-    stream(vec).forEach([&output](int x) { output.push_back(x); });
+    stream(vec).for_each([&output](int x) { output.push_back(x); });
     ASSERT_EQ(output.size(), 3);
     EXPECT_EQ(output[0], 1);
 }

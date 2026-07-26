@@ -21,7 +21,7 @@ collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前
 - `hash_map.hpp`：Rust-like 基础 API 的哈希映射容器。
 - `hash_set.hpp`：Rust-like 基础 API 的哈希集合容器。
 - `immutable_list.hpp`：构造后不可修改的列表，支持范围 for、随机访问和追加生成新列表。
-- `stream.hpp`：基于容器迭代器范围的惰性 `filter/map/forEach/collect`。
+- `stream.hpp`：基于容器迭代器范围的惰性 `filter/map/for_each/collect`。
 - `collection.hpp`：聚合头文件。
 
 ## 设计原则

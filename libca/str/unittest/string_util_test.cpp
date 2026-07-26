@@ -44,10 +44,10 @@ TEST(StringUtilTest, to_double) {
     EXPECT_DOUBLE_EQ(StringUtil::to_double("0.0"), 0.0);
 }
 
-TEST(StringUtilTest, toString) {
-    EXPECT_EQ(StringUtil::toString(42), "42");
-    EXPECT_EQ(StringUtil::toString(3.14f), "3.140000");
-    EXPECT_EQ(StringUtil::toString('A'), "A");
+TEST(StringUtilTest, ToString) {
+    EXPECT_EQ(StringUtil::to_string(42), "42");
+    EXPECT_EQ(StringUtil::to_string(3.14f), "3.140000");
+    EXPECT_EQ(StringUtil::to_string('A'), "A");
 }
 
 // ============================================================
