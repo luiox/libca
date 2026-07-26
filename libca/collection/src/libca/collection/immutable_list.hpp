@@ -81,7 +81,7 @@ public:
     }
 
     /// @brief 创建空列表。
-    static ImmutableList createEmpty() { return ImmutableList(); }
+    static ImmutableList create_empty() { return ImmutableList(); }
 
 private:
     size_t size_{0};

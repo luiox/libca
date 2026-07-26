@@ -13,7 +13,7 @@ TEST(ImmutableListTest, constructFromValues) {
 }
 
 TEST(ImmutableListTest, empty) {
-    auto list = ImmutableList<int>::createEmpty();
+    auto list = ImmutableList<int>::create_empty();
     EXPECT_TRUE(list.empty());
     EXPECT_EQ(list.size(), 0);
 }

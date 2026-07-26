@@ -26,7 +26,7 @@ class [[deprecated("Use MeyersSingleton or dependency injection instead")]] Sing
 public:
     /// 首次调用时用 args 构造实例，之后返回同一实例指针。
     template<class... Args>
-    static T* getInstance(Args&&... args)
+    static T* get_instance(Args&&... args)
     {
         if (m_pInstance == nullptr) {
             std::lock_guard<std::mutex> lg(m_mutex);
@@ -82,7 +82,7 @@ class MeyersSingleton
 {
 public:
     /// 返回唯一实例引用（首次调用时默认构造）。
-    static T& getInstance()
+    static T& get_instance()
     {
         static T instance{};
         return instance;

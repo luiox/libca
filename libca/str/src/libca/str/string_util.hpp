@@ -32,12 +32,12 @@ public:
     static double to_double(const std::string& input);
 
     // ==================== 数值转字符串 ====================
-    static std::string toString(char c);
-    static std::string toString(short s);
-    static std::string toString(int i);
-    static std::string toString(long l);
-    static std::string toString(float f);
-    static std::string toString(double d);
+    static std::string to_string(char c);
+    static std::string to_string(short s);
+    static std::string to_string(int i);
+    static std::string to_string(long l);
+    static std::string to_string(float f);
+    static std::string to_string(double d);
 
     // ==================== 修剪 ====================
     static std::string trim_start(const std::string& input);
