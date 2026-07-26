@@ -61,7 +61,7 @@ void MD5::reset() {
     hash_[3] = 0x10325476;
 }
 
-void MD5::processBlock(const void* data) {
+void MD5::process_block(const void* data) {
     uint32_t a = hash_[0];
     uint32_t b = hash_[1];
     uint32_t c = hash_[2];
@@ -150,38 +150,38 @@ void MD5::processBlock(const void* data) {
     hash_[3] += d;
 }
 
-void MD5::add(const void* data, size_t numBytes) {
+void MD5::add(const void* data, size_t num_bytes) {
     const uint8_t* current = static_cast<const uint8_t*>(data);
 
     if (buffer_size_ > 0) {
-        while (numBytes > 0 && buffer_size_ < BlockSize) {
+        while (num_bytes > 0 && buffer_size_ < BlockSize) {
             buffer_[buffer_size_++] = *current++;
-            numBytes--;
+            num_bytes--;
         }
     }
 
     if (buffer_size_ == BlockSize) {
-        processBlock(buffer_);
+        process_block(buffer_);
         num_bytes_ += BlockSize;
         buffer_size_ = 0;
     }
 
-    if (numBytes == 0) return;
+    if (num_bytes == 0) return;
 
-    while (numBytes >= BlockSize) {
-        processBlock(current);
+    while (num_bytes >= BlockSize) {
+        process_block(current);
         current += BlockSize;
         num_bytes_ += BlockSize;
-        numBytes -= BlockSize;
+        num_bytes -= BlockSize;
     }
 
-    while (numBytes > 0) {
+    while (num_bytes > 0) {
         buffer_[buffer_size_++] = *current++;
-        numBytes--;
+        num_bytes--;
     }
 }
 
-void MD5::processBuffer() {
+void MD5::process_buffer() {
     size_t paddedLength = buffer_size_ * 8;
     paddedLength++;
 
@@ -221,14 +221,14 @@ void MD5::processBuffer() {
     *addLength++ = static_cast<unsigned char>( msgBits        & 0xFF); msgBits >>= 8;
     *addLength++ = static_cast<unsigned char>( msgBits        & 0xFF);
 
-    processBlock(buffer_);
+    process_block(buffer_);
     if (paddedLength > BlockSize)
-        processBlock(extra);
+        process_block(extra);
 }
 
-std::string MD5::getHash() {
+std::string MD5::get_hash() {
     unsigned char rawHash[HashBytes];
-    getHash(rawHash);
+    get_hash(rawHash);
 
     std::string result;
     result.reserve(2 * HashBytes);
@@ -240,12 +240,12 @@ std::string MD5::getHash() {
     return result;
 }
 
-void MD5::getHash(unsigned char buffer[HashBytes]) {
+void MD5::get_hash(unsigned char buffer[HashBytes]) {
     uint32_t oldHash[HashValues];
     for (int i = 0; i < HashValues; i++)
         oldHash[i] = hash_[i];
 
-    processBuffer();
+    process_buffer();
 
     unsigned char* current = buffer;
     for (int i = 0; i < HashValues; i++) {
@@ -257,16 +257,16 @@ void MD5::getHash(unsigned char buffer[HashBytes]) {
     }
 }
 
-std::string MD5::operator()(const void* data, size_t numBytes) {
+std::string MD5::operator()(const void* data, size_t num_bytes) {
     reset();
-    add(data, numBytes);
-    return getHash();
+    add(data, num_bytes);
+    return get_hash();
 }
 
 std::string MD5::operator()(const std::string& text) {
     reset();
     add(text.c_str(), text.size());
-    return getHash();
+    return get_hash();
 }
 
 }

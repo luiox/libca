@@ -13,21 +13,21 @@ public:
 
     SHA1();
     /// 一次性计算，返回小写十六进制 digest。
-    std::string operator()(const void* data, size_t numBytes);
+    std::string operator()(const void* data, size_t num_bytes);
     /// 一次性计算（string 重载）。
     std::string operator()(const std::string& text);
     /// 增量追加数据。
-    void add(const void* data, size_t numBytes);
+    void add(const void* data, size_t num_bytes);
     /// 取十六进制 digest（不重置状态）。
-    std::string getHash();
+    std::string get_hash();
     /// 取原始字节 digest，写入 buffer[HashBytes]。
-    void getHash(unsigned char buffer[HashBytes]);
+    void get_hash(unsigned char buffer[HashBytes]);
     /// 清空状态，实例复用。
     void reset();
 
 private:
-    void processBlock(const void* data);
-    void processBuffer();
+    void process_block(const void* data);
+    void process_buffer();
 
     uint64_t num_bytes_ = 0;
     size_t buffer_size_ = 0;

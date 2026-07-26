@@ -31,7 +31,7 @@ typedef unsigned __int64 uint64_t;
 ///     SHA3 sha3;
 ///     while (more data available)
 ///       sha3.add(pointer to fresh data, number of new bytes);
-///     std::string myHash3 = sha3.getHash();
+///     std::string myHash3 = sha3.get_hash();
 namespace ca::crypto {
 
 class SHA3 //: public Hash
@@ -44,24 +44,24 @@ public:
   explicit SHA3(Bits bits = Bits256);
 
   /// compute hash of a memory block
-  std::string operator()(const void* data, size_t numBytes);
+  std::string operator()(const void* data, size_t num_bytes);
   /// compute hash of a string, excluding final zero
   std::string operator()(const std::string& text);
 
   /// add arbitrary number of bytes
-  void add(const void* data, size_t numBytes);
+  void add(const void* data, size_t num_bytes);
 
   /// return latest hash as hex characters
-  std::string getHash();
+  std::string get_hash();
 
   /// restart
   void reset();
 
 private:
   /// process a full block
-  void processBlock(const void* data);
+  void process_block(const void* data);
   /// process everything left in the internal buffer
-  void processBuffer();
+  void process_buffer();
 
   /// 1600 bits, stored as 25x64 bit, BlockSize is no more than 1152 bits (Keccak224)
   enum { StateSize    = 1600 / (8 * 8),

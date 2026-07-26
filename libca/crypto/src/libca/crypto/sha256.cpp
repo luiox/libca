@@ -53,7 +53,7 @@ void SHA256::reset() {
     hash_[7] = 0x5be0cd19;
 }
 
-void SHA256::processBlock(const void* data) {
+void SHA256::process_block(const void* data) {
     uint32_t a = hash_[0];
     uint32_t b = hash_[1];
     uint32_t c = hash_[2];
@@ -112,38 +112,38 @@ void SHA256::processBlock(const void* data) {
     hash_[7] += h;
 }
 
-void SHA256::add(const void* data, size_t numBytes) {
+void SHA256::add(const void* data, size_t num_bytes) {
     const uint8_t* current = static_cast<const uint8_t*>(data);
 
     if (buffer_size_ > 0) {
-        while (numBytes > 0 && buffer_size_ < BlockSize) {
+        while (num_bytes > 0 && buffer_size_ < BlockSize) {
             buffer_[buffer_size_++] = *current++;
-            numBytes--;
+            num_bytes--;
         }
     }
 
     if (buffer_size_ == BlockSize) {
-        processBlock(buffer_);
+        process_block(buffer_);
         num_bytes_ += BlockSize;
         buffer_size_ = 0;
     }
 
-    if (numBytes == 0) return;
+    if (num_bytes == 0) return;
 
-    while (numBytes >= BlockSize) {
-        processBlock(current);
+    while (num_bytes >= BlockSize) {
+        process_block(current);
         current += BlockSize;
         num_bytes_ += BlockSize;
-        numBytes -= BlockSize;
+        num_bytes -= BlockSize;
     }
 
-    while (numBytes > 0) {
+    while (num_bytes > 0) {
         buffer_[buffer_size_++] = *current++;
-        numBytes--;
+        num_bytes--;
     }
 }
 
-void SHA256::processBuffer() {
+void SHA256::process_buffer() {
     size_t paddedLength = buffer_size_ * 8;
     paddedLength++;
 
@@ -183,14 +183,14 @@ void SHA256::processBuffer() {
     *addLength++ = static_cast<unsigned char>((msgBits >>  8) & 0xFF);
     *addLength   = static_cast<unsigned char>( msgBits        & 0xFF);
 
-    processBlock(buffer_);
+    process_block(buffer_);
     if (paddedLength > BlockSize)
-        processBlock(extra);
+        process_block(extra);
 }
 
-std::string SHA256::getHash() {
+std::string SHA256::get_hash() {
     unsigned char rawHash[HashBytes];
-    getHash(rawHash);
+    get_hash(rawHash);
 
     std::string result;
     result.reserve(2 * HashBytes);
@@ -202,12 +202,12 @@ std::string SHA256::getHash() {
     return result;
 }
 
-void SHA256::getHash(unsigned char buffer[HashBytes]) {
+void SHA256::get_hash(unsigned char buffer[HashBytes]) {
     uint32_t oldHash[HashValues];
     for (int i = 0; i < HashValues; i++)
         oldHash[i] = hash_[i];
 
-    processBuffer();
+    process_buffer();
 
     unsigned char* current = buffer;
     for (int i = 0; i < HashValues; i++) {
@@ -219,16 +219,16 @@ void SHA256::getHash(unsigned char buffer[HashBytes]) {
     }
 }
 
-std::string SHA256::operator()(const void* data, size_t numBytes) {
+std::string SHA256::operator()(const void* data, size_t num_bytes) {
     reset();
-    add(data, numBytes);
-    return getHash();
+    add(data, num_bytes);
+    return get_hash();
 }
 
 std::string SHA256::operator()(const std::string& text) {
     reset();
     add(text.c_str(), text.size());
-    return getHash();
+    return get_hash();
 }
 
 ca::core::Bytes sha256(ca::core::ByteSlice data)
@@ -237,7 +237,7 @@ ca::core::Bytes sha256(ca::core::ByteSlice data)
     hasher.add(data.data(), data.size());
 
     ca::u8 digest[SHA256::HashBytes];
-    hasher.getHash(digest);
+    hasher.get_hash(digest);
     return ca::core::Bytes::copy_from_slice(digest, SHA256::HashBytes);
 }
 
@@ -245,7 +245,7 @@ std::string sha256_hex(ca::core::ByteSlice data)
 {
     SHA256 hasher;
     hasher.add(data.data(), data.size());
-    return hasher.getHash();
+    return hasher.get_hash();
 }
 
 }
