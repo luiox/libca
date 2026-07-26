@@ -25,6 +25,4 @@ public:
     virtual void reset() = 0;
 };
 
-}
-
-}
+}  // namespace ca::crypto
