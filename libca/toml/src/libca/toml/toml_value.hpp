@@ -17,6 +17,8 @@
 #include "libca/str/utf8_string.hpp"
 #include "libca/toml/toml_datetime.hpp"
 
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -50,6 +52,17 @@ public:
     using TableStorage = std::vector<TableMember>;
     /// Array 元素的存储类型。
     using ArrayStorage = std::vector<TomlValue>;
+
+private:
+    /// Table 的内部存储：members 保插入序供遍历，index 提供 key → 下标 的 O(1) 查找。
+    /// index 的 string_view 指向 key 的 arena 字节（arena 不搬移，成员 vector 扩容不影响）。
+    /// 二者只经 set/find/remove 同步修改，不对外暴露可变引用。
+    struct TableData {
+        TableStorage members;
+        std::unordered_map<std::string_view, ca::usize> index;
+    };
+
+public:
 
     // ---- 构造 / 析构 / 拷贝 / 移动 ----
 
@@ -116,10 +129,10 @@ public:
     const ArrayStorage& as_array() const noexcept;
     /// @return array 引用（可修改）。@warning 类型必须为 Array，否则断言失败。
     ArrayStorage& as_array() noexcept;
-    /// @return table 引用。@warning 类型必须为 Table，否则断言失败。
+    /// @return table 成员列表（只读，保插入序）。@warning 类型必须为 Table，否则断言失败。
+    /// @note 不提供可变引用重载：Table 内部带 key 索引，绕过 set/remove 直接改成员
+    ///       列表会破坏索引一致性。
     const TableStorage& as_table() const noexcept;
-    /// @return table 引用（可修改）。@warning 类型必须为 Table，否则断言失败。
-    TableStorage& as_table() noexcept;
 
     // ---- 数值安全互转 ----
 
@@ -144,19 +157,19 @@ public:
 
     // ---- Table 编辑 ----
 
-    /// @brief 设置 key 的值，覆盖同名 key。
+    /// @brief 设置 key 的值，覆盖同名 key。经索引 O(1) 定位。
     /// @warning 类型必须为 Table，否则断言失败。
     void set(ca::str::Utf8StringRef key, TomlValue v);
 
-    /// @brief 查找 key（只读）。未找到返回 nullptr。
+    /// @brief 查找 key（只读）。未找到返回 nullptr。经索引 O(1) 定位。
     /// @warning 类型必须为 Table，否则断言失败。
     const TomlValue* find(const ca::str::Utf8StringRef& key) const noexcept;
 
-    /// @brief 查找 key（可修改）。未找到返回 nullptr。
+    /// @brief 查找 key（可修改）。未找到返回 nullptr。经索引 O(1) 定位。
     /// @warning 类型必须为 Table，否则断言失败。
     TomlValue* find(const ca::str::Utf8StringRef& key) noexcept;
 
-    /// @brief 移除 key。@return key 存在并被删除时返回 true。
+    /// @brief 移除 key。@return key 存在并被删除时返回 true。O(n)（成员保序删除）。
     /// @warning 类型必须为 Table，否则断言失败。
     bool remove(const ca::str::Utf8StringRef& key) noexcept;
 
@@ -169,7 +182,7 @@ private:
                  bool,                           ///< Boolean
                  TomlDatetime,                   ///< 4 种 datetime 变体（Kind 区分）
                  ArrayStorage,                   ///< Array
-                 TableStorage> data_;            ///< Table
+                 TableData> data_;               ///< Table
 };
 
 }  // namespace ca::toml
