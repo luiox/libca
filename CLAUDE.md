@@ -24,10 +24,11 @@ Check this table before building anything new under `libca/`. **API usage lives 
 | **time** | 日期时间 | `DateTime` | `ca::time` | 可用(薄) | — |
 | **collection** | 不可变列表/流 | `immutable_list`, `stream` | `ca` | 雏形(薄,杠杆高) | — |
 | **ui** | Win32 GUI（窗口/按钮/消息框/防截屏），Windows-only | `Window`, `Button`, `MessageDialog` | `ca::ui` | 雏形 | `libca/ui/doc/` |
+| **序列化/配置** | 配置文件读写(DOM 形态)：ini/json/csv/toml/yaml；toml/yaml 用 Arena 架构 | `TomlReader/Writer`, `YamlReader/Writer`, `JsonValue` 等 | `ca::toml`/`ca::yaml`/... | 主线 | `libca/<fmt>/doc/`、`doc/libca功能索引.md` |
 | opt / reflect | — | — | — | **空,未开始** | — |
 | log / utility | 有码但**未接入构建** | — | — | 暂勿依赖 | — |
 
-`core / crypto / fs / str / time / collection / thread / io / net / http / process / ini / json / csv / toml / ui` 已接进 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
+`core / crypto / fs / str / time / collection / thread / io / net / http / process / ini / json / csv / toml / yaml / ui` 已接进 `libca/xmake.lua`。新增 C++ 工作放在 `libca/` 下,遵守依赖层级:**core(L0) ← str/collection(L1) ← fs/time/crypto(L2) ← 业务**,禁止向上依赖、禁止同层循环依赖。
 
 Compatibility policy: libca does not maintain separate API freeze lists and does not promise strict long-term API/ABI compatibility. Prefer smooth source evolution, but breaking changes are allowed when they improve ownership semantics, error models, or module boundaries. Document meaningful breakage in README, CHANGELOG, or the relevant module docs.
 

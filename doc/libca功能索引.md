@@ -229,6 +229,41 @@ TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 
 - `libca/toml/doc/dev_plan.md`（开发接力文档，含 Arena 架构设计动机）
 - `libca/toml/README.md`（快速示例）
 
+## yaml
+
+YAML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena
+架构**：DOM 节点存 `Utf8StringRef` 指向所属 `YamlDocument` 内部的 `Utf8StringArena`。
+输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<YamlDocument, ParseError>`。
+锚点/别名/标签/多文档/复杂键**明确报错拒绝**（非静默忽略）。
+
+入口头文件：
+- `<libca/yaml/yaml.hpp>`（聚合头）
+- `<libca/yaml/yaml_value.hpp>`
+- `<libca/yaml/yaml_document.hpp>`
+- `<libca/yaml/yaml_reader.hpp>`
+- `<libca/yaml/yaml_writer.hpp>`
+- `<libca/yaml/parse_error.hpp>`
+- `<libca/yaml/source_location.hpp>`
+
+功能：
+- `YamlValue`：DOM 节点，7 种类型（Null/Boolean/Integer/Float/String/Sequence/Mapping）。
+  存 `Utf8StringRef` 因此**可拷贝**；默认构造为 Null（YAML 根可为任意节点）。Mapping 保序 +
+  key 索引 O(1) find/set。
+- `YamlDocument`：所有权根，持有 arena + root `YamlValue`。析构即释放 arena。
+- `YamlReader`：把字符串/文件解析为 `YamlDocument`，返回 `Result<YamlDocument, ParseError>`。
+  支持块式 mapping/sequence（含 `- key:` 紧凑式、零缩进 sequence）、YAML 1.2 core schema
+  标量（**不支持 yes/no/on/off**，Norway problem）、单/双引号、单行 flow、块标量 `|`/`>` +
+  chomping、注释、BOM/CRLF。重复 key 报错。
+- `YamlWriter`：序列化为 `Utf8String`，块式输出。字符串按需加引号保证 write→read 类型保真
+  （`resolve_plain_scalar != String` 即加引号），含换行字符串输出为 `|` 块标量。
+- `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
+- 标量溢出退化为 String（core schema 语义，不像 toml 报错）。锚点/别名/标签/多文档/复杂键/
+  合并键/显式缩进指示符/`%` 指令全部报错。
+
+设计与使用文档：
+- `libca/yaml/doc/yaml设计文档.md`
+- `libca/yaml/README.md`（快速示例）
+
 ## net
 
 建立在 io 上的同步 TCP、UDP、DNS 与跨平台 socket RAII 模块。
