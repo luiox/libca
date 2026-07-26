@@ -48,6 +48,31 @@ TEST(UdpSocketTest, SendsReceivesAndPreservesPeerAddress)
     EXPECT_EQ(std::string(reinterpret_cast<char*>(buffer.data()), payload.size()), payload);
 }
 
+TEST(UdpSocketTest, TruncatedDatagramReportsBufferLength)
+{
+    auto first_result  = UdpSocket::bind(udp_loopback_address());
+    auto second_result = UdpSocket::bind(udp_loopback_address());
+    ASSERT_TRUE(first_result.is_ok()) << first_result.unwrap_err().to_string();
+    ASSERT_TRUE(second_result.is_ok()) << second_result.unwrap_err().to_string();
+    auto       first          = std::move(first_result).unwrap();
+    auto       second         = std::move(second_result).unwrap();
+    const auto second_address = second.local_address().unwrap();
+
+    // 64 字节报文 + 16 字节接收缓冲：两平台都应报告截断后的 16 字节，
+    // 而不是错误或空报文（Windows WSAEMSGSIZE 路径上 count 出参未定义）。
+    const std::string payload(64, 'x');
+    auto              sent =
+        first.send_to(reinterpret_cast<const u8*>(payload.data()), payload.size(), second_address);
+    ASSERT_TRUE(sent.is_ok()) << sent.unwrap_err().to_string();
+
+    std::array<u8, 16> buffer{};
+    auto               received = second.receive_from(buffer.data(), buffer.size());
+    ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
+    EXPECT_EQ(received.unwrap().length, buffer.size());
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(buffer.data()), buffer.size()),
+              payload.substr(0, buffer.size()));
+}
+
 TEST(UdpSocketTest, SupportsConnectedAndZeroLengthDatagrams)
 {
     auto first_result  = UdpSocket::bind(udp_loopback_address());
