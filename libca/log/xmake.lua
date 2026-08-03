@@ -46,3 +46,22 @@ target("libca_log_unittest")
         remove_files("unittest/spdlog_backend_test.cpp")
     end
 end
+
+-- 性能基准：独立 main，不依赖 gtest，不注册进 xmake test（不默认构建）。
+-- 用 `xmake build libca_log_benchmark && xmake run libca_log_benchmark`。
+target("libca_log_benchmark")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/benchmark")
+    add_deps("libca_log")
+    add_links("libca_log", "libca_core")
+    add_packages("fmt")
+    add_files("benchmark/*.cpp")
+    add_includedirs("src")
+    set_rundir("$(projectdir)")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
+    if is_plat("linux") then
+        add_syslinks("pthread")
+    end
