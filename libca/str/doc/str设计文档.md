@@ -152,3 +152,31 @@ str 只依赖 core。需要错误传播的轻量文本工具使用 `Result<T, st
 - ASCII/URL-safe 工具的 roundtrip 与非法输入拒绝。
 
 URL-safe 工具尤其要覆盖错误路径，因为解析类函数一旦放宽非法输入，后续协议和缓存 key 很容易出现不可见的不一致。
+
+## 8. OsString —— 平台原生字符串
+
+`OsString` / `OsStr` 对齐 Rust `std::ffi::OsString` / `OsStr`，承载平台**原生编码**的字符串：
+
+- Windows：内部存 UTF-16（`std::wstring`），与 Win32 `*W` API 零拷贝互转。
+- POSIX：内部存 UTF-8（`Utf8String`），与文件系统零拷贝互转。
+
+### 设计动机
+
+UTF-8 是 libca 的统一交换编码，但调用 Windows API（`CreateFileW`/`GetEnvironmentVariableW` 等）
+时需要 UTF-16；分散手写转换易遗漏错误处理。OsString 把"平台原生"语义显式化，集中处理编码。
+
+### 关键约束
+
+- **不做隐式 UTF-8 转换**：与 Utf8String 互转必须显式调用，名字标注编码开销
+  （`to_utf8_lossy` / `from_utf8`），避免无意中触发 O(n) 编码转换。
+- **move-only**：POSIX 持有 move-only 的 Utf8String，因此 OsString 整体 move-only，
+  与 Rust OsString 语义一致。
+- **零拷贝平台互操作**：`as_wide()`（Windows）/ `as_utf8()`（POSIX）返回内部存储视图；
+  `into_wstring()` / `into_utf8_string()` move 出所有权，均无拷贝。
+
+### 与 fs / env 的关系
+
+`libca.fs` 当前以 UTF-8 `std::string` + `std::filesystem::u8path` 承载路径；OsString 提供
+了平台原生载体，后续可按需为其增加 PathUtil 重载。`libca.env` 在 Windows 上直接用 Win32
+API 做 UTF-8↔UTF-16，暂未依赖 OsString（保持系统层不跨层依赖 str）。
+
