@@ -36,6 +36,16 @@ option("with_openssl")
     set_description("Enable optional OpenSSL HTTPS client support")
 option_end()
 
+option("with_spdlog")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Enable optional spdlog backend for libca.log")
+option_end()
+
+if has_config("with_spdlog") then
+    add_requires("spdlog", { configs = { header_only = true, fmt_external = true } })
+end
+
 if has_config("with_tests") then
     add_requires("gtest")
 end

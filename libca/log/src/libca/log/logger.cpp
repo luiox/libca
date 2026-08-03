@@ -1,88 +1,72 @@
-#include "logger.hpp"
-#include <algorithm>
+#include "libca/log/logger.hpp"
+
 #include <array>
 #include <cctype>
-#include <memory>
+#include <cstring>
+#include <utility>
 
-namespace libca {
+namespace ca::log {
+
+namespace {
+
 constexpr std::array<std::string_view, 7> kLevelNames = {
     "Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
 
-
-Level stringToLevel(std::string_view level)
+bool iequals(std::string_view a, std::string_view b) noexcept
 {
-    for (std::size_t index = 0; index < kLevelNames.size(); ++index) {
-		if (level.size() == kLevelNames[index].size() &&
-			std::equal(level.begin(),
-					   level.end(),
-					   kLevelNames[index].begin(),
-					   [](char lhs, char rhs) {
-						   return static_cast<unsigned char>(lhs) ==
-								  static_cast<unsigned char>(rhs) ||
-								  std::tolower(static_cast<unsigned char>(lhs)) ==
-									  std::tolower(static_cast<unsigned char>(rhs));
-					   })) {
-            return static_cast<Level>(index);
-        }
+    if (a.size() != b.size())
+        return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i])))
+            return false;
+    }
+    return true;
+}
+
+}  // namespace
+
+Level from_string(std::string_view name) noexcept
+{
+    for (std::size_t i = 0; i < kLevelNames.size(); ++i) {
+        if (iequals(name, kLevelNames[i]))
+            return static_cast<Level>(i);
     }
     return Level::Off;
 }
 
-std::string levelToString(Level level)
+std::string_view to_string(Level level) noexcept
 {
     const auto index = static_cast<std::size_t>(level);
-    if (index < kLevelNames.size()) {
-        return std::string(kLevelNames[index]);
-    }
+    if (index < kLevelNames.size())
+        return kLevelNames[index];
     return "Off";
 }
 
-namespace {
-std::atomic<Logger*>       g_logger_ptr {nullptr};
-std::shared_ptr<Logger>    g_logger_holder;
-}
-
-Logger::Logger(std::shared_ptr<ILogBackend> backend)
-	: backend_(std::move(backend))
-	, levelPtr_(backend_ ? &backend_->get_level_atomic() : nullptr)
+Logger::Logger(std::shared_ptr<ILogBackend> backend) noexcept
+    : backend_(std::move(backend))
 {}
 
-bool Logger::should_log(Level level) const
+bool Logger::should_log(Level lvl) const noexcept
 {
-	if (!levelPtr_) {
-		return false;
-	}
-	return static_cast<int>(level) >=
-		   static_cast<int>(levelPtr_->load(std::memory_order_relaxed));
+    if (!backend_)
+        return false;
+    return static_cast<int>(lvl) >= static_cast<int>(level_.load(std::memory_order_relaxed));
 }
 
-ILogBackend* Logger::backend() const
+void Logger::set_level(Level lvl) noexcept
 {
-	return backend_.get();
+    level_.store(lvl, std::memory_order_relaxed);
 }
 
-void Logger::set_level(Level level) const
+Level Logger::level() const noexcept
 {
-	if (backend_) {
-		backend_->set_level(level);
-	}
+    return level_.load(std::memory_order_relaxed);
 }
 
-void set_global_logger(std::shared_ptr<ILogBackend> backend)
+ILogBackend* Logger::backend() const noexcept
 {
-	if (!backend) {
-		g_logger_ptr.store(nullptr, std::memory_order_release);
-		g_logger_holder.reset();
-		return;
-	}
-
-	g_logger_holder = std::make_shared<Logger>(std::move(backend));
-	g_logger_ptr.store(g_logger_holder.get(), std::memory_order_release);
+    return backend_.get();
 }
 
-Logger* get_global_logger()
-{
-	return g_logger_ptr.load(std::memory_order_acquire);
-}
-
-}   // namespace libca
+}  // namespace ca::log
