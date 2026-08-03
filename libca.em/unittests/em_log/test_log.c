@@ -1,4 +1,11 @@
 /* Auto-migrated from src/em_log/log.c test blocks */
+/* _GNU_SOURCE 必须在所有系统头之前定义：strdup/pthread 等扩展函数在 strict c99 下
+   需它才被 <string.h>/<pthread.h> 暴露。放在文件中间（include 之后）会导致这些函数
+   隐式声明（返回 int 截断指针 → SIGSEGV）。*/
+#ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#endif
+
 #include "log.h"
 #include <em_dstream/ring_buffer.h>
 #include <em_platform/async.h>
@@ -66,9 +73,6 @@ static void __cdecl log_time_update_thread(void* arg) {
     }
 }
 #else
-#ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#endif
 #include <time.h>
 #include <pthread.h>
 #include <unistd.h>
