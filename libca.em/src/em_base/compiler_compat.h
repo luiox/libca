@@ -157,4 +157,20 @@ typedef struct {
 #    endif
 #endif
 
+/* ---------------- 9. 数学常量兼容 ---------------- */
+// POSIX 的 M_PI / M_PI_2 等宏并非 C 标准：glibc 在 _GNU_SOURCE 或 gnuXX 标准下暴露，
+// 但 strict c99/c11 下不暴露；MSVC 需 _USE_MATH_DEFINES。em 库 CI 用 gcc --toolchain=gcc
+// 走 strict c99，导致 em_motion 等模块编译失败。这里在平台未定义时补标准值，
+// 与 math.h 的定义一致（double），用 #ifndef 保证平台已有定义时不覆盖。
+// 使用前需 #include <math.h>（数学函数）并经 datatype.h 链路拿到本头。
+#ifndef M_PI
+#    define M_PI 3.14159265358979323846
+#endif
+#ifndef M_PI_2
+#    define M_PI_2 1.57079632679489661923
+#endif
+#ifndef M_PI_4
+#    define M_PI_4 0.78539816339744830962
+#endif
+
 #endif   // !LIBCA_EM_BASE_COMPILER_COMPAT_H
