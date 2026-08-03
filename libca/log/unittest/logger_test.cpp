@@ -7,6 +7,13 @@
 
 #include "capture_backend.hpp"
 
+// 编译期裁剪验证（issue 验收要求）：默认 CA_COMPILE_LOG_LEVEL=2 (Info)，
+// 故 Trace/Debug 在编译期应被裁剪。下列 static_assert 若编译通过即证明裁剪逻辑正确。
+static_assert(!ca::log::should_compile(ca::log::Level::Trace), "Trace below default level");
+static_assert(!ca::log::should_compile(ca::log::Level::Debug), "Debug below default level");
+static_assert(ca::log::should_compile(ca::log::Level::Info), "Info at default level");
+static_assert(ca::log::should_compile(ca::log::Level::Critical), "Critical above default level");
+
 namespace ca::log::test {
 namespace {
 
