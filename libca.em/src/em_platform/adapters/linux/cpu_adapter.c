@@ -2,6 +2,12 @@
 
 #if USE_CUSTOM_CPU_ADAPTER
 
+/* PTHREAD_MUTEX_RECURSIVE 等常量需 _GNU_SOURCE 才在 strict c99 下暴露（glibc）。
+   必须在所有系统头之前定义。本文件仅在 Linux 平台编译。 */
+#ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#endif
+
 #include <stdbool.h>
 #include <pthread.h>
 
