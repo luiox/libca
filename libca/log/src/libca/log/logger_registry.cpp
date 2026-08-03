@@ -1,6 +1,7 @@
 #include "libca/log/logger_registry.hpp"
 
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
