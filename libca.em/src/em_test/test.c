@@ -41,7 +41,9 @@ typedef void (*test_output_fn)(const char* msg);
 static test_output_fn g_output_fn = NULL;
 
 static void test_default_output(const char* msg) {
-    printf("%s", msg);
+    /* 临时诊断：stderr 无缓冲，崩溃前能看到最后输出位置。定位后撤回。 */
+    fputs(msg, stderr);
+    fflush(stderr);
 }
 
 static void test_output(const char* fmt, ...) {
