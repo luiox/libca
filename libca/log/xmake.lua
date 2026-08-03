@@ -41,5 +41,8 @@ target("libca_log_unittest")
     end
     if has_config("with_spdlog") then
         add_packages("spdlog", { configs = { header_only = true, fmt_external = true } })
+    else
+        -- 无 spdlog 时排除 spdlog_backend_test.cpp（缺 spdlog 头无法编译）
+        remove_files("unittest/spdlog_backend_test.cpp")
     end
 end
