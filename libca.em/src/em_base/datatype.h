@@ -16,6 +16,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// 编译器/平台兼容宏（含 M_PI 等数学常量在 strict c99 下的 fallback）。
+// datatype.h 是 em 库的基础头，这里引入 compiler_compat.h 让全库统一拿到兼容定义。
+#include "compiler_compat.h"
+
 /// @brief 自动探测 64 位支持
 /// 1. 尝试利用 UINTPTR_MAX 判断指针能否容纳 64 位 (原生 64 位环境)
 /// 2. 尝试利用 UINT64_MAX 判断编译器是否支持 uint64_t (如 32 位机上的 long long)
