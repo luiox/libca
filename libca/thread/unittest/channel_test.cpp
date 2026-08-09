@@ -115,6 +115,25 @@ TEST(ChannelTest, AllSendersDroppedReturnsNullopt)
     EXPECT_EQ(rx.recv(), std::nullopt);
 }
 
+// 验收标准(5) 的真析构路径：不调用 close()，让唯一一个 Sender 自然析构
+// （sender_count 归 0 → release() 中的 producers_alive() 为假 → notify 消费者）。
+// 覆盖与上面 close() 路径不同的分支。
+TEST(ChannelTest, LastSenderDtorWithoutCloseSignalsReceiver)
+{
+    Receiver<int> rx = Receiver<int>{};  // 先占位，下面作用域内绑定
+    {
+        auto [tx, rx_local] = channel<int>();
+        tx.send(42);
+        rx = std::move(rx_local);
+        // tx 在此作用域结束时自然析构：sender_count 1→0，无 close()。
+    }
+
+    // 排空已入队元素。
+    EXPECT_EQ(rx.recv(), std::optional<int>(42));
+    // 队列空 + 无生产者（未 close，纯靠析构），recv 应回溯返回 nullopt。
+    EXPECT_EQ(rx.recv(), std::nullopt);
+}
+
 TEST(ChannelTest, ExplicitCloseMakesRecvDrainAndReturnNullopt)
 {
     auto [tx, rx] = channel<int>();

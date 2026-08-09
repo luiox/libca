@@ -17,13 +17,16 @@ namespace ca::opt {
 /// @brief 单个选项定义。
 struct Arg
 {
-    /// 长名（不含 --），如 "verbose"。为空时该选项只能用短名。
+    /// 长名（不含 --），如 "verbose"。必须非空：它是 has()/get() 取值的唯一 key，
+    /// 即便选项只用短名（如 -v）也要提供一个长名作为存储 key。
     std::string name;
     /// 短名（不含 -），如 'v'。为 0 表示无短名。
     char short_name{0};
     /// 帮助文本。
     std::string help;
     /// 是否必填。必填选项缺失时 parse 返回错误。
+    /// @note required 与 default_value 互斥：有默认值意味着 has() 恒为真，
+    ///       required 校验将永远不触发，build_lookup 会拒绝这种组合。
     bool required{false};
     /// 是否带值。false 表示布尔开关（--verbose），true 表示带值选项（--output FILE）。
     bool has_value{false};

@@ -33,6 +33,19 @@ TEST(EnvGetTest, ReturnsExistingValue)
     EXPECT_TRUE(remove(name));
 }
 
+// 验收标准(1)：get("PATH") 应返回非空值（环境通常都带 PATH/Path）。
+TEST(EnvGetTest, ReturnsPathVariable)
+{
+    // Windows 上变量名是 "Path"（大小写不敏感），POSIX 上是 "PATH"。
+    auto posix_path = get("PATH");
+    auto win_path   = get("Path");
+    ASSERT_TRUE(posix_path.has_value() || win_path.has_value());
+    if (posix_path.has_value())
+        EXPECT_FALSE(posix_path->empty());
+    if (win_path.has_value())
+        EXPECT_FALSE(win_path->empty());
+}
+
 TEST(EnvSetTest, OverwritesExistingValue)
 {
     std::string name = unique_name("SET");
@@ -69,18 +82,29 @@ TEST(EnvChineseRoundtripTest, NonAsciiValuePreserved)
     EXPECT_TRUE(remove(name));
 }
 
-TEST(EnvAllTest, ContainsAtLeastOneEntry)
+TEST(EnvAllTest, ContainsPathVariable)
 {
     auto entries = all();
 
     ASSERT_FALSE(entries.empty());
-    // 验收标准：至少包含 PATH（POSIX 几乎总有；Windows 用 Path）。
-    auto has_path_field = [](const std::vector<std::pair<std::string, std::string>>& v) {
-        return std::any_of(v.begin(), v.end(), [](const auto& kv) {
-            return !kv.first.empty();
-        });
+    // 验收标准(3)：至少包含 PATH（POSIX 上是 "PATH"，Windows 上是 "Path"，
+    // Windows 变量名大小写不敏感，all() 返回的 key 大小写取决于系统，故做大小写不敏感匹配。
+    auto iequals = [](std::string_view a, std::string_view b) {
+        if (a.size() != b.size())
+            return false;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+            char ca = a[i], cb = b[i];
+            if (ca >= 'A' && ca <= 'Z') ca = static_cast<char>(ca - 'A' + 'a');
+            if (cb >= 'A' && cb <= 'Z') cb = static_cast<char>(cb - 'A' + 'a');
+            if (ca != cb)
+                return false;
+        }
+        return true;
     };
-    EXPECT_TRUE(has_path_field(entries));
+    bool has_path = std::any_of(entries.begin(), entries.end(), [&](const auto& kv) {
+        return iequals(kv.first, "path");
+    });
+    EXPECT_TRUE(has_path);
 }
 
 TEST(EnvAllTest, ReflectsNewlySetVariable)
@@ -125,6 +149,36 @@ TEST(EnvTempDirTest, ReturnsNonEmpty)
     EXPECT_FALSE(tmp.empty());
 }
 
+// 验收标准：temp_dir() 末尾不应带目录分隔符。把 TMP 设为带尾分隔符的路径，
+// 验证剥离逻辑而非环境默认值（Windows 的 GetTempPath 固定以 '\' 结尾，
+// 且要求目录有效，故用当前 temp_dir() 作为基底）。
+TEST(EnvTempDirTest, NoTrailingSeparator)
+{
+    std::string base = temp_dir();
+    ASSERT_FALSE(base.empty());
+
+#if defined(_WIN32)
+    std::string sep = "\\";
+#else
+    std::string sep = "/";
+#endif
+    const char* saved = std::getenv("TMP");
+    ASSERT_TRUE(set("TMP", base + sep));
+
+    std::string tmp = temp_dir();
+    EXPECT_EQ(tmp, base);
+    EXPECT_NE(tmp.back(), '/');
+#if defined(_WIN32)
+    EXPECT_NE(tmp.back(), '\\');
+#endif
+
+    // 恢复原环境变量，避免影响后续用例。
+    if (saved != nullptr)
+        EXPECT_TRUE(set("TMP", saved));
+    else
+        EXPECT_TRUE(remove("TMP"));
+}
+
 TEST(EnvExecutablePathTest, ReturnsNonEmpty)
 {
     std::string exe = executable_path();
@@ -143,8 +197,11 @@ TEST(EnvOsVersionTest, ReturnsNonEmptyOnWindows)
 #if defined(_WIN32)
     EXPECT_FALSE(version.empty());  // RtlGetVersion 应总能拿到
 #else
-    // POSIX 上取决于 /etc/os-release 是否存在，宽松验证。
-    EXPECT_TRUE(version.empty() || !version.empty());
+    // POSIX 上取决于 /etc/os-release 是否存在：可能为空；非空时应是不含换行的版本串。
+    if (!version.empty()) {
+        EXPECT_EQ(version.find('\n'), std::string::npos);
+        EXPECT_GT(version.size(), 0u);
+    }
 #endif
     (void)version;
 }

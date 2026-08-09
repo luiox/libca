@@ -15,6 +15,7 @@ namespace ca::env {
 
 /// @brief 读取环境变量值。
 /// @return 存在返回值，不存在返回空 optional。
+/// @note Windows 上空值变量（设为空串）与不存在的变量无法区分，统一按不存在返回空。
 std::optional<std::string> get(std::string_view name);
 
 /// @brief 设置环境变量。value 为空串等价于设为空值变量（不是删除）。

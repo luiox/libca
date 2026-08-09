@@ -18,12 +18,13 @@ void fill_bytes(void* buf, usize len);
 
 /// @brief 生成 [0, n) 范围内的均匀随机非负整数。
 /// @throws std::runtime_error 系统随机源失败时抛出。
-/// @note 使用拒绝采样消除模偏差。n == 0 是未定义行为（断言检查）。
+/// @throws std::invalid_argument n == 0 时抛出（Release 构建下断言被剥离，异常兜底）。
+/// @note 使用拒绝采样消除模偏差。
 u64 next(u64 n);
 
 /// @brief 生成 [lo, hi) 范围内的均匀随机整数。
 /// @throws std::runtime_error 系统随机源失败时抛出。
-/// @note 要求 lo < hi，否则是未定义行为（断言检查）。
+/// @throws std::invalid_argument lo >= hi 时抛出（Release 构建下断言被剥离，异常兜底）。
 u64 range(u64 lo, u64 hi);
 
 /// @brief 生成 [0.0, 1.0) 范围内的均匀随机双精度浮点数。

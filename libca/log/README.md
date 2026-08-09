@@ -22,7 +22,7 @@ cfg.color       = true;
 cfg.show_location = true;
 LoggerRegistry::register_logger("default",
                                 std::make_shared<Logger>(
-                                    std::make_shared<SimpleLogBackend>(cfg));
+                                    std::make_shared<SimpleLogBackend>(cfg)));
 
 // 2. 打日志（用 default target）。
 CA_LOG_INFO("server started on port {}", 8080);

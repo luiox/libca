@@ -51,8 +51,15 @@ int main(int argc, const char* const argv[]) {
 | 默认值 | `--count 1`（缺省） | `Arg.default_value` |
 | 必填校验 | 缺失返回错误 | `Arg.required` |
 | 子命令 | `git commit -m msg` | 按首个非选项 token 分派，可嵌套 |
-| 终止符 | `a -- --not-an-option` | `--` 后全部当位置参数 |
+| 终止符 | `a -- --not-an-option` | `--` 后全部当位置参数（当前不暴露位置参数访问，仅用于截断选项解析） |
 | 帮助 | `--help` / `-h` | 任意层级可用，返回 CANCELLED + 帮助文本 |
+
+## `Arg` 约束
+
+- `name` 必须非空。它是 `has()`/`get()` 取值的唯一 key；即便选项只用短名（如 `-v`），
+  也要提供一个长名作为存储 key。重复长名或短名会在 `parse` 时返回 `INVALID_ARGUMENT`。
+- `required` 与 `default_value` 互斥：有默认值意味着 `has()` 恒为真，required 校验永远
+  不触发，`parse` 会拒绝这种组合。
 
 ## `--help` 的特殊返回
 
