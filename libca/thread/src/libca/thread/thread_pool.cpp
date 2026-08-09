@@ -1,5 +1,7 @@
 #include "libca/thread/thread_pool.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <deque>
 #include <mutex>
@@ -22,7 +24,7 @@ enum class PoolState
 ca::core::Status empty_pool_error(const char* operation)
 {
     return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,
-                               std::string(operation) + " on a moved ThreadPool");
+                               ca::str::format_std("{} on a moved ThreadPool", operation));
 }
 
 ca::core::Status closed_pool_error()

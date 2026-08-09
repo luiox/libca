@@ -7,7 +7,7 @@
 ///       门面只依赖 `<fmt/core.h>`（与 libca.log 一致），刻意不引入 `<fmt/format.h>`
 ///       以保持依赖面最小。门面函数都是 inline 模板，实现留在头文件（符合 spec:36 模板条款）。
 /// @par UTF-8 校验契约
-///      `format` / `vformat` 返回 Utf8String，构造时校验 UTF-8；参数产出非法字节时抛
+///      `format` / `format_runtime` 返回 Utf8String，构造时校验 UTF-8；参数产出非法字节时抛
 ///      `std::runtime_error`，与 `Utf8String(const u8*, usize)` 既有契约一致。
 ///      `format_to(Utf8StringBuilder&)` 追加时不立即校验，最终 `build()` 时统一校验。
 ///      `format_to(std::string&)` 不校验 UTF-8，给日志后端/协议代码等字节级场景使用。

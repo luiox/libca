@@ -6,6 +6,8 @@
 
 #include "charset.hpp"
 
+#include "libca/str/format.hpp"
+
 #if defined(_WIN32)
 #    define WIN32_LEAN_AND_MEAN
 #    define NOMINMAX
@@ -28,14 +30,16 @@ core::Status wide_convert_error(const char* operation)
     return core::ErrStatus(
         error == ERROR_NO_UNICODE_TRANSLATION ? core::StatusCode::INVALID_ARGUMENT
                                               : core::StatusCode::INTERNAL,
-        std::string(operation) + " failed with Windows error " +
-            std::to_string(static_cast<unsigned long>(error)));
+        ca::str::format_std("{} failed with Windows error {}",
+                            operation,
+                            static_cast<unsigned long>(error)));
 }
 
 core::Status input_too_large(const char* operation)
 {
     return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
-                           std::string(operation) + " input exceeds the Win32 API length limit");
+                           ca::str::format_std("{} input exceeds the Win32 API length limit",
+                                               operation));
 }
 
 // 多字节 → 宽字符的通用实现：先用 0 长度探测输出大小，再分配并真正转换。

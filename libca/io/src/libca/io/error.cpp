@@ -229,8 +229,7 @@ const std::string& IoError::message() const noexcept
 
 std::string IoError::to_string() const
 {
-    std::string output;
-    ca::str::format_to(output, "{}", io_error_kind_name(kind_));
+    std::string output = io_error_kind_name(kind_);
     if (native_code_ != 0)
         ca::str::format_to(output, " (native {})", native_code_);
     if (!message_.empty())

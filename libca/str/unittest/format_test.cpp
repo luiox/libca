@@ -194,6 +194,14 @@ TEST(FormatRuntimeTest, returns_utf8string) {
     EXPECT_EQ(s.length(), 4u);
 }
 
+TEST(FormatRuntimeTest, invalid_format_string_throws) {
+    // 运行期格式串无编译期校验，非法格式串须在运行期抛异常（fmt::format_error
+    // 是 std::runtime_error 子类，符合 format_runtime 的 @throw 契约）。
+    std::string fmt_str = std::string("port={");
+    int port = 8080;
+    EXPECT_THROW(format_runtime(fmt_str, fmt::make_format_args(port)), std::runtime_error);
+}
+
 // ============================================================
 // 异常路径
 // ============================================================

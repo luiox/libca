@@ -3,7 +3,7 @@
 // @author Canrad
 // @date 2026/08/09
 //
-// 仅 vformat 的非模板实现在此；format/format_to 是模板，已留在 format.hpp。
+// 仅 format_runtime 的非模板实现在此；format/format_to 是模板，已留在 format.hpp。
 //
 
 #include "format.hpp"

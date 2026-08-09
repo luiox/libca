@@ -1,6 +1,7 @@
 ---
-version: 1.3
+version: 1.4
 update:
+2026-08-10 - 9.6 节更新：stdin/stdout/stderr 宏陷阱的解法从 subprocess.cpp include 顺序改为约束内聚到 subprocess.hpp 内部，任何 include 顺序安全
 2026-08-09 - 新增格式化设施 format 章节（fmt 提升为 str public 依赖，提供 format/format_to/format_runtime 门面）
 2026-07-20 - 新增代码页转换工具章节（CharsetConverter，从 libca.core 迁移并去 iconv）
 2026-07-13 - 合并 str-spec.md 的设计性内容（所有权分层、Pool/Arena/Twine 选型与生命周期契约），删除逐接口清单
@@ -245,11 +246,15 @@ Windows UCRT 把 `stdin`/`stdout`/`stderr` 定义为**宏**（`corecrt_wstdio.h`
 `stderr` 标识符彻底消失（Windows 上它只是宏，无底层 `FILE*` 变量），fmt 的
 `std::fprintf(stderr, ...)` 编译失败。
 
-**解法（include 顺序）**：在 `subprocess.cpp` 顶部、`subprocess.hpp`（含 undef）**之前**
-先 `#include "libca/str/format.hpp"`，让 fmt 头在 undef 之前完整展开。已展开的 fmt 代码
-不再受后续 undef 影响，而 undef 之后 subprocess 自己的代码仍能安全使用裸标识符。
+**解法（约束内聚到头文件内）**：`subprocess.hpp` 自身在 `#undef stdin/stdout/stderr`
+**之前**先 `#include "libca/str/format.hpp"`，让 fmt 头在宏仍存在时完整展开。已展开的
+fmt 代码不再受后续 undef 影响，而 undef 之后 subprocess 自己的代码仍能安全使用裸标识符。
+由于约束在 `subprocess.hpp` 内部满足，**任何 include 顺序**（先 subprocess.hpp 或先
+format.hpp）都安全；`subprocess.cpp` 直接 `#include "libca/process/subprocess.hpp"` 即可，
+不再需要 .cpp 顶部先 include format.hpp 的临时解法。
 
-任何 `#undef stdin/stdout/stderr` 又要用 `ca::str::format` 的 TU 都适用此约束。
+任何 `#undef stdin/stdout/stderr` 又要用 `ca::str::format` 的 TU 都适用此约束：
+在 undef 之前让 fmt 头完整展开。
 
 ### 9.7 format_std —— std::string 世界的门面
 
