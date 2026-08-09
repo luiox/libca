@@ -149,6 +149,36 @@ TEST(EnvTempDirTest, ReturnsNonEmpty)
     EXPECT_FALSE(tmp.empty());
 }
 
+// 验收标准：temp_dir() 末尾不应带目录分隔符。把 TMP 设为带尾分隔符的路径，
+// 验证剥离逻辑而非环境默认值（Windows 的 GetTempPath 固定以 '\' 结尾，
+// 且要求目录有效，故用当前 temp_dir() 作为基底）。
+TEST(EnvTempDirTest, NoTrailingSeparator)
+{
+    std::string base = temp_dir();
+    ASSERT_FALSE(base.empty());
+
+#if defined(_WIN32)
+    std::string sep = "\\";
+#else
+    std::string sep = "/";
+#endif
+    const char* saved = std::getenv("TMP");
+    ASSERT_TRUE(set("TMP", base + sep));
+
+    std::string tmp = temp_dir();
+    EXPECT_EQ(tmp, base);
+    EXPECT_NE(tmp.back(), '/');
+#if defined(_WIN32)
+    EXPECT_NE(tmp.back(), '\\');
+#endif
+
+    // 恢复原环境变量，避免影响后续用例。
+    if (saved != nullptr)
+        EXPECT_TRUE(set("TMP", saved));
+    else
+        EXPECT_TRUE(remove("TMP"));
+}
+
 TEST(EnvExecutablePathTest, ReturnsNonEmpty)
 {
     std::string exe = executable_path();

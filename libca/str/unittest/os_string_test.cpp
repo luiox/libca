@@ -72,6 +72,19 @@ TEST(OsStringTest, FromUtf8StrictThrowsOnInvalid)
                  std::runtime_error);
 }
 
+// to_utf8_lossy 对非法 UTF-16（未配对代理）应替换为 U+FFFD，绝不抛异常
+// （修复前该路径抛 runtime_error，与 "lossy" 语义矛盾）。
+TEST(OsStringTest, ToUtf8LossyReplacesUnpairedSurrogate)
+{
+    const std::wstring invalid{static_cast<wchar_t>(0xD800)};
+    OsString           os = OsString::from_wstring(std::wstring(invalid));
+
+    EXPECT_NO_THROW({
+        Utf8String back = os.to_utf8_lossy();
+        EXPECT_EQ(static_cast<std::string_view>(back), "\xEF\xBF\xBD");
+    });
+}
+
 #else  // POSIX
 
 // 验收标准：POSIX 上 OsString ↔ Utf8String 零拷贝互转。

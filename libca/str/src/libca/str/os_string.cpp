@@ -160,7 +160,7 @@ OsString OsString::from_utf8(std::string_view utf8)
 
 OsString OsString::from_utf8_lossy(std::string_view utf8)
 {
-    // 快速路径：输入合法时零拷贝（from_data 内部克隆字节）。
+    // 快速路径：输入合法时直接克隆（from_data 内部克隆字节），跳过逐码点扫描。
     auto* bytes = reinterpret_cast<const u8*>(utf8.data());
     if (utf8_is_valid(bytes, utf8.size()))
         return OsString(Utf8String::from_data(bytes, utf8.size()));
