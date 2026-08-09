@@ -1,5 +1,9 @@
 -- gtest 由根 xmake.lua 的 with_tests option 统一管理（默认 false）。
 
+-- fmt 是 str 的 public 依赖：str 提供 ca::str::format 门面（format.hpp），
+-- 下游模块（log 等）通过 add_deps("libca_str") 间接拿到 fmt，避免各自重复声明 fmt。
+add_requires("fmt", { configs = { header_only = true } })
+
 target("libca_str")
     set_kind("static")
     set_group("libs")
@@ -10,6 +14,7 @@ target("libca_str")
         add_cxflags("/utf-8", {tools = "cl"})
     end
     add_deps("libca_core")
+    add_packages("fmt", {public = true})
 
 if has_config("with_tests") then
 target("libca_str_unittest")
