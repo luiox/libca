@@ -2,6 +2,8 @@
 
 #include "libca/yaml/yaml_parser.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -20,10 +22,11 @@ ParseError clone_error(const ParseError& error) {
 }
 
 ParseError make_open_error(const ca::str::Utf8StringRef& path) {
-    std::string text = "failed to open YAML file: ";
-    text.append(reinterpret_cast<const char*>(path.data()), path.byte_length());
+    std::string path_str(reinterpret_cast<const char*>(path.data()),
+                         reinterpret_cast<const char*>(path.data()) + path.byte_length());
     ParseError error;
-    error.message = ca::str::Utf8String::from_cstr(text.c_str());
+    error.message = ca::str::Utf8String::from_cstr(
+        ca::str::format_std("failed to open YAML file: {}", path_str).c_str());
     return error;
 }
 

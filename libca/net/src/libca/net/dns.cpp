@@ -1,5 +1,7 @@
 #include "libca/net/dns.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <new>
@@ -32,8 +34,10 @@ io::IoError dns_error(int code, const std::string& host)
 #endif
     return io::IoError::from_kind(
         kind,
-        "DNS resolution failed for " + host + ": " +
-            (message == nullptr ? std::string("error ") + std::to_string(code) : message));
+        ca::str::format_std("DNS resolution failed for {}: {}",
+                            host,
+                            message == nullptr ? ca::str::format_std("error {}", code)
+                                               : std::string(message)));
 }
 
 struct AddressInfoDeleter

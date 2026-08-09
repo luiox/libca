@@ -2,6 +2,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 
 #include "libca/str/format.hpp"
 
@@ -42,6 +43,27 @@ TEST(FormatTest, returns_utf8string_with_correct_semantics) {
     // move 语义：通过 move 构造新对象
     Utf8String moved = std::move(s);
     EXPECT_STREQ(moved.c_str(), "x=42");
+}
+
+// ============================================================
+// format_std —— 编译期校验，返回 std::string（不校验 UTF-8）
+// ============================================================
+
+TEST(FormatStdTest, returns_std_string) {
+    auto s = format_std("port={}", 8080);
+    static_assert(std::is_same<decltype(s), std::string>::value,
+                  "format_std must return std::string");
+    EXPECT_EQ(s, "port=8080");
+}
+
+TEST(FormatStdTest, multiple_args) {
+    auto s = format_std("{}, {}!", "hello", "world");
+    EXPECT_EQ(s, "hello, world!");
+}
+
+TEST(FormatStdTest, empty_format) {
+    auto s = format_std("");
+    EXPECT_TRUE(s.empty());
 }
 
 TEST(FormatTest, various_types) {

@@ -3,6 +3,7 @@
 #include "libca/ini/ini_document.hpp"
 #include "libca/ini/parse_error.hpp"
 #include "libca/ini/source_location.hpp"
+#include "libca/str/format.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -257,7 +258,7 @@ ca::Result<IniDocument, ParseError> IniReader::read(
                 ParseError err;
                 err.location = SourceLocation{line_number, 1};
                 err.message = ca::str::Utf8String::from_cstr(
-                    ("duplicate section: " + current_section).c_str());
+                    ca::str::format_std("duplicate section: {}", current_section).c_str());
                 return ca::Err(std::move(err));
             }
             seen_sections[current_section] = true;
@@ -272,7 +273,7 @@ ca::Result<IniDocument, ParseError> IniReader::read(
                 ParseError err;
                 err.location = SourceLocation{line_number, 1};
                 err.message = ca::str::Utf8String::from_cstr(
-                    ("duplicate key '" + key_str + "' in section: " + sec).c_str());
+                    ca::str::format_std("duplicate key '{}' in section: {}", key_str, sec).c_str());
                 return ca::Err(std::move(err));
             }
             seen_keys[sec][key_str] = true;
@@ -295,7 +296,7 @@ ca::Result<IniDocument, ParseError> IniReader::read_file(
         ParseError err;
         err.location = SourceLocation{};
         err.message = ca::str::Utf8String::from_cstr(
-            ("failed to open INI file: " + path_str).c_str());
+            ca::str::format_std("failed to open INI file: {}", path_str).c_str());
         return ca::Err(std::move(err));
     }
     std::ostringstream buffer;

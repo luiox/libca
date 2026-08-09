@@ -1,6 +1,7 @@
 #include "libca/csv/csv_writer.hpp"
 
 #include "libca/str/conversion.hpp"
+#include "libca/str/format.hpp"
 
 #include <fstream>
 #include <ostream>
@@ -120,13 +121,13 @@ ca::Result<void, ca::str::Utf8String> CsvWriter::write_file(
     std::ofstream output(path_str, std::ios::binary | std::ios::trunc);
     if (!output.is_open()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("failed to open CSV file for writing: " + path_str).c_str()));
+            ca::str::format_std("failed to open CSV file for writing: {}", path_str).c_str()));
     }
 
     write_to_stream(output, document, options);
     if (!output.good()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("failed to write CSV file: " + path_str).c_str()));
+            ca::str::format_std("failed to write CSV file: {}", path_str).c_str()));
     }
     return ca::Ok();
 }

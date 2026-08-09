@@ -1,5 +1,7 @@
 #include "libca/opt/opt.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <set>
 #include <sstream>
 #include <utility>
@@ -29,18 +31,19 @@ bool build_lookup(const Command& cmd, Lookup& out, std::string& err)
             return false;
         }
         if (arg.required && arg.has_value && !arg.default_value.empty()) {
-            err = "required option --" + arg.name +
-                  " cannot have a default_value (default makes required check never trigger)";
+            err = ca::str::format_std(
+                "required option --{} cannot have a default_value (default makes required check never trigger)",
+                arg.name);
             return false;
         }
         if (!seen_long.insert(arg.name).second) {
-            err = "duplicate long option: --" + arg.name;
+            err = ca::str::format_std("duplicate long option: --{}", arg.name);
             return false;
         }
         out.by_long[arg.name] = &arg;
         if (arg.short_name != 0) {
             if (!seen_short.insert(arg.short_name).second) {
-                err = std::string("duplicate short option: -") + arg.short_name;
+                err = ca::str::format_std("duplicate short option: -{}", arg.short_name);
                 return false;
             }
             out.by_short[arg.short_name] = &arg;
@@ -178,7 +181,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             if (it == lookup.by_long.end()) {
                 return ca::core::Err(ca::core::ErrStatus(
                     ca::core::StatusCode::INVALID_ARGUMENT,
-                    "unknown option: --" + body));
+                    ca::str::format_std("unknown option: --{}", body)));
             }
             const Arg* arg = it->second;
 
@@ -190,7 +193,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                     if (i + 1 >= argc) {
                         return ca::core::Err(ca::core::ErrStatus(
                             ca::core::StatusCode::INVALID_ARGUMENT,
-                            "option --" + body + " requires a value"));
+                            ca::str::format_std("option --{} requires a value", body)));
                     }
                     result.values_[arg->name] = argv[++i];
                 }
@@ -199,7 +202,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                 if (has_inline) {
                     return ca::core::Err(ca::core::ErrStatus(
                         ca::core::StatusCode::INVALID_ARGUMENT,
-                        "option --" + body + " does not take a value"));
+                        ca::str::format_std("option --{} does not take a value", body)));
                 }
                 result.values_[arg->name] = "true";
             }
@@ -214,7 +217,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             if (it == lookup.by_short.end()) {
                 return ca::core::Err(ca::core::ErrStatus(
                     ca::core::StatusCode::INVALID_ARGUMENT,
-                    std::string("unknown option: -") + short_char));
+                    ca::str::format_std("unknown option: -{}", short_char)));
             }
             const Arg* arg = it->second;
 
@@ -227,7 +230,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                     if (i + 1 >= argc) {
                         return ca::core::Err(ca::core::ErrStatus(
                             ca::core::StatusCode::INVALID_ARGUMENT,
-                            std::string("option -") + short_char + " requires a value"));
+                            ca::str::format_std("option -{} requires a value", short_char)));
                     }
                     result.values_[arg->name] = argv[++i];
                 }
@@ -241,13 +244,14 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                         if (fit == lookup.by_short.end()) {
                             return ca::core::Err(ca::core::ErrStatus(
                                 ca::core::StatusCode::INVALID_ARGUMENT,
-                                std::string("unknown option: -") + ch));
+                                ca::str::format_std("unknown option: -{}", ch)));
                         }
                         if (fit->second->has_value) {
                             return ca::core::Err(ca::core::ErrStatus(
                                 ca::core::StatusCode::INVALID_ARGUMENT,
-                                std::string("option -") + ch +
-                                    " takes a value; cannot combine in -" + token.substr(1)));
+                                ca::str::format_std(
+                                    "option -{} takes a value; cannot combine in -{}", ch,
+                                    token.substr(1))));
                         }
                         result.values_[fit->second->name] = "true";
                     }
@@ -268,7 +272,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                 if (arg.required && !result.has(arg.name)) {
                     return ca::core::Err(ca::core::ErrStatus(
                         ca::core::StatusCode::INVALID_ARGUMENT,
-                        "missing required option: --" + arg.name));
+                        ca::str::format_std("missing required option: --{}", arg.name)));
                 }
             }
             current = sub;
@@ -296,7 +300,7 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
         if (arg.required && !result.has(arg.name)) {
             return ca::core::Err(ca::core::ErrStatus(
                 ca::core::StatusCode::INVALID_ARGUMENT,
-                "missing required option: --" + arg.name));
+                ca::str::format_std("missing required option: --{}", arg.name)));
         }
     }
 

@@ -1,5 +1,7 @@
 #include "libca/xml/xml_parser.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <cstring>
 #include <string>
 
@@ -332,8 +334,7 @@ bool XmlParser::parse_attributes(XmlNode& element) {
 
         if (element.has_attribute(name)) {
             const std::string msg =
-                "duplicate attribute '" +
-                std::string(reinterpret_cast<const char*>(name.data()), name.byte_length()) + "'";
+                ca::str::format_std("duplicate attribute '{}'", name);
             fail_str(name_loc, msg);
             return false;
         }
@@ -454,12 +455,8 @@ bool XmlParser::parse_end_tag(const ca::str::Utf8StringRef& expected_name) {
     }
     advance();
     if (name != expected_name) {
-        const std::string msg =
-            "mismatched closing tag: expected </" +
-            std::string(reinterpret_cast<const char*>(expected_name.data()),
-                        expected_name.byte_length()) +
-            ">, got </" +
-            std::string(reinterpret_cast<const char*>(name.data()), name.byte_length()) + ">";
+        const std::string msg = ca::str::format_std(
+            "mismatched closing tag: expected </{}>, got </{}>", expected_name, name);
         fail_str(loc, msg);
         return false;
     }
@@ -558,8 +555,9 @@ bool XmlParser::parse_reference(ca::str::Utf8StringBuilder& out) {
     else if (ent == "apos") decoded = '\'';
     else if (ent == "quot") decoded = '"';
     else {
-        const std::string msg = "unknown entity reference '&" + std::string(ent) +
-                                ";' (custom entities/DTD not supported)";
+        const std::string msg =
+            ca::str::format_std("unknown entity reference '&{};' (custom entities/DTD not supported)",
+                                ent);
         fail_str(amp_loc, msg);
         return false;
     }

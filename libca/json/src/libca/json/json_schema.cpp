@@ -7,6 +7,8 @@
 
 #include "libca/json/json_schema.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <string>
 #include <string_view>
@@ -98,8 +100,9 @@ Result<void, SchemaError> check_type(const JsonValue& instance, const JsonValue&
     if (type_keyword.is_string()) {
         if (!match_one(type_keyword.as_string())) {
             record(errors, instance_path, schema_path,
-                   std::string("expected ") + to_std(type_keyword.as_string()) +
-                       ", got " + type_name(instance.type()));
+                   ca::str::format_std("expected {}, got {}",
+                                       type_keyword.as_string(),
+                                       type_name(instance.type())));
         }
         return Ok();
     }
@@ -263,7 +266,7 @@ Result<void, SchemaError> validate_node(const JsonValue& instance, const JsonVal
         std::string bad;
         if (!validate_type_keyword_shape(*t, bad)) {
             return Err(SchemaError{to_owning(join_path(schema_path, "type")),
-                                   owning(("unknown type value: " + bad).c_str())});
+                                   owning(ca::str::format_std("unknown type value: {}", bad).c_str())});
         }
         auto r = check_type(instance, *t, instance_path, join_path(schema_path, "type"), errors);
         if (r.is_err()) return r;

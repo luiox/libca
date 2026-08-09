@@ -52,6 +52,21 @@ inline Utf8String format(fmt::format_string<Args...> fmt_str, Args&&... args)
     return Utf8String(reinterpret_cast<const u8*>(tmp.data()), tmp.size());
 }
 
+/// @brief 编译期校验的 `{}`-style 格式化，返回 std::string（不校验 UTF-8）。
+/// @param fmt_str 格式串（字面量，编译期校验）。
+/// @param args    被格式化的参数。
+/// @return 格式化后的 std::string。
+/// @note 给 std::string 世界（opt/io/env 等模块内部）使用；不校验 UTF-8。
+///       若需 UTF-8 保证，用返回 Utf8String 的 format()。
+///       命名用 format_std 与返回 Utf8String 的 format 区分，避免重载二义。
+template<typename... Args>
+inline std::string format_std(fmt::format_string<Args...> fmt_str, Args&&... args)
+{
+    std::string out;
+    fmt::vformat_to(std::back_inserter(out), fmt_str, fmt::make_format_args(args...));
+    return out;
+}
+
 /// @brief 追加格式化到 Utf8StringBuilder（不立即校验，build() 时统一校验）。
 /// @param out     目标 builder，原内容保留，结果追加到末尾。
 /// @param fmt_str 格式串（编译期校验）。
