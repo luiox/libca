@@ -1,4 +1,11 @@
 /* Auto-migrated from src/em_log/log.c test blocks */
+/* _GNU_SOURCE 必须在所有系统头之前定义：strdup/pthread 等扩展函数在 strict c99 下
+   需它才被 <string.h>/<pthread.h> 暴露。放在文件中间（include 之后）会导致这些函数
+   隐式声明（返回 int 截断指针 → SIGSEGV）。*/
+#ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#endif
+
 #include "log.h"
 #include <em_dstream/ring_buffer.h>
 #include <em_platform/async.h>
@@ -51,12 +58,16 @@ static void test_backend_output(log_backend_t* b, const log_record_t* rec)
 }
 
 // 使用一个线程加随机数模拟时间更新
+// 用 g_time_thread_stop 标志让线程优雅退出，避免 pthread_cancel/TerminateThread
+// 在持锁/IO 中途杀线程引发的未定义行为（Linux CI 曾因此 SIGSEGV）。
+static volatile int g_time_thread_stop = 0;
+
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h>
 static void __cdecl log_time_update_thread(void* arg) {
     (void)arg;
-    while (1) {
+    while (!g_time_thread_stop) {
         time_update_tick_ms(10);
         Sleep(10);
     }
@@ -68,7 +79,7 @@ static void __cdecl log_time_update_thread(void* arg) {
 static void* log_time_update_thread(void* arg) {
     (void)arg;
     struct timespec ts = {0, 10 * 1000000}; /* 10ms */
-    while (1) {
+    while (!g_time_thread_stop) {
         time_update_tick_ms(10);
         nanosleep(&ts, NULL);
     }
@@ -113,6 +124,7 @@ TEST_CASE(log_time_provider)
     srand((unsigned)time(NULL));
     time_set_us_provider((time_get_fn_t)test_us_provider);
 
+    g_time_thread_stop = 0;
 #ifdef _WIN32
     HANDLE th = (HANDLE)_beginthread(log_time_update_thread, 0, NULL);
     /* 等待线程运行一会 */
@@ -134,11 +146,12 @@ TEST_CASE(log_time_provider)
     TEST_ASSERT_INT_WITHIN(0, 999, (int)test_time_us);
     TEST_ASSERT_TRUE(test_time_sec >= 0);
 
-    /* 停止更新时间线程 */
+    /* 优雅停止时间线程：置标志 + join，避免 cancel/terminate 杀持锁线程 */
+    g_time_thread_stop = 1;
 #ifdef _WIN32
-    TerminateThread(th, 0);
+    WaitForSingleObject(th, 5000);
+    CloseHandle(th);
 #else
-    pthread_cancel(th);
     pthread_join(th, NULL);
 #endif
 }
