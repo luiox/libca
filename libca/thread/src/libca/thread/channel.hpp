@@ -20,6 +20,15 @@
 
 namespace ca::thread {
 
+// 前向声明：Sender 的 friend 引用了 Receiver 与 channel()，g++ 要求它们在此前已声明。
+// 默认实参只能在一份声明上给出，故在此处给出，末尾定义不再重复。
+template<typename T>
+class Receiver;
+template<typename T>
+class Sender;
+template<typename T>
+std::pair<Sender<T>, Receiver<T>> channel(usize capacity = 0);
+
 namespace detail {
 
 template<typename T>
@@ -271,7 +280,7 @@ private:
 /// @param capacity 缓冲容量；0 表示无界（仅受内存限制），>0 表示有界（满时 send 阻塞）。
 /// @return (Sender, Receiver)。第一个 Sender 的生产者计数已初始化为 1。
 template<typename T>
-std::pair<Sender<T>, Receiver<T>> channel(usize capacity = 0)
+std::pair<Sender<T>, Receiver<T>> channel(usize capacity)
 {
     auto state = std::make_shared<detail::ChannelState<T>>(capacity);
     state->sender_count = 1;
