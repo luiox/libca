@@ -23,13 +23,21 @@ bool build_lookup(const Command& cmd, Lookup& out, std::string& err)
     std::set<std::string> seen_long;
     std::set<char>        seen_short;
     for (const Arg& arg : cmd.args) {
-        if (!arg.name.empty()) {
-            if (!seen_long.insert(arg.name).second) {
-                err = "duplicate long option: --" + arg.name;
-                return false;
-            }
-            out.by_long[arg.name] = &arg;
+        // name 是 has()/get() 取值的唯一 key，必须非空（短名选项也需提供长名）。
+        if (arg.name.empty()) {
+            err = "option with empty name is not allowed (short_name-only needs a long name as key)";
+            return false;
         }
+        if (arg.required && arg.has_value && !arg.default_value.empty()) {
+            err = "required option --" + arg.name +
+                  " cannot have a default_value (default makes required check never trigger)";
+            return false;
+        }
+        if (!seen_long.insert(arg.name).second) {
+            err = "duplicate long option: --" + arg.name;
+            return false;
+        }
+        out.by_long[arg.name] = &arg;
         if (arg.short_name != 0) {
             if (!seen_short.insert(arg.short_name).second) {
                 err = std::string("duplicate short option: -") + arg.short_name;
@@ -65,8 +73,7 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
                 oss << '-' << arg.short_name << ", ";
             else
                 oss << "    ";
-            if (!arg.name.empty())
-                oss << "--" << arg.name;
+            oss << "--" << arg.name;
             if (arg.has_value)
                 oss << " <value>";
             oss << "\n      " << arg.help;
@@ -255,6 +262,15 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
 
         // 非选项 token：子命令分派。
         if (const Command* sub = find_subcommand(*current, token)) {
+            // 切换到子命令前，先对父命令做 required 校验：根命令的 required 不能
+            // 因为进入子命令而被静默跳过。
+            for (const Arg& arg : current->args) {
+                if (arg.required && !result.has(arg.name)) {
+                    return ca::core::Err(ca::core::ErrStatus(
+                        ca::core::StatusCode::INVALID_ARGUMENT,
+                        "missing required option: --" + arg.name));
+                }
+            }
             current = sub;
             path.push_back(sub->name);
             // 切换到子命令的选项表。

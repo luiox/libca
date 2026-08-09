@@ -209,11 +209,15 @@ public:
         if (state == nullptr)
             return std::nullopt;
 
-        std::lock_guard<std::mutex> lock(state->mutex);
-        if (state->items.empty())
-            return std::nullopt;
-        T value = std::move(state->items.front());
-        state->items.pop_front();
+        T value;
+        {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            if (state->items.empty())
+                return std::nullopt;
+            value = std::move(state->items.front());
+            state->items.pop_front();
+        }
+        // 与 recv/recv_timeout 一致：先释放锁再通知，避免被唤醒的生产者立刻阻塞在锁上。
         state->not_full.notify_one();
         return value;
     }

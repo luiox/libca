@@ -333,5 +333,83 @@ TEST(OptParseTest, FlagGivenInlineValueIsError)
     EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
 }
 
+// name 是 has()/get() 的唯一 key，必须非空；空 name 在 parse 时报错。
+TEST(OptParseTest, EmptyNameIsRejected)
+{
+    Command root;
+    root.name = "prog";
+    Arg a;
+    a.short_name = 'v';
+    a.name       = "";  // 空 name，仅短名 —— 应被拒绝
+    root.args    = {a};
+    Parser p(root);
+    Argv argv = make_argv({"-v"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+}
+
+// required 与 default_value 互斥：有默认值时 required 永不触发，应在 parse 时报错。
+TEST(OptParseTest, RequiredWithDefaultIsRejected)
+{
+    Command root;
+    root.name = "prog";
+    // has_value + default_value + required 同时为真 —— 语义矛盾，应拒绝。
+    root.args = {opt("cfg", 'c', "config", "default.ini", true)};
+    Parser p(root);
+    Argv argv = make_argv({"-c", "x.ini"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_NE(r.unwrap_err().message().find("default_value"), std::string::npos);
+}
+
+// 根命令定义了 required 选项，用户直接进入子命令而未提供该 required 时应报错
+// （修复"根级 required 在子命令分派后被静默跳过"的回归）。
+TEST(OptParseTest, RootRequiredNotSkippedWhenEnteringSubcommand)
+{
+    Command root;
+    root.name = "git";
+    root.args = {opt("repo", 'r', "repo path", "", true)};  // 根级 required
+    Command commit;
+    commit.name = "commit";
+    commit.args = {opt("message", 'm', "msg")};
+    root.subcommands = {commit};
+
+    Parser p(root);
+    // 进入 commit 但没提供根级 -r，应报根级 required 缺失。
+    Argv argv = make_argv({"commit", "-m", "hello"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_NE(r.unwrap_err().message().find("repo"), std::string::npos);
+}
+
+// 根级 required 与子命令同时满足时应正常解析。
+TEST(OptParseTest, RootRequiredAndSubcommandBothSatisfied)
+{
+    Command root;
+    root.name = "git";
+    root.args = {opt("repo", 'r', "repo path", "", true)};
+    Command commit;
+    commit.name = "commit";
+    commit.args = {opt("message", 'm', "msg")};
+    root.subcommands = {commit};
+
+    Parser p(root);
+    Argv argv = make_argv({"-r", "/p", "commit", "-m", "hi"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    auto result = r.unwrap();
+    EXPECT_EQ(result.get("repo"), "/p");
+    EXPECT_EQ(result.get("message"), "hi");
+    ASSERT_EQ(result.subcommand_path().size(), 1u);
+    EXPECT_EQ(result.subcommand_path()[0], "commit");
+}
+
 }  // namespace
 }  // namespace ca::opt::test

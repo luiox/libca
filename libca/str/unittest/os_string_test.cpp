@@ -35,15 +35,18 @@ TEST(OsStringTest, EmptyString)
 TEST(OsStringTest, WideStringZeroCopyInterop)
 {
     std::wstring original = L"path/to/file";
-    OsString     os       = OsString::from_wstring(std::wstring(original));
+    const wchar_t* src_ptr = original.data();
+    OsString     os       = OsString::from_wstring(std::move(original));
 
-    // as_wide 返回的视图应与原数据一致。
+    // as_wide 返回的视图应与原数据一致，且指针稳定（move 而非 copy）。
     std::wstring_view view = os.as_wide();
-    EXPECT_EQ(view, original);
+    EXPECT_EQ(view, std::wstring_view(src_ptr));
+    EXPECT_EQ(view.data(), src_ptr);
 
-    // into_wstring 取回所有权。
+    // into_wstring 取回所有权，指针仍指向原缓冲（零拷贝）。
     std::wstring taken = os.into_wstring();
-    EXPECT_EQ(taken, original);
+    EXPECT_EQ(taken.data(), src_ptr);
+    EXPECT_EQ(taken, std::wstring_view(src_ptr));
 }
 
 // 验收标准：Windows 上含中文往返无损。
@@ -61,14 +64,6 @@ TEST(OsStringTest, ChineseRoundtripViaUtf16)
 
     Utf8String back = os.to_utf8_lossy();
     EXPECT_EQ(static_cast<std::string_view>(back), std::string_view(utf8_in));
-}
-
-TEST(OsStringTest, FromUtf8LossyReplacesInvalid)
-{
-    // 非法 UTF-8 序列（孤立的续字节），不应抛异常。
-    EXPECT_NO_THROW({
-        OsString os = OsString::from_utf8_lossy(std::string_view("\xff\xfe", 2));
-    });
 }
 
 TEST(OsStringTest, FromUtf8StrictThrowsOnInvalid)
@@ -107,6 +102,24 @@ TEST(OsStringTest, ChineseRoundtripNativeUtf8)
 }
 
 #endif
+
+// from_utf8_lossy 在所有平台都应把非法字节替换为 U+FFFD，合法部分原样保留。
+TEST(OsStringTest, FromUtf8LossyReplacesInvalid)
+{
+    // 合法 ASCII 后跟两个孤立高位字节（非法）。
+    OsString os = OsString::from_utf8_lossy(std::string_view("ab\xff\xfe", 4));
+    Utf8String back = os.to_utf8_lossy();
+    std::string_view out(back);
+    // "ab" 保留，两个非法字节各替换为一个 U+FFFD（0xEF 0xBF 0xBD）。
+    EXPECT_EQ(out, std::string_view("ab\xef\xbf\xbd\xef\xbf\xbd", 8));
+}
+
+// from_utf8_lossy 对合法 UTF-8 应原样往返。
+TEST(OsStringTest, FromUtf8LossyPreservesValid)
+{
+    OsString os = OsString::from_utf8_lossy(std::string_view("hello"));
+    EXPECT_EQ(static_cast<std::string_view>(os.to_utf8_lossy()), "hello");
+}
 
 TEST(OsStringTest, MoveSemantics)
 {

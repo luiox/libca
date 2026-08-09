@@ -75,8 +75,8 @@ private:
 /// @brief 线程安全的延迟初始化容器。
 ///
 /// 多线程并发 `get_or_init` 时只有一个线程执行 factory，其余线程阻塞等待结果。
-/// factory 必须是可重复调用安全的（实现不保证取消未中选的 factory 调用，但保证
-/// 最终只缓存一个值）。可用于全局单例，规避 static initialization order fiasco。
+/// 实现全程持锁，保证 factory **恰好执行一次**，调用方无需担心 factory 被重复调用。
+/// 可用于全局单例，规避 static initialization order fiasco。
 template<typename T>
 class OnceLock
 {

@@ -102,7 +102,7 @@ public:
     // ── 跨平台显式编码转换（有开销） ──
 
     /// @brief 转换为 UTF-8 字符串（Windows 上做 UTF-16→UTF-8 编码转换）。
-    /// @throws std::runtime_error 遇到非法 UTF-16 序列时。
+    /// @note 遇到非法序列（如未配对代理）用替换字符 U+FFFD 替代，不抛异常。
     Utf8String to_utf8_lossy() const;
 
     /// @brief 从 UTF-8 字节构造（Windows 上做 UTF-8→UTF-16 编码转换）。

@@ -236,7 +236,11 @@ std::string temp_dir()
         tmp = std::getenv("TEMP");
     if (tmp == nullptr)
         tmp = "/tmp";
-    return std::string(tmp);
+    std::string result(tmp);
+    // 去掉末尾分隔符，与 Windows 分支及 hpp 文档承诺（末尾不含分隔符）保持一致。
+    while (!result.empty() && result.back() == '/')
+        result.pop_back();
+    return result;
 #endif
 }
 
@@ -311,7 +315,7 @@ std::string os_version()
     }
     return std::string();
 #elif defined(__linux__)
-    // 解析 /etc/os-release 的 VERSION_ID（如 "22.04"）或 VERSION（含 BUILD_ID）。
+    // 解析 /etc/os-release 的 VERSION_ID（如 "22.04"）。
     std::FILE* fp = std::fopen("/etc/os-release", "r");
     if (fp == nullptr)
         return std::string();

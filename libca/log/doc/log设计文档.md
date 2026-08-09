@@ -62,7 +62,7 @@ ILogBackend 实现（后端只 include logger.hpp，零 fmt 依赖）
 > 擦除了参数名（只剩位置/类型），后端无法反推 `{name}` 对应的字段名。要结构化日志需另开
 > KV 宏 API，不在本次范围。
 
-## 4. LoggerRegistry —— 按分发的竞态根治
+## 4. LoggerRegistry —— 按 target 分发的竞态根治
 
 旧设计的单一全局 `g_logger_ptr`（裸指针）+ `g_logger_holder`（shared_ptr）被并发 set/get，
 存在"holder 已析构、ptr 仍指向"的窗口期。新设计用 **按 target 的注册表** 取代：
