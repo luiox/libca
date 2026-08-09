@@ -1,5 +1,7 @@
 #include "libca/process/ipc.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -47,8 +49,9 @@ std::intptr_t to_native(HANDLE value)
 Status windows_error(const char* operation)
 {
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed with Windows error " +
-                         std::to_string(static_cast<unsigned long>(GetLastError())));
+                     ca::str::format_std("{} failed with Windows error {}",
+                                         operation,
+                                         static_cast<unsigned long>(GetLastError())));
 }
 
 StatusResult<std::wstring> utf8_to_utf16(const std::string& value)
@@ -100,7 +103,7 @@ int to_fd(std::intptr_t value)
 Status posix_error(const char* operation)
 {
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed: " + std::strerror(errno));
+                     ca::str::format_std("{} failed: {}", operation, std::strerror(errno)));
 }
 
 // POSIX 命名管道在 Linux 上回退为 AF_UNIX socket：把简单名字映射到 /tmp 下
@@ -111,7 +114,7 @@ StatusResult<std::string> unix_socket_path(const std::string& name)
     if (name.empty() || name.find('/') != std::string::npos)
         return Err(
             ErrStatus(StatusCode::INVALID_ARGUMENT, "named pipe name must be a simple token"));
-    const std::string path = "/tmp/libca_process_" + name + ".sock";
+    const std::string path = ca::str::format_std("/tmp/libca_process_{}.sock", name);
     if (path.size() >= sizeof(sockaddr_un{}.sun_path))
         return Err(ErrStatus(StatusCode::INVALID_ARGUMENT, "named pipe name is too long"));
     return Ok(path);
@@ -124,7 +127,7 @@ StatusResult<std::string> posix_shared_memory_name(const std::string& name)
     if (name.empty() || name.find('/') != std::string::npos)
         return Err(
             ErrStatus(StatusCode::INVALID_ARGUMENT, "shared memory name must be a simple token"));
-    return Ok("/libca_process_" + name);
+    return Ok(ca::str::format_std("/libca_process_{}", name));
 }
 #endif
 

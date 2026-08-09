@@ -1,3 +1,9 @@
+// format.hpp 必须在 subprocess.hpp 之前：subprocess.hpp 会 undef windows.h 定义的
+// stdin/stdout/stderr 宏（这些宏会破坏本模块用作标识符的同名 API），但 fmt header-only
+// 模式下 format-inl.h 的 assert/异常路径引用全局 stderr/stdout。先 include format.hpp，
+// 让 fmt 头在 stderr 宏仍存在时完整展开（宏在展开点已正确解析），之后 undef 不影响已展开的 fmt 代码。
+#include "libca/str/format.hpp"
+
 #include "libca/process/subprocess.hpp"
 
 #include <algorithm>
@@ -42,18 +48,19 @@ Status system_error(const char* operation)
 {
 #if defined(_WIN32)
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed with Windows error " +
-                         std::to_string(static_cast<unsigned long>(GetLastError())));
+                     ca::str::format_std("{} failed with Windows error {}",
+                                         operation,
+                                         static_cast<unsigned long>(GetLastError())));
 #else
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed: " + std::strerror(errno));
+                     ca::str::format_std("{} failed: {}", operation, std::strerror(errno)));
 #endif
 }
 
 Status closed_error(const char* operation)
 {
     return ErrStatus(StatusCode::FAILED_PRECONDITION,
-                     std::string(operation) + " on a closed handle");
+                     ca::str::format_std("{} on a closed handle", operation));
 }
 
 #if defined(_WIN32)

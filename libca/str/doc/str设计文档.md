@@ -233,4 +233,31 @@ log 的 `OpaqueFormat` + `FmtArgsHolder`（Rust `format_args!` 的 C++ 翻版，
 设计保留不动，后端仍基于 `render_to(std::string&)`。本次只迁移 fmt 的依赖来源（从 log 私有
 改为 str public），不改 log 的格式化架构。日志内部若要 Utf8String 化，后续单独演进。
 
+### 9.6 windows.h 的 stdin/stdout/stderr 宏陷阱
+
+Windows UCRT 把 `stdin`/`stdout`/`stderr` 定义为**宏**（`corecrt_wstdio.h`:
+`#define stdout (__acrt_iob_func(1))`）。fmt header-only 模式（`FMT_HEADER_ONLY=1`，
+由 str 的 `add_requires("fmt", { configs = { header_only = true } })` 注入）会把
+`format-inl.h` 编进每个 include fmt 的 TU，其中 assert/异常路径引用全局 `stderr`/`stdout`。
+
+`libca.process` 的 `subprocess.hpp` 为了让自己的 API 用 `stdin`/`stdout`/`stderr` 作
+标识符（构造参数、成员），在头文件里 `#undef` 这三个宏。这会与 fmt 冲突——undef 后
+`stderr` 标识符彻底消失（Windows 上它只是宏，无底层 `FILE*` 变量），fmt 的
+`std::fprintf(stderr, ...)` 编译失败。
+
+**解法（include 顺序）**：在 `subprocess.cpp` 顶部、`subprocess.hpp`（含 undef）**之前**
+先 `#include "libca/str/format.hpp"`，让 fmt 头在 undef 之前完整展开。已展开的 fmt 代码
+不再受后续 undef 影响，而 undef 之后 subprocess 自己的代码仍能安全使用裸标识符。
+
+任何 `#undef stdin/stdout/stderr` 又要用 `ca::str::format` 的 TU 都适用此约束。
+
+### 9.7 format_std —— std::string 世界的门面
+
+下游模块（opt/io/env/http/net/process 等）的字符串类型是 `std::string`，不是 Utf8String。
+为避免这些模块用 format 时多一次 Utf8String→std::string 转换，门面提供 `format_std()`
+重载：返回 `std::string`、不校验 UTF-8，签名与 `format()` 一致。命名加 `_std` 后缀与返回
+Utf8String 的 `format()` 区分，避免重载二义。Utf8String 世界用 `format()`，
+std::string 世界用 `format_std()`。
+
+
 
