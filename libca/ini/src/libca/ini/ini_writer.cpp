@@ -1,5 +1,6 @@
 #include "libca/ini/ini_writer.hpp"
 
+#include "libca/str/format.hpp"
 #include "libca/str/utf8_string.hpp"
 
 #include <fstream>
@@ -39,14 +40,14 @@ ca::Result<void, ca::str::Utf8String> IniWriter::write_file(
     std::ofstream output(path_str, std::ios::binary | std::ios::trunc);
     if (!output.is_open()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("failed to open INI file for writing: " + path_str).c_str()));
+            ca::str::format_std("failed to open INI file for writing: {}", path_str).c_str()));
     }
     ca::str::Utf8String text = write(document, options);
     output.write(reinterpret_cast<const char*>(text.data()),
                  static_cast<std::streamsize>(text.byte_length()));
     if (!output.good()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("failed to write INI file: " + path_str).c_str()));
+            ca::str::format_std("failed to write INI file: {}", path_str).c_str()));
     }
     return ca::Ok();
 }

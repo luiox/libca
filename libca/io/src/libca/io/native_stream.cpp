@@ -1,5 +1,7 @@
 #include "libca/io/native_stream.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -21,7 +23,7 @@ namespace {
 IoError closed_stream_error(const char* operation)
 {
     return IoError::from_kind(IoErrorKind::InvalidInput,
-                              std::string(operation) + " on a closed NativeStream");
+                              ca::str::format_std("{} on a closed NativeStream", operation));
 }
 
 #if defined(_WIN32)

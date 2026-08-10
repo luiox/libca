@@ -1,5 +1,7 @@
 #include "libca/env/env.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -303,14 +305,10 @@ std::string os_version()
         auto rtl_get_version = reinterpret_cast<RtlGetVersionPtr>(
             GetProcAddress(ntdll, "RtlGetVersion"));
         if (rtl_get_version != nullptr && rtl_get_version(&info) == 0) {
-            char buf[64];
-            std::snprintf(buf,
-                          sizeof(buf),
-                          "%lu.%lu.%lu",
-                          static_cast<unsigned long>(info.dwMajorVersion),
-                          static_cast<unsigned long>(info.dwMinorVersion),
-                          static_cast<unsigned long>(info.dwBuildNumber));
-            return std::string(buf);
+            return ca::str::format_std("{}.{}.{}",
+                                       info.dwMajorVersion,
+                                       info.dwMinorVersion,
+                                       info.dwBuildNumber);
         }
     }
     return std::string();

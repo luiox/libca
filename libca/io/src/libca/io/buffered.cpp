@@ -1,5 +1,7 @@
 #include "libca/io/buffered.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <new>
@@ -11,7 +13,7 @@ namespace {
 IoError invalid_buffered_stream(const char* operation)
 {
     return IoError::from_kind(IoErrorKind::InvalidInput,
-                              std::string(operation) + " on an empty buffered stream");
+                              ca::str::format_std("{} on an empty buffered stream", operation));
 }
 
 IoError invalid_read_count()

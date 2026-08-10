@@ -4,7 +4,7 @@ target("libca_thread")
     add_files("src/libca/thread/*.cpp")
     add_headerfiles("src/(libca/thread/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core")
+    add_deps("libca_core", "libca_str")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})

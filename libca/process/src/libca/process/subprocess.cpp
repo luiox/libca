@@ -1,5 +1,9 @@
 #include "libca/process/subprocess.hpp"
 
+// subprocess.hpp 自身在 #undef stdin/stdout/stderr 之前已 include format.hpp，
+// 因此这里直接用 ca::str::format_std 不再受 include 顺序约束。
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
@@ -42,18 +46,19 @@ Status system_error(const char* operation)
 {
 #if defined(_WIN32)
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed with Windows error " +
-                         std::to_string(static_cast<unsigned long>(GetLastError())));
+                     ca::str::format_std("{} failed with Windows error {}",
+                                         operation,
+                                         static_cast<unsigned long>(GetLastError())));
 #else
     return ErrStatus(StatusCode::INTERNAL,
-                     std::string(operation) + " failed: " + std::strerror(errno));
+                     ca::str::format_std("{} failed: {}", operation, std::strerror(errno)));
 #endif
 }
 
 Status closed_error(const char* operation)
 {
     return ErrStatus(StatusCode::FAILED_PRECONDITION,
-                     std::string(operation) + " on a closed handle");
+                     ca::str::format_std("{} on a closed handle", operation));
 }
 
 #if defined(_WIN32)

@@ -25,6 +25,7 @@
 #    include <openssl/x509v3.h>
 
 #    include "libca/net/address.hpp"
+#    include "libca/str/format.hpp"
 
 namespace ca::http::detail {
 namespace {
@@ -83,7 +84,7 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
     const auto ssl_error = SSL_get_error(ssl, result);
     if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE)
         return io::IoError::from_kind(io::IoErrorKind::WouldBlock,
-                                      std::string(operation) + " would block");
+                                      ca::str::format_std("{} would block", operation));
     if (ssl_error == SSL_ERROR_SYSCALL) {
         const auto native_error = last_native_socket_error();
         if (native_error != 0)
@@ -91,9 +92,9 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
         const auto detail = openssl_error_message();
         if (!detail.empty())
             return io::IoError::from_kind(io::IoErrorKind::InvalidData,
-                                          std::string(operation) + " failed: " + detail);
+                                          ca::str::format_std("{} failed: {}", operation, detail));
         return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                      std::string(operation) + " reached an unclean TLS EOF");
+                                      ca::str::format_std("{} reached an unclean TLS EOF", operation));
     }
 #    if defined(SSL_R_UNEXPECTED_EOF_WHILE_READING)
     if (ssl_error == SSL_ERROR_SSL) {
@@ -102,14 +103,14 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
             ERR_GET_REASON(code) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
             ERR_clear_error();
             return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                          std::string(operation) + " reached an unclean TLS EOF");
+                                          ca::str::format_std("{} reached an unclean TLS EOF", operation));
         }
     }
 #    endif
 
     const auto detail  = openssl_error_message();
-    const auto message = detail.empty() ? std::string(operation) + " failed"
-                                        : std::string(operation) + " failed: " + detail;
+    const auto message = detail.empty() ? ca::str::format_std("{} failed", operation)
+                                        : ca::str::format_std("{} failed: {}", operation, detail);
     return io::IoError::from_kind(
         ssl_error == SSL_ERROR_SSL ? io::IoErrorKind::InvalidData : io::IoErrorKind::Other,
         message);
@@ -119,8 +120,8 @@ HttpError tls_configuration_error(const char* operation)
 {
     const auto detail = openssl_error_message();
     return HttpError::from_kind(HttpErrorKind::InvalidState,
-                                detail.empty() ? std::string(operation) + " failed"
-                                               : std::string(operation) + " failed: " + detail);
+                                detail.empty() ? ca::str::format_std("{} failed", operation)
+                                               : ca::str::format_std("{} failed: {}", operation, detail));
 }
 
 class OpenSslClientTransport final : public ClientTransport

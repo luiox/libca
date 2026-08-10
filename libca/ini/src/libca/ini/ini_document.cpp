@@ -1,5 +1,7 @@
 #include "libca/ini/ini_document.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
@@ -113,12 +115,12 @@ ca::Result<ca::str::Utf8StringRef, ca::str::Utf8String> IniDocument::get(
     auto section_it = key_index_.find(section);
     if (section_it == key_index_.end()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI section not found: " + to_std(section)).c_str()));
+            ca::str::format_std("INI section not found: {}", section).c_str()));
     }
     auto key_it = section_it->second.find(key);
     if (key_it == section_it->second.end()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI key not found: " + to_std(key)).c_str()));
+            ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     return ca::Ok(records_[key_it->second].line.value);
 }
@@ -162,7 +164,7 @@ ca::Result<ca::i64, ca::str::Utf8String> IniDocument::get_int(
     const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI key not found: " + to_std(key)).c_str()));
+            ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
     // strtoll 无异常（同 toml 解析器模式）：ERANGE、未整串消费、空串均判非法。
@@ -171,7 +173,7 @@ ca::Result<ca::i64, ca::str::Utf8String> IniDocument::get_int(
     const long long v = std::strtoll(s.c_str(), &end, 10);
     if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI value is not a valid integer: " + to_std(*value)).c_str()));
+            ca::str::format_std("INI value is not a valid integer: {}", *value).c_str()));
     }
     return ca::Ok(static_cast<ca::i64>(v));
 }
@@ -182,7 +184,7 @@ ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
     const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI key not found: " + to_std(key)).c_str()));
+            ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
     // strtod 无异常；溢出（ERANGE）与 stod 一致按非法处理。
@@ -191,7 +193,7 @@ ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
     const double v = std::strtod(s.c_str(), &end);
     if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI value is not a valid number: " + to_std(*value)).c_str()));
+            ca::str::format_std("INI value is not a valid number: {}", *value).c_str()));
     }
     return ca::Ok(static_cast<ca::f64>(v));
 }
@@ -202,13 +204,13 @@ ca::Result<bool, ca::str::Utf8String> IniDocument::get_bool(
     const ca::str::Utf8StringRef* value = find_value(section, key);
     if (value == nullptr) {
         return ca::Err(ca::str::Utf8String::from_cstr(
-            ("INI key not found: " + to_std(key)).c_str()));
+            ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     const std::string s = ascii_lower(strip_quotes_to_std(*value));
     if (s == "true" || s == "yes" || s == "on" || s == "1") return ca::Ok(true);
     if (s == "false" || s == "no" || s == "off" || s == "0") return ca::Ok(false);
     return ca::Err(ca::str::Utf8String::from_cstr(
-        ("INI value is not a valid boolean: " + to_std(*value)).c_str()));
+        ca::str::format_std("INI value is not a valid boolean: {}", *value).c_str()));
 }
 
 // ============================================================================

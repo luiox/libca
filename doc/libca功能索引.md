@@ -41,6 +41,7 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/str/conversion.hpp>`
 - `<libca/str/string_util.hpp>`
 - `<libca/str/char_util.hpp>`
+- `<libca/str/format.hpp>`
 
 功能：
 - `Utf8String`：拥有所有权的 UTF-8 字符串，移动语义，显式 `clone()`。
@@ -49,6 +50,7 @@ UTF-8 字符串与所有权模型模块。
 - `Utf8StringArena`：批量分配、整体释放的字符串 arena。
 - `Utf8StringPool`：引用计数式字符串池。
 - `Utf8StringBuilder`：可变构建器，用于多次追加后生成字符串。
+- `format` / `format_to` / `format_runtime`：基于 fmt 的 `{}`-style 格式化门面，返回 `Utf8String` 或追加到 builder/std::string（对标 Rust `format!`）。fmt 以 str 的 public 依赖提供，下游模块通过 `add_deps("libca_str")` 间接拿到。
 - C 字符串、宽字符串、编码转换、字符分类和字符串工具函数。
 
 设计文档：

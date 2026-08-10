@@ -1,5 +1,7 @@
 #include "libca/net/socket.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <cerrno>
 #include <cstring>
 #include <limits>
@@ -349,14 +351,14 @@ io::IoResult<bool> get_bool_option(RawSocket socket, int level, int option, cons
 io::IoError closed_socket_error(const char* operation)
 {
     return io::IoError::from_kind(io::IoErrorKind::InvalidInput,
-                                  std::string(operation) + " on a closed socket");
+                                  ca::str::format_std("{} on a closed socket", operation));
 }
 
 io::IoError invalid_buffer_error(const char* operation)
 {
     return io::IoError::from_kind(
         io::IoErrorKind::InvalidInput,
-        std::string(operation) + " buffer must not be null when length is nonzero");
+        ca::str::format_std("{} buffer must not be null when length is nonzero", operation));
 }
 
 }   // namespace ca::net::detail

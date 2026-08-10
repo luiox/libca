@@ -19,3 +19,4 @@
 #include "utf8_string_pool.hpp"
 #include "utf8_twine.hpp"
 #include "os_string.hpp"
+#include "format.hpp"

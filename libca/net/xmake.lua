@@ -4,7 +4,7 @@ target("libca_net")
     add_files("src/libca/net/*.cpp")
     add_headerfiles("src/(libca/net/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_io")
+    add_deps("libca_io", "libca_str")
 
     if is_plat("windows") then
         add_syslinks("ws2_32")

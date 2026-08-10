@@ -1,5 +1,7 @@
 #include "libca/xml/xml_writer.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -215,14 +217,14 @@ ca::Result<void, ca::str::Utf8String> XmlWriter::write_file(const ca::str::Utf8S
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
     std::ofstream out(path_str, std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {
-        std::string msg = "failed to open XML file for writing: " + path_str;
-        return ca::Err(ca::str::Utf8String::from_cstr(msg.c_str()));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ca::str::format_std("failed to open XML file for writing: {}", path_str).c_str()));
     }
     out.write(reinterpret_cast<const char*>(text.data()),
               static_cast<std::streamsize>(text.byte_length()));
     if (!out.good()) {
-        std::string msg = "failed to write XML file: " + path_str;
-        return ca::Err(ca::str::Utf8String::from_cstr(msg.c_str()));
+        return ca::Err(ca::str::Utf8String::from_cstr(
+            ca::str::format_std("failed to write XML file: {}", path_str).c_str()));
     }
     return ca::Ok();
 }

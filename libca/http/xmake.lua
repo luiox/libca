@@ -6,7 +6,7 @@ target("libca_http")
     add_files("src/libca/http/*.cpp")
     add_headerfiles("src/(libca/http/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_net", "libca_thread")
+    add_deps("libca_net", "libca_thread", "libca_str")
 
     if has_config("with_openssl") then
         add_defines("LIBCA_HTTP_HAS_OPENSSL")

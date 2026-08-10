@@ -1,6 +1,7 @@
 #include "libca/io/error.hpp"
 
-#include <sstream>
+#include "libca/str/format.hpp"
+
 #include <utility>
 
 #if defined(_WIN32)
@@ -76,7 +77,7 @@ std::string native_error_message(i64 native_code)
         0,
         nullptr);
     if (length == 0 || message == nullptr)
-        return "Windows error " + std::to_string(native_code);
+        return ca::str::format_std("Windows error {}", native_code);
 
     std::string result(message, length);
     LocalFree(message);
@@ -198,7 +199,7 @@ IoError IoError::from_native_error(i64 native_code, std::string operation)
 {
     std::string message = native_error_message(native_code);
     if (!operation.empty())
-        message = std::move(operation) + " failed: " + message;
+        message = ca::str::format_std("{} failed: {}", operation, message);
     return IoError(classify_native_error(native_code), native_code, std::move(message));
 }
 
@@ -228,13 +229,12 @@ const std::string& IoError::message() const noexcept
 
 std::string IoError::to_string() const
 {
-    std::ostringstream output;
-    output << io_error_kind_name(kind_);
+    std::string output = io_error_kind_name(kind_);
     if (native_code_ != 0)
-        output << " (native " << native_code_ << ')';
+        ca::str::format_to(output, " (native {})", native_code_);
     if (!message_.empty())
-        output << ": " << message_;
-    return output.str();
+        ca::str::format_to(output, ": {}", message_);
+    return output;
 }
 
 ca::core::Status IoError::to_status() const

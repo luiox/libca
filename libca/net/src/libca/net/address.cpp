@@ -1,5 +1,7 @@
 #include "libca/net/address.hpp"
 
+#include "libca/str/format.hpp"
+
 #include <charconv>
 #include <cstring>
 #include <system_error>
@@ -101,7 +103,7 @@ io::IoResult<IpAddress> IpAddress::parse(const std::string& value)
         return ca::core::Ok(IpAddress(IpVersion::V6, octets));
 
     return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::InvalidInput,
-                                                "invalid IPv4 or IPv6 address: " + value));
+                                                ca::str::format_std("invalid IPv4 or IPv6 address: {}", value)));
 }
 
 IpVersion IpAddress::version() const noexcept
@@ -231,13 +233,11 @@ u32 SocketAddress::scope_id() const noexcept
 std::string SocketAddress::to_string() const
 {
     if (ip_.is_ipv4())
-        return ip_.to_string() + ':' + std::to_string(port_);
+        return ca::str::format_std("{}:{}", ip_.to_string(), port_);
 
-    std::string result = '[' + ip_.to_string();
     if (scope_id_ != 0)
-        result += '%' + std::to_string(scope_id_);
-    result += "]:" + std::to_string(port_);
-    return result;
+        return ca::str::format_std("[{}%{}]:{}", ip_.to_string(), scope_id_, port_);
+    return ca::str::format_std("[{}]:{}", ip_.to_string(), port_);
 }
 
 bool operator==(const SocketAddress& lhs, const SocketAddress& rhs) noexcept

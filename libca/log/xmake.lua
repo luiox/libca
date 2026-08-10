@@ -1,5 +1,5 @@
--- 门面宏依赖 fmt（header_only）。spdlog 后端由根 with_spdlog option 控制（默认 false）。
-add_requires("fmt", { configs = { header_only = true } })
+-- fmt（header_only）由 libca_str 以 public 依赖提供，log 通过 add_deps("libca_str") 间接拿到。
+-- spdlog 后端由根 with_spdlog option 控制（默认 false）。
 
 target("libca_log")
     set_kind("static")
@@ -8,8 +8,7 @@ target("libca_log")
     add_headerfiles("src/(libca/log/*.hpp)")
     add_headerfiles("src/(libca/log/detail/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core")
-    add_packages("fmt", {public = true})
+    add_deps("libca_core", "libca_str")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
@@ -55,7 +54,6 @@ target("libca_log_benchmark")
     set_group("libs/benchmark")
     add_deps("libca_log")
     add_links("libca_log", "libca_core")
-    add_packages("fmt")
     add_files("benchmark/*.cpp")
     add_includedirs("src")
     set_rundir("$(projectdir)")

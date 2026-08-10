@@ -1,6 +1,8 @@
 ---
-version: 1.2
+version: 1.4
 update:
+2026-08-10 - 9.6 节更新：stdin/stdout/stderr 宏陷阱的解法从 subprocess.cpp include 顺序改为约束内聚到 subprocess.hpp 内部，任何 include 顺序安全
+2026-08-09 - 新增格式化设施 format 章节（fmt 提升为 str public 依赖，提供 format/format_to/format_runtime 门面）
 2026-07-20 - 新增代码页转换工具章节（CharsetConverter，从 libca.core 迁移并去 iconv）
 2026-07-13 - 合并 str-spec.md 的设计性内容（所有权分层、Pool/Arena/Twine 选型与生命周期契约），删除逐接口清单
 2026-07-06 - 首版，补充 str 模块职责、UTF-8 类型族与 StringUtil 字节工具边界
@@ -11,7 +13,8 @@ update:
 > 本文讲 str 模块的架构、设计边界与选型。**具体接口签名与逐方法说明见各头文件的 Doxygen 注释**，
 > 本文不重复 API 清单。涉及的头文件：
 > `utf8_string.hpp`、`utf8_string_pool.hpp`、`utf8_string_arena.hpp`、`utf8_twine.hpp`、
-> `utf16_string.hpp`、`cstring.hpp`、`wstring.hpp`、`conversion.hpp`、`charset.hpp`、`char_util.hpp`、`string_util.hpp`。
+> `utf16_string.hpp`、`cstring.hpp`、`wstring.hpp`、`conversion.hpp`、`charset.hpp`、`char_util.hpp`、
+> `string_util.hpp`、`os_string.hpp`、`format.hpp`。
 
 ## 1. 模块定位
 
@@ -179,4 +182,87 @@ UTF-8 是 libca 的统一交换编码，但调用 Windows API（`CreateFileW`/`G
 `libca.fs` 当前以 UTF-8 `std::string` + `std::filesystem::u8path` 承载路径；OsString 提供
 了平台原生载体，后续可按需为其增加 PathUtil 重载。`libca.env` 在 Windows 上直接用 Win32
 API 做 UTF-8↔UTF-16，暂未依赖 OsString（保持系统层不跨层依赖 str）。
+
+## 9. 格式化设施 format
+
+`format.hpp` 提供基于 fmt 的 `{}`-style 格式化门面，对标 Rust `format!` / `format_args!`。
+fmt 是 C++20 `std::format` 的原型，API 几乎一致；用 fmt 等于在 C++17 上提前拿到标准设施，
+将来升 C++20 可平滑切到 `std::format`。
+
+### 9.1 为什么 fmt 挂在 str
+
+fmt 最初由 `libca.log`（L3）引入作为日志门面的格式化后端。但 fmt 是"基础设施级"的库——
+opt/env/io/http 等模块都有格式化需求（错误消息拼接、版本号、协议字段）。若 fmt 只挂在 log，
+其它模块要用就得跨层依赖 log，破坏 `spec` 的依赖分层（log 在 L3，不能被 L2/L3 同层模块依赖）。
+
+因此把 fmt 提升为 str 的 **public 依赖**：fmt 在 str（L1）声明，通过 `add_deps("libca_str")`
+向下游传递 include path。这样：
+
+- fmt 全库单一来源在 str/L1，分层干净（任何模块都可依赖 str）。
+- log 改为依赖 str 间接拿 fmt，删掉自己的 `add_requires("fmt")`。
+- 门面 `ca::str::format` 建立在 fmt 之上，对内封装第三方库（便于将来切 `std::format`），
+  对外提供围绕 Utf8String 类型族的一致接口。
+
+### 9.2 门面 API 与 UTF-8 校验契约
+
+| API | 行为 | 对标 |
+|---|---|---|
+| `format(fmt, args...)` → `Utf8String` | 编译期校验格式串，返回拥有型、已校验 UTF-8 | Rust `format!` |
+| `format_to(Utf8StringBuilder&, fmt, args...)` | 追加到 builder，build() 时统一校验 | `format_args!` + write |
+| `format_to(std::string&, fmt, args...)` | 追加到 std::string，不校验 UTF-8 | —— |
+| `format_runtime(fmt_str, args)` → `Utf8String` | 运行期格式串（无编译期校验） | `format!` 运行期等价 |
+
+**UTF-8 校验**：`format` / `format_runtime` 走 `Utf8String(const u8*, usize)` 构造，参数产出
+非法字节时抛 `std::runtime_error`，与 Utf8String 既有契约一致。`format_to(Utf8StringBuilder)`
+在最终 `build()` 时校验。`format_to(std::string)` 不校验，给日志后端/协议代码等字节级场景。
+
+### 9.3 formatter 特化
+
+fmt 12.x 不再自动识别 `operator std::string_view()` 的隐式转换，故 `format.hpp` 显式特化了
+`fmt::formatter<Utf8String>` / `fmt::formatter<Utf8StringRef>`，转发到 string_view 的 formatter
+（零拷贝）。特化放在 `namespace fmt`——这是标准库/第三方类型特化的合法位置。
+
+### 9.4 命名取舍：format_runtime 而非 vformat
+
+fmt 自身导出同签名的 `fmt::vformat(fmt::string_view, fmt::format_args)`。若本门面也叫
+`vformat`，用户 `using namespace ca::str` 后调用会与 `fmt::vformat` 经 ADL 产生二义。
+故运行期版本命名为 `format_runtime`，语义更清晰（运行期格式串）且避开冲突。
+
+### 9.5 与 log 的关系
+
+log 的 `OpaqueFormat` + `FmtArgsHolder`（Rust `format_args!` 的 C++ 翻版，view 语义、延迟渲染）
+设计保留不动，后端仍基于 `render_to(std::string&)`。本次只迁移 fmt 的依赖来源（从 log 私有
+改为 str public），不改 log 的格式化架构。日志内部若要 Utf8String 化，后续单独演进。
+
+### 9.6 windows.h 的 stdin/stdout/stderr 宏陷阱
+
+Windows UCRT 把 `stdin`/`stdout`/`stderr` 定义为**宏**（`corecrt_wstdio.h`:
+`#define stdout (__acrt_iob_func(1))`）。fmt header-only 模式（`FMT_HEADER_ONLY=1`，
+由 str 的 `add_requires("fmt", { configs = { header_only = true } })` 注入）会把
+`format-inl.h` 编进每个 include fmt 的 TU，其中 assert/异常路径引用全局 `stderr`/`stdout`。
+
+`libca.process` 的 `subprocess.hpp` 为了让自己的 API 用 `stdin`/`stdout`/`stderr` 作
+标识符（构造参数、成员），在头文件里 `#undef` 这三个宏。这会与 fmt 冲突——undef 后
+`stderr` 标识符彻底消失（Windows 上它只是宏，无底层 `FILE*` 变量），fmt 的
+`std::fprintf(stderr, ...)` 编译失败。
+
+**解法（约束内聚到头文件内）**：`subprocess.hpp` 自身在 `#undef stdin/stdout/stderr`
+**之前**先 `#include "libca/str/format.hpp"`，让 fmt 头在宏仍存在时完整展开。已展开的
+fmt 代码不再受后续 undef 影响，而 undef 之后 subprocess 自己的代码仍能安全使用裸标识符。
+由于约束在 `subprocess.hpp` 内部满足，**任何 include 顺序**（先 subprocess.hpp 或先
+format.hpp）都安全；`subprocess.cpp` 直接 `#include "libca/process/subprocess.hpp"` 即可，
+不再需要 .cpp 顶部先 include format.hpp 的临时解法。
+
+任何 `#undef stdin/stdout/stderr` 又要用 `ca::str::format` 的 TU 都适用此约束：
+在 undef 之前让 fmt 头完整展开。
+
+### 9.7 format_std —— std::string 世界的门面
+
+下游模块（opt/io/env/http/net/process 等）的字符串类型是 `std::string`，不是 Utf8String。
+为避免这些模块用 format 时多一次 Utf8String→std::string 转换，门面提供 `format_std()`
+重载：返回 `std::string`、不校验 UTF-8，签名与 `format()` 一致。命名加 `_std` 后缀与返回
+Utf8String 的 `format()` 区分，避免重载二义。Utf8String 世界用 `format()`，
+std::string 世界用 `format_std()`。
+
+
 
