@@ -29,6 +29,27 @@ struct CsvReaderOptions {
 
     /// @brief 是否修剪未加引号字段两侧的 ASCII 空白。
     bool trim_unquoted_space = false;
+
+    /// @brief 标准 CSV 预设（逗号分隔、双引号）。
+    /// @return 默认选项，等价于默认构造；提供此函数便于显式表达意图。
+    static CsvReaderOptions csv() { return CsvReaderOptions{}; }
+
+    /// @brief TSV 预设（Tab 分隔、双引号）。
+    /// @return delimiter 为 `\t` 的选项，其余字段保持默认。
+    static CsvReaderOptions tsv() {
+        CsvReaderOptions options{};
+        options.delimiter = '\t';
+        return options;
+    }
+
+    /// @brief 任意分隔符的 DSV 预设。
+    /// @param delimiter 字段分隔符（不能与引号字符相同）。
+    /// @return 使用指定分隔符的选项，其余字段保持默认。
+    static CsvReaderOptions delimited(char delimiter) {
+        CsvReaderOptions options{};
+        options.delimiter = delimiter;
+        return options;
+    }
 };
 
 /// @brief CSV Reader。

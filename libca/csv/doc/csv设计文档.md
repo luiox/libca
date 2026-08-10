@@ -1,6 +1,8 @@
 ---
-version: 1.3
+version: 1.4
 update:
+2026-08-10 - v1.4 新增 DSV 预设：CsvReaderOptions / CsvWriterOptions 各提供 csv()/tsv()/
+             delimited(char) 工厂方法，便于显式表达分隔符意图（TSV 等无需手改 delimiter）
 2026-07-19 - v1.3 迁移到 Arena 架构：CsvDocument 内嵌 Utf8StringArena，字段经 intern_raw
              入池存 Utf8StringRef（不校验 UTF-8，保留任意字节）
 2026-07-19 - v1.2 接入 ca::str：Reader 输入改 Utf8StringRef、Writer 输出改 Utf8String、
@@ -87,7 +89,7 @@ v1.3 这两点障碍已被解除：
 
 Reader 支持常见 RFC 4180 行为：
 
-- 逗号分隔字段。
+- 字段由可配置分隔符分隔（默认逗号）。
 - 双引号字段。
 - 字段内双引号用两个连续双引号表示。
 - 支持 CRLF、LF，以及 quoted field 内部换行。
@@ -99,7 +101,20 @@ Reader 支持常见 RFC 4180 行为：
 ## 写出策略
 
 Writer 默认只在必要时加引号。字段中包含分隔符、引号、换行，或者首尾有空格/制表符时，
-会自动加引号并转义字段内引号。行结束符默认是 `\n`，可以改为 `\r\n`。
+会自动加引号并转义字段内引号。分隔符默认是逗号，行结束符默认是 `\n`（可改为 `\r\n`）。
+
+## DSV 预设（v1.4）
+
+csv 模块本质是可配置分隔符的 DSV（delimiter-separated values）reader/writer，
+`CsvReaderOptions::delimiter` / `CsvWriterOptions::delimiter` 可设为任意字节。
+v1.4 起两侧各提供三个工厂方法，让常见分隔符的意图更显式、读写更易对齐：
+
+- `csv()`：标准 CSV（逗号分隔），等价于默认构造。
+- `tsv()`：Tab 分隔（`delimiter = '\t'`）。
+- `delimited(char)`：任意分隔符。
+
+预设只覆盖 `delimiter`，`quote`、`line_ending`、`validate_utf8` 等保持默认。
+读写双方需用同一预设才能 round-trip。分隔符与引号字符不能相同（reader 会在该情形返回错误）。
 
 ## 错误模型（v1.2）
 

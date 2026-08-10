@@ -38,6 +38,27 @@ struct CsvWriterOptions {
     ///          原始字节输出，字段中的非 UTF-8 字节原样保留。注意：不校验时码点数
     ///          length 取保守值（= 字节长度），按码点迭代行为不准。
     bool validate_utf8 = true;
+
+    /// @brief 标准 CSV 预设（逗号分隔、双引号）。
+    /// @return 默认选项，等价于默认构造；提供此函数便于显式表达意图。
+    static CsvWriterOptions csv() { return CsvWriterOptions{}; }
+
+    /// @brief TSV 预设（Tab 分隔、双引号）。
+    /// @return delimiter 为 `\t` 的选项，其余字段保持默认。
+    static CsvWriterOptions tsv() {
+        CsvWriterOptions options{};
+        options.delimiter = '\t';
+        return options;
+    }
+
+    /// @brief 任意分隔符的 DSV 预设。
+    /// @param delimiter 字段分隔符（不能与引号字符相同）。
+    /// @return 使用指定分隔符的选项，其余字段保持默认。
+    static CsvWriterOptions delimited(char delimiter) {
+        CsvWriterOptions options{};
+        options.delimiter = delimiter;
+        return options;
+    }
 };
 
 /// @brief CSV Writer。
