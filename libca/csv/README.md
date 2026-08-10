@@ -83,3 +83,21 @@ if (read_result.is_err()) {
 CsvReaderOptions options;
 options.trim_unquoted_space = true;
 ```
+
+## 处理 TSV / 任意分隔符（DSV）
+
+csv 模块本质是可配置分隔符的 DSV reader/writer，分隔符与引号字符都在 options 里。除手动改
+`delimiter` 外，也可以用预设工厂方法，意图更清晰：
+
+```cpp
+// TSV（Tab 分隔），读写预设要对齐
+auto text = CsvWriter::write(document, CsvWriterOptions::tsv());
+auto doc = CsvReader::read(input, CsvReaderOptions::tsv()).unwrap();
+
+// 任意分隔符，如管道符
+auto ropt = CsvReaderOptions::delimited('|');
+auto wopt = CsvWriterOptions::delimited('|');
+```
+
+预设只覆盖 `delimiter`（`csv()` 等价于默认构造），`quote`、`line_ending`、`validate_utf8`
+等其余字段保持默认。reader 和 writer 各有 `csv()` / `tsv()` / `delimited(char)` 三组。
