@@ -66,13 +66,19 @@ L3  业务 / 上层
 | **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
 | **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
 | **json** / **toml** | JSON / TOML DOM、解析与写出 | `json.hpp`、`toml.hpp` | `ca::json` / `ca::toml` | 主线 | `json/doc/json设计文档.md` / `toml/doc/toml设计文档.md` |
+| **xml** / **yaml** | XML / YAML 配置子集读写 | `xml.hpp`、`yaml.hpp` | `ca::xml` / `ca::yaml` | 主线 | `xml/doc/xml设计文档.md` / `yaml/doc/yaml设计文档.md` |
 | **io** | Reader/Writer、buffer 与 native stream 抽象 | `io.hpp`、`reader.hpp`、`writer.hpp` | `ca::io` | 主线 | `libca/io/doc/design.md` |
 | **net** / **http** | Socket/DNS/TCP/UDP 与 HTTP client/server | `net.hpp`、`http.hpp` | `ca::net` / `ca::http` | 主线 | `net/doc/design.md` / `http/doc/design.md` |
 | **ui** | Win32 窗口、控件、消息框与防截屏 | `ui.hpp`、`window.hpp`、`capture_guard.hpp` | `ca::ui` | 可用（Windows） | `libca/ui/doc/ui设计文档.md` |
-| opt / reflect / zip | 规划中 | — | — | **空** | — |
-| log / utility | 有代码但**未接入构建** | — | — | 暂勿依赖 | — |
+| **env** | 环境变量读写 | `env.hpp` | `ca::env` | 可用 | — |
+| **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
+| **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
+| **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 可用 | — |
+| reflect / zip | 规划中 | — | — | **空** | — |
+| **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
+| utility | 有代码但**未接入构建**（`BitsUitl`，文件名拼写待修正） | — | — | 暂勿依赖 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / json / csv / toml / ui）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / json / csv / toml / xml / yaml / env / random / uuid / opt / log / ui）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定
