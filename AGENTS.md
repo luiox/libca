@@ -75,6 +75,8 @@ em.add_libs(target, {
 })  -- 必须显式列出所有依赖，表内顺序无关
 ```
 
+- `add_libs` 也支持单模块形式：`em.add_libs(target, "em_base", opts)`
+
 ## 禁止事项（em 系列）
 
 - 禁止 C++ 语法和 `#pragma once`（头文件保护用 `项目名_路径_文件名_H`）

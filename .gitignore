@@ -26,3 +26,10 @@ mcp/GDB-MCP/
 /build-em-msvc
 /build-install-stage
 /build-msvc
+
+# IDE / 个人配置（不入库）
+.idea/
+.vscode/
+.codebuddy/
+.agent/
+mcp/mcp.txt

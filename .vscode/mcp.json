@@ -1,9 +1,0 @@
-{
-  "servers": {
-    "my-mcp-server-db89eee1": {
-        "type": "stdio",
-        "command": "/home/canrad/libca/mcp/GDB-MCP/.venv/bin/python",
-        "args": ["/home/canrad/libca/mcp/GDB-MCP/server.py"]
-    }
-  }
-}
