@@ -1,0 +1,50 @@
+name: Periodic Format
+
+# 定期一次性格式化（不阻塞常规 PR/CI）：
+# 每月 1 日自动跑一次 clang-format，有改动则开 PR 到 main，人工确认后合入。
+on:
+  schedule:
+    - cron: "0 2 1 * *"   # 每月 1 日 02:00 UTC
+  workflow_dispatch:       # 也支持手动触发
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Format source
+        run: bash tools/format.sh
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No formatting changes."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open formatting PR
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          branch="chore/periodic-format-$(date +%Y%m)"
+          git checkout -b "$branch"
+          git add -A
+          git commit -m "[global] chore: 定期 clang-format 格式化"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore: 定期 clang-format 格式化" \
+            --body "由周期任务自动生成；若无实质改动可直接关闭。"
