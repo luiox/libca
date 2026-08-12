@@ -74,9 +74,9 @@ L3  业务 / 上层
 | **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
 | **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
 | **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 可用 | — |
-| reflect / zip | 规划中 | — | — | **空** | — |
+| zip | 规划中 | — | — | **空** | — |
 | **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
-| utility | 有代码但**未接入构建**（`BitsUitl`，文件名拼写待修正） | — | — | 暂勿依赖 | — |
+| utility / reflect | 历史遗留，**已归档**（`doc/legacy/utility` / `doc/legacy/reflect`） | — | — | 归档 | — |
 
 > 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / json / csv / toml / xml / yaml / env / random / uuid / opt / log / ui）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
@@ -94,4 +94,5 @@ libca/<mod>/
 ```
 
 头文件包含路径用安装形式：`#include <libca/<mod>/xxx.hpp>`。
+
 

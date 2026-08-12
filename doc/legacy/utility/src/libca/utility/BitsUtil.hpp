@@ -4,7 +4,7 @@
 #include <cstdint>
 
 namespace ca {
-class BitsUitl
+class BitsUtil
 {
 public:
     static int32_t lowbit(int32_t x);
@@ -12,3 +12,4 @@ public:
 }   // namespace ca
 
 #endif   // !LIBCA_UTILITY_BITS_H
+

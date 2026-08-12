@@ -17,7 +17,7 @@
 
 ## 建议落点
 
-`libca/utility`（已存在，目前只有 `BitsUitl`），或新建 `libca/archive`。
+`libca/utility`（历史遗留，已归档到 `doc/legacy/utility`，仅有 `BitsUtil`），或新建 `libca/archive`。
 命名空间 `ca::utility` 或 `ca::archive`。
 
 ## 设计要点
@@ -45,3 +45,4 @@
 
 - 本提案不规定精确 API 签名，留给具体设计阶段决定。
 - 是否需要 gzip / tar / 7z 等其他格式待讨论。
+

@@ -466,8 +466,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 ## 暂未作为主线使用的代码
 
-- `libca/log/`、`libca/utility/`：有代码但未接入 `libca/xmake.lua`，使用前先确认是否要纳入主线。
-- `libca/opt/`、`libca/reflect/`：规划或实验性质，使用前先看当前代码状态。
+- libca/log/：已接入构建（spdlog 后端可选，见根 xmake.lua 的 with_spdlog）。
+- libca/utility/、libca/reflect/：历史遗留，已归档到 doc/legacy/，不再维护。
+- `libca/opt/`：已实现并接入构建（命令行选项解析）。
 
 > 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
 > 代码页转换）和 `libca/ui`（Win32 GUI）。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
@@ -476,3 +477,4 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 ## 变更策略
 
 libca 不维护单独的接口冻结清单，也不承诺严格长期 API/ABI 兼容。项目会尽量减少无意义的破坏性改动；当接口设计、错误模型、所有权语义或模块边界需要调整时，可以进行不兼容变更，并应在 README、CHANGELOG 或相关模块文档中说明影响和迁移方式。
+
