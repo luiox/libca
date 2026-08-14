@@ -40,7 +40,7 @@ void set_console_color(Level level, FILE* fp)
     case Level::Debug:    attr = FOREGROUND_GREEN | FOREGROUND_BLUE; break;               // 青
     case Level::Info:     attr = FOREGROUND_GREEN; break;                                 // 绿
     case Level::Warn:     attr = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY; break;  // 黄
-    case Level::Error:    attr = FOREGROUND_RED | FOREGROUND_INTENSITY; break;            // 亮红
+    case Level::Error_:    attr = FOREGROUND_RED | FOREGROUND_INTENSITY; break;            // 亮红
     case Level::Critical: attr = BACKGROUND_RED | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY; break;  // 红底
     case Level::Off: break;
     }
@@ -69,7 +69,7 @@ const char* ansi_color(Level level)
     case Level::Debug:    return "\033[36m";   // 青
     case Level::Info:     return "\033[32m";   // 绿
     case Level::Warn:     return "\033[33m";   // 黄
-    case Level::Error:    return "\033[1;31m"; // 亮红
+    case Level::Error_:    return "\033[1;31m"; // 亮红
     case Level::Critical: return "\033[41;1;37m";  // 红底白字
     case Level::Off:      return "";
     }

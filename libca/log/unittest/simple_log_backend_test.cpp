@@ -102,7 +102,7 @@ TEST(SimpleLogBackendTest, TargetCanBeHidden)
     cfg.show_target   = false;
 
     SimpleLogBackend backend(cfg);
-    backend.log(Level::Error, "secret", "y.cpp", 7, LiteralFormat("fail"));
+    backend.log(Level::Error_, "secret", "y.cpp", 7, LiteralFormat("fail"));
 
     std::string content = read_file(tmp.path());
     EXPECT_EQ(content.find("[secret]"), std::string::npos);
@@ -121,7 +121,7 @@ TEST(SimpleLogBackendTest, AppendsMultipleLines)
 
     SimpleLogBackend backend(cfg);
     backend.log(Level::Info, "t", "f", 1, LiteralFormat("first"));
-    backend.log(Level::Error, "t", "f", 2, LiteralFormat("second"));
+    backend.log(Level::Error_, "t", "f", 2, LiteralFormat("second"));
 
     std::string content = read_file(tmp.path());
     SCOPED_TRACE("file content: [" + content + "]");

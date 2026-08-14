@@ -56,7 +56,7 @@ TEST(SpdlogBackendTest, AllLevelsMapped)
     backend->log(Level::Debug, "t", "f", 1, LiteralFormat("D"));
     backend->log(Level::Info, "t", "f", 1, LiteralFormat("I"));
     backend->log(Level::Warn, "t", "f", 1, LiteralFormat("W"));
-    backend->log(Level::Error, "t", "f", 1, LiteralFormat("E"));
+    backend->log(Level::Error_, "t", "f", 1, LiteralFormat("E"));
     backend->log(Level::Critical, "t", "f", 1, LiteralFormat("C"));
 
     std::string text = out.str();

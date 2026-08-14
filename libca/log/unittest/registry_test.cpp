@@ -86,13 +86,13 @@ TEST(RegistryTest, DifferentTargetsIndependent)
     LoggerRegistry::register_logger("a", a);
     LoggerRegistry::register_logger("b", b);
 
-    a->set_level(Level::Error);
+    a->set_level(Level::Error_);
     b->set_level(Level::Trace);
 
-    EXPECT_EQ(a->level(), Level::Error);
+    EXPECT_EQ(a->level(), Level::Error_);
     EXPECT_EQ(b->level(), Level::Trace);
     // 互不影响
-    EXPECT_EQ(LoggerRegistry::get("a")->level(), Level::Error);
+    EXPECT_EQ(LoggerRegistry::get("a")->level(), Level::Error_);
     EXPECT_EQ(LoggerRegistry::get("b")->level(), Level::Trace);
 }
 

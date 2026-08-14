@@ -32,7 +32,7 @@ TEST(LoggerTest, ShouldLogRespectsLevel)
     EXPECT_FALSE(logger.should_log(Level::Trace));
     EXPECT_FALSE(logger.should_log(Level::Info));
     EXPECT_TRUE(logger.should_log(Level::Warn));
-    EXPECT_TRUE(logger.should_log(Level::Error));
+    EXPECT_TRUE(logger.should_log(Level::Error_));
 }
 
 TEST(LoggerTest, NoBackendNeverLogs)
@@ -97,7 +97,7 @@ TEST(LoggerMacroTest, RuntimeLevelFiltersAtLogger)
     RegistryGuard guard;
     auto backend = std::make_shared<CaptureBackend>();
     auto logger  = std::make_shared<Logger>(backend);
-    logger->set_level(Level::Error);
+    logger->set_level(Level::Error_);
     LoggerRegistry::register_logger("default", logger);
 
     CA_LOG_INFO("filtered out");
