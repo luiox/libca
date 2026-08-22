@@ -46,6 +46,18 @@ u32 crc32_ieee_fast(const void* data, usize size)
     return crc ^ 0xFFFFFFFFU;
 }
 
+// ex版本，用于滚动计算：先把上次最终值还原为内部状态，算完再做终态异或
+u32 crc32_ieee_ex(const void* data, usize size, u32 previous_crc)
+{
+    u32 crc = previous_crc ^ 0xFFFFFFFFU;
+    const u8* p = (const u8*)data;
+
+    for (usize i = 0; i < size; i++) {
+        crc = g_crc32_ieee_table[(crc ^ (u32)p[i]) & 0xFF] ^ (crc >> 8);
+    }
+    return crc ^ 0xFFFFFFFFU;
+}
+
 // CRC-32/IEEE 802.3 朴素实现
 u32 crc32_ieee(const void* data, usize size)
 {
