@@ -38,9 +38,10 @@ Argv make_argv(const std::vector<std::string>& args)
 Arg flag(std::string name, char short_name, std::string help = "")
 {
     Arg a;
-    a.name       = std::move(name);
-    a.short_name = short_name;
-    a.help       = std::move(help);
+    a.name    = std::move(name);
+    a.kind    = OptKind::Flag;
+    a.help    = std::move(help);
+    if (short_name != 0) a.aliases = {std::string("-") + short_name};
     return a;
 }
 
@@ -49,9 +50,9 @@ Arg opt(std::string name, char short_name, std::string help = "", std::string de
 {
     Arg a;
     a.name          = std::move(name);
-    a.short_name    = short_name;
+    a.kind          = OptKind::String;
     a.help          = std::move(help);
-    a.has_value     = true;
+    if (short_name != 0) a.aliases = {std::string("-") + short_name};
     a.default_value = std::move(defv);
     a.required      = required;
     return a;
@@ -254,18 +255,21 @@ TEST(OptParseTest, NestedSubcommands)
     EXPECT_EQ(result.get("name"), "origin");
 }
 
-// 验收标准：-- 正确截断选项解析。
+// 验收标准：-- 正确截断选项解析；-- 之后的 token 收集进 positionals()（v2 行为）。
 TEST(OptParseTest, DoubleDashTerminatesOptions)
 {
     Parser p(make_root_with_options());
-    // --verbose 出现，-- 之后的内容不解析为选项。
-    Argv argv = make_argv({"--verbose", "--", "--output", "should-not-be-parsed"});
+    // --verbose 出现，-- 之后的内容不解析为选项，而是全部进入位置参数。
+    Argv argv = make_argv({"--verbose", "--", "--output", "plain.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
     auto result = r.unwrap();
     EXPECT_TRUE(result.has("verbose"));
-    EXPECT_FALSE(result.has("output"));  // 在 -- 之后，被当作位置参数忽略
+    EXPECT_FALSE(result.has("output"));  // 在 -- 之后，不再解析为选项
+    ASSERT_EQ(result.positionals().size(), 2u);
+    EXPECT_EQ(result.positionals()[0], "--output");
+    EXPECT_EQ(result.positionals()[1], "plain.txt");
 }
 
 // 验收标准：--help 输出格式化帮助文本。
@@ -339,9 +343,10 @@ TEST(OptParseTest, EmptyNameIsRejected)
     Command root;
     root.name = "prog";
     Arg a;
-    a.short_name = 'v';
-    a.name       = "";  // 空 name，仅短名 —— 应被拒绝
-    root.args    = {a};
+    a.aliases = {"-v"};
+    a.name    = "";  // 空 name，仅别名 —— 应被拒绝
+    a.kind    = OptKind::Flag;
+    root.args = {a};
     Parser p(root);
     Argv argv = make_argv({"-v"});
 
@@ -409,6 +414,180 @@ TEST(OptParseTest, RootRequiredAndSubcommandBothSatisfied)
     EXPECT_EQ(result.get("message"), "hi");
     ASSERT_EQ(result.subcommand_path().size(), 1u);
     EXPECT_EQ(result.subcommand_path()[0], "commit");
+}
+
+// ==========================================================================
+// v2 P0：位置参数、类型化、多别名、重复语义、带默认取值
+// ==========================================================================
+
+// 声明 Positional 后，裸 token 按顺序收集；与选项混排不冲突。
+TEST(OptV2Test, PositionalCollectedInOrder)
+{
+    Arg positional;
+    positional.name = "pattern";
+    positional.kind = OptKind::Positional;
+    positional.help = "search pattern";
+
+    Arg case_flag;
+    case_flag.name = "ignore-case";
+    case_flag.kind = OptKind::Flag;
+
+    Command root;
+    root.name = "grep";
+    root.args = {positional, case_flag};
+
+    Parser p(root);
+    Argv argv = make_argv({"hello", "--ignore-case", "world"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    auto result = r.unwrap();
+    ASSERT_EQ(result.positionals().size(), 2u);
+    EXPECT_EQ(result.positionals()[0], "hello");
+    EXPECT_EQ(result.positionals()[1], "world");
+    EXPECT_TRUE(result.has("ignore-case"));
+}
+
+// 未声明 Positional 时的多余裸 token：报错而非静默丢弃（v2 行为变更）。
+TEST(OptV2Test, UnexpectedPositionalIsError)
+{
+    Parser p(make_root_with_options());
+    Argv argv = make_argv({"stray"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_NE(r.unwrap_err().message().find("unexpected argument"), std::string::npos);
+}
+
+// 多别名（含短名）：任意别名命中同一 canonical key。
+TEST(OptV2Test, AliasedOptionCanonicalKey)
+{
+    Arg input;
+    input.name    = "input";
+    input.aliases = {"-i", "--in"};
+    input.kind    = OptKind::String;
+    input.help    = "input file";
+
+    Command root;
+    root.name = "prog";
+    root.args = {input};
+
+    // 短别名
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-i", "a.jar"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        EXPECT_EQ(r.unwrap().get("input"), "a.jar");
+    }
+    // 长别名
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--in=b.jar"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        EXPECT_EQ(r.unwrap().get("input"), "b.jar");
+    }
+}
+
+// Int 类型化：合法值 get_int 取回；非法整数在 parse 阶段报错。
+TEST(OptV2Test, IntTypeValidAndInvalid)
+{
+    Arg timeout;
+    timeout.name = "timeout";
+    timeout.kind = OptKind::Int;
+    timeout.help = "seconds";
+
+    Command root;
+    root.name = "prog";
+    root.args = {timeout};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout", "120"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        EXPECT_EQ(r.unwrap().get_int("timeout"), 120);
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout=12abc"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_NE(r.unwrap_err().message().find("expects an integer"), std::string::npos);
+    }
+    // 负数与溢出边界
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout", "-5"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        EXPECT_EQ(r.unwrap().get_int("timeout"), -5);
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout", "99999999999999"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+    }
+}
+
+// StringList：逗号拆分与多次出现追加，按序合并。
+TEST(OptV2Test, StringListCommaAndRepeated)
+{
+    Arg pass;
+    pass.name    = "define";
+    pass.aliases = {"-D"};
+    pass.kind    = OptKind::StringList;
+    pass.help    = "defines";
+
+    Command root;
+    root.name = "prog";
+    root.args = {pass};
+
+    Parser p(root);
+    Argv argv = make_argv({"--define=A,B", "-DC"});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    auto list = r.unwrap().get_list("define");
+    ASSERT_EQ(list.size(), 3u);
+    EXPECT_EQ(list[0], "A");
+    EXPECT_EQ(list[1], "B");
+    EXPECT_EQ(list[2], "C");
+}
+
+// String last-wins；带默认的取值重载仅在未出现时生效。
+TEST(OptV2Test, LastWinsAndDefaultOverloads)
+{
+    Arg output;
+    output.name          = "output";
+    output.kind          = OptKind::String;
+    output.default_value = "out.bin";
+
+    Arg level;
+    level.name = "level";
+    level.kind = OptKind::Int;
+
+    Command root;
+    root.name = "prog";
+    root.args = {output, level};
+
+    Parser p(root);
+    Argv argv = make_argv({"--output", "a.bin", "--output", "b.bin"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    auto result = r.unwrap();
+
+    // last-wins
+    EXPECT_EQ(result.get("output"), "b.bin");
+    // get(name, def)：出现时返回实际值
+    EXPECT_EQ(result.get("output", "fallback"), "b.bin");
+    // 未出现的 Int 选项：get_int 返回调用方默认
+    EXPECT_EQ(result.get_int("level", 7), 7);
+    // String 默认值已预置：has() 为真且 get 返回默认
+    EXPECT_TRUE(result.has("output"));
 }
 
 }  // namespace

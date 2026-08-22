@@ -41,7 +41,8 @@ ca::opt 成为上述项目的共同地基：替代 mbase::ArgParser 的解析职
    改为收集到 `positionals()`；未声明任何 Positional 时报 UnexpectedArgument。
 2. **类型化选项**：`OptKind { Flag, String, Int, StringList, Positional }`；
    Int 非法时 InvalidInteger 错误。取值按 canonical 名。
-3. **多别名**：`names()` 列表（首个为 canonical），如 `{"--input", "-i"}`；
+3. **多别名**：`Arg::name` 是 canonical key 与存储 key；`aliases` 列表承载附加
+   token（含前缀完整书写），如 `name="input", aliases={"-i", "--in"}`。
    替代现有 short_name 单字段（迁移点）。
 4. **重复出现语义**：String/Int 默认 last-wins；StringList 追加（同时接受
    `--p A,B,C` 逗号拆分与多次出现）。
@@ -83,10 +84,11 @@ help 由剩余选项自动生成，无需同步两处文本。
 
 ## API 兼容性
 
-现有 `Arg{short_name}` 单短名字段与 `ParseResult::has/get` 字符串取值保留可用
-（作为 String 类型的退化形式）；`short_name` 标记 deprecated，迁移到 names() 列表。
-`StatusResult<ParseResult>` 外壳保留，ErrStatus.message 继续承载帮助文本或错误描述，
-新增 category 字段承载细粒度类别。不兼容点记入 CHANGELOG。
+该子库目前无下游用户，不做兼容层：`Arg::short_name` / `has_value` 旧字段在 P0 中
+直接移除，短名与多别名统一为 `aliases` 列表（canonical 名始终是 `name`），
+取值类型唯一由 `kind` 表达。`StatusResult<ParseResult>` 外壳保留，
+ErrStatus.message 继续承载帮助文本或错误描述，P1 新增 category 字段承载细粒度类别。
+破坏性变更记入 CHANGELOG。
 
 ## 实施阶段
 
