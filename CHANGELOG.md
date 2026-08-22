@@ -13,6 +13,18 @@
 
 ### libca
 
+- 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
+  `opt`（命令行选项解析）。
+- `str`：新增 `OsString`/`OsStr` 平台原生字符串；新增 `format`/`format_to`/`format_runtime`
+  格式化门面（fmt 转为 str 的 public 依赖，下游经 `add_deps("libca_str")` 间接获得）。
+- `thread`：新增 MPSC 通道 `channel`；新增 `OnceCell`/`OnceLock` 延迟初始化。
+- `csv`：新增 DSV 预设 `csv()` / `tsv()` / `delimited(char)`。
+- **log 模块重新设计**：门面/后端分离，fmt 依赖收敛到门面侧；`LoggerRegistry` 按 target
+  分发取代单一全局 logger；级别管理收归 `Logger`；新增零依赖 `SimpleLogBackend` 与可选
+  spdlog 后端。升级注意：旧 `set_global_logger` 全局接口移除，迁移到
+  `LoggerRegistry::register_logger` + `CA_LOG_*`/`CA_LOGT_*` 宏入口。
+- **不兼容改名**：`Level::Error` → `Level::Error_`，规避 Windows `wingdi.h` 的 `ERROR`
+  宏冲突；受影响代码需同步改名。
 - **[opt] v2 重写**：`Arg` 移除 `short_name` / `has_value` 旧字段，取值类型唯一由
   `kind`（Flag/String/Int/StringList/Positional）表达，短名与多别名统一为
   `aliases` 列表；新增位置参数收集（`positionals()`）、Int 类型化校验、StringList
