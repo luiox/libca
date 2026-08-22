@@ -1,5 +1,12 @@
 # 提案：opt v2（命令行解析器补齐）
 
+> **状态**：已实施（2026-08，`feat/opt-v2`）。落地记录与最终取舍见
+> `libca/opt/doc/opt设计文档.md`。与本文的差异点：
+> `parse()` 返回 `Result<ParseResult, ParseError>` 而非保留 StatusResult 外壳；
+> 互斥组为 `Command::mutex_groups` 结构体字段而非 `add_mutex_group` builder；
+> 错误类别新增 InvalidDefinition（定义期错误与输入错误分离）；
+> `CommandBuilder` 未实现（聚合初始化已够用）。
+
 ## 背景
 
 当前存在三套并行的 CLI 实现，能力互有长短、维护成本翻倍：
@@ -88,8 +95,8 @@ help 由剩余选项自动生成，无需同步两处文本。
 
 该子库目前无下游用户，不做兼容层：`Arg::short_name` / `has_value` 旧字段在 P0 中
 直接移除，短名与多别名统一为 `aliases` 列表（canonical 名始终是 `name`），
-取值类型唯一由 `kind` 表达。`StatusResult<ParseResult>` 外壳保留，
-ErrStatus.message 继续承载帮助文本或错误描述，P1 新增 category 字段承载细粒度类别。
+取值类型唯一由 `kind` 表达。P1 起 `parse()` 返回 `Result<ParseResult, ParseError>`
+（category + 出错选项名 + 现成描述），不再复用 StatusResult 外壳。
 破坏性变更记入 CHANGELOG。
 
 ## 实施阶段
