@@ -5,12 +5,14 @@
 #include <unordered_map>
 #include <vector>
 
+#include "libca/core/result.hpp"
 #include "libca/core/status.hpp"
 
 /// @file opt.hpp
 /// @brief 命令行选项解析器。支持短名(-v)/长名(--verbose)、--name value/--name=value、
 ///        类型化选项（Flag/String/Int/StringList/Positional）、多别名、required/default、
-///        子命令嵌套、--help 自动生成帮助、-- 终止符。命名空间 `ca::opt`。
+///        互斥组、选项分组渲染、自定义 usage、子命令嵌套、--help 自动生成帮助、-- 终止符。
+///        命名空间 `ca::opt`。
 ///
 /// 功能裁切（构建期裁掉选项组）通过条件注册自然实现：未注册的名字走 UnknownOption
 /// 路径 fail-closed，help 由剩余选项自动生成。
@@ -47,6 +49,9 @@ struct Arg
     std::string metavar;
     /// 帮助文本。
     std::string help;
+    /// 可选分组标签。同标签的选项在 help 中归入同一小节（标签即节标题）；
+    /// 为空时归入默认 "Options:" 节。
+    std::string group;
     /// 是否必填。必填选项缺失时 parse 返回错误。
     /// @note required 仅对 String/Int/StringList 生效；与 default_value 互斥：
     ///       有默认值意味着 has() 恒为真，required 校验将永远不触发。
@@ -54,6 +59,57 @@ struct Arg
     /// 带值选项的默认值；选项未出现且 kind 为 String/Int 时生效。
     std::string default_value;
 };
+
+/// @brief 互斥组：组内选项至多出现一个；required 时至少出现一个。
+struct MutexGroup
+{
+    /// 组内成员的 Arg::name（canonical key）列表，必须指向当前 Command 已注册的选项。
+    std::vector<std::string> names;
+    /// true 时整组一个都没出现报 MissingRequired 类错误。
+    bool required{false};
+};
+
+/// @brief 解析错误细分类别。文案与 i18n 归调用方；message 仅提供现成英文描述。
+enum class ParseErrorCategory
+{
+    /// 用户请求帮助（--help/-h）。message 承载完整帮助文本，arg 为空。
+    HelpRequested,
+    /// 未注册的选项名。
+    UnknownOption,
+    /// 带值选项缺值（位于参数末尾）。
+    MissingValue,
+    /// 带值选项收到空值（--name= 或相邻空串）。
+    EmptyValue,
+    /// 多余的非选项 token（未声明 Positional 也非子命令），或 Flag 选项被赋予值。
+    UnexpectedArgument,
+    /// required 选项 / required 互斥组缺失。
+    MissingRequired,
+    /// Int 选项收到非法整数或越界值。
+    InvalidInteger,
+    /// 互斥组内多于一个成员出现。
+    MutexConflict,
+    /// required 互斥组的成员一个都没出现。
+    MutexRequired,
+    /// 命令定义非法（如互斥组引用未注册的名字、required 与 default 并存）。
+    InvalidDefinition,
+};
+
+/// @brief 解析错误：类别 + 出错选项 canonical 名 + 现成英文描述。
+struct ParseError
+{
+    ParseErrorCategory category{};
+    /// 出错选项 canonical 名（不含 --）。不针对单一选项时为空；
+    /// UnexpectedArgument 时承载多余的裸 token。
+    std::string option;
+    /// 现成描述文本。HelpRequested 时为完整帮助文本；其余场景可直接打印，
+    /// 也可由调用方按 category 自行格式化后丢弃。
+    std::string message;
+};
+
+/// @brief 错误类别到通用状态码的桥接（供仍以 Status 为边界的调用方使用）。
+///        HelpRequested -> CANCELLED；InvalidDefinition -> FAILED_PRECONDITION；
+///        其余 -> INVALID_ARGUMENT。
+StatusCode to_status_code(ParseErrorCategory category) noexcept;
 
 /// @brief 命令/子命令定义。根命令与子命令共用此结构。
 struct Command
@@ -64,8 +120,13 @@ struct Command
     std::string help;
     /// 该命令接受的选项。
     std::vector<Arg> args;
+    /// 互斥组约束（作用于本命令的选项）。
+    std::vector<MutexGroup> mutex_groups;
     /// 子命令列表。遇到非选项 token 时优先按子命令名分派。
     std::vector<Command> subcommands;
+    /// 自定义 usage 行（不含 "Usage: " 前缀，如 "git [-C <path>] <command> ..."）。
+    /// 为空时按选项/位置参数/子命令自动生成。
+    std::string usage;
 };
 
 /// @brief 解析结果。
@@ -119,11 +180,10 @@ public:
     explicit Parser(Command root);
 
     /// @brief 解析命令行参数。
-    /// @return 成功返回 ParseResult；遇非法选项/必填缺失/--help 时返回 ErrStatus。
-    ///         --help 返回的 ErrStatus code 为 CANCELLED（用户请求帮助、中止正常流程），
-    ///         message 为格式化的帮助文本，便于上层打印并退出；与真正的解析错误
-    ///         （INVALID_ARGUMENT）区分。
-    ca::core::StatusResult<ParseResult> parse(int argc, const char* const argv[]);
+    /// @return 成功返回 ParseResult；失败返回 ParseError（category + 出错选项 + 描述）。
+    ///         --help/-h 返回 category = HelpRequested，message 为格式化的完整帮助文本，
+    ///         便于上层打印并退出；与真正的解析错误区分。
+    ca::core::Result<ParseResult, ParseError> parse(int argc, const char* const argv[]);
 
 private:
     Command root_;
