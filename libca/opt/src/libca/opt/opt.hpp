@@ -11,11 +11,17 @@
 /// @file opt.hpp
 /// @brief 命令行选项解析器。支持短名(-v)/长名(--verbose)、--name value/--name=value、
 ///        类型化选项（Flag/String/Int/StringList/Positional）、多别名、required/default、
-///        互斥组、选项分组渲染、自定义 usage、子命令嵌套、--help 自动生成帮助、-- 终止符。
-///        命名空间 `ca::opt`。
+///        互斥组、选项分组渲染、自定义 usage、初始值注入（default < 注入初值 < 命令行）、
+///        子命令嵌套、--help 自动生成帮助、-- 终止符。命名空间 `ca::opt`。
+///
+/// 错误以 ParseErrorCategory 类别 + 出错选项名表达，文案与 i18n 归调用方；
+/// 配置文件解析与 schema dump 不进库：前者经初值注入接入，后者基于 root()
+/// 元数据只读访问在下游自建。
 ///
 /// 功能裁切（构建期裁掉选项组）通过条件注册自然实现：未注册的名字走 UnknownOption
 /// 路径 fail-closed，help 由剩余选项自动生成。
+///
+/// 设计与取舍详见 `libca/opt/doc/opt设计文档.md`。
 namespace ca::opt {
 
 /// @brief 选项取值类型。
