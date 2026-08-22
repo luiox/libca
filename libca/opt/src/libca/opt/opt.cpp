@@ -2,6 +2,8 @@
 
 #include "libca/str/format.hpp"
 
+#include <cerrno>
+#include <cstdlib>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -10,82 +12,152 @@ namespace ca::opt {
 
 namespace {
 
-using ArgPtr = const Arg*;
-
-// 为单个 command 建立长名/短名查找表。重复名视为错误（返回 nullptr 表示冲突）。
+// 单个 command 的选项匹配视图：token（含前缀的完整写法）-> Arg。
 struct Lookup
 {
-    std::unordered_map<std::string, ArgPtr> by_long;
-    std::unordered_map<char, ArgPtr>        by_short;
+    std::unordered_map<std::string, const Arg*> by_token;
 };
 
-// 构建查找表；返回是否成功（名字冲突则失败，错误写入 err）。
-bool build_lookup(const Command& cmd, Lookup& out, std::string& err)
+// 该 kind 是否消费一个值。
+bool kind_takes_value(OptKind kind)
 {
-    std::set<std::string> seen_long;
-    std::set<char>        seen_short;
-    for (const Arg& arg : cmd.args) {
-        // name 是 has()/get() 取值的唯一 key，必须非空（短名选项也需提供长名）。
-        if (arg.name.empty()) {
-            err = "option with empty name is not allowed (short_name-only needs a long name as key)";
+    return kind == OptKind::String || kind == OptKind::Int || kind == OptKind::StringList;
+}
+
+// 收集一个 Arg 的全部命令行 token：长名 + 别名。别名必须以 '-' 开头。
+bool collect_tokens(const Arg& arg, std::vector<std::string>& tokens, std::string& err)
+{
+    tokens.clear();
+    tokens.push_back("--" + arg.name);
+    for (const auto& alias : arg.aliases) {
+        if (alias.size() < 2 || alias[0] != '-') {
+            err = ca::str::format_std("alias '{}' of option --{} must start with '-'", alias,
+                                      arg.name);
             return false;
         }
-        if (arg.required && arg.has_value && !arg.default_value.empty()) {
+        tokens.push_back(alias);
+    }
+    return true;
+}
+
+// 构建当前 command 的 token 查找表；名字冲突或配置非法则失败（错误写入 err）。
+bool build_lookup(const Command& cmd, Lookup& out, std::string& err)
+{
+    std::set<std::string> seen_tokens;
+    for (const Arg& arg : cmd.args) {
+        // name 是 has()/get() 取值的唯一 key，必须非空。
+        if (arg.name.empty()) {
+            err = "option with empty name is not allowed";
+            return false;
+        }
+        if (arg.required && kind_takes_value(arg.kind) && !arg.default_value.empty()) {
             err = ca::str::format_std(
-                "required option --{} cannot have a default_value (default makes required check never trigger)",
+                "required option --{} cannot have a default_value (default makes required check "
+                "never trigger)",
                 arg.name);
             return false;
         }
-        if (!seen_long.insert(arg.name).second) {
-            err = ca::str::format_std("duplicate long option: --{}", arg.name);
+
+        std::vector<std::string> tokens;
+        if (!collect_tokens(arg, tokens, err))
             return false;
-        }
-        out.by_long[arg.name] = &arg;
-        if (arg.short_name != 0) {
-            if (!seen_short.insert(arg.short_name).second) {
-                err = ca::str::format_std("duplicate short option: -{}", arg.short_name);
+        for (const auto& tok : tokens) {
+            if (!seen_tokens.insert(tok).second) {
+                err = ca::str::format_std("duplicate option token: {}", tok);
                 return false;
             }
-            out.by_short[arg.short_name] = &arg;
+            out.by_token[tok] = &arg;
         }
     }
     return true;
+}
+
+// 当前 command 是否声明了位置参数。
+bool has_positional_spec(const Command& cmd)
+{
+    for (const Arg& arg : cmd.args) {
+        if (arg.kind == OptKind::Positional)
+            return true;
+    }
+    return false;
+}
+
+// kind 的 help 值占位符。
+std::string kind_metavar(const Arg& arg)
+{
+    if (!arg.metavar.empty())
+        return arg.metavar;
+    switch (arg.kind) {
+    case OptKind::Int:
+        return "<int>";
+    case OptKind::StringList:
+        return "<list>";
+    case OptKind::String:
+        return "<value>";
+    default:
+        return "";
+    }
 }
 
 // 生成单个 command 的帮助文本（含其子命令摘要）。
 std::string render_help(const Command& cmd, const std::vector<std::string>& path)
 {
     std::ostringstream oss;
-    if (path.empty())
-        oss << "Usage: " << cmd.name << " [options]";
-    else {
-        oss << "Usage: ";
-        for (const auto& seg : path)
-            oss << seg << ' ';
-        oss << "[options]";
+    oss << "Usage: ";
+    for (const auto& seg : path)
+        oss << seg << ' ';
+    oss << cmd.name << " [options]";
+    for (const Arg& arg : cmd.args) {
+        if (arg.kind == OptKind::Positional)
+            oss << " <" << arg.name << ">";
     }
     if (!cmd.subcommands.empty())
         oss << " <subcommand>";
     oss << "\n\n" << cmd.help << "\n";
 
-    if (!cmd.args.empty()) {
-        oss << "\nOptions:\n";
-        for (const Arg& arg : cmd.args) {
-            oss << "  ";
-            if (arg.short_name != 0)
-                oss << '-' << arg.short_name << ", ";
-            else
-                oss << "    ";
-            oss << "--" << arg.name;
-            if (arg.has_value)
-                oss << " <value>";
-            oss << "\n      " << arg.help;
-            if (arg.has_value && !arg.default_value.empty())
-                oss << " (default: " << arg.default_value << ")";
-            if (arg.required)
-                oss << " [required]";
-            oss << "\n";
+    bool have_positional = false;
+    for (const Arg& arg : cmd.args) {
+        if (arg.kind == OptKind::Positional) {
+            if (!have_positional) {
+                oss << "\nArguments:\n";
+                have_positional = true;
+            }
+            oss << "  <" << arg.name << ">\n      " << arg.help << "\n";
         }
+    }
+
+    bool have_option = false;
+    for (const Arg& arg : cmd.args) {
+        const OptKind kind = arg.kind;
+        if (kind == OptKind::Positional)
+            continue;
+        if (!have_option) {
+            oss << "\nOptions:\n";
+            have_option = true;
+        }
+
+        // 左列：全部 token 拼接，如 "-i, --input <jar>"
+        std::vector<std::string> tokens;
+        std::string              err;
+        collect_tokens(arg, tokens, err);  // build_lookup 已验证过，此处不会失败
+        oss << "  ";
+        for (std::size_t k = 0; k < tokens.size(); ++k) {
+            if (k != 0)
+                oss << ", ";
+            oss << tokens[k];
+        }
+        const std::string metavar = kind_metavar(arg);
+        if (!metavar.empty() && kind != OptKind::Positional)
+            oss << ' ' << metavar;
+        oss << "\n      " << arg.help;
+        if (kind == OptKind::StringList)
+            oss << " (repeatable or comma-separated)";
+        if (!metavar.empty() && !arg.default_value.empty() && kind != OptKind::StringList &&
+            kind != OptKind::Flag)
+            oss << " (default: " << arg.default_value << ")";
+        if (arg.required)
+            oss << " [required]";
+        oss << "\n";
     }
 
     if (!cmd.subcommands.empty()) {
@@ -106,6 +178,39 @@ const Command* find_subcommand(const Command& cmd, std::string_view token)
     return nullptr;
 }
 
+// 严格十进制整数解析：全量消费、无溢出。成功写入 out。
+bool parse_int_strict(const std::string& text, int& out)
+{
+    if (text.empty())
+        return false;
+    errno                 = 0;
+    char*          end    = nullptr;
+    const long long value = std::strtoll(text.c_str(), &end, 10);
+    if (errno != 0 || end == text.c_str() || *end != '\0')
+        return false;
+    if (value < -2147483648LL || value > 2147483647LL)
+        return false;
+    out = static_cast<int>(value);
+    return true;
+}
+
+// 逗号拆分（保留空段，与主流实现一致由调用方决定语义）。
+std::vector<std::string> split_comma(const std::string& s)
+{
+    std::vector<std::string> out;
+    std::size_t              start = 0;
+    while (true) {
+        const auto comma = s.find(',', start);
+        if (comma == std::string::npos) {
+            out.push_back(s.substr(start));
+            break;
+        }
+        out.push_back(s.substr(start, comma - start));
+        start = comma + 1;
+    }
+    return out;
+}
+
 }  // namespace
 
 bool ParseResult::has(std::string_view name) const
@@ -118,6 +223,33 @@ std::string ParseResult::get(std::string_view name) const
     auto it = values_.find(std::string(name));
     if (it == values_.end())
         return std::string();
+    return it->second;
+}
+
+std::string ParseResult::get(std::string_view name, std::string_view def) const
+{
+    auto it = values_.find(std::string(name));
+    if (it == values_.end())
+        return std::string(def);
+    return it->second;
+}
+
+int ParseResult::get_int(std::string_view name, int def) const
+{
+    auto it = values_.find(std::string(name));
+    if (it == values_.end())
+        return def;
+    int value = 0;
+    if (!parse_int_strict(it->second, value))
+        return def;
+    return value;
+}
+
+std::vector<std::string> ParseResult::get_list(std::string_view name) const
+{
+    auto it = lists_.find(std::string(name));
+    if (it == lists_.end())
+        return std::vector<std::string>();
     return it->second;
 }
 
@@ -137,17 +269,19 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
     if (!build_lookup(*current, lookup, err))
         return ca::core::Err(ca::core::ErrStatus(ca::core::StatusCode::INVALID_ARGUMENT, err));
     for (const Arg& arg : current->args) {
-        if (arg.has_value && !arg.default_value.empty())
+        const OptKind kind = arg.kind;
+        if (kind_takes_value(kind) && !arg.default_value.empty())
             result.values_[arg.name] = arg.default_value;
     }
 
     bool only_positional = false;  // 遇到 -- 之后为真
     int  i               = 1;
     while (i < argc) {
-        std::string token(argv[i]);
+        const std::string token(argv[i]);
 
         if (only_positional) {
-            // -- 之后全部当位置参数，目前仅用于子命令分派前的消费（这里忽略）。
+            // -- 之后全部按位置参数收集。
+            result.positionals_.push_back(token);
             ++i;
             continue;
         }
@@ -177,34 +311,57 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                 has_inline   = true;
             }
 
-            auto it = lookup.by_long.find(body);
-            if (it == lookup.by_long.end()) {
+            auto it = lookup.by_token.find("--" + body);
+            if (it == lookup.by_token.end()) {
                 return ca::core::Err(ca::core::ErrStatus(
                     ca::core::StatusCode::INVALID_ARGUMENT,
                     ca::str::format_std("unknown option: --{}", body)));
             }
-            const Arg* arg = it->second;
+            const Arg*     arg = it->second;
+            const OptKind  kind = arg->kind;
 
-            if (arg->has_value) {
-                if (has_inline) {
-                    result.values_[arg->name] = inline_value;
-                }
-                else {
-                    if (i + 1 >= argc) {
-                        return ca::core::Err(ca::core::ErrStatus(
-                            ca::core::StatusCode::INVALID_ARGUMENT,
-                            ca::str::format_std("option --{} requires a value", body)));
-                    }
-                    result.values_[arg->name] = argv[++i];
-                }
-            }
-            else {
+            if (!kind_takes_value(kind)) {
                 if (has_inline) {
                     return ca::core::Err(ca::core::ErrStatus(
                         ca::core::StatusCode::INVALID_ARGUMENT,
                         ca::str::format_std("option --{} does not take a value", body)));
                 }
                 result.values_[arg->name] = "true";
+                ++i;
+                continue;
+            }
+
+            std::string value;
+            if (has_inline) {
+                value = inline_value;
+            }
+            else {
+                if (i + 1 >= argc) {
+                    return ca::core::Err(ca::core::ErrStatus(
+                        ca::core::StatusCode::INVALID_ARGUMENT,
+                        ca::str::format_std("option --{} requires a value", body)));
+                }
+                value = argv[++i];
+            }
+
+            if (kind == OptKind::Int) {
+                int parsed = 0;
+                if (!parse_int_strict(value, parsed)) {
+                    return ca::core::Err(ca::core::ErrStatus(
+                        ca::core::StatusCode::INVALID_ARGUMENT,
+                        ca::str::format_std("option --{} expects an integer, got '{}'", body,
+                                            value)));
+                }
+                result.values_[arg->name] = value;  // last-wins
+            }
+            else if (kind == OptKind::StringList) {
+                auto& dst = result.lists_[arg->name];
+                for (auto& piece : split_comma(value))
+                    dst.push_back(std::move(piece));  // 追加语义
+                result.values_[arg->name] = value;
+            }
+            else {
+                result.values_[arg->name] = value;  // last-wins
             }
             ++i;
             continue;
@@ -213,40 +370,27 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
         // 短选项 -x（可能带 -xvalue 或 -x value）
         if (token.size() >= 2 && token[0] == '-' && token[1] != '-') {
             char short_char = token[1];
-            auto it         = lookup.by_short.find(short_char);
-            if (it == lookup.by_short.end()) {
+            auto it         = lookup.by_token.find(token.substr(0, 2));
+            if (it == lookup.by_token.end()) {
                 return ca::core::Err(ca::core::ErrStatus(
                     ca::core::StatusCode::INVALID_ARGUMENT,
                     ca::str::format_std("unknown option: -{}", short_char)));
             }
-            const Arg* arg = it->second;
+            const Arg*    arg  = it->second;
+            const OptKind kind = arg->kind;
 
-            if (arg->has_value) {
+            if (!kind_takes_value(kind)) {
                 if (token.size() > 2) {
-                    // -xvalue 形式
-                    result.values_[arg->name] = token.substr(2);
-                }
-                else {
-                    if (i + 1 >= argc) {
-                        return ca::core::Err(ca::core::ErrStatus(
-                            ca::core::StatusCode::INVALID_ARGUMENT,
-                            ca::str::format_std("option -{} requires a value", short_char)));
-                    }
-                    result.values_[arg->name] = argv[++i];
-                }
-            }
-            else {
-                if (token.size() > 2) {
-                    // -abc 多个短 flag 组合：逐个处理（简化：仅支持纯布尔组合）。
+                    // -abc 多个短 flag 组合：逐个处理（仅支持纯布尔组合）。
                     for (std::size_t c = 1; c < token.size(); ++c) {
-                        char ch = token[c];
-                        auto fit = lookup.by_short.find(ch);
-                        if (fit == lookup.by_short.end()) {
+                        const char ch  = token[c];
+                        auto       fit = lookup.by_token.find(std::string("-") + ch);
+                        if (fit == lookup.by_token.end()) {
                             return ca::core::Err(ca::core::ErrStatus(
                                 ca::core::StatusCode::INVALID_ARGUMENT,
                                 ca::str::format_std("unknown option: -{}", ch)));
                         }
-                        if (fit->second->has_value) {
+                        if (kind_takes_value(fit->second->kind)) {
                             return ca::core::Err(ca::core::ErrStatus(
                                 ca::core::StatusCode::INVALID_ARGUMENT,
                                 ca::str::format_std(
@@ -259,17 +403,53 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                 else {
                     result.values_[arg->name] = "true";
                 }
+                ++i;
+                continue;
+            }
+
+            std::string value;
+            if (token.size() > 2) {
+                value = token.substr(2);  // -xvalue 形式
+            }
+            else {
+                if (i + 1 >= argc) {
+                    return ca::core::Err(ca::core::ErrStatus(
+                        ca::core::StatusCode::INVALID_ARGUMENT,
+                        ca::str::format_std("option -{} requires a value", short_char)));
+                }
+                value = argv[++i];
+            }
+
+            if (kind == OptKind::Int) {
+                int parsed = 0;
+                if (!parse_int_strict(value, parsed)) {
+                    return ca::core::Err(ca::core::ErrStatus(
+                        ca::core::StatusCode::INVALID_ARGUMENT,
+                        ca::str::format_std("option -{} expects an integer, got '{}'",
+                                            short_char, value)));
+                }
+                result.values_[arg->name] = value;
+            }
+            else if (kind == OptKind::StringList) {
+                auto& dst = result.lists_[arg->name];
+                for (auto& piece : split_comma(value))
+                    dst.push_back(std::move(piece));
+                result.values_[arg->name] = value;
+            }
+            else {
+                result.values_[arg->name] = value;
             }
             ++i;
             continue;
         }
 
-        // 非选项 token：子命令分派。
+        // 非选项 token：优先子命令分派，其次位置参数收集。
         if (const Command* sub = find_subcommand(*current, token)) {
             // 切换到子命令前，先对父命令做 required 校验：根命令的 required 不能
             // 因为进入子命令而被静默跳过。
             for (const Arg& arg : current->args) {
-                if (arg.required && !result.has(arg.name)) {
+                if (arg.required && kind_takes_value(arg.kind) &&
+                    !result.has(arg.name)) {
                     return ca::core::Err(ca::core::ErrStatus(
                         ca::core::StatusCode::INVALID_ARGUMENT,
                         ca::str::format_std("missing required option: --{}", arg.name)));
@@ -278,26 +458,34 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             current = sub;
             path.push_back(sub->name);
             // 切换到子命令的选项表。
-            lookup.by_long.clear();
-            lookup.by_short.clear();
+            lookup.by_token.clear();
             if (!build_lookup(*current, lookup, err))
                 return ca::core::Err(ca::core::ErrStatus(
                     ca::core::StatusCode::INVALID_ARGUMENT, err));
             for (const Arg& arg : current->args) {
-                if (arg.has_value && !arg.default_value.empty())
+                const OptKind kind = arg.kind;
+                if (kind_takes_value(kind) && !arg.default_value.empty())
                     result.values_[arg.name] = arg.default_value;
             }
             ++i;
             continue;
         }
 
-        // 未知位置参数：当前实现忽略（可后续扩展收集到 positional 列表）。
-        ++i;
+        if (has_positional_spec(*current)) {
+            result.positionals_.push_back(token);
+            ++i;
+            continue;
+        }
+
+        // 无 Positional 声明时的多余裸 token：报错而非静默丢弃（v2 行为变更）。
+        return ca::core::Err(ca::core::ErrStatus(
+            ca::core::StatusCode::INVALID_ARGUMENT,
+            ca::str::format_std("unexpected argument: {}", token)));
     }
 
     // 检查 required 选项。
     for (const Arg& arg : current->args) {
-        if (arg.required && !result.has(arg.name)) {
+        if (arg.required && kind_takes_value(arg.kind) && !result.has(arg.name)) {
             return ca::core::Err(ca::core::ErrStatus(
                 ca::core::StatusCode::INVALID_ARGUMENT,
                 ca::str::format_std("missing required option: --{}", arg.name)));
