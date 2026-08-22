@@ -111,7 +111,6 @@ struct ParseError
 ///        其余 -> INVALID_ARGUMENT。
 StatusCode to_status_code(ParseErrorCategory category) noexcept;
 
-/// @brief 命令/子命令定义。根命令与子命令共用此结构。
 struct Command
 {
     /// 命令名（子命令在命令行的标识，根命令名仅用于帮助文本）。
@@ -128,6 +127,12 @@ struct Command
     /// 为空时按选项/位置参数/子命令自动生成。
     std::string usage;
 };
+
+/// @brief 渲染一个 Command 的帮助文本（不含子命令路径前缀，程序名取 cmd.name 或
+///        自定义 usage）。parse() 内部的 --help 输出与本函数共享同一实现。
+/// @param groups 仅保留这些分组标签的选项节；为空时渲染全部内容。
+///        位置参数与子命令摘要不受过滤影响。
+std::string help_text(const Command& cmd, const std::vector<std::string>& groups = {});
 
 /// @brief 解析结果。
 class ParseResult
@@ -179,13 +184,33 @@ public:
     /// @brief 设置根命令定义（含选项与子命令树）。
     explicit Parser(Command root);
 
+    /// @brief 根命令定义的只读访问。供下游遍历 Arg 元数据、导出 schema/补全模板；
+    ///        下游自建 dump，库不提供序列化格式。
+    const Command& root() const noexcept { return root_; }
+
     /// @brief 解析命令行参数。
     /// @return 成功返回 ParseResult；失败返回 ParseError（category + 出错选项 + 描述）。
     ///         --help/-h 返回 category = HelpRequested，message 为格式化的完整帮助文本，
     ///         便于上层打印并退出；与真正的解析错误区分。
     ca::core::Result<ParseResult, ParseError> parse(int argc, const char* const argv[]);
 
+    /// @brief 解析命令行参数（带初始值注入）。
+    /// @param initial_values 配置文件等外部来源的初始值，key 为选项 canonical 名。
+    ///        优先级：静态 default_value < initial_values < 命令行显式出现，
+    ///        即三级优先级中 CLI 恒为最高。仅对带值选项生效（Flag/Positional 忽略），
+    ///        未知名字静默忽略；进入每个 command 时按该命令的选项名匹配一次。
+    ///        StringList 初值按逗号拆分追加；Int 初值非法报 InvalidInteger、空串报
+    ///        EmptyValue；required 与互斥组把注入初值视为已提供。
+    ca::core::Result<ParseResult, ParseError> parse(
+        int argc, const char* const argv[],
+        const std::unordered_map<std::string, std::string>& initial_values);
+
 private:
+    // 预置选项初值（静态默认 + 注入初值）。ParseResult 的友元写入点。
+    static bool seed_option_values(
+        const Command& cmd, const std::unordered_map<std::string, std::string>* initials,
+        ParseResult& result, ParseError& err_out);
+
     Command root_;
 };
 

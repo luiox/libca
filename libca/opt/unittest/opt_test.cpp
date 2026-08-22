@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "libca/opt/opt.hpp"
@@ -780,6 +781,232 @@ TEST(OptV2P1Test, ToStatusCodeBridge)
               ca::core::StatusCode::FAILED_PRECONDITION);
     EXPECT_EQ(to_status_code(ParseErrorCategory::UnknownOption),
               ca::core::StatusCode::INVALID_ARGUMENT);
+}
+
+// ==========================================================================
+// v2 P2：初始值注入（三级优先级）、元数据只读视图、分组过滤帮助
+// ==========================================================================
+
+// 三级优先级：静态 default < 注入初值 < 命令行显式出现。
+TEST(OptV2P2Test, InitialValuesPrecedence)
+{
+    Arg output;
+    output.name          = "output";
+    output.kind          = OptKind::String;
+    output.default_value = "from-default";
+
+    Command root;
+    root.name = "prog";
+    root.args = {output};
+
+    const std::unordered_map<std::string, std::string> initials = {{"output", "from-config"}};
+
+    // 无 CLI：取注入初值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), initials);
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("output"), "from-config");
+    }
+    // 有 CLI：CLI 覆盖注入初值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--output", "from-cli"});
+        auto r = p.parse(argv.argc, argv.data(), initials);
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("output"), "from-cli");
+    }
+    // 无初值无 CLI：回落静态默认。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("output"), "from-default");
+    }
+}
+
+// 注入初值的 Int 校验与空串拒绝；未知名字静默忽略；Flag 不参与注入。
+TEST(OptV2P2Test, InitialValuesValidationAndScope)
+{
+    Arg timeout;
+    timeout.name = "timeout";
+    timeout.kind = OptKind::Int;
+
+    Arg verbose;
+    verbose.name = "verbose";
+    verbose.kind = OptKind::Flag;
+
+    Command root;
+    root.name = "prog";
+    root.args = {timeout, verbose};
+
+    // 非法整数初值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), {{"timeout", "12x"}});
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
+        EXPECT_EQ(r.unwrap_err().option, "timeout");
+    }
+    // 空串初值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), {{"timeout", ""}});
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::EmptyValue);
+    }
+    // 未知名字忽略，合法整数生效，Flag 注入被忽略（保持未置位）。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(),
+                         {{"nope", "x"}, {"timeout", "42"}, {"verbose", "true"}});
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get_int("timeout"), 42);
+        EXPECT_FALSE(result.has("verbose"));
+    }
+}
+
+// StringList 初值按逗号拆分追加，且与 CLI 出现按序合并。
+TEST(OptV2P2Test, InitialValuesStringListAppend)
+{
+    Arg define;
+    define.name    = "define";
+    define.aliases = {"-D"};
+    define.kind    = OptKind::StringList;
+
+    Command root;
+    root.name = "prog";
+    root.args = {define};
+
+    Parser p(root);
+    Argv argv = make_argv({"-DC"});
+    auto r = p.parse(argv.argc, argv.data(), {{"define", "A,B"}});
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+    auto list = r.unwrap().get_list("define");
+    ASSERT_EQ(list.size(), 3u);
+    EXPECT_EQ(list[0], "A");
+    EXPECT_EQ(list[1], "B");
+    EXPECT_EQ(list[2], "C");
+}
+
+// 进入子命令时同样按其选项名匹配注入初值；required 与互斥组把注入视为已提供。
+TEST(OptV2P2Test, InitialValuesSubcommandAndConstraints)
+{
+    Arg message;
+    message.name     = "message";
+    message.aliases  = {"-m"};
+    message.kind     = OptKind::String;
+    message.required = true;
+
+    Arg amend;
+    amend.name = "amend";
+    amend.kind = OptKind::Flag;
+    // 互斥组成员须为带值选项才能被初值满足（Flag 不参与注入）。
+    Arg gpg_sign;
+    gpg_sign.name    = "gpg-sign";
+    gpg_sign.kind    = OptKind::String;
+    gpg_sign.metavar = "<key>";
+
+    Command commit;
+    commit.name         = "commit";
+    commit.args         = {message, amend, gpg_sign};
+    commit.mutex_groups = {{{"amend", "gpg-sign"}, true}};
+
+    const std::unordered_map<std::string, std::string> initials = {{"message", "hi"},
+                                                                   {"gpg-sign", "key-1"}};
+
+    Command root;
+    root.name        = "git";
+    root.subcommands = {commit};
+
+    Parser p(root);
+    Argv argv = make_argv({"commit"});
+    auto r = p.parse(argv.argc, argv.data(), initials);
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+    auto result = r.unwrap();
+    EXPECT_EQ(result.get("message"), "hi");
+    // required 由初值满足；互斥组 required 也由初值满足；Flag 保持未置位。
+    EXPECT_FALSE(result.has("amend"));
+    EXPECT_TRUE(result.has("gpg-sign"));
+}
+
+// 元数据只读视图：root() 提供 const 访问供下游导出 schema。
+TEST(OptV2P2Test, RootMetadataAccess)
+{
+    Arg input;
+    input.name    = "input";
+    input.aliases = {"-i"};
+    input.kind    = OptKind::String;
+    input.group   = "Source";
+    input.help    = "input file";
+    input.required = true;
+
+    Command root;
+    root.name  = "mj2x";
+    root.usage = "mj2x [options] <jar>";
+    root.args  = {input};
+
+    const Parser p(root);
+    const Command& meta = p.root();
+    EXPECT_EQ(meta.name, "mj2x");
+    EXPECT_EQ(meta.usage, "mj2x [options] <jar>");
+    ASSERT_EQ(meta.args.size(), 1u);
+    EXPECT_EQ(meta.args[0].name, "input");
+    ASSERT_EQ(meta.args[0].aliases.size(), 1u);
+    EXPECT_EQ(meta.args[0].aliases[0], "-i");
+    EXPECT_EQ(meta.args[0].group, "Source");
+    EXPECT_TRUE(meta.args[0].required);
+}
+
+// help_text：groups 为空渲染全部；指定 groups 时仅保留对应分组节，
+// 未分组选项节省略，位置参数不受过滤影响。
+TEST(OptV2P2Test, HelpTextGroupFilter)
+{
+    Arg verbose;
+    verbose.name = "verbose";
+    verbose.kind = OptKind::Flag;
+    verbose.help = "chatty";
+
+    Arg pattern;
+    pattern.name = "pattern";
+    pattern.kind = OptKind::Positional;
+    pattern.help = "search text";
+
+    Arg input;
+    input.name  = "input";
+    input.kind  = OptKind::String;
+    input.group = "Source";
+    input.help  = "input file";
+
+    Arg output;
+    output.name  = "output";
+    output.kind  = OptKind::String;
+    output.group = "Sink";
+    output.help  = "output file";
+
+    Command root;
+    root.name = "prog";
+    root.args = {verbose, pattern, input, output};
+
+    // 全量渲染：默认节 + 两个分组节 + Arguments。
+    const std::string full = ca::opt::help_text(root);
+    EXPECT_NE(full.find("\nOptions:\n"), std::string::npos);
+    EXPECT_NE(full.find("\nSource:\n"), std::string::npos);
+    EXPECT_NE(full.find("\nSink:\n"), std::string::npos);
+    EXPECT_NE(full.find("\nArguments:\n"), std::string::npos);
+
+    // 仅 Source 分组：无默认节、无 Sink 节，Arguments 保留。
+    const std::string filtered = ca::opt::help_text(root, {"Source"});
+    EXPECT_EQ(filtered.find("\nOptions:\n"), std::string::npos);
+    EXPECT_NE(filtered.find("\nSource:\n"), std::string::npos);
+    EXPECT_EQ(filtered.find("\nSink:\n"), std::string::npos);
+    EXPECT_NE(filtered.find("\nArguments:\n"), std::string::npos);
 }
 
 }  // namespace
