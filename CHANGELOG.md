@@ -24,3 +24,7 @@
   原 `--help` 的 CANCELLED+文本模式迁移为 `HelpRequested` 类别）；新增互斥组
   （`Command::mutex_groups`）、选项分组渲染（`Arg::group`）、自定义 usage 行
   （`Command::usage`）。
+- **[opt] v2-P2**：新增带初始值注入的 `parse()` 重载（优先级
+  default < 注入初值 < 命令行，仅带值选项参与，required/互斥组视为已提供）；
+  新增 `help_text(cmd, groups)` 分组过滤帮助渲染与 `Parser::root()`
+  元数据只读访问（schema 导出由下游自建）。

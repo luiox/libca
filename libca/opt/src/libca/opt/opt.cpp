@@ -179,8 +179,15 @@ std::string kind_metavar(const Arg& arg)
 }
 
 // 生成单个 command 的帮助文本（含其子命令摘要）。
-std::string render_help(const Command& cmd, const std::vector<std::string>& path)
+// group_filter 非空且非空表时，仅渲染列出的分组节（未分组选项与其它分组省略）。
+std::string render_help(const Command& cmd, const std::vector<std::string>& path,
+                        const std::vector<std::string>* group_filter)
 {
+    const bool               filtering = group_filter != nullptr && !group_filter->empty();
+    std::set<std::string>    filter_set;
+    if (filtering)
+        filter_set.insert(group_filter->begin(), group_filter->end());
+
     std::ostringstream oss;
     oss << "Usage: ";
     for (const auto& seg : path)
@@ -239,9 +246,12 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
     };
 
     // 未分组选项进默认节；分组选项按组标签首次出现顺序各成一节。
+    // 过滤模式下省略默认节，仅保留选中的分组节。
     bool have_option = false;
     for (const Arg& arg : cmd.args) {
         if (arg.kind == OptKind::Positional || !arg.group.empty())
+            continue;
+        if (filtering)
             continue;
         if (!have_option) {
             oss << "\nOptions:\n";
@@ -253,6 +263,8 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
     std::set<std::string>    group_seen;
     for (const Arg& arg : cmd.args) {
         if (arg.kind == OptKind::Positional || arg.group.empty())
+            continue;
+        if (filtering && filter_set.find(arg.group) == filter_set.end())
             continue;
         if (group_seen.insert(arg.group).second)
             group_order.push_back(arg.group);
@@ -318,6 +330,66 @@ std::vector<std::string> split_comma(const std::string& s)
 
 }  // namespace
 
+// 预置选项初值：静态 default_value 先行，随后被 initial_values 中同名项覆盖
+// （三级优先级：default < 注入初值 < 命令行）。仅带值选项参与；空串初值与非法
+// 整数初值报错。失败时写入 err_out 并返回 false。
+bool Parser::seed_option_values(const Command& cmd,
+                                const std::unordered_map<std::string, std::string>* initials,
+                                ParseResult& result, ParseError& err_out)
+{
+    for (const Arg& arg : cmd.args) {
+        if (!kind_takes_value(arg.kind))
+            continue;
+
+        const std::string* init = nullptr;
+        if (initials != nullptr) {
+            auto it = initials->find(arg.name);
+            if (it != initials->end())
+                init = &it->second;
+        }
+
+        if (init != nullptr) {
+            if (init->empty()) {
+                err_out = ParseError{ParseErrorCategory::EmptyValue, arg.name,
+                                     ca::str::format_std("initial value of --{} is empty",
+                                                         arg.name)};
+                return false;
+            }
+            if (arg.kind == OptKind::Int) {
+                int parsed = 0;
+                if (!parse_int_strict(*init, parsed)) {
+                    err_out = ParseError{
+                        ParseErrorCategory::InvalidInteger, arg.name,
+                        ca::str::format_std(
+                            "initial value of --{} expects an integer, got '{}'", arg.name,
+                            *init)};
+                    return false;
+                }
+                result.values_[arg.name] = *init;
+            }
+            else if (arg.kind == OptKind::StringList) {
+                auto& dst = result.lists_[arg.name];
+                for (auto& piece : split_comma(*init))
+                    dst.push_back(piece);
+                result.values_[arg.name] = *init;
+            }
+            else {
+                result.values_[arg.name] = *init;
+            }
+            continue;
+        }
+
+        if (!arg.default_value.empty())
+            result.values_[arg.name] = arg.default_value;
+    }
+    return true;
+}
+
+std::string help_text(const Command& cmd, const std::vector<std::string>& groups)
+{
+    return render_help(cmd, {}, &groups);
+}
+
 StatusCode to_status_code(ParseErrorCategory category) noexcept
 {
     switch (category) {
@@ -376,20 +448,28 @@ Parser::Parser(Command root)
 
 ca::core::Result<ParseResult, ParseError> Parser::parse(int argc, const char* const argv[])
 {
+    return parse(argc, argv, {});
+}
+
+ca::core::Result<ParseResult, ParseError> Parser::parse(
+    int argc, const char* const argv[],
+    const std::unordered_map<std::string, std::string>& initial_values)
+{
     ParseResult result;
     std::vector<std::string> path;           // 已穿过的子命令路径
     const Command*           current = &root_;
 
-    // 预置所有带默认值的选项。
+    // 预置选项初值（静态默认 + 注入初值）。
     Lookup lookup;
     std::string err;
     if (!build_lookup(*current, lookup, err))
         return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
     if (!validate_mutex_groups(*current, err))
         return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
-    for (const Arg& arg : current->args) {
-        if (kind_takes_value(arg.kind) && !arg.default_value.empty())
-            result.values_[arg.name] = arg.default_value;
+    {
+        ParseError seed_err;
+        if (!seed_option_values(*current, &initial_values, result, seed_err))
+            return ca::core::Err(std::move(seed_err));
     }
 
     bool only_positional = false;  // 遇到 -- 之后为真
@@ -414,7 +494,8 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(int argc, const char* co
         // 正常流程），message 为格式化的完整帮助文本，区别于真正的解析错误。
         if (token == "--help" || token == "-h") {
             return ca::core::Err(
-                ParseError{ParseErrorCategory::HelpRequested, "", render_help(*current, path)});
+                ParseError{ParseErrorCategory::HelpRequested, "",
+                           render_help(*current, path, nullptr)});
         }
 
         // 长选项 --name 或 --name=value
@@ -593,15 +674,16 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(int argc, const char* co
 
             current = sub;
             path.push_back(sub->name);
-            // 切换到子命令的选项表与互斥组配置。
+            // 切换到子命令的选项表与互斥组配置，并预置其初值。
             lookup.by_token.clear();
             if (!build_lookup(*current, lookup, err))
                 return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
             if (!validate_mutex_groups(*current, err))
                 return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
-            for (const Arg& arg : current->args) {
-                if (kind_takes_value(arg.kind) && !arg.default_value.empty())
-                    result.values_[arg.name] = arg.default_value;
+            {
+                ParseError seed_err;
+                if (!seed_option_values(*current, &initial_values, result, seed_err))
+                    return ca::core::Err(std::move(seed_err));
             }
             ++i;
             continue;
