@@ -19,3 +19,4 @@
 | [tensor.md](tensor.md) | `libca.core/src/old/tensor.hpp` | 旧代码迁移 | 已弃用（仅留档） |
 | [fs-unicode-path.md](fs-unicode-path.md) | morpher mjt-deobf 下游需求 | 新增能力 | 待设计 |
 | [json-schema-validator.md](json-schema-validator.md) | morpher mjt-deobf 下游需求 | 新增能力 | 待设计 |
+| [opt-v2.md](opt-v2.md) | morpher mjt / mj2x-cli 下游需求（三套 CLI 实现收敛） | 既有模块补齐 | 已评审，待实施 |
