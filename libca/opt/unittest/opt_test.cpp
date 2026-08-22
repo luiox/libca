@@ -3,14 +3,17 @@
 #include <string>
 #include <vector>
 
-#include "libca/core/status.hpp"
 #include "libca/opt/opt.hpp"
 
 namespace ca::opt::test {
 namespace {
 
-using ca::core::StatusCode;
-using ca::core::StatusResult;
+using ca::opt::Arg;
+using ca::opt::Command;
+using ca::opt::MutexGroup;
+using ca::opt::OptKind;
+using ca::opt::ParseErrorCategory;
+using ca::opt::Parser;
 
 // 持有参数字符串及其 argv 视图，避免悬垂指针（字符串生命周期与视图一致）。
 struct Argv
@@ -78,7 +81,7 @@ TEST(OptParseTest, ShortFlag)
     Argv argv = make_argv({"-v"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_TRUE(result.has("verbose"));
     EXPECT_EQ(result.get("verbose"), "true");
@@ -90,7 +93,7 @@ TEST(OptParseTest, LongFlag)
     Argv argv = make_argv({"--verbose"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_TRUE(r.unwrap().has("verbose"));
 }
 
@@ -100,7 +103,7 @@ TEST(OptParseTest, LongOptionWithSpaceValue)
     Argv argv = make_argv({"--output", "file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_EQ(r.unwrap().get("output"), "file.txt");
 }
 
@@ -110,7 +113,7 @@ TEST(OptParseTest, LongOptionWithEqualsValue)
     Argv argv = make_argv({"--output=file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_EQ(r.unwrap().get("output"), "file.txt");
 }
 
@@ -120,7 +123,7 @@ TEST(OptParseTest, ShortOptionWithSpaceValue)
     Argv argv = make_argv({"-o", "file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_EQ(r.unwrap().get("output"), "file.txt");
 }
 
@@ -130,7 +133,7 @@ TEST(OptParseTest, ShortOptionWithAttachedValue)
     Argv argv = make_argv({"-ofile.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_EQ(r.unwrap().get("output"), "file.txt");
 }
 
@@ -148,7 +151,7 @@ TEST(OptParseTest, CombinedShortFlags)
     Argv argv = make_argv({"-abg"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_TRUE(result.has("alpha"));
     EXPECT_TRUE(result.has("beta"));
@@ -189,9 +192,10 @@ TEST(OptParseTest, MissingRequiredReturnsError)
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     auto st = r.unwrap_err();
-    EXPECT_EQ(st.code(), StatusCode::INVALID_ARGUMENT);
-    EXPECT_NE(st.message().find("required"), std::string::npos);
-    EXPECT_NE(st.message().find("input"), std::string::npos);
+    EXPECT_EQ(st.category, ParseErrorCategory::MissingRequired);
+    EXPECT_EQ(st.option, "input");
+    EXPECT_NE(st.message.find("required"), std::string::npos);
+    EXPECT_NE(st.message.find("input"), std::string::npos);
 }
 
 TEST(OptParseTest, RequiredSatisfied)
@@ -205,7 +209,7 @@ TEST(OptParseTest, RequiredSatisfied)
     Argv argv = make_argv({"-i", "data.bin"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_EQ(r.unwrap().get("input"), "data.bin");
 }
 
@@ -224,7 +228,7 @@ TEST(OptParseTest, SubcommandDispatch)
     Argv argv = make_argv({"commit", "-m", "hello"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     ASSERT_EQ(result.subcommand_path().size(), 1u);
     EXPECT_EQ(result.subcommand_path()[0], "commit");
@@ -247,7 +251,7 @@ TEST(OptParseTest, NestedSubcommands)
     Argv argv = make_argv({"remote", "add", "-n", "origin"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     ASSERT_EQ(result.subcommand_path().size(), 2u);
     EXPECT_EQ(result.subcommand_path()[0], "remote");
@@ -263,7 +267,7 @@ TEST(OptParseTest, DoubleDashTerminatesOptions)
     Argv argv = make_argv({"--verbose", "--", "--output", "plain.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_TRUE(result.has("verbose"));
     EXPECT_FALSE(result.has("output"));  // 在 -- 之后，不再解析为选项
@@ -279,12 +283,12 @@ TEST(OptParseTest, HelpReturnsCancelledStatusWithHelpText)
     Argv argv = make_argv({"--help"});
 
     auto r = p.parse(argv.argc, argv.data());
-    // --help 走 Err 分支，status code 为 CANCELLED（区别于真正的解析错误）。
+    // --help 走 Err 分支，category 为 HelpRequested（区别于真正的解析错误）。
     ASSERT_TRUE(r.is_err());
     auto st = r.unwrap_err();
-    EXPECT_EQ(st.code(), StatusCode::CANCELLED);
-    EXPECT_NE(st.message().find("Options:"), std::string::npos);
-    EXPECT_NE(st.message().find("--verbose"), std::string::npos);
+    EXPECT_EQ(st.category, ParseErrorCategory::HelpRequested);
+    EXPECT_NE(st.message.find("Options:"), std::string::npos);
+    EXPECT_NE(st.message.find("--verbose"), std::string::npos);
 }
 
 TEST(OptParseTest, ShortHelpFlag)
@@ -294,7 +298,7 @@ TEST(OptParseTest, ShortHelpFlag)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::CANCELLED);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::HelpRequested);
 }
 
 TEST(OptParseTest, UnknownLongOptionIsError)
@@ -304,7 +308,7 @@ TEST(OptParseTest, UnknownLongOptionIsError)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
 }
 
 TEST(OptParseTest, UnknownShortOptionIsError)
@@ -314,7 +318,7 @@ TEST(OptParseTest, UnknownShortOptionIsError)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
 }
 
 TEST(OptParseTest, ValueOptionWithoutValueAtEndIsError)
@@ -324,7 +328,8 @@ TEST(OptParseTest, ValueOptionWithoutValueAtEndIsError)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MissingValue);
+    EXPECT_EQ(r.unwrap_err().option, "output");
 }
 
 TEST(OptParseTest, FlagGivenInlineValueIsError)
@@ -334,7 +339,7 @@ TEST(OptParseTest, FlagGivenInlineValueIsError)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnexpectedArgument);
 }
 
 // name 是 has()/get() 的唯一 key，必须非空；空 name 在 parse 时报错。
@@ -352,7 +357,7 @@ TEST(OptParseTest, EmptyNameIsRejected)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidDefinition);
 }
 
 // required 与 default_value 互斥：有默认值时 required 永不触发，应在 parse 时报错。
@@ -360,15 +365,15 @@ TEST(OptParseTest, RequiredWithDefaultIsRejected)
 {
     Command root;
     root.name = "prog";
-    // has_value + default_value + required 同时为真 —— 语义矛盾，应拒绝。
+    // required + default_value 同时为真 —— 语义矛盾，应拒绝。
     root.args = {opt("cfg", 'c', "config", "default.ini", true)};
     Parser p(root);
     Argv argv = make_argv({"-c", "x.ini"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
-    EXPECT_NE(r.unwrap_err().message().find("default_value"), std::string::npos);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidDefinition);
+    EXPECT_NE(r.unwrap_err().message.find("default_value"), std::string::npos);
 }
 
 // 根命令定义了 required 选项，用户直接进入子命令而未提供该 required 时应报错
@@ -389,8 +394,8 @@ TEST(OptParseTest, RootRequiredNotSkippedWhenEnteringSubcommand)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
-    EXPECT_NE(r.unwrap_err().message().find("repo"), std::string::npos);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MissingRequired);
+    EXPECT_NE(r.unwrap_err().message.find("repo"), std::string::npos);
 }
 
 // 根级 required 与子命令同时满足时应正常解析。
@@ -408,7 +413,7 @@ TEST(OptParseTest, RootRequiredAndSubcommandBothSatisfied)
     Argv argv = make_argv({"-r", "/p", "commit", "-m", "hi"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_EQ(result.get("repo"), "/p");
     EXPECT_EQ(result.get("message"), "hi");
@@ -440,7 +445,7 @@ TEST(OptV2Test, PositionalCollectedInOrder)
     Argv argv = make_argv({"hello", "--ignore-case", "world"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     ASSERT_EQ(result.positionals().size(), 2u);
     EXPECT_EQ(result.positionals()[0], "hello");
@@ -456,8 +461,8 @@ TEST(OptV2Test, UnexpectedPositionalIsError)
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
-    EXPECT_EQ(r.unwrap_err().code(), StatusCode::INVALID_ARGUMENT);
-    EXPECT_NE(r.unwrap_err().message().find("unexpected argument"), std::string::npos);
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnexpectedArgument);
+    EXPECT_NE(r.unwrap_err().message.find("unexpected argument"), std::string::npos);
 }
 
 // 多别名（含短名）：任意别名命中同一 canonical key。
@@ -478,7 +483,7 @@ TEST(OptV2Test, AliasedOptionCanonicalKey)
         Parser p(root);
         Argv argv = make_argv({"-i", "a.jar"});
         auto r = p.parse(argv.argc, argv.data());
-        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("input"), "a.jar");
     }
     // 长别名
@@ -486,7 +491,7 @@ TEST(OptV2Test, AliasedOptionCanonicalKey)
         Parser p(root);
         Argv argv = make_argv({"--in=b.jar"});
         auto r = p.parse(argv.argc, argv.data());
-        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("input"), "b.jar");
     }
 }
@@ -507,7 +512,7 @@ TEST(OptV2Test, IntTypeValidAndInvalid)
         Parser p(root);
         Argv argv = make_argv({"--timeout", "120"});
         auto r = p.parse(argv.argc, argv.data());
-        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("timeout"), 120);
     }
     {
@@ -515,14 +520,16 @@ TEST(OptV2Test, IntTypeValidAndInvalid)
         Argv argv = make_argv({"--timeout=12abc"});
         auto r = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
-        EXPECT_NE(r.unwrap_err().message().find("expects an integer"), std::string::npos);
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
+        EXPECT_EQ(r.unwrap_err().option, "timeout");
+        EXPECT_NE(r.unwrap_err().message.find("expects an integer"), std::string::npos);
     }
     // 负数与溢出边界
     {
         Parser p(root);
         Argv argv = make_argv({"--timeout", "-5"});
         auto r = p.parse(argv.argc, argv.data());
-        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("timeout"), -5);
     }
     {
@@ -550,7 +557,7 @@ TEST(OptV2Test, StringListCommaAndRepeated)
     Argv argv = make_argv({"--define=A,B", "-DC"});
 
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto list = r.unwrap().get_list("define");
     ASSERT_EQ(list.size(), 3u);
     EXPECT_EQ(list[0], "A");
@@ -577,7 +584,7 @@ TEST(OptV2Test, LastWinsAndDefaultOverloads)
     Parser p(root);
     Argv argv = make_argv({"--output", "a.bin", "--output", "b.bin"});
     auto r = p.parse(argv.argc, argv.data());
-    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message();
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
 
     // last-wins
@@ -588,6 +595,191 @@ TEST(OptV2Test, LastWinsAndDefaultOverloads)
     EXPECT_EQ(result.get_int("level", 7), 7);
     // String 默认值已预置：has() 为真且 get 返回默认
     EXPECT_TRUE(result.has("output"));
+}
+
+// ==========================================================================
+// v2 P1：错误分类、互斥组、选项分组渲染、自定义 usage
+// ==========================================================================
+
+// 带值选项收到空值（--name= 形式）报 EmptyValue。
+TEST(OptV2P1Test, EmptyInlineValueIsError)
+{
+    Parser p(make_root_with_options());
+    Argv argv = make_argv({"--output="});
+
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::EmptyValue);
+    EXPECT_EQ(r.unwrap_err().option, "output");
+}
+
+// 互斥组：两个成员同时出现报 MutexConflict。
+TEST(OptV2P1Test, MutexConflictRejected)
+{
+    Arg json;
+    json.name = "json";
+    json.kind = OptKind::Flag;
+    Arg yaml;
+    yaml.name = "yaml";
+    yaml.kind = OptKind::Flag;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {json, yaml};
+    root.mutex_groups = {{{"json", "yaml"}, false}};
+
+    Parser p(root);
+    Argv argv = make_argv({"--json", "--yaml"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+    EXPECT_NE(r.unwrap_err().message.find("--json"), std::string::npos);
+    // 只出现一个成员时合法。
+    Parser p2(root);
+    Argv argv2 = make_argv({"--yaml"});
+    auto r2 = p2.parse(argv2.argc, argv2.data());
+    ASSERT_TRUE(r2.is_ok()) << r2.unwrap_err().message;
+    EXPECT_TRUE(r2.unwrap().has("yaml"));
+}
+
+// required 互斥组：全缺报 MutexRequired；出现其一即通过。
+TEST(OptV2P1Test, MutexRequiredEnforced)
+{
+    Arg a;
+    a.name = "tcp";
+    a.kind = OptKind::Flag;
+    Arg b;
+    b.name = "unix";
+    b.kind = OptKind::Flag;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {a, b};
+    root.mutex_groups = {{{"tcp", "unix"}, true}};
+
+    Parser p(root);
+    Argv argv = make_argv({});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
+
+    Parser p2(root);
+    Argv argv2 = make_argv({"--tcp"});
+    auto r2 = p2.parse(argv2.argc, argv2.data());
+    ASSERT_TRUE(r2.is_ok()) << r2.unwrap_err().message;
+}
+
+// 互斥组引用未注册的选项名：InvalidDefinition。
+TEST(OptV2P1Test, MutexGroupUnknownMemberIsInvalidDefinition)
+{
+    Arg a;
+    a.name = "tcp";
+    a.kind = OptKind::Flag;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {a};
+    root.mutex_groups = {{{"tcp", "nope"}, false}};
+
+    Parser p(root);
+    Argv argv = make_argv({"--tcp"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidDefinition);
+    EXPECT_NE(r.unwrap_err().message.find("nope"), std::string::npos);
+}
+
+// 进入子命令前父命令的互斥约束同样生效（不被分派跳过）。
+TEST(OptV2P1Test, ParentMutexCheckedBeforeSubcommand)
+{
+    Arg json;
+    json.name = "json";
+    json.kind = OptKind::Flag;
+    Arg xml;
+    xml.name = "xml";
+    xml.kind = OptKind::Flag;
+
+    Command root;
+    root.name         = "git";
+    root.args         = {json, xml};
+    root.mutex_groups = {{{"json", "xml"}, false}};
+    Command show;
+    show.name = "show";
+    root.subcommands = {show};
+
+    Parser p(root);
+    Argv argv = make_argv({"--json", "--xml", "show"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+}
+
+// help 渲染：分组标签成为节标题；互斥成员带标注。
+TEST(OptV2P1Test, HelpRendersGroupsAndMutexAnnotation)
+{
+    Arg verbose;
+    verbose.name = "verbose";
+    verbose.kind = OptKind::Flag;
+    verbose.help = "chatty";
+
+    Arg input;
+    input.name  = "input";
+    input.kind  = OptKind::String;
+    input.group = "Source";
+    input.help  = "input file";
+
+    Arg output;
+    output.name  = "output";
+    output.kind  = OptKind::String;
+    output.group = "Sink";
+    output.help  = "output file";
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {verbose, input, output};
+    root.mutex_groups = {{{"input", "output"}, false}};
+
+    Parser p(root);
+    Argv argv = make_argv({"--help"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    const std::string help = r.unwrap_err().message;
+    // 默认节仍存在
+    EXPECT_NE(help.find("\nOptions:\n"), std::string::npos);
+    // 分组节标题按标签输出
+    EXPECT_NE(help.find("\nSource:\n"), std::string::npos);
+    EXPECT_NE(help.find("\nSink:\n"), std::string::npos);
+    // 互斥标注
+    EXPECT_NE(help.find("[exclusive]"), std::string::npos);
+}
+
+// 自定义 usage 行替换自动生成部分。
+TEST(OptV2P1Test, CustomUsageLine)
+{
+    Command root;
+    root.name  = "mj2x";
+    root.usage = "mj2x [--backend <name>] <jar> <out>";
+    root.help  = "convert jars";
+
+    Parser p(root);
+    Argv argv = make_argv({"--help"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    const std::string help = r.unwrap_err().message;
+    EXPECT_NE(help.find("Usage: mj2x [--backend <name>] <jar> <out>\n"), std::string::npos);
+    // 自定义 usage 下不再追加自动生成的 "[options]"。
+    EXPECT_EQ(help.find("Usage: mj2x [options]"), std::string::npos);
+}
+
+// to_status_code 桥接：HelpRequested -> CANCELLED，InvalidDefinition -> FAILED_PRECONDITION。
+TEST(OptV2P1Test, ToStatusCodeBridge)
+{
+    using ca::opt::to_status_code;
+    EXPECT_EQ(to_status_code(ParseErrorCategory::HelpRequested), ca::core::StatusCode::CANCELLED);
+    EXPECT_EQ(to_status_code(ParseErrorCategory::InvalidDefinition),
+              ca::core::StatusCode::FAILED_PRECONDITION);
+    EXPECT_EQ(to_status_code(ParseErrorCategory::UnknownOption),
+              ca::core::StatusCode::INVALID_ARGUMENT);
 }
 
 }  // namespace

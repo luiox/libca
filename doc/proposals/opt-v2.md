@@ -50,10 +50,12 @@ ca::opt 成为上述项目的共同地基：替代 mbase::ArgParser 的解析职
 
 ### P1（错误模型 + 分组）
 
-6. **细粒度错误分类**：`ParseError { HelpRequested, UnknownOption, MissingValue,
+6. **细粒度错误分类**：`ParseErrorCategory { HelpRequested, UnknownOption, MissingValue,
    EmptyValue, UnexpectedArgument, MissingRequired, InvalidInteger, MutexConflict,
-   MutexRequired }`。libca 只产出「类别 + 出错参数名」，文案与 i18n 归调用方
-   （现有 CANCELLED+help 文本模式保留为兼容层或迁移为 HelpRequested）。
+   MutexRequired, InvalidDefinition }`。`parse()` 返回
+   `Result<ParseResult, ParseError>`（category + 出错选项名 + 现成英文描述），
+   libca 只产出「类别 + 出错参数名」，文案与 i18n 归调用方；
+   原 CANCELLED+help 文本模式迁移为 HelpRequested 类别。
 7. **互斥组**：`add_mutex_group(names, required)`；help 中可标注。
 8. **选项分组**：Arg 增加 group 字段，help 按 group 分节渲染（服务 mj2x 的
    分组打印需求）。

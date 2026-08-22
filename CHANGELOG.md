@@ -19,3 +19,8 @@
   追加语义、带默认取值重载。行为变更：未声明的裸 token 由静默丢弃改为报错，
   `--` 之后的 token 收集进 `positionals()`。该子库此前无下游用户，不提供迁移层。
   设计见 `doc/proposals/opt-v2.md`。
+- **[opt] v2-P1**：`parse()` 返回类型改为 `Result<ParseResult, ParseError>`
+  （类别 + 出错选项名 + 现成描述，`to_status_code()` 提供到 `StatusCode` 的桥接；
+  原 `--help` 的 CANCELLED+文本模式迁移为 `HelpRequested` 类别）；新增互斥组
+  （`Command::mutex_groups`）、选项分组渲染（`Arg::group`）、自定义 usage 行
+  （`Command::usage`）。

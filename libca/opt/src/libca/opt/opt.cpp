@@ -72,6 +72,85 @@ bool build_lookup(const Command& cmd, Lookup& out, std::string& err)
     return true;
 }
 
+// 校验互斥组配置：成员必须指向本命令已注册的选项，且组非空。
+bool validate_mutex_groups(const Command& cmd, std::string& err)
+{
+    for (const MutexGroup& group : cmd.mutex_groups) {
+        if (group.names.empty()) {
+            err = "mutex group must list at least one option name";
+            return false;
+        }
+        for (const auto& member : group.names) {
+            bool found = false;
+            for (const Arg& arg : cmd.args) {
+                if (arg.name == member) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                err = ca::str::format_std("mutex group references unknown option: --{}", member);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 运行期互斥约束检查：多于一个成员出现报冲突；required 且全缺报缺失。
+bool check_mutex_groups(const Command& cmd, const ParseResult& result, ParseError& err_out)
+{
+    for (const MutexGroup& group : cmd.mutex_groups) {
+        std::vector<std::string> present;
+        for (const auto& member : group.names) {
+            if (result.has(member))
+                present.push_back(member);
+        }
+        if (present.size() > 1) {
+            std::string joined;
+            for (std::size_t k = 0; k < present.size(); ++k) {
+                if (k != 0)
+                    joined += ", ";
+                joined += "--" + present[k];
+            }
+            err_out = ParseError{ParseErrorCategory::MutexConflict, "",
+                                 ca::str::format_std("mutually exclusive options given: {}",
+                                                     joined)};
+            return false;
+        }
+        if (group.required && present.empty()) {
+            std::string joined;
+            for (std::size_t k = 0; k < group.names.size(); ++k) {
+                if (k != 0)
+                    joined += "|";
+                joined += "--" + group.names[k];
+            }
+            err_out = ParseError{ParseErrorCategory::MutexRequired, "",
+                                 ca::str::format_std("one of {} is required", joined)};
+            return false;
+        }
+    }
+    return true;
+}
+
+// help 中选项行尾的互斥标注。
+std::string mutex_suffix(const Command& cmd, const std::string& arg_name)
+{
+    bool in_group = false;
+    bool required = false;
+    for (const MutexGroup& group : cmd.mutex_groups) {
+        for (const auto& member : group.names) {
+            if (member == arg_name) {
+                in_group = true;
+                required = required || group.required;
+            }
+        }
+    }
+    if (!in_group)
+        return "";
+    return required ? " [exclusive, one required]" : " [exclusive]";
+}
+
 // 当前 command 是否声明了位置参数。
 bool has_positional_spec(const Command& cmd)
 {
@@ -106,13 +185,19 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
     oss << "Usage: ";
     for (const auto& seg : path)
         oss << seg << ' ';
-    oss << cmd.name << " [options]";
-    for (const Arg& arg : cmd.args) {
-        if (arg.kind == OptKind::Positional)
-            oss << " <" << arg.name << ">";
+    if (!cmd.usage.empty()) {
+        // 自定义 usage：完整替换自动生成部分（含程序名，由定义方负责书写）。
+        oss << cmd.usage;
     }
-    if (!cmd.subcommands.empty())
-        oss << " <subcommand>";
+    else {
+        oss << cmd.name << " [options]";
+        for (const Arg& arg : cmd.args) {
+            if (arg.kind == OptKind::Positional)
+                oss << " <" << arg.name << ">";
+        }
+        if (!cmd.subcommands.empty())
+            oss << " <subcommand>";
+    }
     oss << "\n\n" << cmd.help << "\n";
 
     bool have_positional = false;
@@ -126,16 +211,8 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
         }
     }
 
-    bool have_option = false;
-    for (const Arg& arg : cmd.args) {
-        const OptKind kind = arg.kind;
-        if (kind == OptKind::Positional)
-            continue;
-        if (!have_option) {
-            oss << "\nOptions:\n";
-            have_option = true;
-        }
-
+    // 单个选项行的渲染（默认节与分组节共用）。
+    auto render_option_row = [&](const Arg& arg) {
         // 左列：全部 token 拼接，如 "-i, --input <jar>"
         std::vector<std::string> tokens;
         std::string              err;
@@ -147,17 +224,45 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
             oss << tokens[k];
         }
         const std::string metavar = kind_metavar(arg);
-        if (!metavar.empty() && kind != OptKind::Positional)
+        if (!metavar.empty())
             oss << ' ' << metavar;
         oss << "\n      " << arg.help;
-        if (kind == OptKind::StringList)
+        if (arg.kind == OptKind::StringList)
             oss << " (repeatable or comma-separated)";
-        if (!metavar.empty() && !arg.default_value.empty() && kind != OptKind::StringList &&
-            kind != OptKind::Flag)
+        if (!metavar.empty() && !arg.default_value.empty() && arg.kind != OptKind::StringList &&
+            arg.kind != OptKind::Flag)
             oss << " (default: " << arg.default_value << ")";
         if (arg.required)
             oss << " [required]";
+        oss << mutex_suffix(cmd, arg.name);
         oss << "\n";
+    };
+
+    // 未分组选项进默认节；分组选项按组标签首次出现顺序各成一节。
+    bool have_option = false;
+    for (const Arg& arg : cmd.args) {
+        if (arg.kind == OptKind::Positional || !arg.group.empty())
+            continue;
+        if (!have_option) {
+            oss << "\nOptions:\n";
+            have_option = true;
+        }
+        render_option_row(arg);
+    }
+    std::vector<std::string> group_order;
+    std::set<std::string>    group_seen;
+    for (const Arg& arg : cmd.args) {
+        if (arg.kind == OptKind::Positional || arg.group.empty())
+            continue;
+        if (group_seen.insert(arg.group).second)
+            group_order.push_back(arg.group);
+    }
+    for (const auto& group_label : group_order) {
+        oss << "\n" << group_label << ":\n";
+        for (const Arg& arg : cmd.args) {
+            if (arg.kind != OptKind::Positional && arg.group == group_label)
+                render_option_row(arg);
+        }
     }
 
     if (!cmd.subcommands.empty()) {
@@ -213,6 +318,18 @@ std::vector<std::string> split_comma(const std::string& s)
 
 }  // namespace
 
+StatusCode to_status_code(ParseErrorCategory category) noexcept
+{
+    switch (category) {
+    case ParseErrorCategory::HelpRequested:
+        return StatusCode::CANCELLED;
+    case ParseErrorCategory::InvalidDefinition:
+        return StatusCode::FAILED_PRECONDITION;
+    default:
+        return StatusCode::INVALID_ARGUMENT;
+    }
+}
+
 bool ParseResult::has(std::string_view name) const
 {
     return values_.find(std::string(name)) != values_.end();
@@ -257,7 +374,7 @@ Parser::Parser(Command root)
     : root_(std::move(root))
 {}
 
-ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const argv[])
+ca::core::Result<ParseResult, ParseError> Parser::parse(int argc, const char* const argv[])
 {
     ParseResult result;
     std::vector<std::string> path;           // 已穿过的子命令路径
@@ -267,10 +384,11 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
     Lookup lookup;
     std::string err;
     if (!build_lookup(*current, lookup, err))
-        return ca::core::Err(ca::core::ErrStatus(ca::core::StatusCode::INVALID_ARGUMENT, err));
+        return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
+    if (!validate_mutex_groups(*current, err))
+        return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
     for (const Arg& arg : current->args) {
-        const OptKind kind = arg.kind;
-        if (kind_takes_value(kind) && !arg.default_value.empty())
+        if (kind_takes_value(arg.kind) && !arg.default_value.empty())
             result.values_[arg.name] = arg.default_value;
     }
 
@@ -292,11 +410,11 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             continue;
         }
 
-        // --help / -h：任何层级都支持。返回 CANCELLED（表示用户请求帮助、中止正常流程），
-        // message 为格式化的帮助文本。调用方据此打印并退出，区别于真正的解析错误。
+        // --help / -h：任何层级都支持。category 为 HelpRequested（用户请求帮助、中止
+        // 正常流程），message 为格式化的完整帮助文本，区别于真正的解析错误。
         if (token == "--help" || token == "-h") {
-            return ca::core::Err(ca::core::ErrStatus(ca::core::StatusCode::CANCELLED,
-                                                     render_help(*current, path)));
+            return ca::core::Err(
+                ParseError{ParseErrorCategory::HelpRequested, "", render_help(*current, path)});
         }
 
         // 长选项 --name 或 --name=value
@@ -313,18 +431,18 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
 
             auto it = lookup.by_token.find("--" + body);
             if (it == lookup.by_token.end()) {
-                return ca::core::Err(ca::core::ErrStatus(
-                    ca::core::StatusCode::INVALID_ARGUMENT,
-                    ca::str::format_std("unknown option: --{}", body)));
+                return ca::core::Err(ParseError{
+                    ParseErrorCategory::UnknownOption, body,
+                    ca::str::format_std("unknown option: --{}", body)});
             }
-            const Arg*     arg = it->second;
-            const OptKind  kind = arg->kind;
+            const Arg*    arg  = it->second;
+            const OptKind kind = arg->kind;
 
             if (!kind_takes_value(kind)) {
                 if (has_inline) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
-                        ca::str::format_std("option --{} does not take a value", body)));
+                    return ca::core::Err(ParseError{
+                        ParseErrorCategory::UnexpectedArgument, arg->name,
+                        ca::str::format_std("option --{} does not take a value", body)});
                 }
                 result.values_[arg->name] = "true";
                 ++i;
@@ -337,20 +455,25 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             }
             else {
                 if (i + 1 >= argc) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
-                        ca::str::format_std("option --{} requires a value", body)));
+                    return ca::core::Err(ParseError{
+                        ParseErrorCategory::MissingValue, arg->name,
+                        ca::str::format_std("option --{} requires a value", body)});
                 }
                 value = argv[++i];
+            }
+            if (value.empty()) {
+                return ca::core::Err(ParseError{
+                    ParseErrorCategory::EmptyValue, arg->name,
+                    ca::str::format_std("option --{} requires a non-empty value", body)});
             }
 
             if (kind == OptKind::Int) {
                 int parsed = 0;
                 if (!parse_int_strict(value, parsed)) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
+                    return ca::core::Err(ParseError{
+                        ParseErrorCategory::InvalidInteger, arg->name,
                         ca::str::format_std("option --{} expects an integer, got '{}'", body,
-                                            value)));
+                                            value)});
                 }
                 result.values_[arg->name] = value;  // last-wins
             }
@@ -372,9 +495,9 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             char short_char = token[1];
             auto it         = lookup.by_token.find(token.substr(0, 2));
             if (it == lookup.by_token.end()) {
-                return ca::core::Err(ca::core::ErrStatus(
-                    ca::core::StatusCode::INVALID_ARGUMENT,
-                    ca::str::format_std("unknown option: -{}", short_char)));
+                return ca::core::Err(ParseError{
+                    ParseErrorCategory::UnknownOption, token.substr(0, 2),
+                    ca::str::format_std("unknown option: -{}", short_char)});
             }
             const Arg*    arg  = it->second;
             const OptKind kind = arg->kind;
@@ -386,16 +509,16 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
                         const char ch  = token[c];
                         auto       fit = lookup.by_token.find(std::string("-") + ch);
                         if (fit == lookup.by_token.end()) {
-                            return ca::core::Err(ca::core::ErrStatus(
-                                ca::core::StatusCode::INVALID_ARGUMENT,
-                                ca::str::format_std("unknown option: -{}", ch)));
+                            return ca::core::Err(ParseError{
+                                ParseErrorCategory::UnknownOption, std::string("-") + ch,
+                                ca::str::format_std("unknown option: -{}", ch)});
                         }
                         if (kind_takes_value(fit->second->kind)) {
-                            return ca::core::Err(ca::core::ErrStatus(
-                                ca::core::StatusCode::INVALID_ARGUMENT,
+                            return ca::core::Err(ParseError{
+                                ParseErrorCategory::UnexpectedArgument, fit->second->name,
                                 ca::str::format_std(
                                     "option -{} takes a value; cannot combine in -{}", ch,
-                                    token.substr(1))));
+                                    token.substr(1))});
                         }
                         result.values_[fit->second->name] = "true";
                     }
@@ -413,20 +536,25 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
             }
             else {
                 if (i + 1 >= argc) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
-                        ca::str::format_std("option -{} requires a value", short_char)));
+                    return ca::core::Err(ParseError{
+                        ParseErrorCategory::MissingValue, arg->name,
+                        ca::str::format_std("option -{} requires a value", short_char)});
                 }
                 value = argv[++i];
+            }
+            if (value.empty()) {
+                return ca::core::Err(ParseError{
+                    ParseErrorCategory::EmptyValue, arg->name,
+                    ca::str::format_std("option -{} requires a non-empty value", short_char)});
             }
 
             if (kind == OptKind::Int) {
                 int parsed = 0;
                 if (!parse_int_strict(value, parsed)) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
+                    return ca::core::Err(ParseError{
+                        ParseErrorCategory::InvalidInteger, arg->name,
                         ca::str::format_std("option -{} expects an integer, got '{}'",
-                                            short_char, value)));
+                                            short_char, value)});
                 }
                 result.values_[arg->name] = value;
             }
@@ -445,26 +573,34 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
 
         // 非选项 token：优先子命令分派，其次位置参数收集。
         if (const Command* sub = find_subcommand(*current, token)) {
-            // 切换到子命令前，先对父命令做 required 校验：根命令的 required 不能
+            // 切换到子命令前，先对父命令收尾校验（required 与互斥组）：根命令的约束不能
             // 因为进入子命令而被静默跳过。
+            ParseError finalize_err;
+            bool       failed = false;
             for (const Arg& arg : current->args) {
-                if (arg.required && kind_takes_value(arg.kind) &&
-                    !result.has(arg.name)) {
-                    return ca::core::Err(ca::core::ErrStatus(
-                        ca::core::StatusCode::INVALID_ARGUMENT,
-                        ca::str::format_std("missing required option: --{}", arg.name)));
+                if (arg.required && kind_takes_value(arg.kind) && !result.has(arg.name)) {
+                    finalize_err = ParseError{
+                        ParseErrorCategory::MissingRequired, arg.name,
+                        ca::str::format_std("missing required option: --{}", arg.name)};
+                    failed = true;
+                    break;
                 }
             }
+            if (!failed && !check_mutex_groups(*current, result, finalize_err))
+                failed = true;
+            if (failed)
+                return ca::core::Err(std::move(finalize_err));
+
             current = sub;
             path.push_back(sub->name);
-            // 切换到子命令的选项表。
+            // 切换到子命令的选项表与互斥组配置。
             lookup.by_token.clear();
             if (!build_lookup(*current, lookup, err))
-                return ca::core::Err(ca::core::ErrStatus(
-                    ca::core::StatusCode::INVALID_ARGUMENT, err));
+                return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
+            if (!validate_mutex_groups(*current, err))
+                return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
             for (const Arg& arg : current->args) {
-                const OptKind kind = arg.kind;
-                if (kind_takes_value(kind) && !arg.default_value.empty())
+                if (kind_takes_value(arg.kind) && !arg.default_value.empty())
                     result.values_[arg.name] = arg.default_value;
             }
             ++i;
@@ -478,19 +614,22 @@ ca::core::StatusResult<ParseResult> Parser::parse(int argc, const char* const ar
         }
 
         // 无 Positional 声明时的多余裸 token：报错而非静默丢弃（v2 行为变更）。
-        return ca::core::Err(ca::core::ErrStatus(
-            ca::core::StatusCode::INVALID_ARGUMENT,
-            ca::str::format_std("unexpected argument: {}", token)));
+        return ca::core::Err(ParseError{
+            ParseErrorCategory::UnexpectedArgument, token,
+            ca::str::format_std("unexpected argument: {}", token)});
     }
 
-    // 检查 required 选项。
+    // 收尾校验当前命令：required 选项与互斥组。
     for (const Arg& arg : current->args) {
         if (arg.required && kind_takes_value(arg.kind) && !result.has(arg.name)) {
-            return ca::core::Err(ca::core::ErrStatus(
-                ca::core::StatusCode::INVALID_ARGUMENT,
-                ca::str::format_std("missing required option: --{}", arg.name)));
+            return ca::core::Err(ParseError{
+                ParseErrorCategory::MissingRequired, arg.name,
+                ca::str::format_std("missing required option: --{}", arg.name)});
         }
     }
+    ParseError mutex_err;
+    if (!check_mutex_groups(*current, result, mutex_err))
+        return ca::core::Err(std::move(mutex_err));
 
     result.subcommand_path_ = path;
     return ca::core::Ok(std::move(result));
