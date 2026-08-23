@@ -83,6 +83,9 @@ struct MutexGroup
     std::vector<std::string> names;
     /// true 时整组一个都没出现报 MissingRequired 类错误。
     bool required{false};
+    /// 可选组标识，仅用于错误定位（ParseError.group 回填）与下游错误文案分派；
+    /// 不参与匹配与 help 渲染。为空时错误里用 "a|b" 形式的成员名拼接代替。
+    std::string label;
 };
 
 /// @brief 解析错误细分类别。文案与 i18n 归调用方；message 仅提供现成英文描述。
@@ -111,6 +114,7 @@ enum class ParseErrorCategory
 };
 
 /// @brief 解析错误：类别 + 出错选项 canonical 名 + 现成英文描述。
+/// @note 字段顺序即聚合初始化顺序；group 置于末尾以兼容三元素初始化写法。
 struct ParseError
 {
     ParseErrorCategory category{};
@@ -120,6 +124,10 @@ struct ParseError
     /// 现成描述文本。HelpRequested 时为完整帮助文本；其余场景可直接打印，
     /// 也可由调用方按 category 自行格式化后丢弃。
     std::string message;
+    /// 互斥类错误（MutexConflict/MutexRequired）的组标识：组有 label 时为 label，
+    /// 否则为 "a|b" 形式的成员名拼接；其余类别为空。供下游按组分派文案，
+    /// 避免"唯一互斥组"式硬编码。
+    std::string group;
 };
 
 /// @brief 错误类别到通用状态码的桥接（供仍以 Status 为边界的调用方使用）。

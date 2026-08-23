@@ -104,6 +104,20 @@ bool validate_mutex_groups(const Command& cmd, std::string& err)
     return true;
 }
 
+// 互斥组的错误标识：有 label 用 label，否则用 "a|b" 形式的成员名拼接。
+std::string group_identity(const MutexGroup& group)
+{
+    if (!group.label.empty())
+        return group.label;
+    std::string joined;
+    for (std::size_t k = 0; k < group.names.size(); ++k) {
+        if (k != 0)
+            joined += "|";
+        joined += group.names[k];
+    }
+    return joined;
+}
+
 // 运行期互斥约束检查。显式选择 = 命令行或注入初值（静态默认不算选择）：
 // 多于一个选择报冲突；required 且无任何选择报缺失。
 bool check_mutex_groups(const Command& cmd,
@@ -130,7 +144,8 @@ bool check_mutex_groups(const Command& cmd,
             }
             err_out = ParseError{ParseErrorCategory::MutexConflict, "",
                                  ca::str::format_std("mutually exclusive options given: {}",
-                                                     joined)};
+                                                     joined),
+                                 group_identity(group)};
             return false;
         }
         if (group.required && present.empty()) {
@@ -141,7 +156,8 @@ bool check_mutex_groups(const Command& cmd,
                 joined += "--" + group.names[k];
             }
             err_out = ParseError{ParseErrorCategory::MutexRequired, "",
-                                 ca::str::format_std("one of {} is required", joined)};
+                                 ca::str::format_std("one of {} is required", joined),
+                                 group_identity(group)};
             return false;
         }
     }

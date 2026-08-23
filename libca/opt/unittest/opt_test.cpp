@@ -634,6 +634,8 @@ TEST(OptV2P1Test, MutexConflictRejected)
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+    // 无 label 的组：错误标识为成员名拼接。
+    EXPECT_EQ(r.unwrap_err().group, "json|yaml");
     EXPECT_NE(r.unwrap_err().message.find("--json"), std::string::npos);
     // 只出现一个成员时合法。
     Parser p2(root);
@@ -641,6 +643,46 @@ TEST(OptV2P1Test, MutexConflictRejected)
     auto r2 = p2.parse(argv2.argc, argv2.data());
     ASSERT_TRUE(r2.is_ok()) << r2.unwrap_err().message;
     EXPECT_TRUE(r2.unwrap().has("yaml"));
+}
+
+// 带 label 的互斥组：错误标识回填 label，供下游按组分派文案。
+TEST(OptV2P1Test, MutexGroupLabelInError)
+{
+    Arg schema;
+    schema.name = "dump-config-schema";
+    schema.kind = OptKind::OptionalString;
+    Arg tmpl;
+    tmpl.name = "dump-config-template";
+    tmpl.kind = OptKind::OptionalString;
+
+    Command root;
+    root.name = "prog";
+    root.args = {schema, tmpl};
+    MutexGroup once;
+    once.names  = {"dump-config-schema", "dump-config-template"};
+    once.label  = "dump_once";
+    root.mutex_groups = {once};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump-config-schema", "--dump-config-template"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+        EXPECT_EQ(r.unwrap_err().group, "dump_once");
+    }
+    {
+        MutexGroup req = once;
+        req.required   = true;
+        Command root2  = root;
+        root2.mutex_groups = {req};
+        Parser p(root2);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
+        EXPECT_EQ(r.unwrap_err().group, "dump_once");
+    }
 }
 
 // required 互斥组：全缺报 MutexRequired；出现其一即通过。
