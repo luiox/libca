@@ -1152,5 +1152,184 @@ TEST(OptV2ProvenanceTest, MutexRequiredIgnoresPureDefaults)
     }
 }
 
+// ==========================================================================
+// OptionalString 可选值形态：--x 裸出现 / --x=v 内联；空格形态不消费后继
+// ==========================================================================
+
+// 裸出现 = 已提供且值为空串（stdout 约定）；内联形态取值。
+TEST(OptV2OptionalTest, BareAndInlineForms)
+{
+    Arg dump;
+    dump.name    = "dump-config-schema";
+    dump.kind    = OptKind::OptionalString;
+    dump.metavar = "file";
+
+    Command root;
+    root.name = "prog";
+    root.args = {dump};
+
+    // 裸出现：值为空串，来源 CommandLine。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump-config-schema"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_TRUE(result.has("dump-config-schema"));
+        EXPECT_EQ(result.get("dump-config-schema"), "");
+        EXPECT_EQ(result.source_of("dump-config-schema"), ValueSource::CommandLine);
+    }
+    // 内联：写文件语义。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump-config-schema=out.json"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("dump-config-schema"), "out.json");
+    }
+}
+
+// 空格形态不消费后继 token：有 Positional 声明时进位置参数，
+// 无声明时报 UnexpectedArgument 且指向后继 token 而非缺值。
+TEST(OptV2OptionalTest, SpaceFormNeverConsumesNextToken)
+{
+    Arg dump;
+    dump.name = "dump";
+    dump.kind = OptKind::OptionalString;
+
+    Command root;
+    root.name = "prog";
+    root.args = {dump};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump", "out.json"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnexpectedArgument);
+        EXPECT_EQ(r.unwrap_err().option, "out.json");
+    }
+    // 声明 Positional 后同样不被吞：out.json 归位置参数。
+    Arg pattern;
+    pattern.name = "target";
+    pattern.kind = OptKind::Positional;
+    root.args.push_back(pattern);
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump", "out.json"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get("dump"), "");
+        ASSERT_EQ(result.positionals().size(), 1u);
+        EXPECT_EQ(result.positionals()[0], "out.json");
+    }
+}
+
+// 短别名：裸 -d 与附着 -dfile；不与其它短选项组合展开。
+TEST(OptV2OptionalTest, ShortBareAndAttached)
+{
+    Arg dump;
+    dump.name    = "dump";
+    dump.aliases = {"-d"};
+    dump.kind    = OptKind::OptionalString;
+
+    Command root;
+    root.name = "prog";
+    root.args = {dump};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-d"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("dump"), "");
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-dout.json"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("dump"), "out.json");
+    }
+}
+
+// 缺席回落默认值；裸出现的空串覆盖默认值；注入初值可被 CLI 覆盖。
+TEST(OptV2OptionalTest, DefaultAndInitialInterplay)
+{
+    Arg dump;
+    dump.name          = "dump";
+    dump.kind          = OptKind::OptionalString;
+    dump.default_value = "schema.json";
+
+    Command root;
+    root.name = "prog";
+    root.args = {dump};
+
+    const std::unordered_map<std::string, std::string> initials = {{"dump", "from-config"}};
+
+    // 缺席：静态默认。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get("dump"), "schema.json");
+        EXPECT_EQ(result.source_of("dump"), ValueSource::Default);
+    }
+    // 注入初值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), initials);
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("dump"), "from-config");
+    }
+    // CLI 裸出现：空串覆盖注入初值（stdout 约定优先于配置文件）。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--dump"});
+        auto r = p.parse(argv.argc, argv.data(), initials);
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get("dump"), "");
+        EXPECT_EQ(result.source_of("dump"), ValueSource::CommandLine);
+    }
+}
+
+// help 渲染 [=metavar] 形态；裸出现算互斥组的一次显式选择。
+TEST(OptV2OptionalTest, HelpAndMutexSemantics)
+{
+    Arg dump;
+    dump.name    = "dump-schema";
+    dump.kind    = OptKind::OptionalString;
+    dump.metavar = "file";
+
+    Arg quiet;
+    quiet.name = "quiet";
+    quiet.kind = OptKind::Flag;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {dump, quiet};
+    root.mutex_groups = {{{"dump-schema", "quiet"}, false}};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--help"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_NE(r.unwrap_err().message.find("--dump-schema [=file]"), std::string::npos);
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--quiet"});
+        auto r = p.parse(argv.argc, argv.data(), {{"dump-schema", "a.json"}});
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+    }
+}
+
 }  // namespace
 }  // namespace ca::opt::test

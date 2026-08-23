@@ -10,9 +10,10 @@
 
 /// @file opt.hpp
 /// @brief 命令行选项解析器。支持短名(-v)/长名(--verbose)、--name value/--name=value、
-///        类型化选项（Flag/String/Int/StringList/Positional）、多别名、required/default、
-///        互斥组、选项分组渲染、自定义 usage、初始值注入（default < 注入初值 < 命令行）、
-///        子命令嵌套、--help 自动生成帮助、-- 终止符。命名空间 `ca::opt`。
+///        类型化选项（Flag/String/Int/StringList/OptionalString/Positional）、多别名、
+///        required/default、互斥组、选项分组渲染、自定义 usage、初始值注入
+///        （default < 注入初值 < 命令行）、子命令嵌套、--help 自动生成帮助、-- 终止符。
+///        命名空间 `ca::opt`。
 ///
 /// 错误以 ParseErrorCategory 类别 + 出错选项名表达，文案与 i18n 归调用方；
 /// 配置文件解析与 schema dump 不进库：前者经初值注入接入，后者基于 root()
@@ -35,6 +36,12 @@ enum class OptKind
     Int,
     /// 字符串列表：接受逗号拆分（`--p a,b,c`）与多次出现追加（`--p a --p b`）。
     StringList,
+    /// 可选值字符串：值仅能内联提供（`--dump=x`）；裸出现（`--dump`）视为已提供
+    /// 且值为空串（调用方自行约定空值的语义，如"输出到 stdout"）。
+    /// 空格形态不消费后继 token——`--dump out.json` 中 out.json 恒为位置参数，
+    /// 杜绝与位置参数/子命令的歧义。短别名支持裸形态（`-d`）与附着形态（`-dout.json`）。
+    /// 典型用途：`--dump-config-schema[=file]` 不带值输出 stdout、带值写文件。
+    OptionalString,
     /// 位置参数声明。声明后，非选项 token 收集进 ParseResult::positionals()；
     /// 未声明任何 Positional 时，多余的非选项 token 报错误。
     Positional,
@@ -62,7 +69,7 @@ struct Arg
     /// @note required 仅对 String/Int/StringList 生效；与 default_value 互斥：
     ///       有默认值意味着 has() 恒为真，required 校验将永远不触发。
     bool required{false};
-    /// 带值选项的默认值；选项未出现且 kind 为 String/Int 时生效。
+    /// 带值选项的默认值；选项未出现且 kind 为 String/Int/OptionalString 时生效。
     std::string default_value;
 };
 

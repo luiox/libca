@@ -32,3 +32,7 @@
   （`ValueSource::{None,CommandLine,Initial,Default}`）；修复互斥组与默认值/
   注入初值叠加时的误报——冲突/缺失判定只把命令行或注入初值算作「选择」，
   静态默认不再触发 MutexConflict 或短路 required 组。
+- **[opt] OptionalString**：新增可选值形态 `OptKind::OptionalString`——
+  值仅经内联（`--dump=x`）或短选项附着（`-dx`）提供，裸出现视为已提供且值为
+  空串；空格形态不消费后继 token，杜绝与位置参数/子命令的歧义。适用于
+  "不带值输出 stdout、带值写文件"类选项。
