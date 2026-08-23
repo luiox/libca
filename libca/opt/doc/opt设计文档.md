@@ -1,6 +1,8 @@
 ---
-version: 1.2
+version: 1.3
 update:
+2026-08-23 - MutexGroup 增加 label，ParseError.group 回填组标识（下游按组分派
+             文案，替代"唯一互斥组"式硬编码）
 2026-08-23 - 新增 OptionalString 可选值形态（--x 裸出现 / --x=v 内联，
              空格形态不消费后继 token）
 2026-08-23 - 新增值来源查询 source_of()；互斥组判定改为显式选择（静态默认不算）；
@@ -105,6 +107,10 @@ optional_argument 的同款收敛：**空格形态永不消费后继 token**—�
 - **「出现」按显式选择判定**：只有命令行给出或注入初值算选择，静态 default_value
   预置不算。否则两个带默认值成员同组会在用户什么都没给时报冲突，required 组也
   会被默认值永久短路——判定依据是 `ValueSource`，不是 `has()`。
+- **组标识进错误载荷**：`MutexGroup::label`（可选）经 `ParseError.group` 回填，
+  无 label 时退化为 "a|b" 成员拼接。下游按 group 分派文案而非按 category
+  硬编码单一映射——互斥组的业务含义（如 mj2x 的 dump_once）只有下游知道，
+  多组并存时这是唯一的分派锚点。
 - 成员必须指向本命令已注册选项，否则 InvalidDefinition——拼错名字不应安静失效。
 
 ### 3.4 初始值注入的三级优先级与边界
