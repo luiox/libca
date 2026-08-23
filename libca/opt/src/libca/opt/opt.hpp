@@ -67,6 +67,9 @@ struct Arg
 };
 
 /// @brief 互斥组：组内选项至多出现一个；required 时至少出现一个。
+/// @note 「出现」按显式选择判定：只有命令行显式给出或注入初值（initial_values）
+///        算作选择；静态 default_value 预置不算——两个带默认值成员同组不会误报冲突，
+///        但 required 组仍要求至少一个显式选择。
 struct MutexGroup
 {
     /// 组内成员的 Arg::name（canonical key）列表，必须指向当前 Command 已注册的选项。
@@ -140,6 +143,20 @@ struct Command
 ///        位置参数与子命令摘要不受过滤影响。
 std::string help_text(const Command& cmd, const std::vector<std::string>& groups = {});
 
+/// @brief 选项值的来源。区分「命令行显式给值 / 注入初值 / 静态默认」；
+///        替代下游常见的 *Selected 标志族模式（显式覆盖告警、注入条件判定等）。
+enum class ValueSource
+{
+    /// 未提供：未出现且无默认值/注入初值。
+    None,
+    /// 命令行显式出现。
+    CommandLine,
+    /// 经 initial_values 注入（如配置文件）。
+    Initial,
+    /// 静态 default_value 预置。
+    Default,
+};
+
 /// @brief 解析结果。
 class ParseResult
 {
@@ -147,7 +164,12 @@ public:
     ParseResult() = default;
 
     /// @brief 指定选项是否在命令行出现。
+    /// @note 种子值（默认值/注入初值）也会置位本接口。需要区分来源时用 source_of()：
+    ///       只有 source_of(name) == CommandLine 才代表用户在命令行显式给出。
     bool has(std::string_view name) const;
+
+    /// @brief 查询选项值来源；未提供返回 ValueSource::None。
+    ValueSource source_of(std::string_view name) const;
 
     /// @brief 取选项值。带值选项返回解析到的值（或默认值），布尔选项出现返回 "true"。
     /// @note 未出现的选项返回空串。用 has() 区分"未出现"与"出现但空值"。
@@ -177,6 +199,8 @@ private:
 
     // 选项名 -> 出现的值（布尔开关存 "true"）。
     std::unordered_map<std::string, std::string> values_;
+    // 选项名 -> 值来源（与 values_ 同步写入；CLI 写入覆盖种子来源）。
+    std::unordered_map<std::string, ValueSource> sources_;
     // 列表选项名 -> 追加的值序列。
     std::unordered_map<std::string, std::vector<std::string>> lists_;
     std::vector<std::string> positionals_;
@@ -206,7 +230,8 @@ public:
     ///        即三级优先级中 CLI 恒为最高。仅对带值选项生效（Flag/Positional 忽略），
     ///        未知名字静默忽略；进入每个 command 时按该命令的选项名匹配一次。
     ///        StringList 初值按逗号拆分追加；Int 初值非法报 InvalidInteger、空串报
-    ///        EmptyValue；required 与互斥组把注入初值视为已提供。
+    ///        EmptyValue。required 把注入视为已提供；互斥组的冲突/缺失判定只把
+    ///        「命令行或注入」算作选择，静态默认不算。来源可用 source_of() 查询。
     ca::core::Result<ParseResult, ParseError> parse(
         int argc, const char* const argv[],
         const std::unordered_map<std::string, std::string>& initial_values);

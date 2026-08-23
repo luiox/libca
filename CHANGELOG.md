@@ -28,3 +28,7 @@
   default < 注入初值 < 命令行，仅带值选项参与，required/互斥组视为已提供）；
   新增 `help_text(cmd, groups)` 分组过滤帮助渲染与 `Parser::root()`
   元数据只读访问（schema 导出由下游自建）。
+- **[opt] v2 评审修正**：新增 `ParseResult::source_of()` 值来源查询
+  （`ValueSource::{None,CommandLine,Initial,Default}`）；修复互斥组与默认值/
+  注入初值叠加时的误报——冲突/缺失判定只把命令行或注入初值算作「选择」，
+  静态默认不再触发 MutexConflict 或短路 required 组。
