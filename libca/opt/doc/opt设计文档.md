@@ -1,6 +1,8 @@
 ---
-version: 1.0
+version: 1.1
 update:
+2026-08-23 - 新增值来源查询 source_of()；互斥组判定改为显式选择（静态默认不算）；
+             写明 Int 十进制 i32 边界（评审反馈）
 2026-08-22 - 初版：v2 重写落地（P0-P2），记录三套 CLI 实现收敛的背景与关键取舍
 ---
 
@@ -56,6 +58,10 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
 未声明 Positional 时多余裸 token 报 UnexpectedArgument（旧版静默丢弃属缺陷，v2 收紧）；
 `--` 终止符后的 token 一律进 positionals。
 
+**Int 的边界**：严格十进制 `int32`（`strtoll` 全量消费 + 溢出拒绝），不支持 `0x`
+前缀与无符号全值域。hex（如 `0x` 种子值）或 u64 场景走 String 选项由下游
+`strtoull` 自行解析——进制与位宽是领域语义，不值得为此扩 OptKind 面。
+
 ## 3. 关键决策与取舍
 
 ### 3.1 不做兼容层
@@ -86,6 +92,9 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
   库侧不引入构建器层；若未来迁移量大再加 builder 语法糖。
 - 组内成员至多出现一个（冲突报 MutexConflict），required 时至少一个（缺失报
   MutexRequired）。help 中互斥成员标注 `[exclusive]` / `[exclusive, one required]`。
+- **「出现」按显式选择判定**：只有命令行给出或注入初值算选择，静态 default_value
+  预置不算。否则两个带默认值成员同组会在用户什么都没给时报冲突，required 组也
+  会被默认值永久短路——判定依据是 `ValueSource`，不是 `has()`。
 - 成员必须指向本命令已注册选项，否则 InvalidDefinition——拼错名字不应安静失效。
 
 ### 3.4 初始值注入的三级优先级与边界
@@ -104,10 +113,19 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
   逐键报错会让注入不可用；拼写校验交给下游自己的配置 schema。
 - **注入时即校验**：Int 非法、空串在 parse 入口就报 InvalidInteger / EmptyValue，
   不留到 get 阶段安静回落默认值。
-- required 与互斥组把注入值视为已提供：配置文件就是合法的满足途径之一。
+- required 把注入视为已提供；互斥组按 §3.3 的「选择」语义处理（注入算选择，
+  默认不算）。
 - 进入每个 command 时按该命令的选项名匹配一次，子命令级选项同样可被预填。
 
-### 3.5 help 渲染单一实现
+### 3.5 值来源查询
+
+种子值先行写入后 `has()` 无法区分「CLI 显式 / 注入 / 恰好等于默认」，对
+「配置文件 + CLI」双源下游是陷阱（无法干净实现"仅当用户显式给值才告警/覆盖"
+这类逻辑）。因此提供 `source_of(name)` 返回 `ValueSource { None, CommandLine,
+Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下游的
+`*Selected` 标志族模式由它等价替代。
+
+### 3.6 help 渲染单一实现
 
 `--help` 输出与公开的 `help_text()` 共享同一渲染函数，杜绝"CLI 帮助与库内导出"
 两处漂移。渲染规则：
@@ -117,7 +135,7 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
   服务 mj2x 式分组打印与按模块裁剪帮助的需求
 - 自定义 usage 完整替换首行的自动生成部分（含程序名，定义方负责书写）
 
-### 3.6 元数据导出边界
+### 3.7 元数据导出边界
 
 `Parser::root()` 提供 const 访问遍历整棵 Command 树；schema / template dump /
 补全脚本由下游基于 Arg 字段自建并序列化。库不定义 dump 格式：那会把 JSON/GUI

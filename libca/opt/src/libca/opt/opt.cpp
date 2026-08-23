@@ -97,13 +97,21 @@ bool validate_mutex_groups(const Command& cmd, std::string& err)
     return true;
 }
 
-// 运行期互斥约束检查：多于一个成员出现报冲突；required 且全缺报缺失。
-bool check_mutex_groups(const Command& cmd, const ParseResult& result, ParseError& err_out)
+// 运行期互斥约束检查。显式选择 = 命令行或注入初值（静态默认不算选择）：
+// 多于一个选择报冲突；required 且无任何选择报缺失。
+bool check_mutex_groups(const Command& cmd,
+                        const std::unordered_map<std::string, ValueSource>& sources,
+                        ParseError& err_out)
 {
+    auto chosen = [&sources](const std::string& name) {
+        auto it = sources.find(name);
+        return it != sources.end() &&
+               (it->second == ValueSource::CommandLine || it->second == ValueSource::Initial);
+    };
     for (const MutexGroup& group : cmd.mutex_groups) {
         std::vector<std::string> present;
         for (const auto& member : group.names) {
-            if (result.has(member))
+            if (chosen(member))
                 present.push_back(member);
         }
         if (present.size() > 1) {
@@ -355,6 +363,7 @@ bool Parser::seed_option_values(const Command& cmd,
                                                          arg.name)};
                 return false;
             }
+            result.sources_[arg.name] = ValueSource::Initial;
             if (arg.kind == OptKind::Int) {
                 int parsed = 0;
                 if (!parse_int_strict(*init, parsed)) {
@@ -379,8 +388,10 @@ bool Parser::seed_option_values(const Command& cmd,
             continue;
         }
 
-        if (!arg.default_value.empty())
+        if (!arg.default_value.empty()) {
             result.values_[arg.name] = arg.default_value;
+            result.sources_[arg.name] = ValueSource::Default;
+        }
     }
     return true;
 }
@@ -405,6 +416,14 @@ StatusCode to_status_code(ParseErrorCategory category) noexcept
 bool ParseResult::has(std::string_view name) const
 {
     return values_.find(std::string(name)) != values_.end();
+}
+
+ValueSource ParseResult::source_of(std::string_view name) const
+{
+    auto it = sources_.find(std::string(name));
+    if (it == sources_.end())
+        return ValueSource::None;
+    return it->second;
 }
 
 std::string ParseResult::get(std::string_view name) const
@@ -458,6 +477,12 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
     ParseResult result;
     std::vector<std::string> path;           // 已穿过的子命令路径
     const Command*           current = &root_;
+
+    // 命令行显式写入：值与来源同步登记。
+    auto put_value = [&result](const std::string& name, const std::string& v) {
+        result.values_[name]   = v;
+        result.sources_[name]  = ValueSource::CommandLine;
+    };
 
     // 预置选项初值（静态默认 + 注入初值）。
     Lookup lookup;
@@ -525,7 +550,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                         ParseErrorCategory::UnexpectedArgument, arg->name,
                         ca::str::format_std("option --{} does not take a value", body)});
                 }
-                result.values_[arg->name] = "true";
+                put_value(arg->name, "true");
                 ++i;
                 continue;
             }
@@ -556,16 +581,16 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                         ca::str::format_std("option --{} expects an integer, got '{}'", body,
                                             value)});
                 }
-                result.values_[arg->name] = value;  // last-wins
+                put_value(arg->name, value);  // last-wins
             }
             else if (kind == OptKind::StringList) {
                 auto& dst = result.lists_[arg->name];
                 for (auto& piece : split_comma(value))
                     dst.push_back(std::move(piece));  // 追加语义
-                result.values_[arg->name] = value;
+                put_value(arg->name, value);
             }
             else {
-                result.values_[arg->name] = value;  // last-wins
+                put_value(arg->name, value);  // last-wins
             }
             ++i;
             continue;
@@ -601,11 +626,11 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                                     "option -{} takes a value; cannot combine in -{}", ch,
                                     token.substr(1))});
                         }
-                        result.values_[fit->second->name] = "true";
+                        put_value(fit->second->name, "true");
                     }
                 }
                 else {
-                    result.values_[arg->name] = "true";
+                    put_value(arg->name, "true");
                 }
                 ++i;
                 continue;
@@ -637,16 +662,16 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                         ca::str::format_std("option -{} expects an integer, got '{}'",
                                             short_char, value)});
                 }
-                result.values_[arg->name] = value;
+                put_value(arg->name, value);
             }
             else if (kind == OptKind::StringList) {
                 auto& dst = result.lists_[arg->name];
                 for (auto& piece : split_comma(value))
                     dst.push_back(std::move(piece));
-                result.values_[arg->name] = value;
+                put_value(arg->name, value);
             }
             else {
-                result.values_[arg->name] = value;
+                put_value(arg->name, value);
             }
             ++i;
             continue;
@@ -667,7 +692,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                     break;
                 }
             }
-            if (!failed && !check_mutex_groups(*current, result, finalize_err))
+            if (!failed && !check_mutex_groups(*current, result.sources_, finalize_err))
                 failed = true;
             if (failed)
                 return ca::core::Err(std::move(finalize_err));
@@ -710,7 +735,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
         }
     }
     ParseError mutex_err;
-    if (!check_mutex_groups(*current, result, mutex_err))
+    if (!check_mutex_groups(*current, result.sources_, mutex_err))
         return ca::core::Err(std::move(mutex_err));
 
     result.subcommand_path_ = path;

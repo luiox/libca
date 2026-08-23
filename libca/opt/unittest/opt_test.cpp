@@ -1009,5 +1009,148 @@ TEST(OptV2P2Test, HelpTextGroupFilter)
     EXPECT_NE(filtered.find("\nArguments:\n"), std::string::npos);
 }
 
+// ==========================================================================
+// 值来源查询与互斥组判定修正：静态默认不构成「选择」
+// ==========================================================================
+
+using ca::opt::ValueSource;
+
+// source_of 区分三种来源；CLI 覆盖注入后来源随之翻转为 CommandLine。
+TEST(OptV2ProvenanceTest, SourceOfDistinguishesThreeOrigins)
+{
+    Arg output;
+    output.name          = "output";
+    output.kind          = OptKind::String;
+    output.default_value = "from-default";
+
+    Arg level;
+    level.name = "level";
+    level.kind = OptKind::Int;
+
+    Command root;
+    root.name = "prog";
+    root.args = {output, level};
+
+    // 无 CLI、有注入：output=Initial，level=None。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), {{"level", "3"}});
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.source_of("output"), ValueSource::Default);
+        EXPECT_EQ(result.source_of("level"), ValueSource::Initial);
+        EXPECT_EQ(result.source_of("nope"), ValueSource::None);
+    }
+    // CLI 显式给出：覆盖注入，来源翻转为 CommandLine。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--output", "from-cli"});
+        auto r = p.parse(argv.argc, argv.data(), {{"output", "from-config"}});
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get("output"), "from-cli");
+        EXPECT_EQ(result.source_of("output"), ValueSource::CommandLine);
+    }
+}
+
+// 两个带默认值成员同组：空命令行不再误报冲突（静态默认不算选择）。
+TEST(OptV2ProvenanceTest, MutexDefaultsNoFalseConflict)
+{
+    Arg json;
+    json.name          = "format-json";
+    json.kind          = OptKind::String;
+    json.default_value = "pretty";
+
+    Arg yaml;
+    yaml.name          = "format-yaml";
+    yaml.kind          = OptKind::String;
+    yaml.default_value = "raw";
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {json, yaml};
+    root.mutex_groups = {{{"format-json", "format-yaml"}, false}};
+
+    Parser p(root);
+    Argv argv = make_argv({});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+    auto result = r.unwrap();
+    // 默认值仍然生效可取。
+    EXPECT_EQ(result.get("format-json"), "pretty");
+    EXPECT_EQ(result.get("format-yaml"), "raw");
+    EXPECT_EQ(result.source_of("format-json"), ValueSource::Default);
+}
+
+// 注入初值是显式选择：两个成员都注入仍报冲突。
+TEST(OptV2ProvenanceTest, MutexInitialChoicesConflict)
+{
+    Arg json;
+    json.name = "format-json";
+    json.kind = OptKind::String;
+    Arg yaml;
+    yaml.name = "format-yaml";
+    yaml.kind = OptKind::String;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {json, yaml};
+    root.mutex_groups = {{{"format-json", "format-yaml"}, false}};
+
+    Parser p(root);
+    Argv argv = make_argv({});
+    auto r = p.parse(argv.argc, argv.data(),
+                     {{"format-json", "pretty"}, {"format-yaml", "raw"}});
+    ASSERT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
+}
+
+// required 互斥组：纯默认成员不算满足，仍要求至少一个显式选择；
+// 一个成员带默认、用户显式选另一个时也不报冲突。
+TEST(OptV2ProvenanceTest, MutexRequiredIgnoresPureDefaults)
+{
+    Arg json;
+    json.name          = "format-json";
+    json.kind          = OptKind::String;
+    json.default_value = "pretty";
+
+    Arg xml;
+    xml.name = "format-xml";
+    xml.kind = OptKind::String;
+
+    Command root;
+    root.name         = "prog";
+    root.args         = {json, xml};
+    root.mutex_groups = {{{"format-json", "format-xml"}, true}};
+
+    // 空命令行：默认值不算选择，报缺失。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
+    }
+    // 注入初值算选择，满足 required 组。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), {{"format-json", "compact"}});
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().source_of("format-json"), ValueSource::Initial);
+    }
+    // 用户显式选择另一个带默认的成员：仅一个显式选择，无冲突。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--format-xml", "x.xml"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto result = r.unwrap();
+        EXPECT_EQ(result.get("format-json"), "pretty");  // 未被选择的成员回落默认值
+        EXPECT_EQ(result.source_of("format-xml"), ValueSource::CommandLine);
+    }
+}
+
 }  // namespace
 }  // namespace ca::opt::test
