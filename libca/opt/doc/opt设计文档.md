@@ -1,6 +1,8 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-08-23 - 新增 OptionalString 可选值形态（--x 裸出现 / --x=v 内联，
+             空格形态不消费后继 token）
 2026-08-23 - 新增值来源查询 source_of()；互斥组判定改为显式选择（静态默认不算）；
              写明 Int 十进制 i32 边界（评审反馈）
 2026-08-22 - 初版：v2 重写落地（P0-P2），记录三套 CLI 实现收敛的背景与关键取舍
@@ -53,10 +55,18 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
 | String | `--out x` / `--out=x` / `-o x` / `-ox` | last-wins | 覆盖默认值 |
 | Int | 同上 | last-wins，非法即报错 | 注入时即校验 |
 | StringList | `--p a,b,c` 或多次出现 | 追加合并 | 逗号拆分追加 |
+| OptionalString | `--dump`（裸） / `--dump=x`（内联）/ `-d` / `-dx` | last-wins | 覆盖默认值 |
 | Positional | 裸 token | 按序收集 | 不参与 |
 
 未声明 Positional 时多余裸 token 报 UnexpectedArgument（旧版静默丢弃属缺陷，v2 收紧）；
 `--` 终止符后的 token 一律进 positionals。
+
+**OptionalString 的歧义收敛**：可选值是经典 CLI 需求（如
+`--dump-config-schema[=file]` 不带值输出 stdout、带值写文件），但
+"`--x value` 算不算给值"与位置参数/子命令天然冲突。v2 采用 GNU getopt_long
+optional_argument 的同款收敛：**空格形态永不消费后继 token**——值只能内联
+（长选项 `=` 形态）或附着（短选项 `-dfile`）；裸出现 = 已提供且值为空串，
+语义归调用方约定。配合 source_of 可精确区分"没给 / 给了空的"。
 
 **Int 的边界**：严格十进制 `int32`（`strtoll` 全量消费 + 溢出拒绝），不支持 `0x`
 前缀与无符号全值域。hex（如 `0x` 种子值）或 u64 场景走 String 选项由下游

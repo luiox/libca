@@ -18,8 +18,15 @@ struct Lookup
     std::unordered_map<std::string, const Arg*> by_token;
 };
 
-// 该 kind 是否消费一个值。
+// 该 kind 是否参与种子与 required 语义（有值概念）。
 bool kind_takes_value(OptKind kind)
+{
+    return kind == OptKind::String || kind == OptKind::Int || kind == OptKind::StringList ||
+           kind == OptKind::OptionalString;
+}
+
+// 该 kind 是否以空格形态消费后继 token（OptionalString 只支持内联/附着，避免歧义）。
+bool consumes_space_value(OptKind kind)
 {
     return kind == OptKind::String || kind == OptKind::Int || kind == OptKind::StringList;
 }
@@ -169,9 +176,11 @@ bool has_positional_spec(const Command& cmd)
     return false;
 }
 
-// kind 的 help 值占位符。
+// kind 的 help 值占位符。OptionalString 用 [=...] 形态表达"值可省略"。
 std::string kind_metavar(const Arg& arg)
 {
+    if (arg.kind == OptKind::OptionalString)
+        return arg.metavar.empty() ? "[=value]" : "[=" + arg.metavar + "]";
     if (!arg.metavar.empty())
         return arg.metavar;
     switch (arg.kind) {
@@ -555,6 +564,14 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                 continue;
             }
 
+            if (kind == OptKind::OptionalString) {
+                // 值仅内联提供；裸出现 = 已提供且值为空串（调用方约定语义，如 stdout），
+                // 不消费后继 token，杜绝与位置参数/子命令的歧义。
+                put_value(arg->name, has_inline ? inline_value : std::string{});
+                ++i;
+                continue;
+            }
+
             std::string value;
             if (has_inline) {
                 value = inline_value;
@@ -607,6 +624,13 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             }
             const Arg*    arg  = it->second;
             const OptKind kind = arg->kind;
+
+            if (kind == OptKind::OptionalString) {
+                // 裸（-d）或附着（-dout.json）形态；不消费后继 token、不参与组合展开。
+                put_value(arg->name, token.size() > 2 ? token.substr(2) : std::string{});
+                ++i;
+                continue;
+            }
 
             if (!kind_takes_value(kind)) {
                 if (token.size() > 2) {
