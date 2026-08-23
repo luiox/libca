@@ -459,16 +459,32 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `ipc::NamedPipeServer` / `NamedPipeClient` / `NamedPipeConnection`：命名管道（Windows Win32 管道 / Linux Unix-domain socket）。
 - `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。
 - `ipc::NamedSemaphore`：命名信号量。
-- `ipc::MessageQueue`：保序消息队列（Windows mailslot / Linux POSIX mqueue）。
+- `ipc::MessageQueue`：消息队列（Windows mailslot / Linux POSIX mqueue）。
 
-设计文档：
+相关文档：
 - `libca/process/doc/process设计文档.md`
+
+## opt
+
+命令行选项解析器，作为下游 CLI 工具的统一解析地基（morpher mj2x-cli 已接入）。
+
+头文件：
+- `<libca/opt/opt.hpp>`
+
+功能：
+- 类型化选项（Flag/String/Int/StringList/OptionalString/Positional）、多别名、required/default
+- 子命令嵌套、互斥组（显式选择判定）、`--` 终止符、任意层级 `--help`
+- `Result<ParseResult, ParseError>` 错误模型：十类 ParseErrorCategory + 出错选项名 + 互斥组标识
+- 初始值注入三级优先级（default < 注入初值 < 命令行）与 `source_of()` 值来源查询
+- help 分组渲染 / 自定义 usage / `Parser::root()` 元数据只读访问
+
+相关文档：
+- `libca/opt/doc/opt设计文档.md`
 
 ## 暂未作为主线使用的代码
 
 - libca/log/：已接入构建（spdlog 后端可选，见根 xmake.lua 的 with_spdlog）。
 - libca/utility/、libca/reflect/：历史遗留，已归档到 doc/legacy/，不再维护。
-- `libca/opt/`：已实现并接入构建（命令行选项解析）。
 
 > 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
 > 代码页转换）和 `libca/ui`（Win32 GUI）。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
