@@ -188,7 +188,7 @@ public:
                 case '\f': sb_.append("\\f"); break;
                 case '\r': sb_.append("\\r"); break;
                 default:
-                    if (c < 0x20) {
+                    if (c < 0x20 || c == 0x7F) {  // DEL 不在 TOML 1.0 未转义字符集，原样写出会被严格解析器拒绝
                         char buf[8];
                         int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
                         if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
@@ -216,7 +216,7 @@ public:
                 case '\t': sb_.append("\t"); break;
                 case '\n': sb_.append("\n"); break;
                 default:
-                    if (c < 0x20) {
+                    if (c < 0x20 || c == 0x7F) {  // DEL 不在 TOML 1.0 未转义字符集，原样写出会被严格解析器拒绝
                         char buf[8];
                         int n = std::snprintf(buf, sizeof(buf), "\\u%04x", c);
                         if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));

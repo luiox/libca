@@ -384,8 +384,46 @@ TEST(TomlReaderTest, RejectsDuplicateTableHeader) {
     EXPECT_TRUE(read_fails("[a]\n[a]"));
 }
 
-TEST(TomlReaderTest, RejectsTableHeaderBeforeParentDefined) {
-    EXPECT_TRUE(read_fails("[a.b]\n[a]"));
+// TOML 1.0 允许后置定义超表（spec: defining a super-table afterward is ok）；
+// 旧实现把 header 的全部严格前缀登记为不可再命名而拒绝此合法输入。
+TEST(TomlReaderTest, SuperTableDefinedAfterSubTableIsAccepted) {
+    auto doc = read_ok("[a.b]\nx = 1\n\n[a]\ny = 2\n");
+    // a.b.x 与 a.y 并存（a 的显式定义不清空隐式子表）
+    const auto* a = doc.root().find(R("a"));
+    ASSERT_NE(a, nullptr);
+    const auto* ab = a->find(R("b"));
+    ASSERT_NE(ab, nullptr);
+    const auto* x = ab->find(R("x"));
+    ASSERT_NE(x, nullptr);
+    EXPECT_EQ(x->as_integer(), 1);
+    const auto* y = a->find(R("y"));
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->as_integer(), 2);
+}
+
+TEST(TomlReaderTest, RejectsRedefinedTable) {
+    EXPECT_TRUE(read_fails("[a]\n[a]"));
+    EXPECT_TRUE(read_fails("[a.b]\n[a.b]"));
+}
+
+// 进制整数不允许符号（ABNF：hex/oct/bin-int 无 sign；strtoll 曾连符号消费 0x-5）。
+TEST(TomlReaderTest, RejectsSignInRadixInteger) {
+    EXPECT_TRUE(read_fails("x = 0x-5"));
+    EXPECT_TRUE(read_fails("x = 0o+7"));
+    EXPECT_TRUE(read_fails("x = 0b-1"));
+    EXPECT_TRUE(read_fails("x = 0x 5"));  // 前导空白同样拒绝
+    EXPECT_TRUE(read_fails("x = 0x+5"));
+    // 合法形态不受影响
+    EXPECT_FALSE(read_fails("x = 0xFF"));
+}
+
+// 下划线必须夹在两个数字之间：1e_2 曾因 prev=='e' 被外层条件放行。
+TEST(TomlReaderTest, RejectsUnderscoreAfterExponentMark) {
+    EXPECT_TRUE(read_fails("x = 1e_2"));
+    EXPECT_TRUE(read_fails("x = 1_E2"));
+    EXPECT_TRUE(read_fails("x = _1"));
+    EXPECT_TRUE(read_fails("x = 1_"));
+    EXPECT_FALSE(read_fails("x = 1_0.5_2e1_0"));
 }
 
 TEST(TomlReaderTest, RejectsCommentOnlyMissingValue) {

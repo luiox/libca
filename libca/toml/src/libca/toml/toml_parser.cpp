@@ -242,19 +242,15 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
         this_path.append(reinterpret_cast<const char*>(segments[i].data()),
                          segments[i].byte_length());
     }
-    // 重复检测（两组哈希集合，O(1)）：
-    //   - 普通 [a.b]：若 a.b 已被 header 定义（defined_paths_），或 a.b 是某个已定义
-    //     header 的严格前缀（implicit_parents_，即已被子表头隐式创建），报错。
+    // 重复检测（O(1)）：
+    //   - 普通 [a.b]：若 a.b 已被 header 显式定义过（defined_paths_）报错。
+    //     注意「已被子表头隐式创建」（如 [a.b] 之后再写 [a]）是合法的：TOML 1.0
+    //     明确允许后置定义超表（spec：defining a super-table afterward is ok）。
     //   - 数组表 [[a.b]]：每个 [[a.b]] 都追加一个新元素，不视为重复；
     //     但若 a.b 已被普通 [header] 定义过，或已存在为非 array，报错。
     if (!array_of_tables) {
         if (defined_paths_.count(this_path) != 0) {
             fail(header_loc, "table redefined");
-            return false;
-        }
-        // 例：已定义 [a.b]，现在写 [a] —— a 已是 a.b 的隐式父。
-        if (implicit_parents_.count(this_path) != 0) {
-            fail(header_loc, "table already defined implicitly by a sub-table");
             return false;
         }
     } else {
@@ -384,8 +380,8 @@ bool TomlParser::parse_key_value(const std::vector<ca::str::Utf8StringRef>& segm
     return !failed_;
 }
 
-// 记录 header 完整路径与其全部严格前缀（用 \x1F 分隔的路径串）。
-// 前缀进 implicit_parents_：这些父表已被本 header 隐式创建，之后不可再显式 [命名]。
+// 记录 header 完整路径串（kPathSep 分隔），供后续同路径 header 报重复。
+// 隐式父表不记录：后置定义超表合法（[a.b] 之后可再写 [a]）。
 void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& segments,
                                      ca::usize last_index) {
     std::string path;
@@ -393,7 +389,6 @@ void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& 
         if (i > 0) path.push_back(kPathSep);
         path.append(reinterpret_cast<const char*>(segments[i].data()),
                     segments[i].byte_length());
-        if (i < last_index) implicit_parents_.insert(path);
     }
     defined_paths_.insert(std::move(path));
 }
@@ -1120,17 +1115,13 @@ bool TomlParser::parse_number_decimal(const u8* begin, usize len, TomlValue& out
     for (usize i = 0; i < len; ++i) {
         const u8 c = begin[i];
         if (c == '_') {
-            // 必须在两个数字之间
+            // TOML 1.0：下划线必须夹在两个数字之间（e/E 与小数点都不算数字）
             if (i == 0 || i + 1 == len) { fail(start, "invalid underscore in number"); return false; }
             const u8 prev = begin[i-1];
             const u8 next = begin[i+1];
-            if (!((prev >= '0' && prev <= '9') || prev == 'e' || prev == 'E') ||
-                !(next >= '0' && next <= '9')) {
-                // 允许 prev 是数字，next 是数字；其它情况报错
-                if (!(prev >= '0' && prev <= '9' && next >= '0' && next <= '9')) {
-                    fail(start, "invalid underscore placement in number");
-                    return false;
-                }
+            if (!(prev >= '0' && prev <= '9' && next >= '0' && next <= '9')) {
+                fail(start, "invalid underscore placement in number");
+                return false;
             }
             continue;  // 跳过下划线
         }
@@ -1192,6 +1183,17 @@ bool TomlParser::parse_integer_radix(const u8* begin, usize len, int radix, Toml
         buf.push_back(static_cast<char>(c));
     }
     if (buf.empty()) { fail(start, "invalid integer literal"); return false; }
+    // 字符集校验：strtoll 对任意进制都会消费可选符号与前导空白，"0x-5"/"0x 5"
+    // 曾被静默解析成带符号值。进制整数的 ABNF 不允许符号，逐字符白名单拒绝。
+    for (const char ch : buf) {
+        const bool digit = ch >= '0' && ch <= '9';
+        const bool hex_alpha = radix == 16 && ((ch | 0x20) >= 'a' && (ch | 0x20) <= 'f');
+        // 八进制/二进制的数字集是十进制子集，越界数字由下方 endp 全量消费校验兜底
+        if (!digit && !hex_alpha) {
+            fail(start, "invalid character in radix integer");
+            return false;
+        }
+    }
     buf.push_back('\0');
 
     char* endp = nullptr;
