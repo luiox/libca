@@ -1,6 +1,7 @@
 ---
-version: 1.3
+version: 1.4
 update:
+2026-08-24 - 协议错误响应改 shutdown 写半侧+排水防 RST 吞响应；100-continue 仅 HTTP/1.1；client 幂等请求在 stale keep-alive 连接上自动重试一次
 2026-07-20 - 增加可选 OpenSSL 3 HTTPS client transport
 2026-07-19 - 增加同步 client、精确路由 server、有界并发与 stop-aware deadlines
 2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
@@ -124,7 +125,9 @@ headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码
 
 `HttpClient` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同
 origin 且双方 keep-alive framing 允许时复用连接；origin 变化、close-delimited response、
-CONNECT tunnel、协议错误或 IO 错误都会丢弃连接。request target 与 Host 固定取自 URL，
+CONNECT tunnel、协议错误或 IO 错误都会丢弃连接。服务器可能在两次请求之间关闭 idle 的
+keep-alive 连接：幂等方法（GET/HEAD/PUT/DELETE/OPTIONS/TRACE）在响应任何字节前遇到
+EOF 或 reset 类错误时，会在新连接上自动重试一次，非幂等方法直接报错。request target 与 Host 固定取自 URL，
 调用方不能让连接 origin 与 Host 分离。当前 response 完整缓冲，下载体积受 `HttpLimits`
 控制；需要边读边处理时可直接使用 codec streaming API。
 
@@ -164,9 +167,11 @@ listener 使用 nonblocking accept 与短轮询，使 `stop()` 不依赖跨平�
 clone，由 deadline 轮询提供跨平台的停止上界。idle、head、body 使用独立期限，SSE writer
 则使用每次写入的 idle timeout，不设置整条流的总时长。
 
-server 识别 `Expect: 100-continue`，不支持的 expectation 返回 417；解析错误按类别映射
-400/408/413/431/501，handler 失败映射 500，过载映射 503。所有这些响应都关闭存在解析歧义
-或生命周期错误的连接。
+server 识别 `Expect: 100-continue`（仅 HTTP/1.1，1.0 请求不回 interim response），不支持
+的 expectation 返回 417；解析错误按类别映射 400/408/413/431/501，handler 失败映射 500，
+过载映射 503。所有这些响应都关闭存在解析歧义或生命周期错误的连接；协议错误响应与
+过载响应相同，先 shutdown 写半侧再排水读侧至 EOF 或期限，避免 Windows 上未读入站
+数据触发 RST 吞掉已发送的错误响应（如客户端仍在推送 body 时的 413）。
 
 ## 8. 测试策略
 

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include "libca/http/http.hpp"
+#include "libca/net/tcp.hpp"
 
 namespace ca::http::test {
 namespace {
@@ -592,6 +594,157 @@ TEST(HttpClientServerTest, ValidatesOptionsRoutesAndHttpsCapability)
     EXPECT_FALSE(HttpClient::supports_https());
     EXPECT_EQ(client.get(https.unwrap()).unwrap_err().kind(), HttpErrorKind::Unsupported);
 #endif
+}
+
+// ==================== R2 评审修复 ====================
+
+TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
+{
+    // 脚本化原始 server：第一条连接响应后立即整体关闭（模拟 idle 回收），
+    // 第二条连接正常响应。复用到 stale 连接的幂等请求应自动重试一次成功。
+    auto bound =
+        net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
+    ASSERT_TRUE(bound.is_ok());
+    auto listener = std::move(bound).unwrap();
+    auto local = listener.local_address();
+    ASSERT_TRUE(local.is_ok());
+    const auto address = local.unwrap();
+
+    std::thread server_thread([&listener] {
+        const std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+        for (int connection_index = 0; connection_index < 2; ++connection_index) {
+            auto accepted = listener.accept();
+            if (accepted.is_err())
+                return;
+            auto stream = std::move(accepted).unwrap().stream;
+            std::string received;
+            std::array<char, 2048> buffer{};
+            while (received.find("\r\n\r\n") == std::string::npos) {
+                auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+                if (read.is_err() || read.unwrap() == 0)
+                    return;
+                received.append(buffer.data(), read.unwrap());
+            }
+            auto written =
+                stream.write(reinterpret_cast<const u8*>(response.data()), response.size());
+            (void)written;
+        }
+    });
+
+    auto created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    auto first = client.get(server_url(address, "/first"));
+    ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
+    EXPECT_EQ(first.unwrap().status, 200);
+
+    // 第二次请求落在已被服务器关闭的复用连接上：应在新建连接上重试成功。
+    auto second = client.get(server_url(address, "/second"));
+    ASSERT_TRUE(second.is_ok()) << second.unwrap_err().to_string();
+    EXPECT_EQ(second.unwrap().status, 200);
+    EXPECT_EQ(body_text(second.unwrap().body), "ok");
+
+    server_thread.join();
+}
+
+TEST(HttpClientServerTest, Http10ExpectContinueSkipsInterimResponse)
+{
+    // RFC 9110 10.1.1：100-continue 仅定义于 HTTP/1.1。HTTP/1.0 请求携带
+    // Expect: 100-continue 时不应收到 interim response，服务器直接读 body
+    // 并回最终响应。
+    auto server = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/upload",
+                           [](const HttpServerRequestContext& context) {
+                               return ca::core::Ok(HttpServerResponse::buffered(
+                                   text_response(200, body_text(context.request().body))));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto connected =
+        net::TcpStream::connect_timeout("127.0.0.1", address.port(), std::chrono::seconds(5));
+    ASSERT_TRUE(connected.is_ok());
+    auto stream = std::move(connected).unwrap();
+    ASSERT_TRUE(stream.set_read_timeout(std::chrono::milliseconds(5000)).is_ok());
+
+    const std::string request = "POST /upload HTTP/1.0\r\nHost: 127.0.0.1\r\n"
+                                "Expect: 100-continue\r\nContent-Length: 4\r\n\r\nbody";
+    auto written = stream.write(reinterpret_cast<const u8*>(request.data()), request.size());
+    ASSERT_TRUE(written.is_ok());
+
+    std::string received;
+    std::array<char, 1024> buffer{};
+    for (;;) {
+        auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+        if (read.is_err() || read.unwrap() == 0)
+            break;
+        received.append(buffer.data(), read.unwrap());
+    }
+    EXPECT_NE(received.find("HTTP/1.0 200"), std::string::npos);
+    EXPECT_EQ(received.find("100-continue"), std::string::npos);
+    EXPECT_EQ(received.find(" 100 "), std::string::npos);
+    EXPECT_NE(received.find("body"), std::string::npos);
+}
+
+TEST(HttpClientServerTest, ProtocolErrorIsDeliveredWhileClientStreamsBody)
+{
+    // body 超限时服务器在客户端仍在推送时就要回 413 并关闭。直接 close 会因
+    // 未读入站数据触发 RST 吞掉响应（Windows 尤甚），应 shutdown 写半侧并
+    // 排水后再关闭，保证客户端能收到 413。
+    HttpServerOptions options;
+    options.request_limits.max_body_bytes = 16;
+    options.overload_response_timeout = std::chrono::milliseconds(2000);
+    auto server = bind_server(options);
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/upload",
+                           [](const HttpServerRequestContext& context) {
+                               return ca::core::Ok(HttpServerResponse::buffered(
+                                   text_response(200, body_text(context.request().body))));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto connected =
+        net::TcpStream::connect_timeout("127.0.0.1", address.port(), std::chrono::seconds(5));
+    ASSERT_TRUE(connected.is_ok());
+    auto stream = std::move(connected).unwrap();
+    ASSERT_TRUE(stream.set_write_timeout(std::chrono::milliseconds(5000)).is_ok());
+    ASSERT_TRUE(stream.set_read_timeout(std::chrono::milliseconds(5000)).is_ok());
+
+    const std::string head =
+        "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 1048576\r\n\r\n";
+    auto written = stream.write(reinterpret_cast<const u8*>(head.data()), head.size());
+    ASSERT_TRUE(written.is_ok());
+
+    // 持续推送远超限额的 body；服务器在收到第 17 字节后即回 413 并开始排水，
+    // 之后写入失败是预期内的。
+    const std::string chunk(4096, 'x');
+    for (int i = 0; i < 64; ++i) {
+        auto pushed = stream.write(reinterpret_cast<const u8*>(chunk.data()), chunk.size());
+        if (pushed.is_err())
+            break;
+    }
+    ASSERT_TRUE(stream.shutdown(net::Shutdown::Write).is_ok());
+
+    std::string received;
+    std::array<char, 1024> buffer{};
+    for (;;) {
+        auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+        if (read.is_err() || read.unwrap() == 0)
+            break;
+        received.append(buffer.data(), read.unwrap());
+    }
+    EXPECT_NE(received.find("413"), std::string::npos);
 }
 
 }   // namespace
