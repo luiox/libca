@@ -53,3 +53,30 @@
   时，父命令行显式给值不再被子命令的 default/注入初值静默覆盖——
   「default < 注入初值 < 命令行」的全局优先级在跨层级场景同样成立；
   子命令的同名显式出现仍按 last-wins 生效。
+- **[core] Result 存储对齐修复**：`Storage::Align` 由「跟随尺寸更大者的 alignof」
+  改为 `max(alignof(T), alignof(E))`——`Result<array<char,40>, string>` 等尺寸
+  相近而 alignof 悬殊的组合曾取到 1，对齐不足属严格 UB（x86 潜伏，MSVC debug /
+  ARM 可能崩溃）。补双向 static_assert。
+- **[str] UTF-8 转换校验续字节**：`utf8_to_utf16/_utf32/_latin1` 全系列与
+  `to_wstring` 此前不校验续字节，「合法首字节 + 非法续字节」被误解码成错误码点
+  （违反「返回 0 / 抛异常」契约）。新增 `utf8_valid_continuation` 助手并接入
+  全部逐序列解码循环，与 `utf8_is_valid` 的校验口径一致。
+- **[log] registry 退休列表保活**：被替换/注销/clear 的旧 Logger 此前随 map
+  释放最后引用即刻析构，而调用链在锁释放后仍持裸指针——并发注销（典型：
+  shutdown 阶段 `clear()` 与打日志并发）use-after-free。旧 Logger 现移入退休
+  列表（进程生命周期保活），兑现头文件承诺的 `get()` 裸指针安全契约。
+- **[ini] 解析健壮性四项**：非法 UTF-8 报 ParseError（此前 `read()` 抛异常击穿
+  Result 契约，GBK 存量配置直接 terminate 调用方）；行内注释先于分隔符出现时
+  注释文字里的 `=`/`:` 不再被误当分隔符吞进 key；跳过 UTF-8 BOM（此前首
+  key/section 带不可见 U+FEFF 前缀）；`get_int`/`get_double` 拒绝前导空白
+  （此前 `" 42"` 合法而 `"42 "` 报错）。
+- **[json] 解析入口整体校验 UTF-8**：字符串值里的非法 UTF-8 此前经 arena
+  intern 静默变空串、解析"成功"（RFC 8259 要求 JSON 文本为合法 UTF-8），
+  数据无声丢失；现统一报错。
+- **[xml] 解析入口整体校验 UTF-8**：元素名/属性值/文本里的非法序列此前静默
+  变空（曾产出空名元素的损坏 DOM），而注释/CDATA 原样保留；现统一报错。
+- **[csv] read 跳过 UTF-8 BOM**：首个 header 字段此前带不可见 U+FEFF 前缀，
+  按名取列全部失配且无报错。
+- **[thread] 公共头 `std::max` 加括号**：`bounded_queue.hpp` 中未加括号的
+  `std::max` 在下游先包含 `<windows.h>`（未定义 NOMINMAX）时被函数式 `max`
+  宏改写、包含即编译失败。
