@@ -1391,13 +1391,13 @@ TEST(OptV2FixTest, SubcommandHelpUsageLine)
     commit.args.push_back(msg);
 
     Command root;
-    root.name         = "git";
-    root.help         = "git tool";
-    root.subcommands  = {commit};
+    root.name        = "git";
+    root.help        = "git tool";
+    root.subcommands = {commit};
 
     Parser p(root);
-    Argv argv = make_argv({"commit", "--help"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"commit", "--help"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     const auto& err = r.unwrap_err();
     EXPECT_EQ(err.category, ParseErrorCategory::HelpRequested);
@@ -1420,8 +1420,8 @@ TEST(OptV2FixTest, SubcommandCustomUsageFullyReplaces)
     root.subcommands = {commit};
 
     Parser p(root);
-    Argv argv = make_argv({"commit", "--help"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"commit", "--help"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     const auto& err = r.unwrap_err();
     EXPECT_EQ(err.category, ParseErrorCategory::HelpRequested);
@@ -1437,8 +1437,8 @@ TEST(OptV2FixTest, RootUsageLineUnchanged)
 
     {
         Parser p(root);
-        Argv argv = make_argv({"--help"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--help"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_NE(r.unwrap_err().message.find("Usage: mj2x [options]\n"), std::string::npos);
     }
@@ -1459,19 +1459,19 @@ TEST(OptV2FixTest, ShortHelpTokenOverridable)
     host.kind    = OptKind::String;
     host.aliases = {"-h"};
     host.help    = "host name";
-    root.args = {host};
+    root.args    = {host};
 
     {
         Parser p(root);
-        Argv argv = make_argv({"-h", "example.com"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-h", "example.com"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("host"), "example.com");
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"--help"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--help"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::HelpRequested);
     }
@@ -1488,11 +1488,11 @@ TEST(OptV2FixTest, LongHelpTokenOverridable)
     help_flag.kind    = OptKind::Flag;
     help_flag.aliases = {"--help"};
     help_flag.help    = "custom help";
-    root.args = {help_flag};
+    root.args         = {help_flag};
 
     Parser p(root);
-    Argv argv = make_argv({"--help"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--help"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     EXPECT_TRUE(r.unwrap().has("helper"));
 }
@@ -1507,27 +1507,27 @@ TEST(OptV2FixTest, IntRejectsWhitespaceForms)
     timeout.name = "timeout";
     timeout.kind = OptKind::Int;
     timeout.help = "seconds";
-    root.args = {timeout};
+    root.args    = {timeout};
 
     for (const char* bad : {" 30", "30 ", " 30 "}) {
         Parser p(root);
-        Argv argv = make_argv({"--timeout", bad});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout", bad});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err()) << "should reject: '" << bad << "'";
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"--timeout", "+30"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout", "+30"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("timeout"), 30);
     }
     // 注入初值走同一严格化路径。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), {{"timeout", " 30"}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"timeout", " 30"}});
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
     }
@@ -1560,8 +1560,8 @@ TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
     // 旧实现：进入 sub 时其 default "debug" 无条件覆盖父命令 CLI 给的 "warn"。
     {
         Parser p(root);
-        Argv argv = make_argv({"--level", "warn", "sub"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--level", "warn", "sub"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("level"), "warn");
         EXPECT_EQ(r.unwrap().source_of("level"), ValueSource::CommandLine);
@@ -1569,21 +1569,21 @@ TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
     // 注入初值同样不覆盖上级 CLI 显式值。
     {
         Parser p(root);
-        Argv argv = make_argv({"--level", "warn", "sub"});
-        auto r = p.parse(argv.argc, argv.data(), {{"level", "injected"}});
+        Argv   argv = make_argv({"--level", "warn", "sub"});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"level", "injected"}});
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("level"), "warn");
     }
     // 父命令未给值时，子命令种子照常生效。
     {
         Parser p(root);
-        Argv argv = make_argv({"sub"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"sub"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("level"), "debug");
         EXPECT_EQ(r.unwrap().source_of("level"), ValueSource::Default);
     }
 }
 
-}  // namespace
-}  // namespace ca::opt::test
+}   // namespace
+}   // namespace ca::opt::test
