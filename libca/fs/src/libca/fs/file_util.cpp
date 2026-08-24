@@ -503,7 +503,12 @@ bool FileUtil::move(const std::string& src, const std::string& dst, bool overwri
         }
 
         if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
-        if (overwrite && std::filesystem::exists(dstPath)) std::filesystem::remove_all(dstPath);
+        // 不预删目标：rename 在两平台都会原子替换已存在的普通文件目标
+        //（POSIX rename(2)；MSVC 经 MoveFileExW+MOVEFILE_REPLACE_EXISTING）。
+        // 此前的 remove_all-then-rename 在 rename 失败时目标已被整棵删光。
+        // 目标是已存在目录时 rename 拒绝（返回 false），不再删除目录换移动成功。
+        if (!overwrite && std::filesystem::exists(dstPath))
+            return false;  // 不覆盖模式：目标存在即失败，不再静默替换
         std::filesystem::rename(srcPath, dstPath);
         return true;
     } catch (const std::exception&) { return false; }
@@ -583,10 +588,17 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
             }
         } else {
             // 普通文件名通配只扫描 root 一层，避免在大目录树上做不必要的递归遍历。
+            // 候选 = 模式的目录前缀 + 条目文件名：与模式文本形状严格一致。裸相对
+            // 模式（"*.txt" 前缀为空）此前用 directory_iterator(".") 产出的
+            // "./a.txt" 候选，多出的 "./" 使正则永不匹配、恒返回空结果。
+            const auto  last_slash = normalized.find_last_of('/');
+            const std::string prefix =
+                (last_slash == std::string::npos) ? std::string()
+                                                  : normalized.substr(0, last_slash + 1);
             for (const auto& entry : std::filesystem::directory_iterator(root, options)) {
-                auto candidate = PathUtil::to_unix_separators(entry.path().generic_u8string());
+                auto candidate = prefix + entry.path().filename().generic_u8string();
                 if (std::regex_match(candidate, matcher))
-                    matches.push_back(candidate);
+                    matches.push_back(std::move(candidate));
             }
         }
         std::sort(matches.begin(), matches.end());
