@@ -380,6 +380,12 @@ bool Parser::seed_option_values(const Command& cmd,
         if (!kind_takes_value(arg.kind))
             continue;
 
+        // 上级命令行已显式给值的同名选项不再被本级种子覆盖——「命令行恒为最高」
+        // 的全局优先级在跨层级场景同样成立。
+        auto src = result.sources_.find(arg.name);
+        if (src != result.sources_.end() && src->second == ValueSource::CommandLine)
+            continue;
+
         const std::string* init = nullptr;
         if (initials != nullptr) {
             auto it = initials->find(arg.name);
