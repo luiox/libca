@@ -182,6 +182,28 @@ TEST(Utf8CharTest, ToLowerUpperAscii) {
 // Utf16Char
 // ============================================================================
 
+
+// wint_t 为 16 位（Windows）时增补平面码点截断：分类函数曾把 U+2000A 截断成
+// U+000A（is_space 误报 true）、转换函数曾把 U+10061 截断成 'a' 后 to_upper
+// 返回 'A'（数据损坏）。全部按「截断不可信」处理：分类 false、转换不变。
+TEST(Utf8CharTest, AstralCodePointsNotTruncatedByWideCtype) {
+    // 分类：一律 false（而非按截断值分类）
+    EXPECT_FALSE(Utf8Char(0x2000A).is_space());   // 截断值 U+000A 是空白
+    EXPECT_FALSE(Utf8Char(0x10061).is_lower());   // 截断值 'a' 是小写
+    EXPECT_FALSE(Utf8Char(0x10041).is_upper());   // 截断值 'A' 是大写
+    EXPECT_FALSE(Utf8Char(0x10030).is_digit());   // 截断值 '0' 是数字
+    EXPECT_FALSE(Utf8Char(0x10041).is_xdigit());  // 截断值 'A' 是十六进制
+    EXPECT_FALSE(Utf8Char(0x10061).is_punct());
+    EXPECT_FALSE(Utf8Char(0x10000).is_cntrl());
+
+    // 转换：保持原码点（而非产出截断映射的 ASCII）
+    EXPECT_EQ(Utf8Char(0x10061).to_upper().code_point(), 0x10061u);
+    EXPECT_EQ(Utf8Char(0x10041).to_lower().code_point(), 0x10041u);
+
+    // 对照：ASCII 路径映射不受影响（BMP 非_ascii 映射依赖 locale，不在断言范围）
+    EXPECT_EQ(Utf8Char(u'a').to_upper().code_point(), u'A');
+}
+
 TEST(Utf16CharTest, SurrogateDetection) {
     Utf16Char lead(0xD83D);  // 😀 的高位代理
     EXPECT_TRUE(lead.is_surrogate());

@@ -130,6 +130,11 @@ bool Utf8Char::is_digit() const noexcept {
     // 全角数字 ０-９ (U+FF10-U+FF19)
     if (cp_ >= 0xFF10 && cp_ <= 0xFF19)
         return true;
+    // wint_t 为 16 位（Windows）时增补平面码点截断后会被误分类，直接判 false
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswdigit(static_cast<wint_t>(cp_)) != 0;
 }
 
@@ -149,18 +154,30 @@ bool Utf8Char::is_space() const noexcept {
         cp_ == 0x2029 || cp_ == 0x202F || cp_ == 0x205F ||
         cp_ == 0x3000 || cp_ == 0xFEFF)
         return true;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswspace(static_cast<wint_t>(cp_)) != 0;
 }
 
 bool Utf8Char::is_lower() const noexcept {
     if (cp_ <= 0x7F)
         return std::islower(static_cast<int>(cp_)) != 0;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswlower(static_cast<wint_t>(cp_)) != 0;
 }
 
 bool Utf8Char::is_upper() const noexcept {
     if (cp_ <= 0x7F)
         return std::isupper(static_cast<int>(cp_)) != 0;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswupper(static_cast<wint_t>(cp_)) != 0;
 }
 
@@ -169,6 +186,10 @@ bool Utf8Char::is_punct() const noexcept {
         return std::ispunct(static_cast<int>(cp_)) != 0;
     if (isCjk(cp_) || isHangul(cp_) || isKatakanaHiragana(cp_))
         return false;  // 这些是文字，不是标点
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswpunct(static_cast<wint_t>(cp_)) != 0;
 }
 
@@ -186,6 +207,10 @@ bool Utf8Char::is_cntrl() const noexcept {
     // C1 控制字符 (0x80~0x9F)
     if (cp_ >= 0x80 && cp_ <= 0x9F)
         return true;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswcntrl(static_cast<wint_t>(cp_)) != 0;
 }
 
@@ -196,12 +221,22 @@ bool Utf8Char::is_xdigit() const noexcept {
     if ((cp_ >= 0xFF21 && cp_ <= 0xFF26) ||  // 全角 A-F
         (cp_ >= 0xFF41 && cp_ <= 0xFF46))     // 全角 a-f
         return true;
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return false;
+    }
     return iswxdigit(static_cast<wint_t>(cp_)) != 0;
 }
 
 Utf8Char Utf8Char::to_lower() const noexcept {
     if (cp_ <= 0x7F)
         return Utf8Char(static_cast<u32>(std::tolower(static_cast<int>(cp_))));
+    // wint_t 为 16 位（Windows）时增补平面码点截断后被 towlower/towupper 误转换
+    //（U+10061 截断成 'a'、to_upper 返回 'A'——数据损坏），保持原码点不变
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return *this;
+    }
     auto result = towlower(static_cast<wint_t>(cp_));
     if (result == static_cast<wint_t>(cp_))
         return *this;  // 无变化
@@ -211,6 +246,10 @@ Utf8Char Utf8Char::to_lower() const noexcept {
 Utf8Char Utf8Char::to_upper() const noexcept {
     if (cp_ <= 0x7F)
         return Utf8Char(static_cast<u32>(std::toupper(static_cast<int>(cp_))));
+    if (cp_ > 0xFFFF) {
+        if constexpr (sizeof(wint_t) <= 2)
+            return *this;
+    }
     auto result = towupper(static_cast<wint_t>(cp_));
     if (result == static_cast<wint_t>(cp_))
         return *this;

@@ -269,3 +269,14 @@ TEST(StringUtilTest, contains) {
     EXPECT_TRUE(StringUtil::contains("hello", ""));
     EXPECT_FALSE(StringUtil::contains("", "hello"));
 }
+
+// to_lower_case/to_upper_case 曾把有符号 char 直接传 ::tolower（高位字节为负值，
+// 违反 ctype 前置条件，UB/MSVC debug 断言）；非 ASCII 字节应原样保留。
+TEST(StringUtilTest, CaseConversionPreservesHighBytes) {
+    const std::string utf8 = "\xE4\xB8\xAD";  // "中"
+    EXPECT_EQ(StringUtil::to_lower_case(utf8), utf8);
+    EXPECT_EQ(StringUtil::to_upper_case(utf8), utf8);
+    // ASCII 部分照常转换
+    EXPECT_EQ(StringUtil::to_lower_case("ABC"), "abc");
+    EXPECT_EQ(StringUtil::to_upper_case("abc"), "ABC");
+}
