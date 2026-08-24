@@ -120,3 +120,14 @@ TEST(RandomTest, SecureRandomBytesLength)
     ASSERT_TRUE(random.is_ok());
     EXPECT_EQ(random.unwrap().len(), 32u);
 }
+
+TEST(SecureZeroTest, ZeroesBufferContent)
+{
+    ca::u8 buf[] = {1, 2, 3, 4, 5};
+    ca::crypto::secure_zero(buf, sizeof(buf));
+    for (ca::u8 b : buf)
+        EXPECT_EQ(b, 0);
+
+    // size 为 0 时不操作、不崩溃
+    ca::crypto::secure_zero(nullptr, 0);
+}
