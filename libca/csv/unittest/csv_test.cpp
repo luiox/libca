@@ -312,3 +312,20 @@ TEST(CsvDsvPresetTest, CsvPresetMatchesDefault) {
     EXPECT_EQ(default_writer.quote, preset_writer.quote);
     EXPECT_EQ(default_writer.line_ending, preset_writer.line_ending);
 }
+
+// UTF-8 BOM（Windows 记事本默认带）不再污染首个 header 字段
+//（此前首字段变 "\uFEFFname"，按名取列全部失配且无报错）。
+TEST(CsvReaderTest, SkipsUtf8Bom) {
+    CsvReaderOptions options;
+    options.first_row_is_header = true;
+    const ca::u8 bom[] = "\xEF\xBB\xBFname,age\nAlice,30";
+    auto result = CsvReader::read(ca::str::Utf8StringRef::from_data(
+        bom, sizeof(bom) - 1), options);
+    ASSERT_TRUE(result.is_ok());
+    const auto& doc = std::move(result).unwrap();
+    ASSERT_EQ(doc.rows().size(), 1u);
+    // header 首列是 "name" 而非 "\uFEFFname"
+    std::string first_header(reinterpret_cast<const char*>(doc.header().at(0).data()),
+                             doc.header().at(0).byte_length());
+    EXPECT_EQ(first_header, "name");
+}
