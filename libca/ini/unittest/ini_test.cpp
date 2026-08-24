@@ -333,3 +333,64 @@ TEST(IniWriterTest, LineEndingDefaultPreservesOriginal) {
     // 默认空 line_ending：保留原 CRLF
     EXPECT_EQ(S(IniWriter::write(document)), "[s]\r\nx = 1\r\n");
 }
+
+// ============================================================================
+// 评审修复：非法 UTF-8、注释劫持分隔符、BOM、数值前导空白
+// ============================================================================
+
+// 非法 UTF-8（GBK 常见字节）此前经 intern_std 的校验构造抛 std::runtime_error，
+// 逃出返回 Result 的 read()，调用方直接 terminate。
+TEST(IniReaderTest, InvalidUtf8ReportsParseErrorInsteadOfThrowing) {
+    const char gb[] = "[s]\nname=\xD5\xC5\xC8\xFD\n";  // GBK "张三"
+    auto raw = Utf8String::from_data_unchecked(
+        reinterpret_cast<const ca::u8*>(gb), sizeof(gb) - 1);
+    auto result = IniReader::read(raw.ref());
+    ASSERT_TRUE(result.is_err());
+    EXPECT_NE(S(std::move(result).unwrap_err().message).find("invalid UTF-8"), std::string::npos);
+}
+
+// 行内注释里的 '='/':' 不再被误当成分隔符吞进 key。
+TEST(IniReaderTest, InlineCommentDoesNotHijackSeparator) {
+    // 正常形态：注释跟在完整 key=value 之后。
+    {
+        auto doc = read_ok("port = 8080  # default: 8080\n");
+        EXPECT_EQ(S(get_ok(doc, "", "port")), "8080");
+    }
+    // 注释先于任何分隔符出现：分隔符查找限定在注释之前，无分隔符报错
+    //（而非把 "port  # default" 当 key）。
+    {
+        auto result = IniReader::read(R("port  # default: 8080\n"));
+        ASSERT_TRUE(result.is_err());
+        EXPECT_NE(S(std::move(result).unwrap_err().message).find("misses '=' or ':'"),
+                  std::string::npos);
+    }
+    // 分号注释同理。
+    {
+        auto result = IniReader::read(R("host ; see http://x:8080\n"));
+        ASSERT_TRUE(result.is_err());
+    }
+    // 无空白前缀的 '#' 不是注释起始（strict_whitespace 默认 true），key 保留。
+    {
+        auto doc = read_ok("my#key = v\n");
+        EXPECT_EQ(S(get_ok(doc, "", "my#key")), "v");
+    }
+}
+
+// UTF-8 BOM（Windows 记事本默认）不再污染首个 key/section。
+TEST(IniReaderTest, BomIsSkipped) {
+    const char bom_input[] = "\xEF\xBB\xBF[s]\nkey = v\n";
+    auto doc = read_ok(bom_input);
+    EXPECT_EQ(S(get_ok(doc, "s", "key")), "v");
+
+    const char bom_kv[] = "\xEF\xBB\xBFkey = v\n";
+    auto doc2 = read_ok(bom_kv);
+    EXPECT_EQ(S(get_ok(doc2, "", "key")), "v");
+}
+
+// 引号值剥引号后的前导空白不再被 strtoll/strtod 静默跳过（与尾随空白对称拒绝）。
+TEST(IniDocumentTest, NumericGetRejectsLeadingWhitespace) {
+    auto doc = read_ok("[s]\ni = \" 42\"\nd = \" 1.5\"\nok = 42\n");
+    EXPECT_FALSE(doc.get_int(R("s"), R("i")).is_ok());
+    EXPECT_FALSE(doc.get_double(R("s"), R("d")).is_ok());
+    EXPECT_TRUE(doc.get_int(R("s"), R("ok")).is_ok());
+}

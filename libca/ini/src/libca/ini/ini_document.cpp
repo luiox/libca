@@ -3,6 +3,7 @@
 #include "libca/str/format.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <set>
@@ -168,10 +169,13 @@ ca::Result<ca::i64, ca::str::Utf8String> IniDocument::get_int(
     }
     const std::string s = strip_quotes_to_std(*value);
     // strtoll 无异常（同 toml 解析器模式）：ERANGE、未整串消费、空串均判非法。
+    // 前导空白显式拒绝：strtoll 会跳过前导空白，导致 " 42" 合法而 "42 " 非法的
+    // 不对称（引号值剥引号后常带前导空白）。
     errno = 0;
     char* end = nullptr;
     const long long v = std::strtoll(s.c_str(), &end, 10);
-    if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
+    if (s.empty() || std::isspace(static_cast<unsigned char>(s[0])) ||
+        errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ca::str::format_std("INI value is not a valid integer: {}", *value).c_str()));
     }
@@ -187,11 +191,13 @@ ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
             ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
-    // strtod 无异常；溢出（ERANGE）与 stod 一致按非法处理。
+    // strtod 无异常；溢出（ERANGE）与 stod 一致按非法处理。前导空白显式拒绝
+    //（同 get_int：消除 " 1.5" 合法而 "1.5 " 非法的不对称）。
     errno = 0;
     char* end = nullptr;
     const double v = std::strtod(s.c_str(), &end);
-    if (s.empty() || errno == ERANGE || end != s.c_str() + s.size()) {
+    if (s.empty() || std::isspace(static_cast<unsigned char>(s[0])) ||
+        errno == ERANGE || end != s.c_str() + s.size()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ca::str::format_std("INI value is not a valid number: {}", *value).c_str()));
     }

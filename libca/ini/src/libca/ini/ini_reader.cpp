@@ -4,6 +4,7 @@
 #include "libca/ini/parse_error.hpp"
 #include "libca/ini/source_location.hpp"
 #include "libca/str/format.hpp"
+#include "libca/str/utf8_util.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -116,6 +117,17 @@ void parse_line(ca::str::Utf8StringArena& arena,
                 usize line_number,
                 usize line_start_column,  // 该行第一列的列号（通常 1）
                 LineParse& out) {
+    // 整行先验 UTF-8：非法输入报 ParseError 而非让 intern_std 的校验构造抛
+    // std::runtime_error 逃出 read() 的 Result 错误契约（GBK 等非 UTF-8 存量
+    // 配置曾是崩溃源）。行内切分只发生在 ASCII 边界（分隔符/注释符/空白裁剪），
+    // 整行合法则子串随之为合法。
+    if (!ca::str::utf8_is_valid(reinterpret_cast<const u8*>(raw.data()), raw.size())) {
+        out.error = true;
+        out.parse_error.location = SourceLocation{line_number, line_start_column};
+        out.parse_error.message =
+            ca::str::Utf8String::from_cstr("invalid UTF-8 in line");
+        return;
+    }
     out.record.raw = intern_std(arena, raw);
     out.record.line_ending = intern_std(arena, line_ending);
     out.record.line.section = intern_std(arena, current_section);
@@ -145,8 +157,13 @@ void parse_line(ca::str::Utf8StringArena& arena,
         return;
     }
 
-    const auto equal_pos = raw.find('=');
-    const auto colon_pos = raw.find(':');
+    // 行内注释可能出现在分隔符之前（如 "port = 8080  # default: 8080"）：分隔符
+    // 查找须限定在注释起始之前，否则注释说明文字里的 '='/':' 会被误当成分隔符、
+    // 注释文本被吞进 key（曾把 "port  # default: 8080" 解析成 key="port  # default"）。
+    const usize line_comment_pos = find_inline_comment(raw, options);
+    const auto  region           = raw.substr(0, line_comment_pos);
+    const auto  equal_pos   = region.find('=');
+    const auto  colon_pos   = region.find(':');
     usize separator_pos = std::string::npos;
     if (equal_pos == std::string::npos) {
         separator_pos = colon_pos;
@@ -213,7 +230,13 @@ ca::Result<IniDocument, ParseError> IniReader::read(
     usize line_number = 1;
 
     // 用 std::string 做行扫描（字符级处理更直接），解析后经 arena 入池。
-    const std::string text = to_std(input);
+    // 跳过 UTF-8 BOM（Windows 记事本默认带）：不剥离会把首行 key/section 污染成
+    // "\uFEFFxxx" 且无任何报错（与 xml 的 skip_bom 一致；json 则显式拒绝 BOM）。
+    std::string text = to_std(input);
+    if (text.size() >= 3 && static_cast<u8>(text[0]) == 0xEF &&
+        static_cast<u8>(text[1]) == 0xBB && static_cast<u8>(text[2]) == 0xBF) {
+        text.erase(0, 3);
+    }
 
     // 重复检测记账
     std::map<std::string, bool> seen_sections;
