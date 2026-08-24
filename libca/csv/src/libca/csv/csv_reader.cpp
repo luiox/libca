@@ -84,7 +84,13 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     const ca::u8* const data = input.data();
     const ca::usize size = input.byte_length();
 
-    for (ca::usize i = 0; i < size; ++i) {
+    // 跳过 UTF-8 BOM（Windows 记事本默认带）：BOM 本身是合法 UTF-8，经 intern_raw
+    // 原样入池会让首个字段带不可见的 U+FEFF 前缀，按 header 名取列全部失配
+    //（与 xml/ini 的跳过策略一致；json 为显式拒绝）。
+    const ca::usize begin =
+        (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) ? 3 : 0;
+
+    for (ca::usize i = begin; i < size; ++i) {
         const char ch = static_cast<char>(data[i]);
         saw_any_char = true;
 
