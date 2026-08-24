@@ -561,7 +561,12 @@ struct err_tag { };
 template<typename T, typename E>
 struct Storage {
     static constexpr size_t Size = sizeof(T) > sizeof(E) ? sizeof(T) : sizeof(E);
-    static constexpr size_t Align = sizeof(T) > sizeof(E) ? alignof(T) : alignof(E);
+    // 对齐取两者 alignof 的最大值：跟随「尺寸更大者」的 alignof 会在
+    // sizeof 相近而 alignof 悬殊（如 array<char,40> vs string）时取到 1，
+    // 导致 placement-new 出的对象对齐不足（UB）。
+    static constexpr size_t Align = alignof(T) > alignof(E) ? alignof(T) : alignof(E);
+    static_assert(Align >= alignof(T), "storage must satisfy alignof(T)");
+    static_assert(Align >= alignof(E), "storage must satisfy alignof(E)");
 
     typedef typename std::aligned_storage<Size, Align>::type type;
 

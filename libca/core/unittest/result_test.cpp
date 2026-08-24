@@ -2,6 +2,7 @@
 
 #include "libca/core/result.hpp"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -413,5 +414,24 @@ TEST(ResultTest, TryMacroMoveOnlyErr) {
 }
 
 #endif
+
+// Storage 对齐取 max(alignof(T), alignof(E))：尺寸相近而 alignof 悬殊的组合
+// （array<char,40> vs string；double vs char[8]）曾经取到 1，placement-new 出的
+// 对象对齐不足（严格 UB，MSVC debug/ARM 上可能崩溃）。
+TEST(ResultTest, StorageAlignmentCoversBothTypes) {
+    using MisalignedByErr = details::Storage<std::array<char, 40>, std::string>;
+    using MisalignedByOk = details::Storage<double, std::array<char, 8>>;
+    static_assert(MisalignedByErr::Align >= alignof(std::string), "err under-aligned");
+    static_assert(MisalignedByOk::Align >= alignof(double), "ok under-aligned");
+
+    Result<std::array<char, 40>, std::string> ok = Ok(std::array<char, 40>{'a'});
+    ASSERT_TRUE(ok.is_ok());
+    EXPECT_EQ(ok.unwrap()[0], 'a');
+
+    std::array<char, 8> payload{'b'};
+    Result<double, std::array<char, 8>> err = Err(payload);
+    ASSERT_TRUE(err.is_err());
+    EXPECT_EQ(err.unwrap_err()[0], 'b');
+}
 
 }} // namespace ca::core::test
