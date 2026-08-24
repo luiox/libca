@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <stdexcept>
 
 #include <libca/str/conversion.hpp>
 
@@ -267,6 +268,35 @@ TEST(ConversionTest, EmptyWStringToUtf8) {
     WString ws(L"");
     auto u8 = to_utf8_string(ws.ref());
     EXPECT_TRUE(u8.is_empty());
+}
+
+// ============================================================================
+// 非法续字节
+// ============================================================================
+
+// 合法首字节 + 非法续字节（0xE4 'z' 0xAD）此前被 utf8_decode_code_point 误解码为
+// U+4EAD：utf8_code_point_bytes 只看首字节、decode 不校验续位，转换函数曾把非法
+// 输入当合法处理（违反「length 系列返回 0 / to_wstring 抛异常」契约）。
+TEST(ConversionTest, InvalidContinuationBytesRejected) {
+    const u8 bad[] = {0xE4, 'z', 0xAD};  // 3 字节前导 + 两个非 10xxxxxx 续字节
+    u16   out16[4] = {};
+    u32   out32[4] = {};
+
+    EXPECT_EQ(utf8_to_utf16_length(bad, 3), 0u);
+    EXPECT_EQ(utf8_to_utf16(bad, 3, out16), 0u);
+    EXPECT_EQ(utf8_to_utf32_length(bad, 3), 0u);
+    EXPECT_EQ(utf8_to_utf32(bad, 3, out32), 0u);
+    EXPECT_EQ(utf8_to_latin1_length(bad, 3), UTF8_TO_LATIN1_INVALID);
+    u8 latin1_out[4] = {};
+    EXPECT_EQ(utf8_to_latin1(bad, 3, latin1_out), UTF8_TO_LATIN1_INVALID);
+
+    auto unchecked = Utf8String::from_data_unchecked(bad, 3);
+    EXPECT_THROW(to_wstring(unchecked.ref()), std::runtime_error);
+
+    // 对照：合法序列不受影响
+    const u8 good[] = {0xE4, 0xB8, 0xAD};  // U+4E2D "中"
+    EXPECT_EQ(utf8_to_utf16_length(good, 3), 1u);
+    EXPECT_EQ(utf8_to_utf32_length(good, 3), 1u);
 }
 
 }  // namespace ca::str
