@@ -616,7 +616,14 @@ bool YamlParser::parse_double_quoted(ca::str::Utf8StringBuilder& out) {
                     else { fail(start, "invalid \\x escape"); return false; }
                     byte = static_cast<u8>((byte << 4) | d);
                 }
-                out.append(&byte, 1);
+                // YAML 1.2 的 \xXX 是码点转义（U+00XX）而非原始字节：XX >= 0x80
+                // 需编码为两字节 UTF-8（此前按单字节追加产生非法序列，
+                // 经 arena intern 静默变空串、字符串无声丢失）。
+                // 与 \u 分支的 append_code_point 同路径。
+                if (!out.append_code_point(byte)) {
+                    fail(start, "invalid \\x escape");
+                    return false;
+                }
                 col_ += 2;
                 break;
             }
