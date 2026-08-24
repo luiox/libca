@@ -1448,5 +1448,54 @@ TEST(OptV2FixTest, RootUsageLineUnchanged)
     }
 }
 
+// -h 注册为 --host 的别名后按用户定义解析；未注册的 --help 仍触发内置帮助。
+TEST(OptV2FixTest, ShortHelpTokenOverridable)
+{
+    Command root;
+    root.name = "prog";
+    root.help = "h as host";
+    Arg host;
+    host.name    = "host";
+    host.kind    = OptKind::String;
+    host.aliases = {"-h"};
+    host.help    = "host name";
+    root.args = {host};
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-h", "example.com"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("host"), "example.com");
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--help"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::HelpRequested);
+    }
+}
+
+// --help 注册为普通 Flag 后按定义解析（置位而非触发帮助）。
+TEST(OptV2FixTest, LongHelpTokenOverridable)
+{
+    Command root;
+    root.name = "prog";
+    root.help = "help as flag";
+    Arg help_flag;
+    help_flag.name    = "helper";
+    help_flag.kind    = OptKind::Flag;
+    help_flag.aliases = {"--help"};
+    help_flag.help    = "custom help";
+    root.args = {help_flag};
+
+    Parser p(root);
+    Argv argv = make_argv({"--help"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+    EXPECT_TRUE(r.unwrap().has("helper"));
+}
+
 }  // namespace
 }  // namespace ca::opt::test
