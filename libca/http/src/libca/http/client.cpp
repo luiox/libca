@@ -54,6 +54,21 @@ bool is_informational(u16 status) noexcept
     return status >= 100 && status < 200;
 }
 
+bool is_idempotent_method(std::string_view method) noexcept
+{
+    return method == "GET" || method == "HEAD" || method == "PUT" ||
+           method == "DELETE" || method == "OPTIONS" || method == "TRACE";
+}
+
+bool is_reset_error(const HttpError& error) noexcept
+{
+    if (error.kind() != HttpErrorKind::Io || error.io_error() == nullptr)
+        return false;
+    const auto kind = error.io_error()->kind();
+    return kind == io::IoErrorKind::ConnectionReset ||
+           kind == io::IoErrorKind::ConnectionAborted;
+}
+
 bool is_connect_tunnel(std::string_view method, u16 status) noexcept
 {
     return method == "CONNECT" && status >= 200 && status < 300;
@@ -162,6 +177,7 @@ public:
 
     HttpResult<HttpResponse> request(const HttpUrl& url, HttpRequest request)
     {
+        const bool reused = same_origin(url);
         auto connected = connect(url);
         if (connected.is_err())
             return ca::core::Err(connected.unwrap_err());
@@ -171,37 +187,70 @@ public:
         if (host.is_err())
             return fail(host.unwrap_err());
 
-        connection->deadline_writer.start(options.request_write_timeout);
-        auto written = connection->codec_writer.write_request(request);
-        if (written.is_err())
-            return fail(written.unwrap_err());
-
         HttpResponseHead head;
         usize            informational_count = 0;
-        connection->deadline_reader.start(options.response_header_timeout);
-        for (;;) {
-            auto received = connection->codec_reader.read_response_head(request.method);
-            if (received.is_err())
-                return fail(received.unwrap_err());
-            auto optional_head = std::move(received).unwrap();
-            if (!optional_head.has_value())
-                return fail(HttpError::from_kind(HttpErrorKind::InvalidMessage,
-                                                 "HTTP connection closed before response head"));
-            head = std::move(*optional_head);
-            if (!is_informational(head.status))
+        bool             stale_close         = false;
+        for (usize attempt = 0;; ++attempt) {
+            stale_close         = false;
+            informational_count = 0;
+            connection->deadline_writer.start(options.request_write_timeout);
+            auto written = connection->codec_writer.write_request(request);
+            if (written.is_err()) {
+                // 服务器已整体关闭复用连接时，写入可能直接以 reset 类错误失败，
+                // 与读到 EOF 同样是 stale 连接而非请求本身的问题。
+                if (!is_reset_error(written.unwrap_err()))
+                    return fail(std::move(written).unwrap_err());
+                stale_close = true;
+            }
+
+            if (!stale_close) {
+                connection->deadline_reader.start(options.response_header_timeout);
+                for (;;) {
+                    auto received = connection->codec_reader.read_response_head(request.method);
+                    if (received.is_err()) {
+                        // 服务器已整体关闭复用连接时，本次写入会触发 RST，
+                        // 与读到 EOF 同样是 stale 连接而非协议错误。
+                        if (!is_reset_error(received.unwrap_err()))
+                            return fail(std::move(received).unwrap_err());
+                        stale_close = true;
+                        break;
+                    }
+                    auto optional_head = std::move(received).unwrap();
+                    if (!optional_head.has_value()) {
+                        stale_close = true;
+                        break;
+                    }
+                    head = std::move(*optional_head);
+                    if (!is_informational(head.status))
+                        break;
+                    auto finished = connection->codec_reader.finish_body();
+                    if (finished.is_err())
+                        return fail(finished.unwrap_err());
+                    ++informational_count;
+                    if (head.status == 101)
+                        return fail(HttpError::from_kind(HttpErrorKind::Unsupported,
+                                                         "HTTP protocol upgrades are not supported"));
+                    if (informational_count > options.max_informational_responses)
+                        return fail(HttpError::from_kind(
+                            HttpErrorKind::InvalidMessage,
+                            "HTTP response contains too many informational responses"));
+                }
+            }
+
+            // 复用的 keep-alive 连接在响应任何字节前被服务器关闭（idle 超时回收是
+            // 常态）：幂等方法按 RFC 9110 §9.2.2 可在新连接上安全重试一次。
+            const bool retryable = stale_close && informational_count == 0 && reused &&
+                                   attempt == 0 && is_idempotent_method(request.method);
+            if (!retryable)
                 break;
-            auto finished = connection->codec_reader.finish_body();
-            if (finished.is_err())
-                return fail(finished.unwrap_err());
-            ++informational_count;
-            if (head.status == 101)
-                return fail(HttpError::from_kind(HttpErrorKind::Unsupported,
-                                                 "HTTP protocol upgrades are not supported"));
-            if (informational_count > options.max_informational_responses)
-                return fail(HttpError::from_kind(
-                    HttpErrorKind::InvalidMessage,
-                    "HTTP response contains too many informational responses"));
+            connection.reset();
+            auto reconnected = connect(url);
+            if (reconnected.is_err())
+                return ca::core::Err(reconnected.unwrap_err());
         }
+        if (stale_close)
+            return fail(HttpError::from_kind(HttpErrorKind::InvalidMessage,
+                                             "HTTP connection closed before response head"));
 
         const HttpBodyInfo   body_info          = connection->codec_reader.body_info();
         const usize          expected_body_size = body_info.kind == HttpBodyKind::ContentLength

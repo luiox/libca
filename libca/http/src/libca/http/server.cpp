@@ -368,7 +368,10 @@ private:
             return ca::core::Err(
                 HttpError::from_kind(HttpErrorKind::ExpectationFailed,
                                      "HTTP request contains an unsupported expectation"));
-        if (expectation == Expectation::Continue && !reader.body_finished()) {
+        // RFC 9110 §10.1.1：Expect/100-continue 仅定义于 HTTP/1.1；
+        // HTTP/1.0 客户端不认识 interim response，不应回 100。
+        if (expectation == Expectation::Continue && head->version == HttpVersion::Http11 &&
+            !reader.body_finished()) {
             HttpResponse interim;
             interim.version = head->version;
             interim.status  = 100;
@@ -536,7 +539,8 @@ private:
             headers.set("Connection", "keep-alive");
     }
 
-    void send_protocol_error(const HttpError& error, Http1Writer& writer,
+    void send_protocol_error(const HttpError& error, detail::ServerTransport& transport,
+                             detail::DeadlineReader& deadline_reader, Http1Writer& writer,
                              detail::DeadlineWriter& deadline_writer)
     {
         if (!error_allows_response(error))
@@ -544,7 +548,28 @@ private:
         auto response = protocol_error_response(error);
         response.headers.set("Connection", "close");
         deadline_writer.start(options_.response_write_timeout);
-        writer.write_response(response, "GET");
+        auto sent = writer.write_response(response, "GET");
+        if (sent.is_err() || transport.tcp_stream().shutdown(net::Shutdown::Write).is_err())
+            return;
+
+        // Windows 上直接关闭带未读入站数据的 socket 可能用 RST 覆盖已发送的错误响应
+        //（如 413 时客户端仍在推送 body）。shutdown 写半侧后排水读侧直到 EOF 或期限，
+        // 与 send_overloaded 的关闭序列一致；排水预算复用过载路径的"响应后关闭"期限，
+        // 避免慢客户端长时间占用 worker。
+        const auto deadline = std::chrono::steady_clock::now() + options_.overload_response_timeout;
+        const auto now      = std::chrono::steady_clock::now();
+        if (now >= deadline)
+            return;
+        auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+        if (remaining.count() == 0)
+            remaining = std::chrono::milliseconds(1);
+        deadline_reader.start(remaining);
+        std::array<u8, 1024> discarded{};
+        for (;;) {
+            auto read = deadline_reader.read(discarded.data(), discarded.size());
+            if (read.is_err() || read.unwrap() == 0)
+                return;
+        }
     }
 
     void handle_connection(ConnectionJob& job)
@@ -589,7 +614,8 @@ private:
             if (request_result.is_err()) {
                 const auto& error = request_result.unwrap_err();
                 if (error.kind() != HttpErrorKind::InvalidState)
-                    send_protocol_error(error, writer, deadline_writer);
+                    send_protocol_error(error, *transport, deadline_reader, writer,
+                                        deadline_writer);
                 break;
             }
             auto       request            = std::move(request_result).unwrap();
