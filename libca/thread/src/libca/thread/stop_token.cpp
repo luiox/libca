@@ -51,7 +51,7 @@ bool StopToken::wait_for(std::chrono::milliseconds timeout) const
     if (state_ == nullptr)
         return false;
 
-    const auto duration = std::max(timeout, std::chrono::milliseconds::zero());
+    const auto duration = (std::max)(timeout, std::chrono::milliseconds::zero());
     std::unique_lock<std::mutex> lock(state_->mutex);
     return state_->condition.wait_for(
         lock, duration, [&]() { return state_->requested.load(std::memory_order_acquire); });

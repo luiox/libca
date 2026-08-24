@@ -91,7 +91,7 @@ public:
         if (state == nullptr)
             return ca::core::Err(invalid_state("push_for"));
 
-        const auto duration = std::max(timeout, std::chrono::milliseconds::zero());
+        const auto duration = (std::max)(timeout, std::chrono::milliseconds::zero());
         std::unique_lock<std::mutex> lock(state->mutex);
         if (!state->not_full.wait_for(lock, duration, [&]() {
                 return state->closed || state->items.size() < state->capacity;
@@ -152,7 +152,7 @@ public:
         if (state == nullptr)
             return ca::core::Err(invalid_state("pop_for"));
 
-        const auto duration = std::max(timeout, std::chrono::milliseconds::zero());
+        const auto duration = (std::max)(timeout, std::chrono::milliseconds::zero());
         std::unique_lock<std::mutex> lock(state->mutex);
         if (!state->not_empty.wait_for(
                 lock, duration, [&]() { return state->closed || !state->items.empty(); }))
