@@ -497,6 +497,88 @@ TEST(OptV2Test, AliasedOptionCanonicalKey)
     }
 }
 
+// 多字符单横线别名（如 -vm-range）：按整 token 精确匹配，取值语义与长形态一致
+// （=value 内联 / 空格后继 / StringList 追加）。两字符短名的簇与附着展开不受影响。
+TEST(OptV2Test, MultiCharSingleDashAlias)
+{
+    Arg range;
+    range.name    = "vm-range";
+    range.aliases = {"-vm-range"};
+    range.kind    = OptKind::StringList;
+    range.help    = "protected range";
+
+    Arg scan;
+    scan.name    = "vm-scan";
+    scan.aliases = {"-vm-scan"};
+    scan.kind    = OptKind::Flag;
+    scan.help    = "scan mode";
+
+    Arg delay;
+    delay.name    = "start-delay";
+    delay.aliases = {"-start-delay"};
+    delay.kind    = OptKind::Int;
+    delay.help    = "delay ms";
+
+    Command root;
+    root.name = "prog";
+    root.args = {range, scan, delay};
+
+    // 空格取值 + Flag 裸出现
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-vm-range", "1000:2000", "-vm-scan"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        auto parsed = r.unwrap();
+        EXPECT_TRUE(parsed.has("vm-scan"));
+        ASSERT_EQ(parsed.get_list("vm-range").size(), 1u);
+        EXPECT_EQ(parsed.get_list("vm-range")[0], "1000:2000");
+    }
+    // =value 内联形态
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-start-delay=300"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get_int("start-delay"), 300);
+    }
+    // 多次出现追加（StringList）
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-vm-range", "a", "-vm-range", "b"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get_list("vm-range"),
+                  (std::vector<std::string>{"a", "b"}));
+    }
+    // 带值别名位于参数末尾：MissingValue 而非拆成短簇
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-vm-range"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MissingValue);
+    }
+    // 未注册的多字符单横线 token：报全名（不截断为首字符短名）
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-vm-scanx"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
+        EXPECT_EQ(r.unwrap_err().message, "unknown option: -vm-scanx");
+    }
+    // 未注册的 -name=value 形态：报去值后的全名
+    {
+        Parser p(root);
+        Argv argv = make_argv({"-vm-scanx=1"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
+        EXPECT_EQ(r.unwrap_err().message, "unknown option: -vm-scanx");
+    }
+}
+
 // Int 类型化：合法值 get_int 取回；非法整数在 parse 阶段报错。
 TEST(OptV2Test, IntTypeValidAndInvalid)
 {

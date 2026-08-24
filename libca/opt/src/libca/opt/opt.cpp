@@ -433,6 +433,78 @@ bool Parser::seed_option_values(const Command& cmd,
     return true;
 }
 
+// 命中选项后的统一取值消费（--name 与多字符单横线别名 -name 共用）：
+// Flag/OptionalString 直接收尾，带值选项取内联值（=value）或空格后继 token，
+// 按 kind 校验（空值/整数合法性）后以 CommandLine 来源写入 result。
+bool Parser::consume_option_value(
+    const Arg& arg, const std::string& display, bool has_inline,
+    const std::string& inline_value, int argc, const char* const argv[],
+    int& i, ParseResult& result, ParseError& err_out)
+{
+    const OptKind kind = arg.kind;
+
+    if (!kind_takes_value(kind)) {
+        if (has_inline) {
+            err_out = ParseError{
+                ParseErrorCategory::UnexpectedArgument, arg.name,
+                ca::str::format_std("option {} does not take a value", display)};
+            return false;
+        }
+        result.values_[arg.name]  = "true";
+        result.sources_[arg.name] = ValueSource::CommandLine;
+        ++i;
+        return true;
+    }
+
+    if (kind == OptKind::OptionalString) {
+        // 值仅内联提供；裸出现 = 已提供且值为空串（调用方约定语义，如 stdout），
+        // 不消费后继 token，杜绝与位置参数/子命令的歧义。
+        result.values_[arg.name]  = has_inline ? inline_value : std::string{};
+        result.sources_[arg.name] = ValueSource::CommandLine;
+        ++i;
+        return true;
+    }
+
+    std::string value;
+    if (has_inline) {
+        value = inline_value;
+    }
+    else {
+        if (i + 1 >= argc) {
+            err_out = ParseError{
+                ParseErrorCategory::MissingValue, arg.name,
+                ca::str::format_std("option {} requires a value", display)};
+            return false;
+        }
+        value = argv[++i];
+    }
+    if (value.empty()) {
+        err_out = ParseError{
+            ParseErrorCategory::EmptyValue, arg.name,
+            ca::str::format_std("option {} requires a non-empty value", display)};
+        return false;
+    }
+
+    if (kind == OptKind::Int) {
+        int parsed = 0;
+        if (!parse_int_strict(value, parsed)) {
+            err_out = ParseError{
+                ParseErrorCategory::InvalidInteger, arg.name,
+                ca::str::format_std("option {} expects an integer, got '{}'", display, value)};
+            return false;
+        }
+    }
+    else if (kind == OptKind::StringList) {
+        auto& dst = result.lists_[arg.name];
+        for (auto& piece : split_comma(value))
+            dst.push_back(std::move(piece));  // 追加语义
+    }
+    result.values_[arg.name]  = value;  // last-wins
+    result.sources_[arg.name] = ValueSource::CommandLine;
+    ++i;
+    return true;
+}
+
 std::string help_text(const Command& cmd, const std::vector<std::string>& groups)
 {
     // 公开入口不带子命令路径前缀：path 只含 cmd.name 自身。
@@ -586,77 +658,55 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                     ParseErrorCategory::UnknownOption, body,
                     ca::str::format_std("unknown option: --{}", body)});
             }
-            const Arg*    arg  = it->second;
-            const OptKind kind = arg->kind;
-
-            if (!kind_takes_value(kind)) {
-                if (has_inline) {
-                    return ca::core::Err(ParseError{
-                        ParseErrorCategory::UnexpectedArgument, arg->name,
-                        ca::str::format_std("option --{} does not take a value", body)});
-                }
-                put_value(arg->name, "true");
-                ++i;
-                continue;
+            {
+                ParseError err;
+                if (!consume_option_value(*it->second, "--" + body, has_inline,
+                                          inline_value, argc, argv, i, result, err))
+                    return ca::core::Err(std::move(err));
             }
-
-            if (kind == OptKind::OptionalString) {
-                // 值仅内联提供；裸出现 = 已提供且值为空串（调用方约定语义，如 stdout），
-                // 不消费后继 token，杜绝与位置参数/子命令的歧义。
-                put_value(arg->name, has_inline ? inline_value : std::string{});
-                ++i;
-                continue;
-            }
-
-            std::string value;
-            if (has_inline) {
-                value = inline_value;
-            }
-            else {
-                if (i + 1 >= argc) {
-                    return ca::core::Err(ParseError{
-                        ParseErrorCategory::MissingValue, arg->name,
-                        ca::str::format_std("option --{} requires a value", body)});
-                }
-                value = argv[++i];
-            }
-            if (value.empty()) {
-                return ca::core::Err(ParseError{
-                    ParseErrorCategory::EmptyValue, arg->name,
-                    ca::str::format_std("option --{} requires a non-empty value", body)});
-            }
-
-            if (kind == OptKind::Int) {
-                int parsed = 0;
-                if (!parse_int_strict(value, parsed)) {
-                    return ca::core::Err(ParseError{
-                        ParseErrorCategory::InvalidInteger, arg->name,
-                        ca::str::format_std("option --{} expects an integer, got '{}'", body,
-                                            value)});
-                }
-                put_value(arg->name, value);  // last-wins
-            }
-            else if (kind == OptKind::StringList) {
-                auto& dst = result.lists_[arg->name];
-                for (auto& piece : split_comma(value))
-                    dst.push_back(std::move(piece));  // 追加语义
-                put_value(arg->name, value);
-            }
-            else {
-                put_value(arg->name, value);  // last-wins
-            }
-            ++i;
             continue;
         }
 
         // 短选项 -x（可能带 -xvalue 或 -x value）
         if (token.size() >= 2 && token[0] == '-' && token[1] != '-') {
+            // 多字符单横线别名（如 -vm-range）：先按整 token（剥离 =value 后）
+            // 精确匹配，命中则与长形态同语义取值；不进入短旗标簇与 -xvalue
+            // 附着展开（簇与附着形态仅对两字符短名定义）。
+            if (token.size() > 2) {
+                std::string probe        = token;
+                std::string inline_value;
+                bool        has_inline   = false;
+                const auto  eq           = probe.find('=');
+                if (eq != std::string::npos) {
+                    inline_value = probe.substr(eq + 1);
+                    probe        = probe.substr(0, eq);
+                    has_inline   = true;
+                }
+                if (probe.size() > 2) {
+                    auto full = lookup.by_token.find(probe);
+                    if (full != lookup.by_token.end()) {
+                        ParseError err;
+                        if (!consume_option_value(*full->second, probe, has_inline,
+                                                  inline_value, argc, argv, i, result, err))
+                            return ca::core::Err(std::move(err));
+                        continue;
+                    }
+                    if (has_inline) {
+                        // -name=value 但 name 未注册：按未知选项报全名，
+                        // 不落入短簇拆分产生截断的错误定位。
+                        return ca::core::Err(ParseError{
+                            ParseErrorCategory::UnknownOption, probe,
+                            ca::str::format_std("unknown option: {}", probe)});
+                    }
+                }
+            }
+
             char short_char = token[1];
             auto it         = lookup.by_token.find(token.substr(0, 2));
             if (it == lookup.by_token.end()) {
                 return ca::core::Err(ParseError{
-                    ParseErrorCategory::UnknownOption, token.substr(0, 2),
-                    ca::str::format_std("unknown option: -{}", short_char)});
+                    ParseErrorCategory::UnknownOption, token,
+                    ca::str::format_std("unknown option: {}", token)});
             }
             const Arg*    arg  = it->second;
             const OptKind kind = arg->kind;

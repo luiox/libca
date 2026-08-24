@@ -264,6 +264,16 @@ private:
         const Command& cmd, const std::unordered_map<std::string, std::string>* initials,
         ParseResult& result, ParseError& err_out);
 
+    // 命中选项后的统一取值消费（长形态 --name 与多字符单横线别名 -name 共用）：
+    // Flag/OptionalString 直接收尾，带值选项取内联值（=value）或空格后继 token，
+    // 按 kind 校验后以 CommandLine 来源写入 result。display 为错误文案中的 token
+    // 写法（如 "--output" / "-vm-range"）。失败时写入 err_out 并返回 false；
+    // 成功时 i 推进到下一个未消费参数。
+    static bool consume_option_value(
+        const Arg& arg, const std::string& display, bool has_inline,
+        const std::string& inline_value, int argc, const char* const argv[],
+        int& i, ParseResult& result, ParseError& err_out);
+
     Command root_;
 };
 

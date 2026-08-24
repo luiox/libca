@@ -1,6 +1,11 @@
 ---
-version: 1.7
+version: 1.8
 update:
+2026-08-24 - 多字符单横线别名（如 -vm-range）按整 token 精确匹配：此前实现
+             只查两字符短名，头文件声明的整 token 别名在解析路径永不命中
+             （被拆成短簇报截断错误）。命中后取值语义与长形态一致
+             （=value 内联 / 空格后继）；两字符短名的簇与附着展开不变；
+             未命中的多字符单横线 token 报全名而非首字符
 2026-08-24 - 写明跨层级同名选项语义：值键全局共享，上级 CLI 显式值不被子命令
              种子覆盖（对齐「命令行恒为最高」的全局优先级）；§5 用例清单刷新
 2026-08-24 - Int 严格十进制拒绝空白（含前导：strtoll 默认跳过前导空白的行为收紧
@@ -64,7 +69,9 @@ last-wins 生效。需要各层独立取值时应避免跨层级复用同一 can
 - **name**：canonical key，同时是存储 key——`has()/get()/get_int()/get_list()` 只认它；
   即便选项只用短名也必须提供长名作 key。
 - **aliases**：额外的命令行 token（含 `-` 前缀完整书写）。别名只影响匹配与 help 展示，
-  不影响取值入口。
+  不影响取值入口。超过两字符的单横线别名（如 `-vm-range`）按整 token 精确匹配，
+  取值语义与长形态一致（`=value` 内联 / 空格后继），不参与短名簇（`-abc`）与
+  附着值（`-ofile`）展开——后两者仅对两字符短名定义。
 - **kind**：取值类型的唯一表达，不存在"有值但类型未定"的中间态。
 
 各 kind 的重复语义：
@@ -194,7 +201,8 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 `libca/opt/unittest/opt_test.cpp`，61 个用例分七组：
 
 - OptParseTest：旧验收面（形态解析、子命令、-- 终止符、--help、基础错误）
-- OptV2Test：P0 能力（positionals、Int 校验、多别名 canonical、StringList 合并、last-wins）
+- OptV2Test：P0 能力（positionals、Int 校验、多别名 canonical、StringList 合并、last-wins、
+  多字符单横线别名整 token 匹配）
 - OptV2P1Test：错误分类逐类断言、互斥组三态、分组渲染、自定义 usage、状态码桥接
 - OptV2P2Test：三级优先级、注入校验与作用域、required/互斥组被初值满足、
   root() 元数据访问、help_text 过滤
