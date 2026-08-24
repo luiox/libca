@@ -1,5 +1,7 @@
 #include "libca/crypto/rc4.hpp"
 
+#include "libca/crypto/crypto_util.hpp"
+
 namespace ca::crypto {
 
 using namespace ca;
@@ -37,6 +39,7 @@ Result<Bytes, CryptoError> rc4_crypt(ByteSlice key, ByteSlice data)
         output.put_u8(static_cast<u8>(data[n] ^ k));
     }
 
+    secure_zero(state, sizeof(state));  // KSA 后的 S 盒与密钥等价
     return Ok(output.freeze());
 }
 

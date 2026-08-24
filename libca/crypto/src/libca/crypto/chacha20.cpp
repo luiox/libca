@@ -1,5 +1,7 @@
 #include "libca/crypto/chacha20.hpp"
 
+#include "libca/crypto/crypto_util.hpp"
+
 namespace ca::crypto {
 
 using namespace ca;
@@ -76,6 +78,8 @@ void chacha20_block_impl(const u32* state, u8* out) noexcept
 
     for (usize i = 0; i < 16; ++i)
         store_le32(out + (i * 4), working[i] + state[i]);
+
+    secure_zero(working, sizeof(working));  // working 含密钥派生态
 }
 
 }  // namespace
@@ -89,6 +93,7 @@ Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice 
     u8 out[CHACHA20_BLOCK_SIZE];
     chacha20_init_state(state, key, counter, nonce);
     chacha20_block_impl(state, out);
+    secure_zero(state, sizeof(state));  // state 前四个常量后接密钥字
 
     return Ok(Bytes::copy_from_slice(out, CHACHA20_BLOCK_SIZE));
 }
@@ -117,6 +122,8 @@ Result<Bytes, CryptoError> chacha20_xor(ByteSlice key, u32 counter, ByteSlice no
         ++counter;
     }
 
+    secure_zero(state, sizeof(state));   // 含密钥派生态
+    secure_zero(block, sizeof(block));   // keystream 残留同样破坏机密性
     return Ok(output.freeze());
 }
 
