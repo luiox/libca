@@ -530,3 +530,10 @@ TEST(YamlReaderTest, ErrorLocationIsPopulated) {
     EXPECT_EQ(err.location.line, 2u);
     EXPECT_GT(err.location.column, 1u);
 }
+
+// \xXX 是码点转义：XX >= 0x80 此前按原始单字节追加产生非法 UTF-8，
+// 经 arena intern 静默变空串（字符串无声丢失）。现按码点编码为两字节 UTF-8。
+TEST(YamlReaderTest, HighHexEscapeEncodesCodePoint) {
+    auto doc = read_ok("a: \"\\xE9\"");
+    EXPECT_EQ(doc.root().find(R("a"))->as_string(), R("\xC3\xA9"));  // e with acute
+}
