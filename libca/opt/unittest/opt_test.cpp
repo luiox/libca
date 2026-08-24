@@ -1533,5 +1533,57 @@ TEST(OptV2FixTest, IntRejectsWhitespaceForms)
     }
 }
 
+// 跨层级同名选项：父命令 CLI 显式给值不被子命令的种子（default/注入初值）覆盖
+// ——「命令行恒为最高」的全局优先级跨层级成立。
+TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
+{
+    Arg level;
+    level.name = "level";
+    level.kind = OptKind::String;
+
+    Arg sub_level;
+    sub_level.name          = "level";
+    sub_level.kind          = OptKind::String;
+    sub_level.default_value = "debug";
+
+    Command sub;
+    sub.name = "sub";
+    sub.help = "sub command";
+    sub.args = {sub_level};
+
+    Command root;
+    root.name        = "prog";
+    root.help        = "root";
+    root.args        = {level};
+    root.subcommands = {sub};
+
+    // 旧实现：进入 sub 时其 default "debug" 无条件覆盖父命令 CLI 给的 "warn"。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--level", "warn", "sub"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("level"), "warn");
+        EXPECT_EQ(r.unwrap().source_of("level"), ValueSource::CommandLine);
+    }
+    // 注入初值同样不覆盖上级 CLI 显式值。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--level", "warn", "sub"});
+        auto r = p.parse(argv.argc, argv.data(), {{"level", "injected"}});
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("level"), "warn");
+    }
+    // 父命令未给值时，子命令种子照常生效。
+    {
+        Parser p(root);
+        Argv argv = make_argv({"sub"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get("level"), "debug");
+        EXPECT_EQ(r.unwrap().source_of("level"), ValueSource::Default);
+    }
+}
+
 }  // namespace
 }  // namespace ca::opt::test

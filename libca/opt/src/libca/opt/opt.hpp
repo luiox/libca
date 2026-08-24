@@ -146,6 +146,10 @@ struct Command
     /// 互斥组约束（作用于本命令的选项）。
     std::vector<MutexGroup> mutex_groups;
     /// 子命令列表。遇到非选项 token 时优先按子命令名分派。
+    /// @note 选项值键（Arg::name）跨层级共享命名空间：父命令与子命令注册同名
+    ///       选项时共用同一取值入口。上级命令行显式给值不会被子命令的种子
+    ///       （default/注入初值）覆盖，子命令的同名显式出现按 last-wins 生效；
+    ///       需要各层独立取值时避免跨层级复用同一 canonical 名。
     std::vector<Command> subcommands;
     /// 自定义 usage 行（不含 "Usage: " 前缀，如 "git [-C <path>] <command> ..."）。
     /// 为空时按命令路径（程序名 + 已穿过的子命令）与选项/位置参数/子命令自动生成；

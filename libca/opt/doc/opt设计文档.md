@@ -1,6 +1,8 @@
 ---
-version: 1.6
+version: 1.7
 update:
+2026-08-24 - 写明跨层级同名选项语义：值键全局共享，上级 CLI 显式值不被子命令
+             种子覆盖（对齐「命令行恒为最高」的全局优先级）；§5 用例清单刷新
 2026-08-24 - Int 严格十进制拒绝空白（含前导：strtoll 默认跳过前导空白的行为收紧
              为拒绝，" 30" 与 "30 " 对称报 InvalidInteger）
 2026-08-24 - 内置 --help/-h 可被用户注册的同名选项覆盖（如 -h 作 --host 别名），
@@ -50,6 +52,12 @@ usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先
 `Usage: <程序名> <子命令路径> [options] ...`（程序名取根命令 name）。
 内置帮助 token 可被覆盖：`--help` / `-h` 已注册为某选项的长名/别名时
 （如 `-h` 作 `--host` 的别名），按该选项定义解析——用户注册优先于内置约定。
+
+选项值键跨层级共享命名空间：父命令与子命令注册同名选项时共用同一取值入口
+（`has()`/`get()` 按名字全局寻址）。种子写入前检查已有来源——**上级命令行
+显式给值不被子命令的种子（default/注入初值）覆盖**，全局优先级
+「default < 注入初值 < 命令行」在跨层级场景同样成立；子命令的同名显式出现按
+last-wins 生效。需要各层独立取值时应避免跨层级复用同一 canonical 名。
 
 ### 2.2 Arg 三要素
 
@@ -183,10 +191,14 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 
 ## 5. 测试
 
-`libca/opt/unittest/opt_test.cpp`，44 个用例分四组：
+`libca/opt/unittest/opt_test.cpp`，61 个用例分七组：
 
 - OptParseTest：旧验收面（形态解析、子命令、-- 终止符、--help、基础错误）
 - OptV2Test：P0 能力（positionals、Int 校验、多别名 canonical、StringList 合并、last-wins）
 - OptV2P1Test：错误分类逐类断言、互斥组三态、分组渲染、自定义 usage、状态码桥接
 - OptV2P2Test：三级优先级、注入校验与作用域、required/互斥组被初值满足、
   root() 元数据访问、help_text 过滤
+- OptV2ProvenanceTest：source_of 值来源、互斥组显式选择判定
+- OptV2OptionalTest：OptionalString 形态与互斥组/help 交互
+- OptV2FixTest：评审修复回归（子命令 usage 行、-h/--help 可覆盖、Int 空白
+  严格化、跨层级同名选项优先级）
