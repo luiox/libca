@@ -40,6 +40,14 @@ u32 utf8_decode_code_point(const u8* bytes) noexcept {
     return 0;  // 非法
 }
 
+bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept {
+    for (usize i = 1; i < clen; ++i) {
+        if ((bytes[i] & 0xC0) != 0x80)
+            return false;
+    }
+    return true;
+}
+
 usize utf8_encode_code_point(u32 cp, u8* out) noexcept {
     // 排除非法码点：代理项 (U+D800~U+DFFF) 和超出范围的值
     if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))

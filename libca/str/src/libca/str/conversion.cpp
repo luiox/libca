@@ -44,7 +44,7 @@ WString to_wstring(const Utf8StringRef& str) {
     usize wcCount = 0;
     while (pos < len) {
         auto clen = utf8_code_point_bytes(data[pos]);
-        if (clen == 0 || pos + clen > len) {
+        if (clen == 0 || pos + clen > len || !utf8_valid_continuation(data + pos, clen)) {
             throw std::runtime_error("to_wstring: invalid UTF-8 sequence");
         }
         auto cp = utf8_decode_code_point(data + pos);
@@ -68,7 +68,11 @@ WString to_wstring(const Utf8StringRef& str) {
     usize outIdx = 0;
     while (pos < len) {
         auto clen = utf8_code_point_bytes(data[pos]);
-        auto cp   = utf8_decode_code_point(data + pos);
+        // 第一遍已校验过，此处防御性重复检查（输入在两遍间不变）
+        if (clen == 0 || pos + clen > len || !utf8_valid_continuation(data + pos, clen)) {
+            throw std::runtime_error("to_wstring: invalid UTF-8 sequence");
+        }
+        auto cp = utf8_decode_code_point(data + pos);
 #if defined(_WIN32)
         if (cp >= 0x10000 && cp <= 0x10FFFF) {
             Utf16Char high, low;
@@ -181,7 +185,7 @@ usize utf8_to_utf16_length(const u8* utf8, usize byteLength) noexcept {
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return 0;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
@@ -197,7 +201,7 @@ usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
     usize out = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return 0;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
@@ -268,7 +272,7 @@ usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept {
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return 0;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
@@ -284,7 +288,7 @@ usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept {
     usize out = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return 0;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
@@ -352,7 +356,7 @@ usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept {
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return UTF8_TO_LATIN1_INVALID;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x00FF)  // Latin-1 只能表示 U+0000..U+00FF
@@ -368,7 +372,7 @@ usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept {
     usize out = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
-        if (clen == 0 || pos + clen > byteLength)
+        if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return UTF8_TO_LATIN1_INVALID;
         auto cp = utf8_decode_code_point(utf8 + pos);
         if (cp > 0x00FF)
