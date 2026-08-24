@@ -303,6 +303,21 @@ TEST(JsonReaderTest, RejectsBom) {
     EXPECT_TRUE(result.is_err());
 }
 
+// 字符串值里的非法 UTF-8 此前经 arena intern 静默变空串、解析"成功"（RFC 8259
+// 要求 JSON 文本为合法 UTF-8，模块声明严格模式）。入口整体校验后统一拒绝。
+TEST(JsonReaderTest, RejectsInvalidUtf8) {
+    // 快路径（无转义）：{"a":"<0xC3 0x28>"}
+    const u8 fast[] = "{\"a\":\"\xC3\x28\"}";
+    EXPECT_TRUE(JsonReader::read(
+        Utf8StringRef::from_data(fast, sizeof(fast) - 1)).is_err());
+    // 慢路径（含转义 + 非法尾字节）：["\n<0xFF>"]
+    const u8 slow[] = "[\"\\n\xFF\"]";
+    EXPECT_TRUE(JsonReader::read(
+        Utf8StringRef::from_data(slow, sizeof(slow) - 1)).is_err());
+    // 对照：合法多字节内容不受影响
+    EXPECT_TRUE(JsonReader::read(R("{\"k\":\"中文\"}")).is_ok());
+}
+
 // ============================================================================
 // DOM 编辑
 // ============================================================================

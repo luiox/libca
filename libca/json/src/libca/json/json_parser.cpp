@@ -1,5 +1,7 @@
 #include "libca/json/json_parser.hpp"
 
+#include "libca/str/utf8_util.hpp"
+
 #include <cassert>
 #include <cerrno>
 #include <cstdlib>
@@ -112,6 +114,13 @@ void JsonParser::skip_ws_and_comments() {
 // ============================================================================
 
 bool JsonParser::parse() {
+    // RFC 8259：JSON 文本必须是合法 UTF-8。入口整体校验一次——此前字符串值里的
+    // 非法序列经 arena intern 静默变空串、解析"成功"，数据无声丢失。
+    if (!ca::str::utf8_is_valid(data_, byte_length_)) {
+        fail(SourceLocation{0, 1, 1}, "invalid UTF-8 in JSON text");
+        return false;
+    }
+
     skip_ws_and_comments();
     if (failed_) return false;
 
