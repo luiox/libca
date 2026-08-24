@@ -17,7 +17,8 @@ enum class Level : u8
     Debug    = 1,
     Info     = 2,
     Warn     = 3,
-    Error_   = 4,   // 避免与 Windows wingdi.h 的 ERROR 宏冲突（宏会把 Error 替换为 0）
+    Error_   = 4,   // 尾下划线与 Windows wingdi.h 的全大写 ERROR 宏区隔（防御性命名；
+                    // 预处理器大小写敏感，ERROR 不会匹配 Error，此处仅避免同名混淆）
     Critical = 5,
     Off      = 6
 };

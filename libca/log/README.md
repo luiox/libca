@@ -30,7 +30,7 @@ CA_LOG_WARN("slow query: {} ms", 120);
 
 // 3. 多模块各自独立级别：net 模块用 Error 级别。
 auto net_logger = std::make_shared<Logger>(std::make_shared<SimpleLogBackend>());
-net_logger->set_level(Level::Error);
+net_logger->set_level(Level::Error_);
 LoggerRegistry::register_logger("net", net_logger);
 CA_LOGT_ERROR("net", "connection refused");   // 输出
 CA_LOGT_DEBUG("net", "handshake ok");         // 被 net 的 Error 级别过滤

@@ -67,6 +67,46 @@ TEST(RegistryTest, Unregister)
     EXPECT_FALSE(LoggerRegistry::unregister_logger("io"));
 }
 
+// 注册表是唯一持有者时，注销/替换/clear 后旧 Logger 的裸指针仍须有效
+// （get 契约：同一次 log 表达式内使用安全）。旧实现 map.erase 直接析构，
+// 旧指针悬垂——此前被测试体外持有 shared_ptr 掩盖。
+TEST(RegistryTest, RetiredLoggerStaysAliveWhenRegistryIsSoleOwner)
+{
+    {
+        RegistryGuard guard;
+        // 故意不在测试体外持有 shared_ptr：注册表是唯一持有者。
+        LoggerRegistry::register_logger("sole", make_logger());
+        Logger* raw = LoggerRegistry::get("sole");
+        ASSERT_NE(raw, nullptr);
+        EXPECT_TRUE(raw->should_log(Level::Info));
+
+        LoggerRegistry::unregister_logger("sole");
+        EXPECT_TRUE(raw->should_log(Level::Info));  // 退休列表保活，未析构
+    }
+    {
+        RegistryGuard guard;
+        LoggerRegistry::register_logger("sole", make_logger());
+        Logger* raw = LoggerRegistry::get("sole");
+        ASSERT_NE(raw, nullptr);
+
+        LoggerRegistry::register_logger("sole", make_logger());  // 替换
+        EXPECT_TRUE(raw->should_log(Level::Info));
+
+        LoggerRegistry::clear();
+        EXPECT_TRUE(raw->should_log(Level::Info));
+    }
+    {
+        RegistryGuard guard;
+        LoggerRegistry::register_logger("sole", make_logger());
+        Logger* raw = LoggerRegistry::get("sole");
+        ASSERT_NE(raw, nullptr);
+
+        LoggerRegistry::register_logger("sole", nullptr);  // null 注销路径
+        EXPECT_EQ(LoggerRegistry::get("sole"), nullptr);
+        EXPECT_TRUE(raw->should_log(Level::Info));
+    }
+}
+
 TEST(RegistryTest, RegisterNullUnregisters)
 {
     RegistryGuard guard;
