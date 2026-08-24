@@ -80,3 +80,36 @@
 - **[thread] 公共头 `std::max` 加括号**：`bounded_queue.hpp` 中未加括号的
   `std::max` 在下游先包含 `<windows.h>`（未定义 NOMINMAX）时被函数式 `max`
   宏改写、包含即编译失败。
+- **[fs] move 不再预删目标**：覆盖移动此前先 `remove_all(dst)` 再 rename，
+  目标为目录时整棵子树被删而源 rename 失败，数据白白丢失；也不存在"原子
+  替换"窗口。现 rename 失败即返回 false，文件目标的覆盖由系统原子替换
+  完成（Windows 走 MOVEFILE_REPLACE_EXISTING）。overwrite=false 语义不变。
+- **[fs] glob 裸相对模式修复**：`*.txt` 等不含斜杠的相对模式此前用完整路径
+  拼接候选再匹配，永远失配；现候选 = 模式前缀 + 文件名，与模式形状对齐。
+- **[str] 增补平面码点防 wint_t 截断**：Windows 上 `wint_t` 为 16 位，
+  `Utf8Char::is_*`/`to_*` 直接 `static_cast<wint_t>(cp_)` 会把 U+10000 以上
+  码点截断成错误 BMP 码点（如 U+10061 判成 'a' 可转大写）。超 BMP 码点现
+  短路返回"非字母数字"类结果。`to_lower_case`/`to_upper_case` 同步修复
+  `::tolower(char)` 负值 UB（现经 `unsigned char` 转换）。
+- **[crypto] 密钥材料离场清零**：hmac/chacha20/rc4 计算后密钥块、轮状态与
+  S-box 残留在栈/堆上不清零，可被交换/转储/复用内存读到。新增
+  `crypto_util::secure_zero`（volatile 逐字节写，防优化器消除），计算完
+  即擦除全部密钥派生材料。
+- **[toml] 对齐 TOML 1.0 四项**：`[a.b]` 后定义 `[a]` 超表合法（此前误拒）；
+  进制整数先校验字符集再 strtoll（`0x-5`/`0x 5` 此前被解析成奇怪值而非
+  报错）；`1e_2` 类指数 mark 后下划线拒绝；writer 转义 DEL（0x7F，
+  TOML 1.0 不允许原样出现在基本字符串中）。
+- **[yaml] `\xXX` 转义按码点编码**：XX >= 0x80 时此前按原始单字节追加产生
+  非法 UTF-8，经 arena intern 静默变空串（字符串无声丢失）；YAML 1.2 中
+  `\xXX` 是码点转义 U+00XX，现编码为对应 UTF-8 序列。
+- **[http] 协议错误响应防 RST**：400/408/413/431/501 错误路径此前直接关闭
+  连接，Windows 上未读入站数据（如客户端仍在推送 body 时的 413）触发 RST
+  吞掉已发送的响应；现与过载路径一致——shutdown 写半侧后排空读侧至 EOF
+  或期限。`Expect: 100-continue` 仅 HTTP/1.1 回 interim（1.0 无此语义，
+  此前会回出 "HTTP/1.0 100 Continue"）。client 复用的 keep-alive 连接被
+  服务器关闭时（idle 回收常态），幂等方法在响应任何字节前遇 EOF/reset
+  自动在新连接上重试一次（RFC 9110 9.2.2）；非幂等方法维持报错。
+- **[libca] 格式化模块文件路径经 u8path**：json/xml/csv/ini/yaml/toml 的
+  `read_file`/`write_file` 此前把 UTF-8 路径按窄字符传给 fstream，Windows
+  ACP 非 UTF-8（中文环境默认 GBK）时非 ASCII 路径打开失败或落到错误文件；
+  现统一经 `std::filesystem::u8path`，与 `libca/fs` 做法一致。
