@@ -526,6 +526,72 @@ TEST(FileUtilTest, Move_SourceNotFound)
     EXPECT_FALSE(FileUtil::move("/nonexistent", "/tmp/nowhere"));
 }
 
+// overwrite=false 时目标存在应失败且不被改动（此前 rename 仍会静默替换目标文件）。
+TEST(FileUtilTest, Move_NoOverwriteKeepsExistingTarget)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto src = tmp.make_path("src.txt");
+    auto dst = tmp.make_path("dst.txt");
+    ASSERT_TRUE(FileUtil::write_text(src, "new").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(dst, "old").is_ok());
+
+    EXPECT_FALSE(FileUtil::move(src, dst, false));
+    EXPECT_EQ(FileUtil::read_all_text(dst).unwrap(), "old");
+    EXPECT_TRUE(FileUtil::exists(src));  // 源保持原位
+}
+
+// overwrite=true 原子替换已存在的普通文件目标；移动到已存在目录名上应失败
+// 且目录不被删除（此前 remove_all-then-rename 在 rename 失败时目标已被删光）。
+TEST(FileUtilTest, Move_OverwriteReplacesFileButNeverDeletesDirectory)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    {
+        auto src = tmp.make_path("src.txt");
+        auto dst = tmp.make_path("dst.txt");
+        ASSERT_TRUE(FileUtil::write_text(src, "new").is_ok());
+        ASSERT_TRUE(FileUtil::write_text(dst, "old").is_ok());
+
+        EXPECT_TRUE(FileUtil::move(src, dst, true));
+        EXPECT_EQ(FileUtil::read_all_text(dst).unwrap(), "new");
+        EXPECT_FALSE(FileUtil::exists(src));
+    }
+    {
+        auto src  = tmp.make_path("file.txt");
+        auto dir  = tmp.make_path("dir");
+        auto keep = tmp.make_path("dir/keep.txt");
+        ASSERT_TRUE(FileUtil::write_text(src, "x").is_ok());
+        ASSERT_TRUE(FileUtil::write_text(keep, "precious").is_ok());
+
+        EXPECT_FALSE(FileUtil::move(src, dir, true));  // 文件移到目录名上：拒绝
+        EXPECT_TRUE(FileUtil::exists(keep));           // 目录内容原样保留
+        EXPECT_EQ(FileUtil::read_all_text(keep).unwrap(), "precious");
+    }
+}
+
+// 裸相对模式（首个路径段含通配符）此前恒返回空：directory_iterator(".") 产出
+// "./a.txt" 候选与模式 "^[^/]*\.txt$" 形状不符。
+TEST(FileUtilTest, Glob_BareRelativePatternMatches)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("a.txt"), "a").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("b.log"), "b").is_ok());
+
+    const auto old_cwd = std::filesystem::current_path();
+    std::filesystem::current_path(tmp.path());
+    auto flat = FileUtil::glob("*.txt");
+    std::filesystem::current_path(old_cwd);  // 先恢复，避免断言失败影响后续用例
+
+    ASSERT_TRUE(flat.is_ok()) << to_string(flat.unwrap_err());
+    ASSERT_EQ(flat.unwrap().size(), 1u);
+    EXPECT_EQ(flat.unwrap()[0], "a.txt");
+}
+
 // ==================== remove / removeAll ====================
 
 TEST(FileUtilTest, Remove_File)
