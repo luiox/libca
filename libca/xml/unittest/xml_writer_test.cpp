@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 #include <cstdio>
 #include <string>
 
@@ -213,4 +215,23 @@ TEST(XmlWriterTest, RoundtripCommentsPreserved) {
 
 TEST(XmlWriterTest, RoundtripWithDeclaration) {
     expect_roundtrip(R"(<?xml version="1.0" encoding="UTF-8"?><root><a>1</a></root>)");
+}
+
+// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+TEST(XmlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
+    const std::string path = "build/libca_xml_utf8路径回归.xml";
+    XmlDocument doc;
+    auto& a = doc.arena();
+    doc.root() = XmlNode::make_element(a.intern("root"));
+    XmlNode k = XmlNode::make_element(a.intern("key"));
+    k.append_child(XmlNode::make_text(a.intern("value")));
+    doc.root().append_child(std::move(k));
+
+    ASSERT_TRUE(XmlWriter::write_file(R(path.c_str()), doc).is_ok());
+    auto loaded = XmlReader::read_file(R(path.c_str()));
+    ASSERT_TRUE(loaded.is_ok());
+    auto ldoc = std::move(loaded).unwrap();
+    EXPECT_EQ(S(ldoc.root().first_element(R("key"))->text()), "value");
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }

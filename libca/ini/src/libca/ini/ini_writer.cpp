@@ -3,6 +3,7 @@
 #include "libca/str/format.hpp"
 #include "libca/str/utf8_string.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -37,7 +38,7 @@ ca::Result<void, ca::str::Utf8String> IniWriter::write_file(
     const IniWriterOptions& options) {
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ofstream output(path_str, std::ios::binary | std::ios::trunc);
+    std::ofstream output(std::filesystem::u8path(path_str), std::ios::binary | std::ios::trunc);
     if (!output.is_open()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ca::str::format_std("failed to open INI file for writing: {}", path_str).c_str()));

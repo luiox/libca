@@ -6,6 +6,7 @@
 #include "libca/str/format.hpp"
 #include "libca/str/utf8_util.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -314,7 +315,7 @@ ca::Result<IniDocument, ParseError> IniReader::read_file(
     const ca::str::Utf8StringRef& path,
     const IniReaderOptions& options) {
     std::string path_str = to_std(path);
-    std::ifstream input(path_str, std::ios::binary);
+    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
     if (!input.is_open()) {
         ParseError err;
         err.location = SourceLocation{};

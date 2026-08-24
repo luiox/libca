@@ -2,6 +2,7 @@
 
 #include "libca/xml/xml_parser.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -50,7 +51,7 @@ ca::Result<XmlDocument, ParseError> XmlReader::read(const ca::str::Utf8StringRef
 ca::Result<XmlDocument, ParseError> XmlReader::read_file(const ca::str::Utf8StringRef& path,
                                                          const XmlReaderOptions& options) {
     std::string path_str(path.data(), path.data() + path.byte_length());
-    std::ifstream input(path_str, std::ios::binary);
+    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
     if (!input.is_open()) {
         return ca::Err(make_open_error(path));
     }
