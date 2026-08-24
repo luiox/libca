@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -379,7 +380,7 @@ ca::Result<void, ca::str::Utf8String> YamlWriter::write_file(const ca::str::Utf8
     ca::str::Utf8String text = write(document, options);
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ofstream out(path_str, std::ios::binary | std::ios::trunc);
+    std::ofstream out(std::filesystem::u8path(path_str), std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ca::str::format_std("failed to open YAML file for writing: {}", path_str).c_str()));

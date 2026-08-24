@@ -2,6 +2,7 @@
 
 #include "libca/toml/toml_parser.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -46,7 +47,7 @@ ca::Result<TomlDocument, ParseError> TomlReader::read_file(
     const TomlReaderOptions& options) {
     // 路径转 std::string（ifstream 需要）
     std::string path_str(path.data(), path.data() + path.byte_length());
-    std::ifstream input(path_str, std::ios::binary);
+    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
     if (!input.is_open()) {
         return ca::Err(make_open_error(path));
     }

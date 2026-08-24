@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 #include <utility>
 
 using namespace ca;
@@ -239,4 +241,20 @@ TEST(TomlWriterTest, EscapesDeleteCharacter) {
     doc.root().set(R("s"), TomlValue::make_string(Utf8StringRef(raw, 3, 3)));
     Utf8String out = write_and_reparse(doc);
     EXPECT_NE(out.index_of(R("\\u007f")), ca::usize(-1));  // 输出含转义而非原样 DEL
+}
+
+// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+TEST(TomlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
+    const std::string path = "build/libca_toml_utf8路径回归.toml";
+    TomlDocument doc;
+    doc.root().set(R("name"), TomlValue::make_string(R("libca")));
+    ASSERT_TRUE(TomlWriter::write_file(R(path.c_str()), doc).is_ok());
+    auto loaded = TomlReader::read_file(R(path.c_str()));
+    ASSERT_TRUE(loaded.is_ok());
+    auto ldoc = std::move(loaded).unwrap();
+    auto* value = ldoc.root().find(R("name"));
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(value->as_string(), R("libca"));
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }

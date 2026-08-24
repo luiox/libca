@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -301,4 +303,20 @@ TEST(YamlWriterTest, RoundtripNestedSequences) {
         "  -\n"
         "    - a\n"
         "    - b\n");
+}
+
+// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+TEST(YamlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
+    const std::string path = "build/libca_yaml_utf8路径回归.yaml";
+    YamlDocument doc;
+    doc.root() = YamlValue::make_mapping();
+    doc.root().set(doc.arena().intern("key"), YamlValue::make_string(doc.arena().intern("value")));
+
+    ASSERT_TRUE(YamlWriter::write_file(R(path.c_str()), doc).is_ok());
+    auto loaded = YamlReader::read_file(R(path.c_str()));
+    ASSERT_TRUE(loaded.is_ok());
+    auto ldoc = std::move(loaded).unwrap();
+    EXPECT_EQ(ldoc.root().find(R("key"))->as_string(), R("value"));
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }

@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 using namespace ca::csv;
 using ca::str::Utf8StringRef;
 
@@ -328,4 +330,29 @@ TEST(CsvReaderTest, SkipsUtf8Bom) {
     std::string first_header(reinterpret_cast<const char*>(doc.header().at(0).data()),
                              doc.header().at(0).byte_length());
     EXPECT_EQ(first_header, "name");
+}
+
+// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+TEST(CsvIoTest, RoundTripsThroughUtf8PathFile) {
+    const std::string path = "build/libca_csv_utf8路径回归.csv";
+    CsvDocument document;
+    document.set_header({"key", "value"});
+    document.add_row(CsvRow({document.intern_field(
+                            reinterpret_cast<const ca::u8*>("answer"), 6),
+                        document.intern_field(
+                            reinterpret_cast<const ca::u8*>("42"), 2)}));
+
+    ASSERT_TRUE(CsvWriter::write_file(R(path.c_str()), document).is_ok());
+
+    CsvReaderOptions options;
+    options.first_row_is_header = true;
+    auto loaded = CsvReader::read_file(R(path.c_str()), options);
+
+    ASSERT_TRUE(loaded.is_ok());
+    auto loaded_document = std::move(loaded).unwrap();
+    ASSERT_EQ(loaded_document.rows().size(), 1u);
+    EXPECT_EQ(loaded_document.rows()[0][1], "42");
+
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }

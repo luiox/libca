@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 #include <cmath>
 #include <limits>
 #include <string>
@@ -210,4 +212,18 @@ TEST(JsonWriterTest, RoundTripPreservesNumbers) {
     // 浮点经 %.17g 输出后可能形如 "1.5"，round-trip 仍应是 float
     auto doc2 = read_ok(to_std(JsonWriter::write(doci)).c_str());
     EXPECT_TRUE(doc2.root().is_float());
+}
+
+// read_file/write_file 经 u8path 处理路径：非 ASCII（UTF-8）路径在 Windows ACP
+// 环境下按窄字符打开会落到错误文件名，这里做真实文件往返回归。
+TEST(JsonWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
+    const std::string path = "build/libca_json_utf8路径回归.json";
+    JsonDocument doc = read_ok("{\"key\": \"value\"}");
+    ASSERT_TRUE(JsonWriter::write_file(R(path.c_str()), doc).is_ok());
+    auto loaded = JsonReader::read_file(R(path.c_str()));
+    ASSERT_TRUE(loaded.is_ok());
+    JsonDocument reloaded = std::move(loaded).unwrap();
+    EXPECT_TRUE(equal(doc.root(), reloaded.root()));
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }

@@ -4,6 +4,7 @@
 
 #include "libca/str/format.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -45,7 +46,7 @@ ca::Result<YamlDocument, ParseError> YamlReader::read_file(const ca::str::Utf8St
                                                            const YamlReaderOptions& options) {
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ifstream input(path_str, std::ios::binary);
+    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
     if (!input.is_open()) {
         return ca::Err(make_open_error(path));
     }

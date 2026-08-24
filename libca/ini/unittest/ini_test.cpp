@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+
 using namespace ca::ini;
 using ca::str::Utf8String;
 using ca::str::Utf8StringRef;
@@ -393,4 +395,20 @@ TEST(IniDocumentTest, NumericGetRejectsLeadingWhitespace) {
     EXPECT_FALSE(doc.get_int(R("s"), R("i")).is_ok());
     EXPECT_FALSE(doc.get_double(R("s"), R("d")).is_ok());
     EXPECT_TRUE(doc.get_int(R("s"), R("ok")).is_ok());
+}
+
+// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+TEST(IniIoTest, RoundTripsThroughUtf8PathFile) {
+    const std::string path = "build/libca_ini_utf8路径回归.ini";
+    auto document = read_ok("[app]\nname = libca\n");
+    document.set(R("app"), R("name"), R("libca.ini"));
+
+    ASSERT_TRUE(IniWriter::write_file(R(path.c_str()), document).is_ok());
+    auto loaded = IniReader::read_file(R(path.c_str()));
+    ASSERT_TRUE(loaded.is_ok());
+    auto loaded_doc = std::move(loaded).unwrap();
+    EXPECT_EQ(S(get_ok(loaded_doc, "app", "name")), "libca.ini");
+
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
 }
