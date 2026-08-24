@@ -230,3 +230,13 @@ TEST(TomlWriterTest, ComplexDocumentRoundTrip) {
     EXPECT_EQ(doc2.root().find(R("servers"))->size(), 2u);
     EXPECT_EQ(doc2.root().find(R("servers"))->at(1).find(R("ip"))->as_string(), R("10.0.0.2"));
 }
+
+// DEL(0x7F) 不在 TOML 1.0 basic string 未转义字符集（%x21/%x23-5B/%x5D-7E），
+// 原样写出会被 toml-rs/toml++ 等严格解析器拒绝；应转义为 。
+TEST(TomlWriterTest, EscapesDeleteCharacter) {
+    TomlDocument doc;
+    const ca::u8 raw[] = {'a', 0x7F, 'b'};
+    doc.root().set(R("s"), TomlValue::make_string(Utf8StringRef(raw, 3, 3)));
+    Utf8String out = write_and_reparse(doc);
+    EXPECT_NE(out.index_of(R("\\u007f")), ca::usize(-1));  // 输出含转义而非原样 DEL
+}

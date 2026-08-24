@@ -61,9 +61,6 @@ private:
     // 已显式定义过的 table header 完整路径（O(1) 精确重复检测）。
     // 路径编码为 segment1\x1Fsegment2\x1F...（\x1F 作分隔符，避免与 key 字符冲突）。
     std::unordered_set<std::string> defined_paths_;
-    // 已定义 header 的所有严格前缀路径（这些父表已被子表头隐式创建，
-    // 不允许再被 [header] 显式命名）。O(1) 检测，替代对全部已定义路径的前缀扫描。
-    std::unordered_set<std::string> implicit_parents_;
 
     // 当前正在追加 key=value 的 table（标准表头或 root；inline/array of tables 由 caller 处理）。
     // 指向 document 内 TomlValue（Table），生命周期随 document。
