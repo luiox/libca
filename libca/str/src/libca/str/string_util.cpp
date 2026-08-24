@@ -50,13 +50,19 @@ namespace {
 
 std::string StringUtil::to_lower_case(const std::string& input) {
     std::string str = input;
-    std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+    // 经 unsigned char 中转：char 为有符号时高位字节成负值，直接传 ::tolower 违反
+    // 「参数须可表示为 unsigned char 或 EOF」的前置条件（UB，MSVC debug 断言）
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return str;
 }
 
 std::string StringUtil::to_upper_case(const std::string& input) {
     std::string str = input;
-    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
     return str;
 }
 
