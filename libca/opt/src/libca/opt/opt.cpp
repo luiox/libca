@@ -564,9 +564,8 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             std::vector<std::string> help_path;
             help_path.push_back(root_.name);
             help_path.insert(help_path.end(), path.begin(), path.end());
-            return ca::core::Err(
-                ParseError{ParseErrorCategory::HelpRequested, "",
-                           render_help(*current, help_path, nullptr)});
+            return ca::core::Err(ParseError{
+                ParseErrorCategory::HelpRequested, "", render_help(*current, help_path, nullptr)});
         }
 
         // 长选项 --name 或 --name=value
