@@ -1,6 +1,7 @@
 #include "libca/xml/xml_parser.hpp"
 
 #include "libca/str/format.hpp"
+#include "libca/str/utf8_util.hpp"
 
 #include <cstring>
 #include <string>
@@ -147,6 +148,14 @@ void XmlParser::skip_bom() {
 
 bool XmlParser::run() {
     skip_bom();
+
+    // 整体校验 UTF-8：此前元素名/属性值/文本里的非法序列经 arena intern 静默变
+    // 空串（产出空名元素的损坏 DOM），而注释/CDATA 走 intern_raw 原样保留——
+    // 同一解析器两种行为。入口一次校验统一拒绝。
+    if (!ca::str::utf8_is_valid(data_, byte_length_)) {
+        fail(loc_, "invalid UTF-8 in XML document");
+        return false;
+    }
 
     // 可选 XML 声明（必须紧跟在 BOM/文件开头）。
     if (starts_with("<?xml") && (is_ws(peek_at(5)) || peek_at(5) == '?')) {
