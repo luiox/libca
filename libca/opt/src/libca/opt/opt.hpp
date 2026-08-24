@@ -148,7 +148,8 @@ struct Command
     /// 子命令列表。遇到非选项 token 时优先按子命令名分派。
     std::vector<Command> subcommands;
     /// 自定义 usage 行（不含 "Usage: " 前缀，如 "git [-C <path>] <command> ..."）。
-    /// 为空时按选项/位置参数/子命令自动生成。
+    /// 为空时按命令路径（程序名 + 已穿过的子命令）与选项/位置参数/子命令自动生成；
+    /// 非空时完整替换自动生成部分（含程序名与命令路径，由定义方负责书写）。
     std::string usage;
 };
 

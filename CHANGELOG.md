@@ -39,3 +39,7 @@
 - **[opt] 互斥组标识**：`MutexGroup` 新增 `label`，互斥类错误经
   `ParseError.group` 回填组标识（无 label 时为成员名拼接），下游按组分派文案；
   `group` 字段置于结构体末尾，三元素聚合初始化写法不受影响。
+- **[opt] 修复子命令 usage 行**：子命令层 `--help` 曾输出 `Usage: <sub> <sub>
+  [options]`（子命令名重复且程序名缺失），改为 `Usage: <程序名> <子命令路径>
+  [options]`；自定义 `Command::usage` 由「前置子命令路径 + usage」改为完整替换
+  （与头文件声明一致，程序名由定义方书写）。根命令与 `help_text()` 输出不变。

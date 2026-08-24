@@ -1373,5 +1373,80 @@ TEST(OptV2OptionalTest, HelpAndMutexSemantics)
     }
 }
 
+// ==========================================================================
+// v2 评审修复：子命令 usage 行、-h/--help 可覆盖、Int 空白严格化
+// ==========================================================================
+
+// 子命令层 --help：usage 行 = 程序名 + 子命令路径 + [options]，
+// 不再出现旧缺陷的子命令名重复（"commit commit"）与程序名缺失。
+TEST(OptV2FixTest, SubcommandHelpUsageLine)
+{
+    Command commit;
+    commit.name = "commit";
+    commit.help = "record changes";
+    Arg msg;
+    msg.name = "message";
+    msg.kind = OptKind::String;
+    msg.help = "commit message";
+    commit.args.push_back(msg);
+
+    Command root;
+    root.name         = "git";
+    root.help         = "git tool";
+    root.subcommands  = {commit};
+
+    Parser p(root);
+    Argv argv = make_argv({"commit", "--help"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    const auto& err = r.unwrap_err();
+    EXPECT_EQ(err.category, ParseErrorCategory::HelpRequested);
+    EXPECT_NE(err.message.find("Usage: git commit [options]\n"), std::string::npos);
+    EXPECT_EQ(err.message.find("commit commit"), std::string::npos);
+}
+
+// 子命令自定义 usage：完整替换（含程序名，由定义方书写），
+// 不再前置子命令路径（旧实现会渲染 "Usage: commit git commit ..."）。
+TEST(OptV2FixTest, SubcommandCustomUsageFullyReplaces)
+{
+    Command commit;
+    commit.name  = "commit";
+    commit.help  = "record changes";
+    commit.usage = "git commit --patch <file>";
+
+    Command root;
+    root.name        = "git";
+    root.help        = "git tool";
+    root.subcommands = {commit};
+
+    Parser p(root);
+    Argv argv = make_argv({"commit", "--help"});
+    auto r = p.parse(argv.argc, argv.data());
+    ASSERT_TRUE(r.is_err());
+    const auto& err = r.unwrap_err();
+    EXPECT_EQ(err.category, ParseErrorCategory::HelpRequested);
+    EXPECT_NE(err.message.find("Usage: git commit --patch <file>\n"), std::string::npos);
+}
+
+// 根命令与 help_text 公开入口的 usage 行保持既有格式。
+TEST(OptV2FixTest, RootUsageLineUnchanged)
+{
+    Command root;
+    root.name = "mj2x";
+    root.help = "convert jars";
+
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--help"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err());
+        EXPECT_NE(r.unwrap_err().message.find("Usage: mj2x [options]\n"), std::string::npos);
+    }
+    {
+        const std::string help = ca::opt::help_text(root);
+        EXPECT_NE(help.find("Usage: mj2x [options]\n"), std::string::npos);
+    }
+}
+
 }  // namespace
 }  // namespace ca::opt::test

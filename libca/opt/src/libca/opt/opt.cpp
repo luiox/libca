@@ -212,6 +212,8 @@ std::string kind_metavar(const Arg& arg)
 }
 
 // 生成单个 command 的帮助文本（含其子命令摘要）。
+// path 为完整命令路径（含程序名与当前命令名，如 {"git", "commit"}），驱动自动
+// usage 行；自定义 usage 非空时完整替换（含程序名，由定义方负责书写）。
 // group_filter 非空且非空表时，仅渲染列出的分组节（未分组选项与其它分组省略）。
 std::string render_help(const Command& cmd, const std::vector<std::string>& path,
                         const std::vector<std::string>* group_filter)
@@ -223,14 +225,14 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
 
     std::ostringstream oss;
     oss << "Usage: ";
-    for (const auto& seg : path)
-        oss << seg << ' ';
     if (!cmd.usage.empty()) {
-        // 自定义 usage：完整替换自动生成部分（含程序名，由定义方负责书写）。
+        // 自定义 usage：完整替换自动生成部分（含程序名与命令路径，由定义方负责书写）。
         oss << cmd.usage;
     }
     else {
-        oss << cmd.name << " [options]";
+        for (const auto& seg : path)
+            oss << seg << ' ';
+        oss << "[options]";
         for (const Arg& arg : cmd.args) {
             if (arg.kind == OptKind::Positional)
                 oss << " <" << arg.name << ">";
@@ -423,7 +425,8 @@ bool Parser::seed_option_values(const Command& cmd,
 
 std::string help_text(const Command& cmd, const std::vector<std::string>& groups)
 {
-    return render_help(cmd, {}, &groups);
+    // 公开入口不带子命令路径前缀：path 只含 cmd.name 自身。
+    return render_help(cmd, {cmd.name}, &groups);
 }
 
 StatusCode to_status_code(ParseErrorCategory category) noexcept
@@ -543,9 +546,13 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
         // --help / -h：任何层级都支持。category 为 HelpRequested（用户请求帮助、中止
         // 正常流程），message 为格式化的完整帮助文本，区别于真正的解析错误。
         if (token == "--help" || token == "-h") {
+            // usage 行的命令路径：程序名 + 已穿过的子命令（当前命令含在其中）。
+            std::vector<std::string> help_path;
+            help_path.push_back(root_.name);
+            help_path.insert(help_path.end(), path.begin(), path.end());
             return ca::core::Err(
                 ParseError{ParseErrorCategory::HelpRequested, "",
-                           render_help(*current, path, nullptr)});
+                           render_help(*current, help_path, nullptr)});
         }
 
         // 长选项 --name 或 --name=value
