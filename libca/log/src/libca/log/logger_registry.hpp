@@ -16,8 +16,8 @@ namespace ca::log {
 /// @brief 全局 Logger 注册表（按 target 名索引）。
 ///
 /// 读取（get）用共享锁，多读并发；写入（register/unregister）用排他锁。get 返回的
-/// Logger* 在同一次 log 调用栈帧内有效：即便并发 register 替换了该 target，旧 Logger 由
-/// shared_ptr 持有，不会在 backend->log() 同步执行期间被析构。
+/// Logger* 在同一次 log 调用栈帧内有效：被替换/注销的旧 Logger 进入内部退休列表
+/// 保活（进程生命周期），不会在 backend->log() 同步执行期间被析构。
 class LoggerRegistry
 {
 public:
