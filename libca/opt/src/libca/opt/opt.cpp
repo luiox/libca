@@ -330,10 +330,14 @@ const Command* find_subcommand(const Command& cmd, std::string_view token)
     return nullptr;
 }
 
-// 严格十进制整数解析：全量消费、无溢出。成功写入 out。
+// 严格十进制整数解析：全量消费、无空白（含首尾，strtoll 跳过前导空白的行为在
+// 此收紧为拒绝）、无溢出。成功写入 out。
 bool parse_int_strict(const std::string& text, int& out)
 {
     if (text.empty())
+        return false;
+    const char first = text[0];
+    if (first != '+' && first != '-' && (first < '0' || first > '9'))
         return false;
     errno                 = 0;
     char*          end    = nullptr;

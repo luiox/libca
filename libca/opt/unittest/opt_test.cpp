@@ -1497,5 +1497,41 @@ TEST(OptV2FixTest, LongHelpTokenOverridable)
     EXPECT_TRUE(r.unwrap().has("helper"));
 }
 
+// Int 严格化：前导空白（strtoll 会跳过）与尾部空白对称拒绝；显式正负号仍合法。
+TEST(OptV2FixTest, IntRejectsWhitespaceForms)
+{
+    Command root;
+    root.name = "prog";
+    root.help = "x";
+    Arg timeout;
+    timeout.name = "timeout";
+    timeout.kind = OptKind::Int;
+    timeout.help = "seconds";
+    root.args = {timeout};
+
+    for (const char* bad : {" 30", "30 ", " 30 "}) {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout", bad});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_err()) << "should reject: '" << bad << "'";
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
+    }
+    {
+        Parser p(root);
+        Argv argv = make_argv({"--timeout", "+30"});
+        auto r = p.parse(argv.argc, argv.data());
+        ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
+        EXPECT_EQ(r.unwrap().get_int("timeout"), 30);
+    }
+    // 注入初值走同一严格化路径。
+    {
+        Parser p(root);
+        Argv argv = make_argv({});
+        auto r = p.parse(argv.argc, argv.data(), {{"timeout", " 30"}});
+        ASSERT_TRUE(r.is_err());
+        EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
+    }
+}
+
 }  // namespace
 }  // namespace ca::opt::test
