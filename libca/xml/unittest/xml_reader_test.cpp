@@ -245,3 +245,18 @@ TEST(XmlReaderTest, ErrorLocationReported) {
     auto err = std::move(result).unwrap_err();
     EXPECT_EQ(err.location.line, 2u);  // </c> 在第 2 行
 }
+
+// 非法 UTF-8 此前静默变空：元素名/文本经 arena intern 变空串（产出空名元素的
+// 损坏 DOM 且解析"成功"），注释/CDATA 却原样保留。入口整体校验后统一拒绝。
+TEST(XmlReaderTest, RejectsInvalidUtf8) {
+    // 非法元素名：<0xFF/>
+    const u8 bad_name[] = "<\xFF/>";
+    EXPECT_TRUE(XmlReader::read(Utf8StringRef::from_data(
+        bad_name, sizeof(bad_name) - 1)).is_err());
+    // 文本节点含 GBK 字节（"张" 的 GBK 编码）
+    const u8 bad_text[] = "<a>\xD5\xC5</a>";
+    EXPECT_TRUE(XmlReader::read(Utf8StringRef::from_data(
+        bad_text, sizeof(bad_text) - 1)).is_err());
+    // 对照：合法 UTF-8 内容不受影响
+    EXPECT_TRUE(XmlReader::read(R("<a>中文</a>")).is_ok());
+}
