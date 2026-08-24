@@ -543,9 +543,13 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             continue;
         }
 
-        // --help / -h：任何层级都支持。category 为 HelpRequested（用户请求帮助、中止
-        // 正常流程），message 为格式化的完整帮助文本，区别于真正的解析错误。
-        if (token == "--help" || token == "-h") {
+        // --help / -h：任何层级都支持，但可被用户注册的同名选项覆盖（如 -h 作
+        // --host 的别名）——注册了的 token 优先按用户定义解析。category 为
+        // HelpRequested（用户请求帮助、中止正常流程），message 为格式化的完整
+        // 帮助文本，区别于真正的解析错误。
+        const bool builtin_help = (token == "--help" || token == "-h") &&
+                                  lookup.by_token.find(token) == lookup.by_token.end();
+        if (builtin_help) {
             // usage 行的命令路径：程序名 + 已穿过的子命令（当前命令含在其中）。
             std::vector<std::string> help_path;
             help_path.push_back(root_.name);

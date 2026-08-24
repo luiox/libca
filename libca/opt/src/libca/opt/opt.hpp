@@ -238,6 +238,8 @@ public:
     /// @return 成功返回 ParseResult；失败返回 ParseError（category + 出错选项 + 描述）。
     ///         --help/-h 返回 category = HelpRequested，message 为格式化的完整帮助文本，
     ///         便于上层打印并退出；与真正的解析错误区分。
+    ///         内置 --help/-h 可被覆盖：若这两个 token 已注册为某选项的长名/别名
+    ///         （如 -h 作 --host 的别名），按该选项定义解析，不再触发帮助。
     ca::core::Result<ParseResult, ParseError> parse(int argc, const char* const argv[]);
 
     /// @brief 解析命令行参数（带初始值注入）。
