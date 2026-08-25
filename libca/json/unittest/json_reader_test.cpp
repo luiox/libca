@@ -394,3 +394,16 @@ TEST(JsonValueTest, CloneDeepCopies) {
     EXPECT_EQ(arr.at(0).as_int(), 1);       // 原对象不受影响
     EXPECT_EQ(copy.at(0).as_int(), 99);
 }
+
+// 深度守卫：默认 max_depth=1000，嵌套超限须报错而非栈溢出；适度嵌套正常通过。
+TEST(JsonReaderTest, RejectsExcessiveNesting) {
+    std::string deep;
+    for (int i = 0; i < 1200; ++i) deep += "[";
+    for (int i = 0; i < 1200; ++i) deep += "]";
+    EXPECT_TRUE(JsonReader::read(Utf8StringRef::from_string_view(deep)).is_err());
+
+    std::string moderate;
+    for (int i = 0; i < 50; ++i) moderate += "[";
+    for (int i = 0; i < 50; ++i) moderate += "]";
+    EXPECT_TRUE(JsonReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
+}
