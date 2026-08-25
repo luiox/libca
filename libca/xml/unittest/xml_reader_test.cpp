@@ -260,3 +260,16 @@ TEST(XmlReaderTest, RejectsInvalidUtf8) {
     // 对照：合法 UTF-8 内容不受影响
     EXPECT_TRUE(XmlReader::read(R("<a>中文</a>")).is_ok());
 }
+
+// 深度守卫：默认 max_depth=1000，嵌套元素超限须报错而非栈溢出。
+TEST(XmlReaderTest, RejectsExcessiveNesting) {
+    std::string deep;
+    for (int i = 0; i < 1200; ++i) deep += "<a>";
+    for (int i = 0; i < 1200; ++i) deep += "</a>";
+    EXPECT_TRUE(XmlReader::read(Utf8StringRef::from_string_view(deep)).is_err());
+
+    std::string moderate;
+    for (int i = 0; i < 50; ++i) moderate += "<a>";
+    for (int i = 0; i < 50; ++i) moderate += "</a>";
+    EXPECT_TRUE(XmlReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
+}
