@@ -11,7 +11,7 @@
 #include <endian.h>
 #endif
 
-#include <iostream>
+#include <cstring>
 
 namespace ca::crypto {
 
@@ -98,10 +98,15 @@ void SHA3::process_block(const void* data)
 #define LITTLEENDIAN(x) (x)
 #endif
 
-  const uint64_t* data64 = (const uint64_t*) data;
   // mix data into state
+  // memcpy 逐字读入：data 可能来自调用方任意对齐的缓冲（如字节流偏移处），
+  // 直接按 uint64_t* 解引用在严格对齐架构（ARM32 等）上是 UB；与 sha256.cpp 同口径。
   for (unsigned int i = 0; i < m_blockSize / 8; i++)
-    m_hash[i] ^= LITTLEENDIAN(data64[i]);
+  {
+    uint64_t word = 0;
+    std::memcpy(&word, static_cast<const unsigned char*>(data) + i * 8, sizeof(word));
+    m_hash[i] ^= LITTLEENDIAN(word);
+  }
 
   // re-compute state
   for (unsigned int round = 0; round < Rounds; round++)

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 
 #include "libca/core/datatype.hpp"
@@ -79,4 +80,22 @@ TEST(Sha3Test, LongInputCrossesBlockBoundary) {
     split.add(input.data(), 137);
     split.add(input.data() + 137, input.size() - 137);
     EXPECT_EQ(split.get_hash(), once);
+}
+
+TEST(Sha3Test, UnalignedBufferInput) {
+    // 同一份内容分别从对齐/非对齐位置喂入：process_block 曾按 uint64_t* 直接解引用，
+    // 严格对齐架构上是 UB；修复后非对齐缓冲结果须与对齐一致。
+    unsigned char pattern[256];
+    for (ca::usize i = 0; i < 256; ++i)
+        pattern[i] = static_cast<unsigned char>(i * 7 + 3);
+
+    SHA3 aligned;
+    const std::string expected = aligned(pattern, sizeof(pattern));
+
+    alignas(8) unsigned char storage[8 + 256];
+    for (ca::usize offset = 1; offset < 8; ++offset) {
+        std::memcpy(storage + offset, pattern, sizeof(pattern));
+        SHA3 unaligned;
+        EXPECT_EQ(unaligned(storage + offset, sizeof(pattern)), expected) << "offset=" << offset;
+    }
 }
