@@ -496,8 +496,11 @@ const char* Utf8String::c_str() const noexcept {
 }
 
 Utf8String::operator std::string_view() const noexcept {
-    return std::string_view(reinterpret_cast<const char*>(data_),
-                            static_cast<std::string_view::size_type>(byte_length_));
+    // moved-from 对象 data_ 为 nullptr：nullptr 传 string_view(const CharT*, n) 是 UB
+    // （即便 n==0），空视图须回落默认构造——与 Utf8StringRef/ZUtf8StringRef 同一口径。
+    return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
+                                    static_cast<std::string_view::size_type>(byte_length_))
+                 : std::string_view{};
 }
 
 std::string Utf8String::to_std_string() const {

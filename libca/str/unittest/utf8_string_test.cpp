@@ -340,6 +340,22 @@ TEST(Utf8StringTest, MoveAssignment) {
     EXPECT_TRUE(s1.is_empty());
 }
 
+// moved-from 对象 data_ 为 nullptr，转 string_view 须回落空视图而非 UB。
+TEST(Utf8StringTest, MovedFromConvertsToEmptyStringView) {
+    Utf8String s1("ABC");
+    Utf8String s2(std::move(s1));
+    std::string_view view = s1;
+    EXPECT_TRUE(view.empty());
+    EXPECT_EQ(view.data(), nullptr);
+
+    Utf8String s3;
+    Utf8String s4("xyz");
+    s4 = std::move(s3);  // s3 成为 moved-from
+    std::string_view view2 = s3;
+    EXPECT_TRUE(view2.empty());
+    EXPECT_EQ(view2.data(), nullptr);
+}
+
 TEST(Utf8StringTest, MoveSelfAssignment) {
     Utf8String s("Test");
     s = std::move(s);
