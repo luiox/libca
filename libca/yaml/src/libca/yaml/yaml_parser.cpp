@@ -1,5 +1,6 @@
 #include "libca/yaml/yaml_parser.hpp"
 
+#include "libca/str/utf8_util.hpp"
 #include "libca/yaml/yaml_scalar.hpp"
 
 #include <utility>
@@ -38,6 +39,12 @@ YamlParser::YamlParser(YamlDocument& document, const ca::str::Utf8StringRef& inp
 const ParseError& YamlParser::last_error() const noexcept { return error_; }
 
 bool YamlParser::run() {
+    // YAML 文件必须是合法 UTF-8。入口整体校验一次——字符串经 arena intern 时
+    // 非法序列会静默变空串、解析"成功"，数据无声丢失（json/ini 已修过同类问题）。
+    if (!ca::str::utf8_is_valid(data_, byte_length_)) {
+        fail(SourceLocation{}, "invalid UTF-8 in YAML text");
+        return false;
+    }
     split_lines();
     if (failed_) return false;
 

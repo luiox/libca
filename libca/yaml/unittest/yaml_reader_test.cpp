@@ -45,6 +45,22 @@ bool read_fails_with(const char* text, const char* substr) {
 // 标量与类型判定（YAML 1.2 core schema）
 // ============================================================================
 
+TEST(YamlReaderTest, RejectsInvalidUtf8) {
+    // plain 标量里的非法序列（0xC3 0x28）：此前经 arena intern 静默变空串。
+    const u8 bad_plain[] = "key: \xC3\x28";
+    EXPECT_TRUE(YamlReader::read(
+        Utf8StringRef::from_data(bad_plain, sizeof(bad_plain) - 1)).is_err());
+    // 双引号标量里的非法尾字节。
+    const u8 bad_quoted[] = "key: \"\xFF\"";
+    EXPECT_TRUE(YamlReader::read(
+        Utf8StringRef::from_data(bad_quoted, sizeof(bad_quoted) - 1)).is_err());
+    // 对照：合法多字节内容不受影响。
+    auto doc = read_ok("key: 中文");
+    const auto* v = doc.root().find(R("key"));
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->as_string(), R("中文"));
+}
+
 TEST(YamlReaderTest, StringScalar) {
     auto doc = read_ok("key: hello");
     const auto* v = doc.root().find(R("key"));
