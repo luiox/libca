@@ -34,9 +34,19 @@ public:
             return;
         }
         char buf[64];
-        // %.17g 保证 double round-trip 精度
+        // %.17g 保证 double round-trip 精度；但整数形态（如 2.0 写成 "2"、-0.0 写成 "-0"）
+        // 读回会被当 Int，类型与 -0.0 的符号双双丢失——需补 ".0" 保持 Float 形态
+        // （与 toml/yaml writer 做法一致）。
         int n = std::snprintf(buf, sizeof(buf), "%.17g", static_cast<double>(v));
-        if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
+        if (n <= 0) { sb_.append("0.0"); return; }
+        bool has_dot_or_exp = false;
+        for (int i = 0; i < n; ++i) {
+            if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'E') { has_dot_or_exp = true; break; }
+        }
+        if (!has_dot_or_exp && n + 2 < static_cast<int>(sizeof(buf))) {
+            buf[n] = '.'; buf[n + 1] = '0'; n += 2;
+        }
+        sb_.append(buf, static_cast<ca::usize>(n));
     }
 
     void write_raw(const char* s, ca::usize len) { sb_.append(s, len); }

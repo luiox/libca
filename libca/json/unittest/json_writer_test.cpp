@@ -214,6 +214,24 @@ TEST(JsonWriterTest, RoundTripPreservesNumbers) {
     EXPECT_TRUE(doc2.root().is_float());
 }
 
+// 整数形态的 float（2.0）此前经 %.17g 写成 "2"，读回变 Int；
+// -0.0 写成 "-0" 读回变 Int 0（符号与类型双丢）。两者都需补 ".0" 保持 Float。
+TEST(JsonWriterTest, RoundTripPreservesFloatTypeForIntegralValuedFloats) {
+    auto doc = read_ok("2.0");
+    const std::string out = to_std(JsonWriter::write(doc));
+    EXPECT_EQ(out, "2.0");
+    auto doc2 = read_ok(out.c_str());
+    ASSERT_TRUE(doc2.root().is_float());
+    EXPECT_DOUBLE_EQ(doc2.root().as_float(), 2.0);
+
+    auto docn = read_ok("-0.0");
+    const std::string outn = to_std(JsonWriter::write(docn));
+    EXPECT_EQ(outn, "-0.0");
+    auto docn2 = read_ok(outn.c_str());
+    ASSERT_TRUE(docn2.root().is_float());
+    EXPECT_TRUE(std::signbit(docn2.root().as_float()));
+}
+
 // read_file/write_file 经 u8path 处理路径：非 ASCII（UTF-8）路径在 Windows ACP
 // 环境下按窄字符打开会落到错误文件名，这里做真实文件往返回归。
 TEST(JsonWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
