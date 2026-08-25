@@ -16,7 +16,11 @@ namespace ca::collection {
 /// @tparam Iter 迭代器类型，需支持 `*it` 和 `++it`。
 ///
 /// filter() / map() 暂存谓词不立即求值；for_each() / collect() 才遍历并应用。
-/// 当前实现仅支持单段 filter + 单段 map（后设置覆盖前设置）。
+///
+/// @warning 当前实现仅支持单段 filter + 单段 map：再次调用 filter()/map()
+///          **静默替换**先前设置的谓词，不是链式组合——
+///          `stream(c).filter(p1).filter(p2)` 只会应用 p2，不会取交集。
+///          需要组合条件时请把多个条件写进同一个谓词（`p1(x) && p2(x)`）。
 template<typename T, typename Iter>
 class Stream {
 public:
@@ -28,6 +32,7 @@ public:
         : begin_(begin), end_(end) {}
 
     /// @brief 设置过滤谓词（惰性，不立即遍历）。
+    /// @warning 覆盖式：替换而非叠加先前设置的谓词（见类注释）。
     /// @return *this，便于链式调用。
     Stream& filter(std::function<bool(value_type)> predicate) {
         filter_ = std::move(predicate);
@@ -35,6 +40,7 @@ public:
     }
 
     /// @brief 设置映射函数（惰性，不立即遍历）。
+    /// @warning 覆盖式：替换而非叠加先前设置的映射（见类注释）。
     /// @return *this，便于链式调用。
     Stream& map(std::function<value_type(value_type)> mapper) {
         map_ = std::move(mapper);
