@@ -245,10 +245,12 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
 
     // 构造本次 header 的完整路径串（用于重复检测）。
     std::string this_path;
+    std::vector<ca::usize> prefix_len(segments.size());
     for (ca::usize i = 0; i < segments.size(); ++i) {
         if (i > 0) this_path.push_back(kPathSep);
         this_path.append(reinterpret_cast<const char*>(segments[i].data()),
                          segments[i].byte_length());
+        prefix_len[i] = this_path.size();
     }
     // 重复检测（O(1)）：
     //   - 普通 [a.b]：若 a.b 已被 header 显式定义过（defined_paths_）报错。
@@ -304,7 +306,16 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
             if (is_last) {
                 // 普通表头 [x]：上面重复检测已确认不是 header 重复。
                 if (existing->is_table()) {
-                    // 由 dotted-key 隐式创建的，可被 [header] 命名引用。
+                    // TOML 1.0：dotted-key 创建的表与 inline table 封闭不可变，
+                    // 不能被 [header] 定向重开；仅 header 遍历隐式创建的超表可后置定义。
+                    if (dotted_paths_.count(this_path) != 0) {
+                        fail(header_loc, "cannot define [table] for table created via dotted keys");
+                        return false;
+                    }
+                    if (inline_paths_.count(this_path) != 0) {
+                        fail(header_loc, "cannot define [table] for inline table");
+                        return false;
+                    }
                     current_table_ = existing;
                 } else if (existing->is_array()) {
                     // 是 [[x]] 创建的数组：[x] header 不能再定义同名普通表。
@@ -321,6 +332,13 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
                     // 数组表的中间路径：归属最近一个元素。
                     cur = &existing->as_array().back();
                 } else if (existing->is_table()) {
+                    // inline table 内部禁止用 [header] 定义子表（inline 封闭不可变）；
+                    // dotted-key 创建的表允许作为中间路径（如 [a.b] 创建后 [a.b.c.d]）。
+                    const std::string prefix = this_path.substr(0, prefix_len[i]);
+                    if (inline_paths_.count(prefix) != 0) {
+                        fail(seg_locs[i], "cannot define sub-tables of an inline table");
+                        return false;
+                    }
                     cur = existing;
                 } else {
                     fail(seg_locs[i], "expected table along header path, found scalar");
@@ -330,8 +348,9 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
         }
     }
 
-    // 标记完整路径已被 [header] 定义（用于后续重复检测）。
+    // 标记完整路径已被 [header] 定义（用于后续重复检测），并更新当前表上下文路径。
     mark_header_defined(segments, segments.size() - 1);
+    current_table_path_ = this_path;
     return !failed_;
 }
 
@@ -366,8 +385,19 @@ bool TomlParser::parse_key_value(const std::vector<ca::str::Utf8StringRef>& segm
         if (existing == nullptr) {
             parent->set(key, TomlValue::make_table());
             existing = parent->find(key);
+            // 记录 dotted-key 创建的表：TOML 1.0 禁止后续 [header] 定向重开
+            // （但允许作为 header 中间路径下钻，也允许同表内继续 dotted-key 追加）。
+            dotted_paths_.insert(global_path(segments, i));
         } else if (!existing->is_table()) {
             fail(seg_locs[i], "dotted key segment conflicts with non-table value");
+            return false;
+        } else if (defined_paths_.count(global_path(segments, i)) != 0) {
+            // TOML 1.0：不能用 dotted-key 重开 [header] 已定义的表。
+            fail(seg_locs[i], "cannot extend header-defined table via dotted keys");
+            return false;
+        } else if (inline_paths_.count(global_path(segments, i)) != 0) {
+            // inline table 封闭不可变：禁止 dotted-key 追加。
+            fail(seg_locs[i], "cannot extend inline table via dotted keys");
             return false;
         }
         parent = existing;
@@ -383,6 +413,11 @@ bool TomlParser::parse_key_value(const std::vector<ca::str::Utf8StringRef>& segm
         fail(seg_locs.back(), "duplicate key");
         return false;
     }
+    // key-value 位置的 table 值只能是 inline 字面量：记录路径，
+    // 禁止后续 [header] 定向/下钻与 dotted-key 追加（inline 封闭不可变）。
+    if (value.is_table()) {
+        inline_paths_.insert(global_path(segments, segments.size() - 1));
+    }
     parent->set(leaf, std::move(value));
     if (!skip_to_newline_or_end()) return false;
     return !failed_;
@@ -390,6 +425,7 @@ bool TomlParser::parse_key_value(const std::vector<ca::str::Utf8StringRef>& segm
 
 // 记录 header 完整路径串（kPathSep 分隔），供后续同路径 header 报重复。
 // 隐式父表不记录：后置定义超表合法（[a.b] 之后可再写 [a]）。
+// header 的 segments 相对 root，不带 current_table_ 前缀。
 void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& segments,
                                      ca::usize last_index) {
     std::string path;
@@ -399,6 +435,19 @@ void TomlParser::mark_header_defined(const std::vector<ca::str::Utf8StringRef>& 
                     segments[i].byte_length());
     }
     defined_paths_.insert(std::move(path));
+}
+
+// dotted-key 的 segments 相对 current_table_，须补前缀才能与 header 路径同构比较：
+// [a] 下写 b.c = 1 与 header [a.b] 对应同一路径 a\x1Fb。
+std::string TomlParser::global_path(const std::vector<ca::str::Utf8StringRef>& segments,
+                                    ca::usize last_index) const {
+    std::string path = current_table_path_;
+    for (ca::usize i = 0; i <= last_index; ++i) {
+        if (!path.empty()) path.push_back(kPathSep);
+        path.append(reinterpret_cast<const char*>(segments[i].data()),
+                    segments[i].byte_length());
+    }
+    return path;
 }
 
 // ============================================================================
@@ -1135,6 +1184,14 @@ bool TomlParser::parse_number_decimal(const u8* begin, usize len, TomlValue& out
         }
         if (c == '.') {
             if (saw_dot || saw_exp) { fail(start, "invalid number: multiple dots"); return false; }
+            // TOML ABNF：decfloat = dec-int frac，小数点两侧都必须是数字。
+            // strtod 宽容接受 "1." / "+1." / "1.e2" / "-.5"，这里提前拒绝。
+            const bool prev_is_digit = i > 0 && begin[i-1] >= '0' && begin[i-1] <= '9';
+            const bool next_is_digit = i + 1 < len && begin[i+1] >= '0' && begin[i+1] <= '9';
+            if (!prev_is_digit || !next_is_digit) {
+                fail(start, "invalid float: '.' must be surrounded by digits");
+                return false;
+            }
             saw_dot = true; is_float = true;
         } else if (c == 'e' || c == 'E') {
             if (saw_exp) { fail(start, "invalid number: multiple exponents"); return false; }

@@ -488,6 +488,46 @@ TEST(TomlReaderTest, RejectsDottedKeyRedefinesTable) {
     EXPECT_TRUE(read_fails("a.b = 1\n[a.b]"));
 }
 
+// TOML 1.0：dotted-key 创建的中间表同样不能被 [header] 定向重开。
+// 此前 a.b.c = 1 + [a.b] 被误接受（叶子是标量的 a.b = 1 + [a.b] 靠标量检查碰巧报错）。
+TEST(TomlReaderTest, RejectsHeaderReopensDottedKeyIntermediateTable) {
+    EXPECT_TRUE(read_fails("a.b.c = 1\n[a.b]"));
+    // 直接父级（a 也是 dotted-key 创建的）同样不可重开。
+    EXPECT_TRUE(read_fails("a.b.c = 1\n[a]"));
+}
+
+// 反向：[header] 显式定义的表不能用 dotted-key 重开。
+TEST(TomlReaderTest, RejectsDottedKeyExtendsHeaderDefinedTable) {
+    EXPECT_TRUE(read_fails("[a.b]\nx = 1\n[a]\nb.y = 2"));
+    EXPECT_TRUE(read_fails("[a.b]\nx = 1\n[c]\nd = 3\n\n"
+                           "[a]\nb.y = 2"));  // 跨段后置同样报错
+}
+
+// inline table 封闭不可变：不能被 [header] 定向/下钻，也不能被 dotted-key 追加。
+TEST(TomlReaderTest, RejectsHeaderAndDottedKeyOnInlineTable) {
+    EXPECT_TRUE(read_fails("a = { x = 1 }\n[a]"));
+    EXPECT_TRUE(read_fails("a = { x = 1 }\n[a.y]"));
+    EXPECT_TRUE(read_fails("a = { x = 1 }\na.y = 2"));
+    // 对照：数组里的 inline table 不受影响。
+    auto doc = read_ok("arr = [ { x = 1 } ]");
+    EXPECT_EQ(doc.root().find(R("arr"))->size(), 1u);
+}
+
+// 合法组合回归：dotted-key 创建的表可作为 [header] 的中间路径与同表 dotted 追加。
+TEST(TomlReaderTest, AllowsDottedKeyTableAsHeaderPathAndAppend) {
+    auto doc = read_ok(
+        "[fruit]\n"
+        "apple.color = \"red\"\n"
+        "apple.taste = \"sweet\"\n"     // 同表内 dotted 追加：合法
+        "[fruit.apple.texture]\n"       // 经 dotted 表下钻定义子表：合法
+        "smooth = true\n");
+    auto* apple = doc.root().find(R("fruit"))->find(R("apple"));
+    ASSERT_NE(apple, nullptr);
+    EXPECT_EQ(apple->find(R("color"))->as_string(), R("red"));
+    EXPECT_EQ(apple->find(R("taste"))->as_string(), R("sweet"));
+    EXPECT_TRUE(apple->find(R("texture"))->find(R("smooth"))->as_boolean());
+}
+
 TEST(TomlReaderTest, AllowsHeaderOnDottedKeyParent) {
     // dotted key 隐式创建 fruit.apple，[fruit.apple.texture] 是子表，合法。
     auto doc = read_ok(
@@ -520,6 +560,23 @@ TEST(TomlReaderTest, RejectsIntLeadingZeros) {
 
 TEST(TomlReaderTest, RejectsFloatLeadingZeros) {
     EXPECT_TRUE(read_fails("x = 00.1"));
+}
+
+// read_ok 的 bool 版本：只关心成功与否。
+static bool read_ok_ret(const char* text) {
+    return TomlReader::read(R(text)).is_ok();
+}
+
+// TOML ABNF：decfloat = dec-int frac，小数点两侧必须有数字。
+// strtod 宽容接受这些形式，解析器须提前拒绝。
+TEST(TomlReaderTest, RejectsFloatMissingDigitsAroundDot) {
+    EXPECT_TRUE(read_fails("x = 1."));    // 点后无数字
+    EXPECT_TRUE(read_fails("x = +1."));   // 带符号同理
+    EXPECT_TRUE(read_fails("x = 1.e2"));  // 点后直接进指数
+    EXPECT_TRUE(read_fails("x = -.5"));   // 点前是符号而非数字
+    EXPECT_TRUE(read_fails("x = 0."));
+    // 对照：合法形态不受影响。
+    EXPECT_TRUE(read_ok_ret("x = 1.5\ny = 0.25\nz = 1e2"));
 }
 
 TEST(TomlReaderTest, ParsesFloatUnderscore) {
@@ -599,4 +656,17 @@ TEST(TomlReaderTest, DatetimeTruncatesExtraFractionDigits) {
     auto* v = doc.root().find(R("t"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_local_datetime().nanos, 123456789u);
+}
+
+// 深度守卫：默认 max_depth=1000，嵌套数组超限须报错而非栈溢出。
+TEST(TomlReaderTest, RejectsExcessiveNesting) {
+    std::string deep = "x = ";
+    for (int i = 0; i < 1200; ++i) deep += "[";
+    for (int i = 0; i < 1200; ++i) deep += "]";
+    EXPECT_TRUE(TomlReader::read(Utf8StringRef::from_string_view(deep)).is_err());
+
+    std::string moderate = "x = ";
+    for (int i = 0; i < 50; ++i) moderate += "[";
+    for (int i = 0; i < 50; ++i) moderate += "]";
+    EXPECT_TRUE(TomlReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
 }

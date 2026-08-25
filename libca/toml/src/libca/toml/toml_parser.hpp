@@ -62,9 +62,21 @@ private:
     // 路径编码为 segment1\x1Fsegment2\x1F...（\x1F 作分隔符，避免与 key 字符冲突）。
     std::unordered_set<std::string> defined_paths_;
 
+    // 经 dotted-key（a.b.c = 1 的 a.b 前缀）创建的表路径：TOML 1.0 禁止用 [header]
+    // 重开这类表（但允许作为中间路径下钻，如 [a.b.d]）。
+    std::unordered_set<std::string> dotted_paths_;
+
+    // inline table 字面量（x = {…}）所在路径：inline 表封闭不可变——禁止 [header]
+    // 定向/下钻，也禁止 dotted-key 追加。
+    std::unordered_set<std::string> inline_paths_;
+
     // 当前正在追加 key=value 的 table（标准表头或 root；inline/array of tables 由 caller 处理）。
     // 指向 document 内 TomlValue（Table），生命周期随 document。
     TomlValue* current_table_;
+
+    // current_table_ 的全局路径（root 为空串），编码同 defined_paths_。
+    // dotted-key 创建/下钻的表路径以此为前缀计算，保证与 header 路径同构可比。
+    std::string current_table_path_;
 
     // ---- 基本字节操作 ----
     u8 peek() const noexcept;
@@ -98,9 +110,13 @@ private:
     bool parse_key_value(const std::vector<ca::str::Utf8StringRef>& segments,
                          const std::vector<SourceLocation>& seg_locs);
 
-    /// 标记完整路径（last_index 段）为已被 [header] 定义。
+    /// 标记完整路径（last_index 段）为已被 [header] 定义（segments 相对 root）。
     void mark_header_defined(const std::vector<ca::str::Utf8StringRef>& segments,
                             ca::usize last_index);
+
+    /// 计算 segments[0..last_index] 相对 current_table_ 的全局路径（编码同 defined_paths_）。
+    std::string global_path(const std::vector<ca::str::Utf8StringRef>& segments,
+                            ca::usize last_index) const;
 
     // ---- 值解析 ----
     bool parse_value(TomlValue& out);
