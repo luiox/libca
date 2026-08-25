@@ -1102,4 +1102,221 @@ TEST(ZUtf8StringRefStringViewTest, NullPtrBackedIsSafe)
     EXPECT_TRUE(sv.empty());
 }
 
+// ============================================================================
+// 字符串操作：trim / split / starts_with / ends_with / replace_all
+// （Utf8String 与 Utf8StringRef 双版本；此前成片零覆盖）
+// ============================================================================
+
+namespace {
+
+// 把 Ref 列表转成 std::string 便于断言。
+std::vector<std::string> to_std_vector(const std::vector<Utf8StringRef>& parts) {
+    std::vector<std::string> out;
+    out.reserve(parts.size());
+    for (const auto& p : parts)
+        out.emplace_back(reinterpret_cast<const char*>(p.data()), p.byte_length());
+    return out;
+}
+
+std::string to_std(const Utf8StringRef& s) {
+    return std::string(reinterpret_cast<const char*>(s.data()), s.byte_length());
+}
+
+}  // namespace
+
+// ---- starts_with / ends_with ----
+
+TEST(Utf8StringOpsTest, RefStartsAndEndsWith) {
+    Utf8StringRef s = Utf8StringRef::from_cstr("hello.txt");
+    EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("")));
+    EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("hello")));
+    EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("hello.txt")));
+    EXPECT_FALSE(s.starts_with(Utf8StringRef::from_cstr("hello.txt!")));
+    EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr(".txt")));
+    EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("")));
+    EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("hello.txt")));
+    EXPECT_FALSE(s.ends_with(Utf8StringRef::from_cstr("xhello.txt")));
+}
+
+TEST(Utf8StringOpsTest, RefStartsAndEndsWithMultibyte) {
+    // 多字节内容按字节级匹配，中文前后缀不误判。
+    Utf8StringRef s = Utf8StringRef::from_cstr("你好世界");
+    EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("你好")));
+    EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("世界")));
+    EXPECT_FALSE(s.starts_with(Utf8StringRef::from_cstr("世界")));
+    // 部分码点字节序列不构成假阳性前缀（"你" 的前 2 字节 != "好" 的前 2 字节）。
+    EXPECT_FALSE(s.starts_with(Utf8StringRef::from_cstr("好")));
+}
+
+TEST(Utf8StringOpsTest, StringStartsAndEndsWith) {
+    Utf8String s("prefix-suffix");
+    EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("prefix-")));
+    EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("-suffix")));
+    EXPECT_FALSE(s.starts_with(Utf8StringRef::from_cstr("suffix")));
+    EXPECT_FALSE(s.ends_with(Utf8StringRef::from_cstr("prefix")));
+}
+
+// ---- trim 家族 ----
+
+TEST(Utf8StringOpsTest, RefTrimFamily) {
+    auto s      = Utf8StringRef::from_cstr("  \t 你好 \t ");
+    auto trimmed = s.trim();
+    EXPECT_EQ(to_std(trimmed), "你好");
+
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("xx").trim_start()), "xx");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("  xx").trim_start()), "xx");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("xx  ").trim_start()), "xx  ");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("").trim_start()), "");
+
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("xx").trim_end()), "xx");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("xx  ").trim_end()), "xx");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("  xx").trim_end()), "  xx");
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr("").trim_end()), "");
+
+    // 全空白：trim 后为空。
+    EXPECT_EQ(to_std(Utf8StringRef::from_cstr(" \t\r\n ").trim()), "");
+}
+
+TEST(Utf8StringOpsTest, StringTrimFamilyReturnsViewOfSelf) {
+    Utf8String s("  hello  ");
+    auto trimmed = s.trim();
+    EXPECT_EQ(to_std(trimmed), "hello");
+    // trim 返回视图：指向原字符串缓冲内部（可能带偏移），不做拷贝分配。
+    EXPECT_GE(trimmed.data(), s.data());
+    EXPECT_LE(trimmed.data() + trimmed.byte_length(), s.data() + s.byte_length());
+}
+
+// ---- split ----
+
+TEST(Utf8StringOpsTest, RefSplitBasics) {
+    auto parts = Utf8StringRef::from_cstr("a,b,c")
+                     .split(Utf8StringRef::from_cstr(","));
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", "b", "c"}));
+
+    // 连续分隔符保留空段。
+    parts = Utf8StringRef::from_cstr("a,,b").split(Utf8StringRef::from_cstr(","));
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", "", "b"}));
+
+    // 尾随分隔符产生尾部空段（与 StringUtil 的 getline 版语义不同，钉住本契约）。
+    parts = Utf8StringRef::from_cstr("a,").split(Utf8StringRef::from_cstr(","));
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", ""}));
+
+    // 无分隔符命中：整串一段。
+    parts = Utf8StringRef::from_cstr("abc").split(Utf8StringRef::from_cstr(","));
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"abc"}));
+
+    // 空输入返回空向量；空分隔符返回整串一段。
+    EXPECT_TRUE(Utf8StringRef::from_cstr("").split(Utf8StringRef::from_cstr(",")).empty());
+    parts = Utf8StringRef::from_cstr("abc").split(Utf8StringRef::from_cstr(""));
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"abc"}));
+}
+
+TEST(Utf8StringOpsTest, RefSplitMultibyteDelimiter) {
+    auto parts = Utf8StringRef::from_cstr("a，b，c")
+                     .split(Utf8StringRef::from_cstr("，"));  // 全角逗号 U+FF0C
+    EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", "b", "c"}));
+}
+
+TEST(Utf8StringOpsTest, StringSplit) {
+    Utf8String s("one::two::three");
+    auto parts = s.split(Utf8StringRef::from_cstr("::"));
+    ASSERT_EQ(parts.size(), 3u);
+    EXPECT_EQ(to_std(parts[0]), "one");
+    EXPECT_EQ(to_std(parts[1]), "two");
+    EXPECT_EQ(to_std(parts[2]), "three");
+}
+
+// ---- replace_all ----
+
+TEST(Utf8StringOpsTest, RefReplaceAll) {
+    auto r = Utf8StringRef::from_cstr("a-b-c").replace_all(
+        Utf8StringRef::from_cstr("-"), Utf8StringRef::from_cstr("+"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("a+b+c"));
+
+    // 无命中返回原文。
+    r = Utf8StringRef::from_cstr("abc").replace_all(Utf8StringRef::from_cstr("x"),
+                                                    Utf8StringRef::from_cstr("y"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("abc"));
+
+    // 空查找串返回原文拷贝（契约：不做任何替换）。
+    r = Utf8StringRef::from_cstr("abc").replace_all(Utf8StringRef::from_cstr(""),
+                                                    Utf8StringRef::from_cstr("X"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("abc"));
+
+    // 替换串比原串长 / 短。
+    r = Utf8StringRef::from_cstr("aa").replace_all(Utf8StringRef::from_cstr("a"),
+                                                   Utf8StringRef::from_cstr("xyz"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("xyzxyz"));
+    r = Utf8StringRef::from_cstr("xyzxyz").replace_all(Utf8StringRef::from_cstr("xyz"),
+                                                       Utf8StringRef::from_cstr("a"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("aa"));
+
+    // 替换结果不递归替换（新插入内容不再匹配）。
+    r = Utf8StringRef::from_cstr("ab").replace_all(Utf8StringRef::from_cstr("a"),
+                                                   Utf8StringRef::from_cstr("ba"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("bab"));
+
+    // 多字节内容替换。
+    r = Utf8StringRef::from_cstr("你好，世界，!").replace_all(
+        Utf8StringRef::from_cstr("，"), Utf8StringRef::from_cstr(", "));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("你好, 世界, !"));
+}
+
+TEST(Utf8StringOpsTest, StringReplaceAll) {
+    Utf8String s("path\\to\\file");
+    auto r = s.replace_all(Utf8StringRef::from_cstr("\\"),
+                           Utf8StringRef::from_cstr("/"));
+    EXPECT_EQ(r, Utf8StringRef::from_cstr("path/to/file"));
+    // 原 string 不被修改。
+    EXPECT_EQ(s, Utf8StringRef::from_cstr("path\\to\\file"));
+}
+
+// ---- try_from_data / try_from_cstr（Result 错误通道）----
+
+TEST(Utf8StringTest, TryFromDataValidInput) {
+    const u8 valid[] = "h\xE4\xB8\xAD";  // "h中"
+    auto result = Utf8String::try_from_data(valid, sizeof(valid) - 1);
+    ASSERT_TRUE(result.is_ok());
+    auto s = std::move(result).unwrap();
+    EXPECT_EQ(s.byte_length(), 4u);
+    EXPECT_EQ(s.length(), 2u);
+}
+
+TEST(Utf8StringTest, TryFromDataInvalidReturnsErr) {
+    const u8 invalid[] = "\xC3\x28";  // 非法首字节+续字节组合
+    auto result = Utf8String::try_from_data(invalid, sizeof(invalid) - 1);
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err().code(), ca::core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(Utf8StringTest, TryFromDataEmptyAndNull) {
+    auto r1 = Utf8String::try_from_data(nullptr, 0);
+    ASSERT_TRUE(r1.is_ok());
+    EXPECT_TRUE(std::move(r1).unwrap().is_empty());
+
+    const u8 dummy[] = "x";
+    auto r2 = Utf8String::try_from_data(dummy, 0);
+    ASSERT_TRUE(r2.is_ok());
+    EXPECT_TRUE(std::move(r2).unwrap().is_empty());
+}
+
+TEST(Utf8StringTest, TryFromCstrMatchesContract) {
+    auto ok = Utf8String::try_from_cstr("hello");
+    ASSERT_TRUE(ok.is_ok());
+    EXPECT_EQ(std::move(ok).unwrap(), Utf8StringRef::from_cstr("hello"));
+
+    // 空指针 → Ok(空串)，与 from_cstr 的空指针行为对齐。
+    auto nil = Utf8String::try_from_cstr(nullptr);
+    ASSERT_TRUE(nil.is_ok());
+    EXPECT_TRUE(std::move(nil).unwrap().is_empty());
+
+    // 非法 UTF-8 → Err（对照：from_cstr 吞错返回空串）。
+    const char bad[] = {'a', '\xFF', 'b', '\0'};
+    auto err = Utf8String::try_from_cstr(bad);
+    ASSERT_TRUE(err.is_err());
+    EXPECT_EQ(err.unwrap_err().code(), ca::core::StatusCode::INVALID_ARGUMENT);
+    // 对照吞错契约：from_cstr 同输入静默返回空串。
+    EXPECT_TRUE(Utf8String::from_cstr(bad).is_empty());
+}
+
 }  // namespace ca::str

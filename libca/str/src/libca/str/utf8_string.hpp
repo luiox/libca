@@ -10,6 +10,8 @@
 #pragma once
 
 #include "libca/core/datatype.hpp"
+#include "libca/core/result.hpp"
+#include "libca/core/status.hpp"
 
 #include "utf8_util.hpp"
 
@@ -206,9 +208,22 @@ public:
     // ---- 工厂方法 ----
 
     /// 从 C 字符串构造；空指针或非法 UTF-8 返回空字符串（不抛）。
+    /// @warning 非法 UTF-8 会被**静默吞掉**成空字符串——数据损坏与「本来就是空串」
+    ///          无法区分。来源不可信时用 try_from_cstr（Result 错误通道）代替。
     static Utf8String from_cstr(const char* cstr) noexcept;
     /// @brief 从字节数据复制构造并校验 UTF-8。@throw std::runtime_error 非法 UTF-8。
     static Utf8String from_data(const u8* data, usize byte_len, usize cp_len = -1);
+    /// @brief try_from_data 的 C 字符串版本：错误经 Result 传播，不抛异常、不吞错。
+    /// @return 合法返回 Ok(Utf8String)；空指针返回 Ok(空串)；非法 UTF-8 返回
+    ///         Err(Status{INVALID_ARGUMENT})。
+    static ca::core::StatusResult<Utf8String> try_from_cstr(const char* cstr) noexcept;
+    /// @brief from_data 的 Result 版本：错误经 Result 传播，不抛异常。
+    /// @return 合法返回 Ok(Utf8String)；data 为空/nullptr 返回 Ok(空串)；
+    ///         非法 UTF-8 返回 Err(Status{INVALID_ARGUMENT})。
+    /// @note 与抛异常的 from_data 并存：前者适合异常不友好的边界（解析器入口、
+    ///       FFI），后者适合异常风格调用点。二者校验口径一致。
+    static ca::core::StatusResult<Utf8String> try_from_data(const u8* data,
+                                                            usize byte_len) noexcept;
     /// @brief 从字节数据复制构造，**不校验 UTF-8**，按原始字节保留。
     /// @details 码点数 length 取保守值 byte_length（上界），与
     ///          `Utf8StringArena::intern_raw` 语义一致。用于字节流载体（CSV 等不规定编码

@@ -322,6 +322,33 @@ Utf8String Utf8String::from_cstr(const char* cstr) noexcept {
     }
 }
 
+ca::core::StatusResult<Utf8String> Utf8String::try_from_cstr(const char* cstr) noexcept {
+    if (cstr == nullptr)
+        return ca::core::Ok(Utf8String());
+    return try_from_data(reinterpret_cast<const u8*>(cstr),
+                         std::strlen(cstr));
+}
+
+ca::core::StatusResult<Utf8String> Utf8String::try_from_data(const u8* data,
+                                                            usize byte_len) noexcept {
+    if (data == nullptr || byte_len == 0)
+        return ca::core::Ok(Utf8String());
+    if (!utf8_is_valid(data, byte_len)) {
+        return ca::core::Err(ca::core::ErrStatus(
+            ca::core::StatusCode::INVALID_ARGUMENT,
+            "invalid UTF-8 sequence in Utf8String::try_from_data"));
+    }
+    // 合法路径复用标准构造（校验幂等，重复扫描换取不复制私有 init 逻辑）。
+    try {
+        return ca::core::Ok(Utf8String(data, byte_len));
+    } catch (...) {
+        // 理论不可达（已通过 utf8_is_valid）；防御性兜底避免 noexcept 边界逃逸异常。
+        return ca::core::Err(ca::core::ErrStatus(
+            ca::core::StatusCode::INTERNAL,
+            "Utf8String::try_from_data: unexpected construction failure"));
+    }
+}
+
 Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
     if (data == nullptr || byte_len == 0)
         return Utf8String();
