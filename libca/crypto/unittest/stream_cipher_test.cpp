@@ -44,6 +44,19 @@ TEST(RC4Test, KnownVector)
     EXPECT_TRUE(constant_time_eq(bytes("Plaintext"), bytes(decrypted.unwrap())));
 }
 
+// 非法 key 长度（0 / 257）返回 INVALID_ARGUMENT 而非崩溃或静默成功。
+TEST(RC4Test, RejectsInvalidKeyLength)
+{
+    ca::u8 dummy[1] = {0x00};
+    EXPECT_TRUE(rc4_crypt(ByteSlice(dummy, 0), bytes("data")).is_err());
+    ca::u8 long_key[257];
+    for (ca::usize i = 0; i < sizeof(long_key); ++i)
+        long_key[i] = static_cast<ca::u8>(i);
+    EXPECT_TRUE(rc4_crypt(ByteSlice(long_key, sizeof(long_key)), bytes("data")).is_err());
+    // 边界内最大长度（256）应可用。
+    ASSERT_TRUE(rc4_crypt(ByteSlice(long_key, 256), bytes("data")).is_ok());
+}
+
 TEST(ChaCha20Test, Rfc8439BlockFunction)
 {
     ca::u8 key_data[CHACHA20_KEY_SIZE];
@@ -109,4 +122,24 @@ TEST(ChaCha20Test, Rfc8439Encryption)
 
     ASSERT_TRUE(decrypted.is_ok());
     EXPECT_TRUE(constant_time_eq(bytes(plaintext), bytes(decrypted.unwrap())));
+}
+
+// key/nonce 长度不符返回 INVALID_ARGUMENT（block 与 xor 两个入口对称校验）。
+TEST(ChaCha20Test, RejectsInvalidKeyOrNonceLength)
+{
+    ca::u8 key_data[CHACHA20_KEY_SIZE] = {};
+    ca::u8 nonce_data[CHACHA20_NONCE_SIZE] = {};
+
+    // 短 key。
+    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1), 1,
+                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE)).is_err());
+    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1), 1,
+                             ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
+                             bytes("data")).is_err());
+    // 短 nonce。
+    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE), 1,
+                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE - 1)).is_err());
+    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE), 1,
+                             ByteSlice(nonce_data, CHACHA20_NONCE_SIZE - 1),
+                             bytes("data")).is_err());
 }
