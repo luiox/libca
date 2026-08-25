@@ -11,6 +11,7 @@
 入口头文件：
 - `<libca/core/datatype.hpp>`
 - `<libca/core/result.hpp>`
+- `<libca/core/option.hpp>`
 - `<libca/core/bytes.hpp>`
 - `<libca/core/cast.hpp>`
 - `<libca/core/any.hpp>`
@@ -20,6 +21,7 @@
 功能：
 - 定长类型与大小语义类型：`u8`、`i32`、`usize` 等。
 - `Result<T, E>`：用返回值表达成功/失败，提供 `Ok`、`Err`、链式处理和错误传播辅助。
+- `Option<T>`：Rust 语义可空值（`Some`/`None`），与 `Result` 经 `ok_or`/`ok`/`err` 互转。
 - `Bytes` / `BytesMut` / `ByteSlice`：字节缓冲、字节视图和协议解析辅助。
 - 类型转换：精确动态类型匹配、类型判断和安全转换辅助。
 - `Any`：轻量类型擦除，适合需要运行时保存少量异构值的边界。

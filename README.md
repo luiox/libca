@@ -56,7 +56,7 @@ L3  业务 / 上层
 
 | 模块 | 职责 | 关键类型 / 入口头文件 | 命名空间 | 阶段 | 设计文档 |
 |------|------|----------------------|----------|------|----------|
-| **core** | Result/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`bytes.hpp`、`cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
+| **core** | Result/Option/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
 | **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
