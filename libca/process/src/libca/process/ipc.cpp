@@ -3,6 +3,7 @@
 #include "libca/str/format.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <utility>
 
@@ -131,6 +132,15 @@ StatusResult<std::string> posix_shared_memory_name(const std::string& name)
 }
 #endif
 
+// 名字合法性双平台同口径：remove_* 在 Windows 上虽是空操作，仍拒绝路径型名字，
+// 避免「Windows 通过、Linux 拒绝」的平台行为分叉。
+Status validate_simple_token(const std::string& name)
+{
+    if (name.empty() || name.find('/') != std::string::npos)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "name must be a simple token");
+    return OkStatus();
+}
+
 }   // namespace
 
 NamedPipeConnection::NamedPipeConnection(std::intptr_t native_handle) noexcept
@@ -175,6 +185,9 @@ StatusResult<usize> NamedPipeConnection::read(void* buffer, usize capacity)
     if (!is_open())
         return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "read on a closed named pipe"));
 #if defined(_WIN32)
+    // ReadFile 长度参数是 DWORD：capacity 超其上限会静默截断成错误长度。
+    if (capacity > static_cast<usize>(std::numeric_limits<DWORD>::max()))
+        return Err(ErrStatus(StatusCode::OUT_OF_RANGE, "read capacity exceeds DWORD limit"));
     DWORD count = 0;
     if (!ReadFile(
             to_handle(native_handle_), buffer, static_cast<DWORD>(capacity), &count, nullptr)) {
@@ -184,7 +197,10 @@ StatusResult<usize> NamedPipeConnection::read(void* buffer, usize capacity)
     }
     return Ok(static_cast<usize>(count));
 #else
-    const ssize_t count = ::read(to_fd(native_handle_), buffer, capacity);
+    // POSIX read 长度超过 SSIZE_MAX 是 UB（POSIX 规定），单次封顶。
+    const usize capped =
+        std::min<usize>(capacity, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
+    const ssize_t count = ::read(to_fd(native_handle_), buffer, capped);
     if (count < 0)
         return Err(posix_error("read"));
     return Ok(static_cast<usize>(count));
@@ -214,8 +230,11 @@ Status NamedPipeConnection::write_all(const void* data, usize length)
 #else
     usize offset = 0;
     while (offset < length) {
-        const ssize_t count = ::write(
-            to_fd(native_handle_), static_cast<const char*>(data) + offset, length - offset);
+        // POSIX write 长度超过 SSIZE_MAX 是 UB，单次封顶（循环继续写剩余部分）。
+        const usize   capped = std::min<usize>(
+            length - offset, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
+        const ssize_t count =
+            ::write(to_fd(native_handle_), static_cast<const char*>(data) + offset, capped);
         if (count < 0) {
             if (errno == EINTR)
                 continue;
@@ -665,8 +684,11 @@ StatusResult<bool> NamedSemaphore::try_acquire_for(std::chrono::milliseconds tim
         return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "wait on a closed semaphore"));
 #if defined(_WIN32)
     // Windows WaitForSingleObject 相对超时即可，超时返回 WAIT_TIMEOUT。
-    const DWORD result = WaitForSingleObject(to_handle(native_handle_),
-                                             static_cast<DWORD>(std::max<i64>(0, timeout.count())));
+    // DWORD-1 作为上限避开溢出（与 MessageQueue::receive_for 同口径）。
+    const auto  milliseconds = std::max<i64>(0, timeout.count());
+    const DWORD wait        = static_cast<DWORD>(std::min<i64>(
+        milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
+    const DWORD result      = WaitForSingleObject(to_handle(native_handle_), wait);
     if (result == WAIT_OBJECT_0)
         return Ok(true);
     if (result == WAIT_TIMEOUT)
@@ -696,6 +718,9 @@ Status NamedSemaphore::release(u32 count)
     if (native_handle_ == -1 || count == 0)
         return ErrStatus(StatusCode::INVALID_ARGUMENT, "invalid semaphore release");
 #if defined(_WIN32)
+    // ReleaseSemaphore 计数参数是 LONG：超 LONG_MAX 会截断成错误计数，提前拒绝。
+    if (count > static_cast<u32>(std::numeric_limits<LONG>::max()))
+        return ErrStatus(StatusCode::OUT_OF_RANGE, "semaphore release count exceeds LONG limit");
     return ReleaseSemaphore(to_handle(native_handle_), static_cast<LONG>(count), nullptr)
                ? OkStatus()
                : windows_error("ReleaseSemaphore");
@@ -947,5 +972,60 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
     return Ok(std::optional<std::string>(std::move(result)));
 #endif
 }
+
+// ============================================================================
+// POSIX 命名对象移除
+// ============================================================================
+
+#if defined(_WIN32)
+
+// Windows 命名对象随最后一个句柄关闭自动回收，无对应 unlink 概念；
+// 但名字合法性校验与 POSIX 同口径（拒绝路径型名字）。
+Status remove_shared_memory(const std::string& name)
+{
+    return validate_simple_token(name);
+}
+Status remove_semaphore(const std::string& name)
+{
+    return validate_simple_token(name);
+}
+Status remove_message_queue(const std::string& name)
+{
+    return validate_simple_token(name);
+}
+
+#else
+
+// 共用骨架：名字规范化 → unlink → ENOENT 视为幂等成功。
+Status posix_unlink(const std::string& name, const char* operation,
+                    const std::function<int(const std::string&)>& unlink_fn)
+{
+    auto path_result = posix_shared_memory_name(name);
+    if (path_result.is_err())
+        return Err(path_result.unwrap_err());
+    if (unlink_fn(std::move(path_result).unwrap()) != 0 && errno != ENOENT)
+        return Err(posix_error(operation));
+    return OkStatus();
+}
+
+Status remove_shared_memory(const std::string& name)
+{
+    return posix_unlink(name, "shm_unlink",
+                        [](const std::string& path) { return shm_unlink(path.c_str()); });
+}
+
+Status remove_semaphore(const std::string& name)
+{
+    return posix_unlink(name, "sem_unlink",
+                        [](const std::string& path) { return sem_unlink(path.c_str()); });
+}
+
+Status remove_message_queue(const std::string& name)
+{
+    return posix_unlink(name, "mq_unlink",
+                        [](const std::string& path) { return mq_unlink(path.c_str()); });
+}
+
+#endif
 
 }   // namespace ca::process::ipc
