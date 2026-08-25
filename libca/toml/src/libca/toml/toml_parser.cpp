@@ -1,5 +1,7 @@
 #include "libca/toml/toml_parser.hpp"
 
+#include "libca/str/utf8_util.hpp"
+
 #include <cassert>
 #include <cerrno>
 #include <cmath>
@@ -127,6 +129,12 @@ void TomlParser::skip_ws_comments_newlines() {
 // ============================================================================
 
 bool TomlParser::run() {
+    // TOML 文件必须是合法 UTF-8。入口整体校验一次——字符串值经 arena intern 时
+    // 非法序列会静默变空串、解析"成功"，数据无声丢失（json/ini 已修过同类问题）。
+    if (!ca::str::utf8_is_valid(data_, byte_length_)) {
+        fail(SourceLocation{0, 1, 1}, "invalid UTF-8 in TOML text");
+        return false;
+    }
     // TOML 1.0 允许 UTF-8 BOM。
     if (byte_length_ >= 3 && data_[0] == 0xEF && data_[1] == 0xBB && data_[2] == 0xBF) {
         advance(); advance(); advance();

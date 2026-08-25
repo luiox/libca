@@ -35,6 +35,22 @@ bool read_fails(const char* text) {
 // 标量字面量
 // ============================================================================
 
+TEST(TomlReaderTest, RejectsInvalidUtf8) {
+    // 基本字符串里的非法序列（0xC3 0x28）：此前经 arena intern 静默变空串。
+    const u8 bad[] = "key = \"\xC3\x28\"";
+    auto result = TomlReader::read(Utf8StringRef::from_data(bad, sizeof(bad) - 1));
+    EXPECT_TRUE(result.is_err());
+    // 注释里的非法序列同样拒绝（入口整体校验）。
+    const u8 bad_comment[] = "# \xFF comment\nkey = 1\n";
+    EXPECT_TRUE(TomlReader::read(
+        Utf8StringRef::from_data(bad_comment, sizeof(bad_comment) - 1)).is_err());
+    // 对照：合法多字节内容不受影响。
+    auto doc = read_ok("key = \"中文\"");
+    auto* v = doc.root().find(R("key"));
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->as_string(), R("中文"));
+}
+
 TEST(TomlReaderTest, ParsesStringBasic) {
     auto doc = read_ok("key = \"value\"");
     auto* v = doc.root().find(R("key"));
