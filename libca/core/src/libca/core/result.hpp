@@ -67,6 +67,9 @@ types::Err<CleanE> Err(E&& val) {
 
 template<typename T, typename E> struct Result;
 
+// Option 前向声明：Result::ok()/err() 的返回类型（定义见 option.hpp）。
+template<typename T> class Option;
+
 namespace details {
 
 template<typename ...> struct void_t { typedef void type; };
@@ -920,6 +923,23 @@ struct Result {
     const storage_type& storage() const {
         return storage_;
     }
+
+    /// @brief 转成 Option：Ok → Some(值)，Err → None（对标 Rust Result::ok）。
+    /// @note 定义在 option.hpp（避免本头文件与 Option 的循环依赖），
+    ///       包含 option.hpp 后可用。
+    template<typename U = T>
+    typename std::enable_if<!std::is_same<U, void>::value, Option<U>>::type ok() const&;
+
+    /// @brief 移动转成 Option：Ok → Some(值)，Err → None。
+    template<typename U = T>
+    typename std::enable_if<!std::is_same<U, void>::value, Option<U>>::type ok() &&;
+
+    /// @brief 转成 Option：Err → Some(错误)，Ok → None（对标 Rust Result::err）。
+    /// @note 定义在 option.hpp。
+    Option<E> err() const&;
+
+    /// @brief 移动转成 Option：Err → Some(错误)，Ok → None。
+    Option<E> err() &&;
 
     /// @brief 成功则取值，失败则返回 defaultValue（不终止）。
     template<typename U = T>
