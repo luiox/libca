@@ -59,7 +59,7 @@ L3  业务 / 上层
 | **core** | Result/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`bytes.hpp`、`cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
-| **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 可用（测试待补） | — |
+| **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
 | **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
 | **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
 | **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
@@ -73,7 +73,7 @@ L3  业务 / 上层
 | **env** | 环境变量读写 | `env.hpp` | `ca::env` | 可用 | — |
 | **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
 | **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
-| **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 可用 | — |
+| **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 主线 | `libca/opt/doc/opt设计文档.md` |
 | zip | 规划中 | — | — | **空** | — |
 | **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
 | utility / reflect | 历史遗留，**已归档**（`doc/legacy/utility` / `doc/legacy/reflect`） | — | — | 归档 | — |
