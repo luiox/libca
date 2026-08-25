@@ -25,7 +25,10 @@ namespace ca::xml {
 /// @brief XML 解析选项。
 struct XmlParserOptions {
     /// 最大元素嵌套深度，超出报错以防栈溢出。
-    ca::usize max_depth = 1000;
+    /// @note 默认 256（与 libxml2 的 XML_MAX_DEPTH 一致）：parse_element/parse_content
+    ///       每层递归合计约 1KB 栈帧，实测 Windows 默认 1MB 栈约 850 层即耗尽——
+    ///       1000 的旧上限在守卫触发前就栈溢出。256 层留足余量，正常配置远用不到。
+    ca::usize max_depth = 256;
     /// 丢弃元素之间的纯空白文本节点（默认开）。关掉可得逐字节保真的 DOM。
     /// @note 含非空白字符的文本节点永远完整保留（混合内容不受影响）。
     bool trim_whitespace = true;

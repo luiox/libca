@@ -17,7 +17,8 @@ struct XmlReaderOptions {
     /// 丢弃元素之间的纯空白文本节点（默认开）。含非空白字符的文本节点永远完整保留。
     bool trim_whitespace = true;
     /// 最大元素嵌套深度，超出报错。
-    ca::usize max_depth = 1000;
+    /// @note 默认 256（与 XmlParserOptions 一致；理由见其注释——防 1MB 栈先于守卫耗尽）。
+    ca::usize max_depth = 256;
 };
 
 /// @brief XML Reader，静态入口。
