@@ -1,6 +1,7 @@
 #include <gmock/gmock.h>
 
 #include <chrono>
+#include <limits>
 #include <cstring>
 #include <thread>
 
@@ -290,6 +291,68 @@ TEST(MessageQueueTest, ReceiveForReturnsEmptyOnTimeout)
 
     ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
     EXPECT_FALSE(received.unwrap().has_value());
+}
+
+// remove_* 移除名字后 create 同名对象应可重建；不存在的名字幂等成功。
+// Windows 上命名对象随句柄回收，remove 恒成功——本测试主要钉住 POSIX 行为。
+TEST(IpcRemoveTest, RemoveAllowsRecreateAndIsIdempotent)
+{
+    const auto id = std::to_string(current_process_id());
+
+    const std::string shm_name = "libca_process_rm_shm_" + id;
+    {
+        auto created = ipc::SharedMemory::create(shm_name, 16);
+        ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    }
+    EXPECT_TRUE(ipc::remove_shared_memory(shm_name).is_ok());
+    // 名字已移除：重新 create 成功（Windows 上同名对象可能仍被系统延迟回收，
+    // 但本进程句柄已随作用域关闭，重建应当成功）。
+    {
+        auto recreated = ipc::SharedMemory::create(shm_name, 16);
+        EXPECT_TRUE(recreated.is_ok()) << recreated.unwrap_err().to_string();
+    }
+    EXPECT_TRUE(ipc::remove_shared_memory(shm_name).is_ok());
+    // 幂等：再次移除不存在的名字仍成功。
+    EXPECT_TRUE(ipc::remove_shared_memory(shm_name).is_ok());
+
+    const std::string sem_name = "libca_process_rm_sem_" + id;
+    {
+        auto created = ipc::NamedSemaphore::create(sem_name, 1);
+        ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    }
+    EXPECT_TRUE(ipc::remove_semaphore(sem_name).is_ok());
+    EXPECT_TRUE(ipc::remove_semaphore(sem_name).is_ok());
+
+    const std::string mq_name = "libca_process_rm_mq_" + id;
+    {
+        auto created = ipc::MessageQueue::create(mq_name, 16);
+        ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    }
+    EXPECT_TRUE(ipc::remove_message_queue(mq_name).is_ok());
+    EXPECT_TRUE(ipc::remove_message_queue(mq_name).is_ok());
+}
+
+// 非法名字（含 '/'）与 create 同口径拒绝。
+TEST(IpcRemoveTest, RemoveRejectsPathLikeName)
+{
+    EXPECT_FALSE(ipc::remove_shared_memory("a/b").is_ok());
+    EXPECT_FALSE(ipc::remove_semaphore("a/b").is_ok());
+    EXPECT_FALSE(ipc::remove_message_queue("a/b").is_ok());
+}
+
+// Windows ReleaseSemaphore 计数参数是 LONG：超限须报错而非截断。
+TEST(NamedSemaphoreTest, RejectsReleaseCountBeyondLongMax)
+{
+    const std::string name = "libca_process_sem_ovf_" + std::to_string(current_process_id());
+    auto              semaphore = ipc::NamedSemaphore::create(name, 0);
+    ASSERT_TRUE(semaphore.is_ok()) << semaphore.unwrap_err().to_string();
+    auto value = std::move(semaphore).unwrap();
+
+    // (std::numeric_limits<long>::max)() 加括号防 windows.h 的 max 宏击穿。
+    const auto overflow = static_cast<u32>((std::numeric_limits<long>::max)()) + 1u;
+    const auto result   = value.release(overflow);
+    EXPECT_TRUE(result.is_err());
+    EXPECT_TRUE(ipc::remove_semaphore(name).is_ok());
 }
 }   // namespace
 }   // namespace ca::process::test

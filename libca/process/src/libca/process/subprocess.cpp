@@ -299,6 +299,9 @@ StatusResult<usize> PipeReader::read(void* buffer, usize capacity)
     if (capacity == 0)
         return Ok(static_cast<usize>(0));
 #if defined(_WIN32)
+    // ReadFile 长度参数是 DWORD：capacity 超其上限会静默截断成错误长度。
+    if (capacity > static_cast<usize>(std::numeric_limits<DWORD>::max()))
+        return Err(ErrStatus(StatusCode::OUT_OF_RANGE, "read capacity exceeds DWORD limit"));
     DWORD count = 0;
     if (!ReadFile(
             to_handle(native_handle_), buffer, static_cast<DWORD>(capacity), &count, nullptr)) {
@@ -309,7 +312,10 @@ StatusResult<usize> PipeReader::read(void* buffer, usize capacity)
     }
     return Ok(static_cast<usize>(count));
 #else
-    const ssize_t count = ::read(to_fd(native_handle_), buffer, capacity);
+    // POSIX read 长度超过 SSIZE_MAX 是 UB（POSIX 规定），单次封顶。
+    const usize capped =
+        std::min<usize>(capacity, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
+    const ssize_t count = ::read(to_fd(native_handle_), buffer, capped);
     if (count < 0)
         return Err(system_error("read"));
     return Ok(static_cast<usize>(count));
@@ -390,8 +396,11 @@ Status PipeWriter::write_all(const void* data, usize length)
             return system_error("WriteFile");
         offset += written;
 #else
-        const ssize_t written = ::write(
-            to_fd(native_handle_), static_cast<const char*>(data) + offset, length - offset);
+        // POSIX write 长度超过 SSIZE_MAX 是 UB，单次封顶（循环继续写剩余部分）。
+        const usize   capped = std::min<usize>(
+            length - offset, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
+        const ssize_t written =
+            ::write(to_fd(native_handle_), static_cast<const char*>(data) + offset, capped);
         if (written < 0) {
             if (errno == EINTR)
                 continue;

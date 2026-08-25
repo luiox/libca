@@ -173,4 +173,18 @@ private:
     bool          receiver_{false};
 };
 
+/// @brief 移除命名共享内存段的名字（POSIX shm_unlink）。
+/// @note Windows 命名对象随最后一个句柄关闭自动回收，恒成功（空操作）。
+///       Linux 上 /dev/shm 下的对象必须显式移除，否则残留至重启；
+///       名字不存在视为成功（幂等清理）。
+ca::core::Status remove_shared_memory(const std::string& name);
+
+/// @brief 移除命名信号量的名字（POSIX sem_unlink）。
+/// @note 语义同 remove_shared_memory：Windows 空操作，不存在视为成功。
+ca::core::Status remove_semaphore(const std::string& name);
+
+/// @brief 移除消息队列的名字（POSIX mq_unlink）。
+/// @note 语义同 remove_shared_memory：Windows 空操作，不存在视为成功。
+ca::core::Status remove_message_queue(const std::string& name);
+
 }   // namespace ca::process::ipc
