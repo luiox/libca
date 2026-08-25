@@ -553,3 +553,21 @@ TEST(YamlReaderTest, HighHexEscapeEncodesCodePoint) {
     auto doc = read_ok("a: \"\\xE9\"");
     EXPECT_EQ(doc.root().find(R("a"))->as_string(), R("\xC3\xA9"));  // e with acute
 }
+
+// 深度守卫：默认 max_depth=1000，嵌套块序列超限须报错而非栈溢出。
+TEST(YamlReaderTest, RejectsExcessiveNesting) {
+    // 每层一个 "- "，子层缩进 +2 空格。
+    std::string deep;
+    for (int i = 0; i < 1200; ++i) {
+        deep.append(static_cast<ca::usize>(i) * 2, ' ');
+        deep += "-\n";
+    }
+    EXPECT_TRUE(YamlReader::read(Utf8StringRef::from_string_view(deep)).is_err());
+
+    std::string moderate;
+    for (int i = 0; i < 50; ++i) {
+        moderate.append(static_cast<ca::usize>(i) * 2, ' ');
+        moderate += "-\n";
+    }
+    EXPECT_TRUE(YamlReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
+}
