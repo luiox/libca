@@ -128,3 +128,38 @@
 - **[collection] Stream filter/map 覆盖语义显式化**：头文件以 `@warning`
   声明 filter()/map() 是覆盖式而非链式组合（再次调用替换先前谓词），并补
   钉住该契约的测试；行为本身不变。
+- **[core] 新增 `Option<T>`**：Rust 语义的可空值类型（内部包装 `std::optional`），
+  `Some`/`None` 工厂与哨兵，`unwrap`/`expect`/`map`/`and_then`/`or_else`/`take`/
+  `unwrap_or` 系列与 `ok_or<E>()` 转 `Result`；`Result::ok()/err()` 反向桥接
+  （`T` 为 void 时不参与）。与 `Result` 同居 `ca::core`，`ca` 顶层重导出。
+- **[crypto] sha3 未对齐输入 UB 修复**：`process_block` 此前把数据指针直接
+  cast 成 `const uint64_t*` 按道读取，缓冲非 8 字节对齐（堆上偏移切片）时属
+  严格别名/对齐 UB（x86 潜伏，ARM 可能崩溃）；改按 8 字节 word `memcpy`
+  混入，编译器会优化回单条加载。补非对齐缓冲摘要不变的钉住测试。
+- **[toml] 浮点与表重开严格化（TOML 1.0 对齐）**：`1.` / `.5` / `1.e2` 等
+  `.` 一侧缺数字的浮点形态此前被宽容接受（`strtod` 家族行为），TOML 1.0 要求
+  两侧均有数字，现报错；dotted-key 创建的表不可被 `[header]` 重开或作为
+  header 路径段打开，header 显式定义的表不可被 dotted-key 扩展，inline
+  table 全封闭（header/dotted-key 均不可扩展）——此前部分场景静默允许，
+  现按 spec 拒绝，杜绝数据模型歧义。
+- **[process] IPC unlink API 与长度封顶**：新增
+  `remove_shared_memory`/`remove_semaphore`/`remove_message_queue`
+  （POSIX `shm_unlink`/`sem_unlink`/`mq_unlink`，ENOENT 幂等成功；Windows
+  侧为带命名校验的 no-op，内核对象随句柄关闭回收）；管道 `read`/`write`
+  系列长度参数按 `SSIZE_MAX` 封顶（POSIX）或 DWORD 范围校验（Windows），
+  超限报错而非静默截断；`NamedSemaphore::release` 拒绝超出 LONG_MAX 的
+  count，限时等待时长 DWORD 溢出钳制。
+- **[xml] 默认 `max_depth` 1000→256**（行为变更）：实测 Windows 默认 1MB
+  线程栈下 ~850 层嵌套即栈溢出，原默认 1000 的守卫来不及触发（守卫本身
+  递归）；256 与 libxml2 `XML_MAX_DEPTH` 一致，正常文档不受影响。需要更深
+  嵌套的特殊场景须显式调大选项并同时增大线程栈。
+- **[str] Utf8String 错误通道**：新增 `try_from_data`/`try_from_cstr`，返回
+  `StatusResult<Utf8String>`，非法 UTF-8 报 `INVALID_ARGUMENT` 而非静默
+  产出空串；`from_cstr` 头文件补 `@warning` 显式声明吞错语义。
+- **[str] wstring/cstring Doxygen 补全**：两个头文件的公共 API 注释补齐
+  （此前部分接口无文档）；行为不变。
+- **[str] 操作类 API 测试空白补齐**：`starts_with`/`ends_with`/`trim`/
+  `split`/`replace_all`/`to_lower`/`to_upper` 此前在 Utf8StringRef（含
+  拥有型 Utf8String）与 `CString`/`WString` 系均零测试覆盖，现双侧补齐
+  （视图侧同时钉住"指向原数据"的非拥有语义与 split 的空片段/空分隔符
+  边界）。
