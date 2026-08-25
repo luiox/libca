@@ -384,6 +384,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - 随机数辅助。
 - ChaCha20、RC4 等流式算法。
 
+设计文档：
+- `libca/crypto/doc/crypto设计文档.md`
+
 ## time
 
 日期时间工具模块。

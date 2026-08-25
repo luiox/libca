@@ -113,3 +113,18 @@
   `read_file`/`write_file` 此前把 UTF-8 路径按窄字符传给 fstream，Windows
   ACP 非 UTF-8（中文环境默认 GBK）时非 ASCII 路径打开失败或落到错误文件；
   现统一经 `std::filesystem::u8path`，与 `libca/fs` 做法一致。
+- **[toml] 解析入口整体校验 UTF-8**：与 json/ini/xml 对齐——字符串值里的非法
+  UTF-8 此前经 arena intern 静默变空串、解析"成功"（TOML 1.0 要求文件为合法
+  UTF-8），数据无声丢失；现入口统一报错。
+- **[yaml] 解析入口整体校验 UTF-8**：同上，plain/引号标量里的非法序列此前
+  静默变空串；现入口统一报错。
+- **[json] float 整数形态补 `.0`**：writer 用 `%.17g` 输出整数形态的 float
+  （`2.0` 写成 `"2"`）读回被当 Int、`-0.0` 的符号与类型双丢；现与 toml/yaml
+  writer 一致，整数形态追加 `.0` 保持 Float。
+- **[str] moved-from Utf8String 转 string_view 回落空视图**：移动后
+  `data_` 为 nullptr，`operator std::string_view` 此前直接构造
+  `string_view(nullptr, 0)`（UB）；现与 Utf8StringRef/ZUtf8StringRef 同口径
+  回落默认构造的空视图。
+- **[collection] Stream filter/map 覆盖语义显式化**：头文件以 `@warning`
+  声明 filter()/map() 是覆盖式而非链式组合（再次调用替换先前谓词），并补
+  钉住该契约的测试；行为本身不变。

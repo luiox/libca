@@ -17,6 +17,6 @@
 | [database.md](database.md) | `libca.core/src/database/*` | 旧代码迁移 | 待设计 |
 | [zip.md](zip.md) | `libca.core/src/utility/Zip.{hpp,cpp}` | 旧代码迁移 | 待设计 |
 | [tensor.md](tensor.md) | `libca.core/src/old/tensor.hpp` | 旧代码迁移 | 已弃用（仅留档） |
-| [fs-unicode-path.md](fs-unicode-path.md) | morpher mjt-deobf 下游需求 | 新增能力 | 待设计 |
-| [json-schema-validator.md](json-schema-validator.md) | morpher mjt-deobf 下游需求 | 新增能力 | 待设计 |
+| [fs-unicode-path.md](fs-unicode-path.md) | morpher mjt-deobf 下游需求 | 新增能力 | 已实施（`FileUtil` 全量经 `u8path`） |
+| [json-schema-validator.md](json-schema-validator.md) | morpher mjt-deobf 下游需求 | 新增能力 | 已实施（draft 2020-12 关键字子集，`json_schema.hpp`） |
 | [opt-v2.md](opt-v2.md) | morpher mjt / mj2x-cli 下游需求（三套 CLI 实现收敛） | 既有模块补齐 | 已实施（feat/opt-v2） |
