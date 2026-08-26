@@ -574,11 +574,11 @@ Win32 桌面 GUI 薄封装，仅 Windows 平台可用。
 
 ## 暂未作为主线使用的代码
 
-- libca/utility/、libca/reflect/：历史遗留，已归档到 doc/legacy/，不再维护。
+- libca/utility/、libca/reflect/：历史遗留代码，已从仓库移除。
 
 > 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
 > 代码页转换）和 `libca/ui`（Win32 GUI）。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
-> 等空壳或占位实现未迁移，未来重新设计的需求见 `doc/proposals/`。
+> 等空壳或占位实现未迁移；如有重新设计需求再行立项。
 
 ## 变更策略
 

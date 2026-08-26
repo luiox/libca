@@ -6,7 +6,6 @@
 ///          minimum / maximum / minLength / maxLength。
 ///          schema 与文档都使用 ca::json::JsonValue（DOM）。错误经
 ///          ca::Result<std::vector<ValidationError>, SchemaError> 传播，不抛异常。
-///          实现背景见 doc/proposals/json-schema-validator.md。
 
 #pragma once
 
