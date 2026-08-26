@@ -65,8 +65,12 @@ bool is_reset_error(const HttpError& error) noexcept
     if (error.kind() != HttpErrorKind::Io || error.io_error() == nullptr)
         return false;
     const auto kind = error.io_error()->kind();
+    // 向已被服务器整体关闭的 stale 连接写入：Linux 表现为 EPIPE（BrokenPipe），
+    // Windows 常见为 WSAECONNRESET（ConnectionReset）；两者都意味着连接已死，
+    // 而非请求本身的问题。
     return kind == io::IoErrorKind::ConnectionReset ||
-           kind == io::IoErrorKind::ConnectionAborted;
+           kind == io::IoErrorKind::ConnectionAborted ||
+           kind == io::IoErrorKind::BrokenPipe;
 }
 
 bool is_connect_tunnel(std::string_view method, u16 status) noexcept

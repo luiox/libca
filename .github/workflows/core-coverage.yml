@@ -1,14 +1,19 @@
 name: Core Coverage
 
 # 仅手动触发（Actions 页面 → Run workflow）。
-# lcov 在 gcov 13 下存在 tracefile 为空的兼容性问题（remove 后无 valid records），
-# 阈值检查会误报失败。待 lcov 工具链问题修复后再考虑恢复自动触发。
+# 覆盖率收集使用 gcovr：单次调用同时产出 Cobertura XML（供 Codecov）、
+# 终端摘要与行覆盖率阈值门禁（>=60%，低于即失败），不再依赖 lcov 工具链版本。
 on:
   workflow_dispatch:
+
+concurrency:
+  group: core-coverage-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   coverage-core:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - name: Checkout code (full history)
@@ -19,52 +24,52 @@ jobs:
     - name: Install system deps
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake ninja-build lcov
+        sudo apt-get install -y ninja-build gcovr
 
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
-        xmake-version: 3.0.5
+        xmake-version: v3.0.9
         actions-cache-folder: '.xmake-cache'
 
+    - name: Cache xrepo packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.xmake/packages
+          ~/.local/share/xmake
+        key: libca-xrepo-coverage-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
+        restore-keys: |
+          libca-xrepo-coverage-linux-x64-xmake309-
+
     - name: Configure (core coverage mode)
-      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n --with_tests=y -y -vD
+      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n --with_tests=y -y
 
     - name: Build core tests
-      run: xmake build -g libs -v
+      run: xmake build -g libs
 
     - name: Run core tests
-      run: xmake test -g libs/test -v
+      run: xmake test -g libs/test
 
-    - name: Collect core coverage (lcov)
+    - name: Collect coverage & threshold gate (lines >= 60%)
       run: |
-        set -e
-        lcov --capture --directory . --rc lcov_branch_coverage=1 --output-file core-coverage.info || true
-        lcov --remove core-coverage.info '/usr/*' '*/third_party/*' '*/third-party/*' '*/libca.em/*' '*/build/*' --output-file core-coverage.info || true
-        lcov --list core-coverage.info || true
+        gcovr --root . \
+          --filter 'libca/' \
+          --exclude '.*third_party.*' \
+          --print-summary \
+          --xml-pretty -o core-coverage.xml \
+          --fail-under-line 60
 
-    - name: Generate HTML report
-      run: |
-        genhtml -o core-coverage-report --show-details --legend --function-coverage --branch-coverage core-coverage.info || true
-      continue-on-error: true
-
-    - name: Upload core coverage HTML (artifact)
+    - name: Upload coverage report artifact
       uses: actions/upload-artifact@v4
       with:
         name: core-coverage-report
-        path: core-coverage-report
-
-    - name: Check core coverage threshold (lines >= 60%)
-      run: |
-        pct=$(lcov --summary core-coverage.info | grep "lines" | awk '{print $2}' | sed 's/%//')
-        echo "line coverage=$pct%"
-        awk -v p="$pct" 'BEGIN{ if (p+0 < 60) exit 1 }' || (echo "Coverage below threshold (60%)" && exit 1)
-      continue-on-error: false
+        path: core-coverage.xml
 
     - name: Upload core coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: ./core-coverage.info
+        files: ./core-coverage.xml
         flags: core
         fail_ci_if_error: false
         verbose: true

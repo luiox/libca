@@ -73,9 +73,10 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
 -- add_cxflags("-finput-charset=UTF-8", "-fexec-charset=UTF-8")
 
 -- 如果是 msvc 编译器，则使用以下选项
-if is_plat("windows") then 
-    add_cflags("/utf-8")
-    add_cxflags("/utf-8")
+if is_plat("windows") then
+    -- 仅对 MSVC 生效；gcc/clang（含 MinGW）源码默认按 UTF-8 处理，无需该选项。
+    add_cflags("/utf-8", {tools = "cl"})
+    add_cxflags("/utf-8", {tools = "cl"})
 end
 
 -- add_requires("doctest 2.4.11")
