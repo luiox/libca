@@ -43,6 +43,7 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/str/conversion.hpp>`
 - `<libca/str/string_util.hpp>`
 - `<libca/str/char_util.hpp>`
+- `<libca/str/os_string.hpp>`
 - `<libca/str/format.hpp>`
 
 功能：
@@ -53,6 +54,7 @@ UTF-8 字符串与所有权模型模块。
 - `Utf8StringPool`：引用计数式字符串池。
 - `Utf8StringBuilder`：可变构建器，用于多次追加后生成字符串。
 - `format` / `format_to` / `format_runtime`：基于 fmt 的 `{}`-style 格式化门面，返回 `Utf8String` 或追加到 builder/std::string（对标 Rust `format!`）。fmt 以 str 的 public 依赖提供，下游模块通过 `add_deps("libca_str")` 间接拿到。
+- `OsString` / `OsStr`：平台原生编码字符串载体（Windows UTF-16 / POSIX UTF-8），用于与 OS API 边界交互。
 - C 字符串、宽字符串、编码转换、字符分类和字符串工具函数。
 
 设计文档：
@@ -156,6 +158,7 @@ CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` �
   `validate_utf8`（默认 true）控制输出是否校验 UTF-8，置 false 可输出含非 UTF-8 字节的字段。
 - 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
   Writer 的 `line_ending`、`write_header`、`validate_utf8`。
+- DSV 预设：Reader/Writer 选项均提供 `csv()` / `tsv()` / `delimited(char)` 快捷构造。
 
 设计与使用文档：
 - `libca/csv/doc/csv设计文档.md`
@@ -436,6 +439,8 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 入口头文件：
 - `<libca/thread/stop_token.hpp>`
 - `<libca/thread/thread.hpp>`
+- `<libca/thread/channel.hpp>`
+- `<libca/thread/once.hpp>`
 - `<libca/thread/bounded_queue.hpp>`
 - `<libca/thread/thread_pool.hpp>`
 
@@ -444,6 +449,8 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `Thread`：类似 `std::jthread` 的 move-only 结构化线程，析构时请求停止并 join。
 - `BoundedQueue<T>`：多生产者、多消费者有界队列，支持阻塞、立即和限时背压。
 - `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
+- `channel<T>`：MPSC 通道（多生产者单消费者），对齐 Rust `std::sync::mpsc` 简化版；全部 Sender 销毁后自动关闭生产端。
+- `OnceCell` / `OnceLock`：延迟一次性初始化容器（非线程安全 / 线程安全），对应 Rust 同名类型。
 
 设计与使用文档：
 - `libca/thread/doc/thread设计文档.md`
@@ -486,9 +493,87 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 相关文档：
 - `libca/opt/doc/opt设计文档.md`
 
+## env
+
+环境变量读写与操作系统信息查询模块。仅桌面端使用；Windows 上内部做 UTF-8 ↔ UTF-16
+转换，保证含非 ASCII 的环境变量正确往返。所有函数不抛异常，失败返回空值/false。
+
+入口头文件：
+- `<libca/env/env.hpp>`
+
+功能：
+- `get` / `set` / `remove` / `all`：环境变量读取、设置、删除与枚举。
+- `current_dir` / `set_current_dir` / `temp_dir` / `executable_path`：进程相关路径（UTF-8）。
+- `os_name` / `os_version`：操作系统名与版本字符串。
+
+## random
+
+高层随机数接口。底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），
+不做伪随机引擎、不提供可复现种子；无共享可变状态，所有函数线程安全。
+
+入口头文件：
+- `<libca/random/random.hpp>`
+
+功能：
+- `fill_bytes`：用系统 CSPRNG 填充缓冲区。
+- `next(n)` / `range(lo, hi)`：均匀随机整数（拒绝采样消除模偏差）。
+- `probability`：[0.0, 1.0) 均匀浮点。
+- `hex_string` / `alphanumeric_string`：随机十六进制 / 字母数字字符串。
+
+## uuid
+
+UUID v4 生成与校验（不做 v1/v3/v5）。底层随机源复用系统 CSPRNG。
+
+入口头文件：
+- `<libca/uuid/uuid.hpp>`
+
+功能：
+- `v4`：生成随机 UUID v4（36 字符小写十六进制）。
+- `nil`：空 UUID。
+- `is_valid`：格式校验，可选严格校验 v4 variant/version。
+
+## log
+
+日志门面与可插拔后端。fmt 依赖收敛在门面侧，后端实现者只需 `logger.hpp` + `level.hpp`；
+级别管理收归 `Logger`（atomic 运行期过滤），后端只负责输出。
+
+入口头文件：
+- `<libca/log/log_macros.hpp>`（用户入口：日志宏）
+- `<libca/log/logger.hpp>`（Logger 句柄与后端接口）
+- `<libca/log/logger_registry.hpp>`（按 target 分发的注册表）
+- `<libca/log/simple_log_backend.hpp>`（零依赖同步后端）
+- `<libca/log/spdlog/spdlog_backend.hpp>`（spdlog 可选后端）
+
+功能：
+- `CA_LOG_<LEVEL>(...)` / `CA_LOGT_<LEVEL>(target, ...)`：日志宏，编译期裁剪
+  （`CA_COMPILE_LOG_LEVEL`，默认 Info）+ 运行期级别过滤。
+- `Level`：Trace..Off；`Error_` 规避 Windows `wingdi.h` 的 `ERROR` 宏冲突。
+- `OpaqueFormat`：类型擦除的格式化参数载体（view 语义，严禁跨线程入队）。
+- `ILogBackend`：后端接口，调 `message.render_to(out)` 取格式化完成的字符串。
+- `LoggerRegistry`：按 target 名索引的 Logger 注册表（shared_mutex，读并发写串行）。
+- `SimpleLogBackend`：控制台（彩色）/ 文件输出的零依赖同步后端。
+
+设计文档：
+- `libca/log/doc/log设计文档.md`
+
+## ui
+
+Win32 桌面 GUI 薄封装，仅 Windows 平台可用。
+
+入口头文件：
+- `<libca/ui/ui.hpp>`（聚合头）
+
+功能：
+- `Window`：顶层窗口，窗口类注册、消息循环与子控件生命周期管理。
+- `Button`：按钮控件，builder 风格链式配置后 `create()` 落地。
+- `MessageDialog`：`MessageBoxW` 薄包装。
+- `CaptureGuard`：把类名匹配的顶级窗口标记为不可捕获（防截屏）。
+
+设计文档：
+- `libca/ui/doc/ui设计文档.md`
+
 ## 暂未作为主线使用的代码
 
-- libca/log/：已接入构建（spdlog 后端可选，见根 xmake.lua 的 with_spdlog）。
 - libca/utility/、libca/reflect/：历史遗留，已归档到 doc/legacy/，不再维护。
 
 > 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
