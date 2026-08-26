@@ -631,6 +631,10 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
             }
             if (!stream)
                 return;
+            // Windows 上 accept 出的 socket 继承 listener 的非阻塞态（Linux 不继承），
+            // 必须显式恢复阻塞，否则请求字节未就绪时 read 返回 WouldBlock 被误判为断连。
+            if (!stream->set_nonblocking(false).is_ok())
+                return;
             std::string received;
             std::array<char, 2048> buffer{};
             while (received.find("\r\n\r\n") == std::string::npos) {
