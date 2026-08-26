@@ -1,0 +1,10 @@
+# libca_i18n_unittest 翻译 fixture：zh_CN 为唯一事实源。
+# key 首段约定为命名空间；test.* 专供测试使用。
+
+test.hello=你好，世界
+test.with_name=你好，{0}
+test.order={1} 在 {0} 之前
+test.repeat={0} 与 {0}
+test.missing_arg=值：{0} 和 {1}
+test.han=汉字占位条目
+test.escape=第一行\n第二行\\反斜杠
