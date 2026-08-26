@@ -1,0 +1,5 @@
+# libca.resources 资源清单：名称=目录（目录内全部文件；UTF-8；'\' 等价 '/'）
+# fixture：crt 覆盖嵌套/空文件/UTF-8 文件名/空格名/二进制/空目录；
+# extra 演示 bundle 隔离（与 crt 存在同名 /dup.txt）。
+crt=crt
+extra=extra
