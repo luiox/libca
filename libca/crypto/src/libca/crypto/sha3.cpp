@@ -4,12 +4,9 @@
 // see http://create.stephan-brumme.com/disclaimer.html
 //
 
+// big endian detection via compiler builtin macros (see md5.cpp fromLittleEndian);
+// <endian.h> is glibc-only and unavailable on MinGW.
 #include "sha3.h"
-
-// big endian architectures need #define __BYTE_ORDER __BIG_ENDIAN
-#ifndef _MSC_VER
-#include <endian.h>
-#endif
 
 #include <cstring>
 
@@ -92,7 +89,7 @@ namespace
 // process a full block
 void SHA3::process_block(const void* data)
 {
-#if defined(__BYTE_ORDER) && (__BYTE_ORDER != 0) && (__BYTE_ORDER == __BIG_ENDIAN)
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #define LITTLEENDIAN(x) swap(x)
 #else
 #define LITTLEENDIAN(x) (x)

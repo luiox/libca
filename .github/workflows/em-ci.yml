@@ -6,6 +6,7 @@ on:
     paths:
       - "libca.em/**"
       - "xmake.lua"
+      - "xmake/**"
       - "libca.em/xmake.lua"
       - ".github/workflows/em-ci.yml"
       - ".github/workflows/em-coverage.yml"
@@ -14,13 +15,19 @@ on:
     paths:
       - "libca.em/**"
       - "xmake.lua"
+      - "xmake/**"
       - "libca.em/xmake.lua"
       - ".github/workflows/em-ci.yml"
       - ".github/workflows/em-coverage.yml"
 
+concurrency:
+  group: em-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test-em:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout code
@@ -31,7 +38,8 @@ jobs:
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
-        xmake-version: 3.0.5
+        # 与 core-ci 统一 xmake 版本，避免两套工作流行为漂移。
+        xmake-version: v3.0.9
         actions-cache-folder: '.xmake-cache'
 
     - name: Configure em-only build

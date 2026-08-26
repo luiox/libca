@@ -21,7 +21,10 @@
     #include <windows.h>
     #include <DbgHelp.h>
     #include <mutex>
+    #ifdef _MSC_VER
+    // MinGW gcc 不支持 pragma comment(lib)；链接由 core 的 xmake add_syslinks 承担。
     #pragma comment(lib, "dbghelp.lib")
+    #endif
 #elif CA_PLATFORM_LINUX
     #include <cxxabi.h>
     #include <execinfo.h>

@@ -1002,9 +1002,9 @@ Status posix_unlink(const std::string& name, const char* operation,
 {
     auto path_result = posix_shared_memory_name(name);
     if (path_result.is_err())
-        return Err(path_result.unwrap_err());
+        return path_result.unwrap_err();
     if (unlink_fn(std::move(path_result).unwrap()) != 0 && errno != ENOENT)
-        return Err(posix_error(operation));
+        return posix_error(operation);
     return OkStatus();
 }
 

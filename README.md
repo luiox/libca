@@ -1,5 +1,8 @@
 # libca
 
+[![Core CI](https://github.com/luiox/libca/actions/workflows/core-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/core-ci.yml)
+[![EM CI](https://github.com/luiox/libca/actions/workflows/em-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/em-ci.yml)
+
 C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
 
 | 部分 | 语言 | 面向 | 入口 |

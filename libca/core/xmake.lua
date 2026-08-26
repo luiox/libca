@@ -13,6 +13,13 @@ target("libca_core")
         add_syslinks("dl")
     end
 
+    -- 注意：mingw 的平台名是 "mingw" 不是 "windows"，两处都要覆盖。
+    if is_plat("windows", "mingw") then
+        -- stacktrace 依赖 DbgHelp（SymFromAddr 等）；MSVC 经头内 pragma 引库，
+        -- MinGW gcc 忽略该 pragma，必须在此显式补链。
+        add_syslinks("dbghelp")
+    end
+
 if has_config("with_tests") then
 target("libca_core_unittest")
     set_kind("binary")

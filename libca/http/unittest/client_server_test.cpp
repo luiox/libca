@@ -602,6 +602,8 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
 {
     // 脚本化原始 server：第一条连接响应后立即整体关闭（模拟 idle 回收），
     // 第二条连接正常响应。复用到 stale 连接的幂等请求应自动重试一次成功。
+    // 线程以非阻塞 accept 轮询运行并受 server_stop 守护，任何失败路径都能安全 join，
+    // 不会因 ASSERT 提前返回触发 joinable 线程析构的 std::terminate。
     auto bound =
         net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
     ASSERT_TRUE(bound.is_ok());
@@ -610,26 +612,53 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
     ASSERT_TRUE(local.is_ok());
     const auto address = local.unwrap();
 
-    std::thread server_thread([&listener] {
+    std::atomic<bool> server_stop{false};
+    std::thread server_thread([&listener, &server_stop] {
         const std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
-        for (int connection_index = 0; connection_index < 2; ++connection_index) {
-            auto accepted = listener.accept();
-            if (accepted.is_err())
+        if (!listener.set_nonblocking(true).is_ok())
+            return;
+        for (int connection_index = 0;
+             connection_index < 2 && !server_stop.load(std::memory_order_relaxed);
+             ++connection_index) {
+            std::optional<net::TcpStream> stream;
+            while (!server_stop.load(std::memory_order_relaxed)) {
+                auto accepted = listener.accept();
+                if (accepted.is_ok()) {
+                    stream = std::move(std::move(accepted).unwrap().stream);
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            if (!stream)
                 return;
-            auto stream = std::move(accepted).unwrap().stream;
+            // Windows 上 accept 出的 socket 继承 listener 的非阻塞态（Linux 不继承），
+            // 必须显式恢复阻塞，否则请求字节未就绪时 read 返回 WouldBlock 被误判为断连。
+            if (!stream->set_nonblocking(false).is_ok())
+                return;
             std::string received;
             std::array<char, 2048> buffer{};
             while (received.find("\r\n\r\n") == std::string::npos) {
-                auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+                auto read = stream->read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
                 if (read.is_err() || read.unwrap() == 0)
                     return;
                 received.append(buffer.data(), read.unwrap());
             }
             auto written =
-                stream.write(reinterpret_cast<const u8*>(response.data()), response.size());
+                stream->write(reinterpret_cast<const u8*>(response.data()), response.size());
             (void)written;
         }
     });
+
+    struct ServerThreadGuard {
+        std::thread         thread;
+        std::atomic<bool>&  stop;
+        ~ServerThreadGuard()
+        {
+            stop.store(true, std::memory_order_relaxed);
+            if (thread.joinable())
+                thread.join();
+        }
+    } guard{std::move(server_thread), server_stop};
 
     auto created = HttpClient::create();
     ASSERT_TRUE(created.is_ok());
@@ -644,8 +673,6 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
     ASSERT_TRUE(second.is_ok()) << second.unwrap_err().to_string();
     EXPECT_EQ(second.unwrap().status, 200);
     EXPECT_EQ(body_text(second.unwrap().body), "ok");
-
-    server_thread.join();
 }
 
 TEST(HttpClientServerTest, Http10ExpectContinueSkipsInterimResponse)

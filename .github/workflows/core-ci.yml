@@ -18,12 +18,14 @@ on:
     paths:
       - "libca/**"
       - "xmake.lua"
+      - "xmake/**"
       - ".github/workflows/core-ci.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "libca/**"
       - "xmake.lua"
+      - "xmake/**"
       - ".github/workflows/core-ci.yml"
 
 concurrency:
@@ -34,6 +36,7 @@ jobs:
   build-and-test-core:
     name: build & test (linux, no em)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,6 +82,7 @@ jobs:
   build-and-test-http-openssl:
     name: build & test HTTP (linux, OpenSSL 3)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,8 +119,15 @@ jobs:
           xmake run libca_http_unittest
 
   build-and-test-core-windows:
-    name: build & test (windows, msvc)
+    name: build & test (windows, ${{ matrix.toolchain }})
     runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # msvc 与 mingw-gcc 双前端交叉验证：gcc 能暴露 MSVC 编不到的分支错误
+        # （如 POSIX 宏内代码），MSVC 则覆盖 Windows 特有语义。
+        toolchain: [msvc, mingw]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,13 +143,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/AppData/Local/.xmake/packages
-          key: libca-xrepo-windows-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          key: libca-xrepo-windows-${{ matrix.toolchain }}-x64-xmake309-${{ hashFiles('xmake.lua') }}
           restore-keys: |
-            libca-xrepo-windows-x64-xmake309-
+            libca-xrepo-windows-${{ matrix.toolchain }}-x64-xmake309-
 
       - name: Configure (core + tests, no em, msvc)
+        if: matrix.toolchain == 'msvc'
         # -p windows -a x64：走 runner 预装的 MSVC 工具链；cmake/ninja 已预装，gtest 由 xrepo 编译。
         run: xmake f -p windows -a x64 --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+
+      - name: Configure (core + tests, no em, mingw-gcc)
+        if: matrix.toolchain == 'mingw'
+        # -p mingw：runner 预装的 MinGW-w64 gcc（PATH 可见），xmake 自动探测。
+        run: xmake f -p mingw -a x86_64 --with_core=y --with_em=n --with_demo=n --with_tests=y -y
 
       - name: Build C++ libraries
         run: xmake build -g libs
