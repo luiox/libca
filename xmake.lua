@@ -42,6 +42,12 @@ option("with_spdlog")
     set_description("Enable optional spdlog backend for libca.log")
 option_end()
 
+option("with_zip")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable libca.zip module (pulls zlib via xrepo; disable on envs without it)")
+option_end()
+
 if has_config("with_spdlog") then
     add_requires("spdlog", { configs = { header_only = true, fmt_external = true } })
 end
@@ -52,6 +58,10 @@ end
 
 if has_config("with_openssl") then
     add_requires("openssl3")
+end
+
+if has_config("with_zip") then
+    add_requires("zlib")
 end
 
 if is_plat("windows") then

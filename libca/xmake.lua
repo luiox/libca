@@ -21,3 +21,7 @@ includes("random")
 includes("env")
 includes("opt")
 includes("ui")
+
+if has_config("with_zip") then
+    includes("zip")
+end
