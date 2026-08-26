@@ -1,10 +1,10 @@
-#include <libca/zip/input_stream.hpp>
+#include "libca/zip/input_stream.hpp"
 
 #include <cstring>
 #include <stdexcept>
 
-#include <libca/zip/detail/inflate_raw.hpp>
-#include <libca/zip/entry.hpp>
+#include "libca/zip/detail/inflate_raw.hpp"
+#include "libca/zip/entry.hpp"
 #include <zlib.h>
 
 namespace ca::zip {
