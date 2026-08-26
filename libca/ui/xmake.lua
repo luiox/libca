@@ -1,7 +1,7 @@
 -- libca_ui：Windows-only 子库。其它平台不定义任何 target，
 -- 因此跨平台项目可无条件 includes("ui") 而不会在 Linux 上失败。
 
-if is_plat("windows") then
+if is_plat("windows", "mingw") then
 target("libca_ui")
     set_kind("static")
     set_group("libs")

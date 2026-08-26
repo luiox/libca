@@ -9,7 +9,7 @@ target("libca_crypto")
     add_includedirs("src", {public = true})
     add_deps("libca_core")
 
-    if is_plat("windows") then
+    if is_plat("windows", "mingw") then
         add_cxflags("/utf-8", {tools = "cl"})
         add_syslinks("bcrypt")
     end
@@ -27,7 +27,7 @@ target("libca_crypto_unittest")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
     set_rundir("$(projectdir)")
-    if is_plat("windows") then
+    if is_plat("windows", "mingw") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end

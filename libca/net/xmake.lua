@@ -6,7 +6,7 @@ target("libca_net")
     add_includedirs("src", {public = true})
     add_deps("libca_io", "libca_str")
 
-    if is_plat("windows") then
+    if is_plat("windows", "mingw") then
         add_syslinks("ws2_32")
         add_cxflags("/utf-8", {tools = "cl"})
     end
@@ -25,7 +25,7 @@ target("libca_net_unittest")
     add_includedirs("src")
     set_rundir("$(projectdir)")
 
-    if is_plat("windows") then
+    if is_plat("windows", "mingw") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end
