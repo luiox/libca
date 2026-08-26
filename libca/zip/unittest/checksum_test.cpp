@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include <libca/zip/checksum.hpp>
-#include <libca/zip/entry.hpp>
+#include "libca/zip/checksum.hpp"
+#include "libca/zip/entry.hpp"
 
 namespace {
 

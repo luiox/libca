@@ -20,9 +20,9 @@
 #include <utility>
 #include <vector>
 
-#include <libca/core/bytes.hpp>
-#include <libca/core/datatype.hpp>
-#include <libca/core/result.hpp>
+#include "libca/core/bytes.hpp"
+#include "libca/core/datatype.hpp"
+#include "libca/core/result.hpp"
 
 namespace ca::resources {
 

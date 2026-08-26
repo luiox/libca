@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include <libca/resources/resources.hpp>
+#include "libca/resources/resources.hpp"
 
 #include "resources_libca_resources_unittest.generated.hpp"
 

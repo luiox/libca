@@ -1,4 +1,4 @@
-#include <libca/zip/file.hpp>
+#include "libca/zip/file.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <unordered_map>
 
-#include <libca/zip/checksum.hpp>
-#include <libca/zip/detail/inflate_raw.hpp>
+#include "libca/zip/checksum.hpp"
+#include "libca/zip/detail/inflate_raw.hpp"
 
 namespace ca::zip {
 
