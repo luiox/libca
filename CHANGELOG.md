@@ -15,6 +15,19 @@
 
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
+- **[zip] 新模块**：JVM `ZipFile` 语义只读访问器（最后合法 EOCD/前缀拼接恢复/ZIP64）
+  与流式读写（`ZipInputStream`/`ZipOutputStream`，DD 条目支持）；zlib 经 xrepo，
+  根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
+- **[resources] 新模块**：清单驱动 constexpr 目录树嵌入 + header-only 查询运行时
+  （bundle 隔离/二分查找/前缀过滤迭代），构建 rule 全局注册名
+  `libca.resources.embed`。
+- **[i18n] 新模块**：`.lang` 构建期嵌入（rule `libca.i18n.embed-lang`，zh_CN 超集校验）
+  + tr/trf 回退运行时（当前语言 → zh_CN → key 原样）。
+- **[test] 新模块**：`.project_root_file` 标记扫描与多项目 test_resource 定位、
+  `<top>/test` 输出根约定（环境变量 `LIBCA_TEST_OUT_ROOT` 可覆盖）。
+- **[core] 新增 `tag_cast.hpp`**：整数 tag 层级的 LLVM 风格 `isa`/`cast`/`dyn_cast`
+  （`TypeOf<T>` 特化接入），作为与 `Polymorphic` 并存的第二种 RTTI-free 机制，
+  位于 `ca::core::tag_cast` 命名空间。
 - `str`：新增 `OsString`/`OsStr` 平台原生字符串；新增 `format`/`format_to`/`format_runtime`
   格式化门面（fmt 转为 str 的 public 依赖，下游经 `add_deps("libca_str")` 间接获得）。
 - `thread`：新增 MPSC 通道 `channel`；新增 `OnceCell`/`OnceLock` 延迟初始化。

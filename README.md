@@ -64,7 +64,7 @@ L3  业务 / 上层
 
 | 模块 | 职责 | 关键类型 / 入口头文件 | 命名空间 | 阶段 | 设计文档 |
 |------|------|----------------------|----------|------|----------|
-| **core** | Result/Option/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
+| **core** | Result/Option/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
 | **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
@@ -82,11 +82,14 @@ L3  业务 / 上层
 | **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
 | **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
 | **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 主线 | `libca/opt/doc/opt设计文档.md` |
-| zip | 规划中 | — | — | **空** | — |
+| **zip** | JVM ZipFile 语义 ZIP 读写（只读访问器/流式读写/CRC） | `file.hpp`(`ZipFile`)、`input_stream.hpp`、`output_stream.hpp`、`entry.hpp` | `ca::zip` | 主线（zlib 可选，`--with_zip=n` 跳过） | — |
+| **resources** | 清单驱动 constexpr 目录树嵌入与只读查询 | `resources.hpp`(`Bundle`/`RawEntry`)；rule `libca.resources.embed` | `ca::resources` | 主线 | — |
+| **i18n** | .lang 构建期嵌入的 CLI 消息国际化（tr/trf 回退链） | `i18n.hpp`；rule `libca.i18n.embed-lang` | `ca::i18n` | 主线 | — |
+| **test** | `.project_root_file` 多项目测试布局与样本定位 | `test.hpp`(`setup`/`resource`/`project_resource`) | `ca::test` | 主线 | — |
 | **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
 | utility / reflect | 历史遗留，已从仓库移除 | — | — | 移除 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / json / csv / toml / xml / yaml / env / random / uuid / opt / log / ui）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定
@@ -101,7 +104,7 @@ libca/<mod>/
 └── xmake.lua
 ```
 
-头文件包含路径用安装形式：`#include <libca/<mod>/xxx.hpp>`。
+头文件包含约定：项目内头文件一律引号形式 `#include "libca/<mod>/xxx.hpp"`；尖括号仅用于系统/第三方头（如 `<string>`、`<zlib.h>`）。
 
 ## 许可证
 
