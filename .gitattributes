@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# 测试 fixture 按字节精确匹配，禁止行尾转换（.project_root_file 首行名与资源内容均含换行）
+libca/test/**/*.project_root_file -text
+libca/test/test_resource/** -text
+libca/test/unittest/fake_proj/** -text
