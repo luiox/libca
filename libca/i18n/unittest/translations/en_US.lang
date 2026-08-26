@@ -1,0 +1,9 @@
+# libca_i18n_unittest translation fixture; keys must be a subset of zh_CN.lang.
+
+test.hello=Hello, world
+test.with_name=Hello, {0}
+test.order={1} before {0}
+test.repeat={0} and {0}
+test.missing_arg=value: {0} and {1}
+test.han=English placeholder entry
+test.escape=first\nsecond\\backslash
