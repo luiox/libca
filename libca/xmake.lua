@@ -22,6 +22,7 @@ includes("uuid")
 includes("random")
 includes("env")
 includes("opt")
+includes("test")
 includes("ui")
 
 if has_config("with_zip") then
