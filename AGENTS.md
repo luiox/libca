@@ -17,7 +17,7 @@
 
 - libca 模块布局：`libca/<mod>/src/libca/<mod>/*.hpp|cpp` + `unittest/*_test.cpp`（Google Test）+ `doc/`（设计文档，每模块最多一个）
 - libca.em 模块布局：`libca.em/src/em_xxx/`；测试 target 在 `libca.em/unittests/<mod>/xmake.lua`
-- 头文件包含：C++ 用 `#include <libca/<mod>/xxx.hpp>`；em 跨模块用 `#include <em_xxx/yyy.h>`、同模块用 `"yyy.h"`
+- 头文件包含：C++ 项目头一律引号形式 `#include "libca/<mod>/xxx.hpp"`（尖括号仅系统/第三方头）；em 跨模块用 `#include <em_xxx/yyy.h>`、同模块用 `"yyy.h"`
 
 ## C++ 依赖分层（libca）
 
