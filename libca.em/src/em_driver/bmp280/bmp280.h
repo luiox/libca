@@ -1,5 +1,5 @@
 /// @file bmp280.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief BMP280 气压计传感器驱动
 /// @version 0.1
 /// @date 2026-01-22

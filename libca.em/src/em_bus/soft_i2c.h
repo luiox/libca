@@ -1,6 +1,6 @@
 ///
 /// @file soft_i2c.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 软件I2C
 /// 注意目前暂时不支持从机模式的软件I2C
 /// @version 1.3

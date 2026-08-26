@@ -1,5 +1,5 @@
 /// @file s_curve.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief S 曲线轨迹规划接口
 /// @version 0.2
 /// @date 2026-03-21

@@ -1,5 +1,5 @@
 /// @file at24cxx.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief at24cxx系列eeprom的驱动
 /// 而且已经假定芯片的WP引脚已经接地，这样子不需要一个IO口控制开关读写保护。
 /// 如果有需要读写保护控制的话，后期可以加上。

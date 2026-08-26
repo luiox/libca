@@ -1,5 +1,5 @@
  /// @file tofxxf.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief TOFxxF系列传感器 Modbus RTU 驱动 已实物验证
  ///
  /// 支持 TOF050F/TOF200F/TOF400F，使用标准 Modbus RTU 协议通信。

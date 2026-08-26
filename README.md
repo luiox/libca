@@ -10,6 +10,11 @@ C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
 > 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` 开关解耦，可单独构建；`with_demo` 控制 em 外部集成示例。
 > 本 README 的详细部分聚焦 **libca**（桌面 C++）。嵌入式见 `libca.em/README.md`。
 
+## 状态与免责声明
+
+- 个人基础设施库，当前处于 **pre-1.0 阶段**：**不提供任何 API 兼容性 / 稳定性承诺**，任何版本都可能引入破坏性变更；升级前请查阅 CHANGELOG。
+- 本库按「现状」提供，**无可用性、稳定性、适用性等任何保证**（完整免责条款见 [LICENSE](LICENSE) 第 7、8 条）；是否用于生产环境请自行评估。
+
 ## 构建与测试
 
 xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于作为 submodule 被引用时不强拉 gtest）。
@@ -35,7 +40,7 @@ xmake run libca_fs_unittest    # 跑单个模块测试
 - **API 文档写在头文件**（Doxygen 注释）——查头文件即得「怎么用」。
 - **文档只做导航和设计说明**：总功能索引用来找模块；各模块设计文档只讲思想、类型组织和关键取舍，不维护接口清单。
 - **编码规范**：`prompt/code_rule.md`（libca C++ 唯一权威）。
-- **不做严格兼容承诺**：尽量保持常用接口平滑演进；必要的不兼容改动通过 README、CHANGELOG 或模块文档通知下游。
+- **不做严格兼容承诺**：pre-1.0 阶段 API 随时可变（见「状态与免责声明」）；必要的不兼容改动通过 README、CHANGELOG 或模块文档通知下游。
 
 ## 依赖分层
 
@@ -94,5 +99,11 @@ libca/<mod>/
 ```
 
 头文件包含路径用安装形式：`#include <libca/<mod>/xxx.hpp>`。
+
+## 许可证
+
+Copyright 2024-present Canrad (github.com/luiox)
+
+本项目以 [Apache License 2.0](LICENSE) 发布。
 
 

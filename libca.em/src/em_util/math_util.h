@@ -1,5 +1,5 @@
 /// @file math_util.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 数学相关的工具函数，补充标准库的不足
 /// @version 0.1
 /// @date 2025-07-25

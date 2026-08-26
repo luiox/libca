@@ -1,5 +1,5 @@
 /// @file as5600.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief AS5600磁编码器驱动
 /// 数据手册：https://item.szlcsc.com/datasheet/AS5600-ASOT/511984.html
 /// @version 0.1

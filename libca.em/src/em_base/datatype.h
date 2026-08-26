@@ -1,5 +1,5 @@
 /// @file datatype.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 基础类型的定义
 /// 位，字节，字节序相关的操作
 /// @version 0.2

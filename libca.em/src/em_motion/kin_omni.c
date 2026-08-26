@@ -1,5 +1,5 @@
 /// @file kin_omni.c
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 全向轮（3轮）运动学实现
 /// @version 0.2
 /// @date 2026-03-21

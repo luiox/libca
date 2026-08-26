@@ -1,5 +1,5 @@
 /// @file simple_logger.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 一个简单可以配置的的日志库
 /// 是对em_log标准下的log语义的简单实现
 /// @version 0.1

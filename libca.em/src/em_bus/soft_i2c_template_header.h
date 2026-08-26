@@ -1,6 +1,6 @@
 ///
 /// @file soft_i2c_template_header.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 软件iic驱动模板头文件
 ///
 /// 使用方法：

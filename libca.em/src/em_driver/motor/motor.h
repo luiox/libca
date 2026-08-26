@@ -1,5 +1,5 @@
  /// @file motor.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief 直流有刷电机驱动 (PWM调速)
  /// @version 0.1
  /// @date 2026-02-01

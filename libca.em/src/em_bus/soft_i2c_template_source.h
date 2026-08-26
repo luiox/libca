@@ -1,6 +1,6 @@
 ///
 /// @file soft_i2c_template_source.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 软件iic驱动模板实现文件
 /// @version 1.3
 /// @date 2026-01-29

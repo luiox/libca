@@ -1,5 +1,5 @@
 /// @file format.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 字符串格式化和基础类型和字符串类型转换功能
 /// @version 0.1
 /// @date 2026-02-27

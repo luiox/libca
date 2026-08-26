@@ -1,5 +1,5 @@
 /// @file compiler_compat.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 负责编译器宏相关的兼容层定义
 /// @version 0.1
 /// @date 2025-11-02

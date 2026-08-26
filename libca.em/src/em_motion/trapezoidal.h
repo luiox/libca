@@ -1,5 +1,5 @@
 /// @file trapezoidal.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 梯形速度轨迹规划器
 /// @version 0.1
 /// @date 2026-03-16

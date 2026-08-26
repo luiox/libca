@@ -1,5 +1,5 @@
 /// @file bh1750.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief BH1750是一款数字型光照强度传感器
 /// 此驱动实现对BH1750的驱动支持，参考文章：https://www.cnblogs.com/jefften/p/18613437
 /// @version 0.1

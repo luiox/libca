@@ -240,7 +240,7 @@ TEST(JsonSchemaTest, StringBounds_CountsCodePoints)
 
 TEST(JsonSchemaTest, Combined_ContractLikeSchema)
 {
-    // 模拟 morpher release contract 的 schema 形态。
+    // 模拟下游 release contract 的 schema 形态。
     const char* schema = R"({
         "type":"object",
         "required":["schema_version","before","after"],

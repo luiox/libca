@@ -1,5 +1,5 @@
 /// @file partition.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief Flash 分区管理器，支持分区查找、读写擦除和流式写入
 /// @version 1.0
 /// @date 2026-02-28

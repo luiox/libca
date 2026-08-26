@@ -1,5 +1,5 @@
 /// @file string_util.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 字符串工具函数的实现
 /// @version 0.2
 /// @date 2025-07-28

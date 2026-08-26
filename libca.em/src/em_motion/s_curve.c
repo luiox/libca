@@ -1,5 +1,5 @@
 /// @file s_curve.c
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief S 曲线轨迹规划实现
 /// @version 0.2
 /// @date 2026-03-21

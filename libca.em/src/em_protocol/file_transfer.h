@@ -1,5 +1,5 @@
 /// @file file_transfer.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 定义文件传输协议相关的接口
 /// @version 0.1
 /// @date 2025-12-27

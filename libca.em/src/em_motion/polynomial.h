@@ -1,5 +1,5 @@
 /// @file polynomial.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 多项式轨迹规划接口（预留）
 /// @version 0.1
 /// @date 2026-03-16

@@ -1,5 +1,5 @@
 /// @file dht22.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief DHT22 温湿度传感器驱动
 /// @version 0.1
 /// @date 2026-01-22

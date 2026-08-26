@@ -1,5 +1,5 @@
 /// @file kin_diff.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 差速底盘运动学接口
 /// @version 0.1
 /// @date 2026-03-16

@@ -1,5 +1,5 @@
 /// @file kin_mecanum.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 麦克纳姆底盘运动学接口
 /// @version 0.2
 /// @date 2026-03-21

@@ -1,6 +1,6 @@
 ///
 /// @file length_parser.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 长度前置解析器
 /// @version 0.1
 /// @date 2026-02-28

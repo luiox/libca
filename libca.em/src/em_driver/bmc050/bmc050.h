@@ -1,5 +1,5 @@
 /// @file bmc050.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief BMC050 三轴加速度 + 磁力计 驱动
 /// @version 0.1
 /// @date 2026-01-22

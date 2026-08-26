@@ -471,7 +471,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 ## opt
 
-命令行选项解析器，作为下游 CLI 工具的统一解析地基（morpher mj2x-cli 已接入）。
+命令行选项解析器，作为下游 CLI 工具的统一解析地基（下游 CLI 工具已接入）。
 
 头文件：
 - `<libca/opt/opt.hpp>`

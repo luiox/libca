@@ -1,5 +1,5 @@
  /// @file ssd1306.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief ssd1306 OLED显示驱动
  /// @version 0.1
  /// @date 2026-03-18

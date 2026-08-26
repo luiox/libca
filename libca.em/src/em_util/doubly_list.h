@@ -1,5 +1,5 @@
 /// @file doubly_list.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 侵入式双向循环列表
 /// @version 0.1
 /// @date 2026-03-03

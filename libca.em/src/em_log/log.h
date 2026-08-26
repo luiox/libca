@@ -1,5 +1,5 @@
 /// @file log.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 实现一个异步的日志，仅适用于单核MCU
 /// 依赖soft_timer的时间获取接口以及可选的async异步工作队列
 /// 实现多后端，tag可以过滤，解耦耗时IO输出到异步实现

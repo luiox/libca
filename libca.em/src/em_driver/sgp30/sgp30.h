@@ -1,5 +1,5 @@
  /// @file sgp30.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief SGP30 空气质量传感器驱动
  /// @version 0.1
  /// @date 2026-01-22

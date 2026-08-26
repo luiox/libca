@@ -1,5 +1,5 @@
 /// @file soft_timer.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 嵌入式时间管理与软件定时器基础组件
 /// @version 0.1
 /// @date 2025-12-28

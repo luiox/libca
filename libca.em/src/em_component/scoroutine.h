@@ -1,6 +1,6 @@
 ///
 /// @file scoroutine.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 一个基于状态机实现的无栈协程框架
 /// scoroutine即simple coroutine，简单协程，基于状态机实现，无栈，无锁，无内存分配
 /// @version 0.1

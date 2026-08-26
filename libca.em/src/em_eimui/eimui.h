@@ -1,5 +1,5 @@
 /// @file eimui.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 数据驱动的MCU下的菜单系统 (eimui)
 /// 保证对RAM的使用尽可能小，无动画，支持子菜单、翻页，选项行为
 /// @version 0.1

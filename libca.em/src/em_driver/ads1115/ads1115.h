@@ -1,5 +1,5 @@
 /// @file ads1115.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief ADS1115 16位ADC驱动
 /// @version 0.2
 /// @date 2026-01-23

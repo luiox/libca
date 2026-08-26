@@ -1,5 +1,5 @@
 /// @file lifo.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 侵入式 LIFO（后进先出/栈）head-only 实现
 /// @version 0.1
 /// @date 2026-03-03

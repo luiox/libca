@@ -1,7 +1,7 @@
-# libca Core CI（Linux，不含 libca.em）
+# libca Core CI（Linux + Windows，不含 libca.em）
 #
-# 范围：Linux 可用的 core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http}）+ 其 unittest。
-# 不编译 libca.em（嵌入式模拟层）和 Windows-only 的 libca/ui。
+# 范围：core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http}）+ 其 unittest。
+# Linux job 不含 Windows-only 的 libca/ui；Windows job（msvc）全量编译含 ui。不编译 libca.em。
 #
 # 历史背景：仓库早期存在旧的 libca.core/（带点目录，桌面端 legacy 代码），
 # 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）。
@@ -113,3 +113,35 @@ jobs:
         run: |
           xmake build libca_http_unittest
           xmake run libca_http_unittest
+
+  build-and-test-core-windows:
+    name: build & test (windows, msvc)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false  # libca 独立构建不依赖 submodule（gtest 走 xrepo）
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v3.0.9
+          actions-cache-folder: '.xmake-cache'
+
+      - name: Cache xrepo packages
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/.xmake/packages
+          key: libca-xrepo-windows-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          restore-keys: |
+            libca-xrepo-windows-x64-xmake309-
+
+      - name: Configure (core + tests, no em, msvc)
+        # -p windows -a x64：走 runner 预装的 MSVC 工具链；cmake/ninja 已预装，gtest 由 xrepo 编译。
+        run: xmake f -p windows -a x64 --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+
+      - name: Build C++ libraries
+        run: xmake build -g libs
+
+      - name: Run unit tests
+        run: xmake test -g libs/test

@@ -51,7 +51,7 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 
 ## Java intrinsic runtime 容器方向
 
-mj2x 这类 Java 到 native 翻译器会需要 `ArrayList`、`HashMap`、`HashSet` 等常见集合的 native 辅助能力，但 collection 模块不应直接承载 Java 对象布局、GC/lifetime 或异常策略。libca 只提供稳定 C++ 容器与算法，翻译器 runtime 再做 Java 语义包装。
+Java 到 native 翻译器这类下游会需要 `ArrayList`、`HashMap`、`HashSet` 等常见集合的 native 辅助能力，但 collection 模块不应直接承载 Java 对象布局、GC/lifetime 或异常策略。libca 只提供稳定 C++ 容器与算法，翻译器 runtime 再做 Java 语义包装。
 
 容器命名可以比 STL 更贴近业务语义，例如后续新增 `ArrayList<T>`、`HashMap<K, V>` 这类入口；但 API 风格建议参考当前 `Bytes` 的 Rust-like 设计，而不是完整复刻 Java 标准库：
 
@@ -66,4 +66,4 @@ mj2x 这类 Java 到 native 翻译器会需要 `ArrayList`、`HashMap`、`HashSe
 2. `HashMap<K, V>` 覆盖最小哈希映射能力，包括 `put/get/get_or_default/remove/contains_key/contains_value/len`。
 3. `HashSet<T>` 覆盖最小哈希集合能力，包括 `add/get/remove/take/replace/contains/len`。
 4. 后续可继续补 entry API、只读视图和更明确的 optional/reference 返回策略。
-5. 最后由 mj2x runtime 在外层适配 Java 的对象模型、越界异常、泛型擦除和标准库方法签名。
+5. 最后由翻译器 runtime 在外层适配 Java 的对象模型、越界异常、泛型擦除和标准库方法签名。

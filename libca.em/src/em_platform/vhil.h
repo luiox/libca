@@ -1,5 +1,5 @@
 /// @file vhil.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 虚拟硬件接口层，Virtual Hardware Interface Layer
 /// 提供简答的硬件接口的定义
 /// @version 0.1

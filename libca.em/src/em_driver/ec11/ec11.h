@@ -1,5 +1,5 @@
 /// @file ec11.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief EC11 旋转编码器驱动
 /// 参考文档：https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/ec11.html
 /// @version 0.1

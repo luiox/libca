@@ -1,6 +1,6 @@
 ///
 /// @file skv.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 无文件系统的eeprom下的键值存储
 ///
 /// @version 0.1

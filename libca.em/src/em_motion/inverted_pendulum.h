@@ -1,5 +1,5 @@
 /// @file inverted_pendulum.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 倒立摆控制与重力补偿接口
 /// @version 0.1
 /// @date 2026-03-16

@@ -882,18 +882,18 @@ TEST(OptV2P1Test, HelpRendersGroupsAndMutexAnnotation)
 TEST(OptV2P1Test, CustomUsageLine)
 {
     Command root;
-    root.name  = "mj2x";
-    root.usage = "mj2x [--backend <name>] <jar> <out>";
-    root.help  = "convert jars";
+    root.name  = "demo";
+    root.usage = "demo [--backend <name>] <in> <out>";
+    root.help  = "convert files";
 
     Parser p(root);
     Argv argv = make_argv({"--help"});
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     const std::string help = r.unwrap_err().message;
-    EXPECT_NE(help.find("Usage: mj2x [--backend <name>] <jar> <out>\n"), std::string::npos);
+    EXPECT_NE(help.find("Usage: demo [--backend <name>] <in> <out>\n"), std::string::npos);
     // 自定义 usage 下不再追加自动生成的 "[options]"。
-    EXPECT_EQ(help.find("Usage: mj2x [options]"), std::string::npos);
+    EXPECT_EQ(help.find("Usage: demo [options]"), std::string::npos);
 }
 
 // to_status_code 桥接：HelpRequested -> CANCELLED，InvalidDefinition -> FAILED_PRECONDITION。
@@ -1072,14 +1072,14 @@ TEST(OptV2P2Test, RootMetadataAccess)
     input.required = true;
 
     Command root;
-    root.name  = "mj2x";
-    root.usage = "mj2x [options] <jar>";
+    root.name  = "demo";
+    root.usage = "demo [options] <in>";
     root.args  = {input};
 
     const Parser p(root);
     const Command& meta = p.root();
-    EXPECT_EQ(meta.name, "mj2x");
-    EXPECT_EQ(meta.usage, "mj2x [options] <jar>");
+    EXPECT_EQ(meta.name, "demo");
+    EXPECT_EQ(meta.usage, "demo [options] <in>");
     ASSERT_EQ(meta.args.size(), 1u);
     EXPECT_EQ(meta.args[0].name, "input");
     ASSERT_EQ(meta.args[0].aliases.size(), 1u);
@@ -1514,19 +1514,19 @@ TEST(OptV2FixTest, SubcommandCustomUsageFullyReplaces)
 TEST(OptV2FixTest, RootUsageLineUnchanged)
 {
     Command root;
-    root.name = "mj2x";
-    root.help = "convert jars";
+    root.name = "demo";
+    root.help = "convert files";
 
     {
         Parser p(root);
         Argv   argv = make_argv({"--help"});
         auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
-        EXPECT_NE(r.unwrap_err().message.find("Usage: mj2x [options]\n"), std::string::npos);
+        EXPECT_NE(r.unwrap_err().message.find("Usage: demo [options]\n"), std::string::npos);
     }
     {
         const std::string help = ca::opt::help_text(root);
-        EXPECT_NE(help.find("Usage: mj2x [options]\n"), std::string::npos);
+        EXPECT_NE(help.find("Usage: demo [options]\n"), std::string::npos);
     }
 }
 

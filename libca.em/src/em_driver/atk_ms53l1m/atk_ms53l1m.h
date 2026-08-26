@@ -1,5 +1,5 @@
 /// @file atkms53l1m.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief ATK-MS53L1M模块驱动代码
 /// @version 0.2
 /// @date 2026-02-03

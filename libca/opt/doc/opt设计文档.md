@@ -33,9 +33,7 @@ update:
 
 命令行选项解析器，位于业务上层，仅依赖 core（`Result`/`StatusCode`）与 str（`format_std`）。
 
-目标：成为下游项目（morpher mjt、mj2x-cli 等）的共同 CLI 地基，替代 mbase::ArgParser
-与 mj2x-cli param_registry 中各自为政的解析逻辑。背景是仓库外曾并行存在三套 CLI 实现，
-能力互有长短、维护成本翻倍，收敛动机与差距分析见提案 `doc/proposals/opt-v2.md`。
+目标：成为下游项目的共同 CLI 地基，收敛此前在库外各自为政的多套 CLI 解析实现。
 
 边界（不进库，由调用方在库外组装）：
 
@@ -135,7 +133,7 @@ strtoll 跳过前导空白的默认行为——含空白即非法，`" 30"` 与 
   会被默认值永久短路——判定依据是 `ValueSource`，不是 `has()`。
 - **组标识进错误载荷**：`MutexGroup::label`（可选）经 `ParseError.group` 回填，
   无 label 时退化为 "a|b" 成员拼接。下游按 group 分派文案而非按 category
-  硬编码单一映射——互斥组的业务含义（如 mj2x 的 dump_once）只有下游知道，
+  硬编码单一映射——互斥组的业务含义（如下游的 dump_once）只有下游知道，
   多组并存时这是唯一的分派锚点。
 - 成员必须指向本命令已注册选项，否则 InvalidDefinition——拼错名字不应安静失效。
 
@@ -174,7 +172,7 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 
 - 未分组选项归入 `Options:` 默认节；`Arg::group` 相同的选项按标签首次出现顺序各成一节
 - `groups` 过滤参数只保留指定分组节（省略默认节），位置参数与子命令摘要不受影响——
-  服务 mj2x 式分组打印与按模块裁剪帮助的需求
+  服务分组打印与按模块裁剪帮助的需求
 - 自定义 usage 完整替换首行的自动生成部分（含程序名，定义方负责书写）
 
 ### 3.7 元数据导出边界

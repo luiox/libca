@@ -1,5 +1,5 @@
 /// @file pwm_ptz.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 基于 PWM 舵机的 PTZ 控制封装
 /// @version 0.1
 /// @date 2026-03-16

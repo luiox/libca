@@ -1,5 +1,5 @@
 /// @file simple_digital_sensor_template.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 简单读取io的驱动模板生成宏工具
 /// @version 0.1
 /// @date 2026-01-23

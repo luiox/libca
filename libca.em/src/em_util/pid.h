@@ -1,5 +1,5 @@
 /// @file pid.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief pid算法，包含位置式和增量式pid计算
 /// 使用方法：
 /// 1. 创建pid对象，并初始化

@@ -1,5 +1,5 @@
  /// @file mq_x.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief MQ 系列气体传感器驱动（如 MQ-3, MQ-135 等）
  /// 参考文档如下
  ///   mq_2 烟雾传感器 https://wiki.lckfb.com/zh-hans/tkx/tkx-stm32f407vxt6/module/sensor/mq-2-sensor.html

@@ -22,7 +22,7 @@ option_end()
 
 -- 测试开关：控制是否拉取 gtest 并启用 *_unittest target。
 -- 默认 false：libca 独立构建跑测试需 `xmake f --with_tests=y`。
--- 作为 submodule 被 includes 时（如 morpher 直接 includes 子库 xmake.lua），
+-- 作为 submodule 被 includes 时（如下游仓库直接 includes 子库 xmake.lua），
 -- 默认不构建测试，避免强制拉取 gtest / 强制定义 *_unittest target。
 option("with_tests")
     set_default(false)

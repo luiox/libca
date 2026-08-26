@@ -1,5 +1,5 @@
 /// @file bmp180.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief BMP180 压力传感器驱动
 /// 参考文章：https://blog.csdn.net/stmnnn/article/details/136875908
 /// @version 0.1

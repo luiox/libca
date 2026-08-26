@@ -1,5 +1,5 @@
 /// @file ds1302.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief ds1302 时钟芯片驱动
 /// 参考文章：https://blog.csdn.net/qq_43270506/article/details/104952746
 /// @version 0.1

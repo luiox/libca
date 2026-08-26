@@ -1,5 +1,5 @@
 /// @file macro_util.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 宏工具的封装
 /// 注意，如果仅仅是用于应用层开发，建议不要使用这些宏，仅仅用于基础组件开发
 /// @version 0.2

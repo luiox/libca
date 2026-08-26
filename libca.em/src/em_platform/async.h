@@ -1,5 +1,5 @@
 /// @file async.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 轻量级异步工作队列实现，基于轮询机制
 /// 注意：仅适用于单核MCU环境
 /// @version 0.1

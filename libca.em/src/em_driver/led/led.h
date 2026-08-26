@@ -1,5 +1,5 @@
  /// @file led.h
- /// @author canrad (1517807724@qq.com)
+ /// @author Canrad
  /// @brief led驱动
  /// 驱动分为两种模式，默认为外部模式
  /// 1. 隐式注入模式，即外部模式，定义LIBCA_LED_PORT_MODE为LIBCA_LED_PORT_MODE_EXTERN，需要实现port_led_write_pin函数

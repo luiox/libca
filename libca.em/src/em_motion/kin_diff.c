@@ -1,6 +1,6 @@
 
 /// @file kin_diff.c
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief 差速底盘运动学基础实现
 /// @version 0.1
 /// @date 2026-03-16

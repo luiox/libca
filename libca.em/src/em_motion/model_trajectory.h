@@ -1,5 +1,5 @@
 /// @file model_trajectory.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief PTZ/执行器通用轨迹模型封装
 /// @version 0.1
 /// @date 2026-03-16

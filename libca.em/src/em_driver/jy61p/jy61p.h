@@ -1,5 +1,5 @@
 /// @file jy61p.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief  JY61P 传感器 (Wit 协议) 驱动头文件，已实物验证
 ///
 /// 本驱动基于串口通信，解析来自 JY61P 设备的 Wit 协议数据帧（帧头 0x55，类型 0x51~0x54，帧长 11

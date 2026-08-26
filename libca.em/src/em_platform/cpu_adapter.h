@@ -1,5 +1,5 @@
 /// @file cpu_port.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief CPU 架构相关的接口定义 (Porting Layer)
 /// @version 0.1
 /// @date 2025-12-31

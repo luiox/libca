@@ -1,5 +1,5 @@
 /// @file bme280.h
-/// @author canrad (1517807724@qq.com)
+/// @author Canrad
 /// @brief BME280 温湿度压力传感器驱动
 /// 参考文章：https://blog.csdn.net/zhe_boy_is_z/article/details/120207878
 /// @version 0.1
