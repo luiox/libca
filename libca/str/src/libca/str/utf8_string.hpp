@@ -20,6 +20,7 @@
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <string_view>
 #include <vector>
 
 namespace ca::str {
@@ -442,6 +443,14 @@ private:
 bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
 /// @brief 提供 `Utf8StringRef != Utf8String` 的对称不等比较。
 bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept;
+/// @brief 提供 `Utf8StringRef == std::string_view` 的对称相等比较（逐字节，不校验 UTF-8）。
+bool operator==(const Utf8StringRef& lhs, std::string_view rhs) noexcept;
+/// @brief 提供 `Utf8StringRef != std::string_view` 的对称不等比较。
+bool operator!=(const Utf8StringRef& lhs, std::string_view rhs) noexcept;
+/// @brief 提供 `std::string_view == Utf8StringRef` 的对称相等比较。
+bool operator==(std::string_view lhs, const Utf8StringRef& rhs) noexcept;
+/// @brief 提供 `std::string_view != Utf8StringRef` 的对称不等比较。
+bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept;
 /// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。
 bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept;
 /// @brief 按 UTF-8 字节字典序比较两个视图；`Utf8String` 可隐式转为视图参与比较。

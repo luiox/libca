@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -48,6 +49,9 @@ public:
     Utf8StringRef intern(const Utf8StringRef& str);
     /// intern 拥有字符串内容。
     Utf8StringRef intern(const Utf8String& str);
+    /// intern 标准库视图内容（std::string 拼装产物一次性入池的规范入口，
+    /// 替代 `intern(sv.c_str())` 舞步；空视图返回空视图）。
+    Utf8StringRef intern(std::string_view sv);
 
     /// @brief 不校验 UTF-8，按原始字节复制入池（码点数取保守值 = 字节长度）。
     ///
@@ -67,6 +71,17 @@ public:
 
     /// 释放所有 chunk 和索引，回到空池（此后所有返回的 ref 失效）。
     void clear() noexcept;
+
+    // ---- 归属检查 ----
+
+    /// @brief 视图数据是否指向本 arena 拥有的 chunk（debug 断言用，best-effort）。
+    ///
+    /// 指针范围判定：落入任一 chunk 的 `[data, data + used)` 即归本池。
+    /// 空视图返回 false。用途：上层容器（如 TreeContext）在 debug 构建断言
+    /// 挂载的字符串视图确属本池，拦截「视图指向临时对象/别的池」类悬垂。
+    /// @note clear()/移动赋值后旧 ref 悬垂，本方法无法侦测——语义前提是
+    ///       「ref 诞生后 arena 未回收」。
+    bool owns(const Utf8StringRef& ref) const noexcept;
 
 private:
     // 每个固定大小块

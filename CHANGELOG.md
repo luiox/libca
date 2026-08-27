@@ -15,6 +15,11 @@
 
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
+- **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物
+  一次性入池的规范入口）；`Utf8StringArena::owns(const Utf8StringRef&)` 指针范围归属
+  判定（上层容器 debug 断言「视图确属本池」用）；`Utf8StringRef` 与 `std::string_view`
+  的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。服务 morpher 树 API 所有权重构战役
+  （morpher doc_ai/ownership-model.md §1.6）。
 - **[zip] 新模块**：JVM `ZipFile` 语义只读访问器（最后合法 EOCD/前缀拼接恢复/ZIP64）
   与流式读写（`ZipInputStream`/`ZipOutputStream`，DD 条目支持）；zlib 经 xrepo，
   根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。

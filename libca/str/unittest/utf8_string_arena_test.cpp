@@ -240,4 +240,57 @@ TEST(Utf8StringArenaTest, InternUtf8StringOriginalUnchanged) {
     EXPECT_EQ(s.byte_length(), 11);
 }
 
+
+TEST(Utf8StringArenaTest, InternStringView) {
+    Utf8StringArena arena;
+    const std::string generated = std::string("mjt$px") + std::to_string(42);
+    auto r = arena.intern(std::string_view(generated));
+    EXPECT_EQ(r.length(), 8);
+    EXPECT_EQ(r.byte_length(), 8);
+
+    // 与 cstr 路径同内容去重
+    auto r2 = arena.intern("mjt$px42");
+    EXPECT_EQ(r.data(), r2.data());
+    EXPECT_EQ(arena.size(), 1);
+
+    // 空视图
+    EXPECT_TRUE(arena.intern(std::string_view()).is_empty());
+}
+
+TEST(Utf8StringArenaTest, OwnsInternedRef) {
+    Utf8StringArena arena;
+    auto r = arena.intern("owner/name");
+    EXPECT_TRUE(arena.owns(r));
+
+    // 去重命中返回的仍是池内指针
+    auto r2 = arena.intern(std::string("owner/") + "name");
+    EXPECT_TRUE(arena.owns(r2));
+}
+
+TEST(Utf8StringArenaTest, OwnsForeignOrTemporaryFalse) {
+    Utf8StringArena a;
+    Utf8StringArena b;
+    auto ra = a.intern("in-a");
+    auto rb = b.intern("in-b");
+    EXPECT_FALSE(a.owns(rb));
+    EXPECT_FALSE(b.owns(ra));
+
+    // 指向临时 std::string 的视图不属任何池
+    const std::string tmp = "temporary";
+    auto view = Utf8StringRef::from_string_view(tmp);
+    EXPECT_FALSE(a.owns(view));
+
+    // 空视图
+    EXPECT_FALSE(a.owns(Utf8StringRef()));
+}
+
+TEST(Utf8StringArenaTest, OwnsAfterClearIsMeaningless) {
+    // clear 后旧 ref 悬垂（契约：语义前提是 ref 诞生后 arena 未回收）。
+    // 本用例只验证 clear 后 owns 对空视图返回 false，不触碰悬垂指针。
+    Utf8StringArena arena;
+    (void)arena.intern("x");
+    arena.clear();
+    EXPECT_FALSE(arena.owns(Utf8StringRef()));
+}
+
 }  // namespace ca::str
