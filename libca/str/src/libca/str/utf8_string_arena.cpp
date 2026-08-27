@@ -201,6 +201,24 @@ Utf8StringRef Utf8StringArena::intern(const Utf8String& str) {
     return intern(str.data(), str.byte_length());
 }
 
+Utf8StringRef Utf8StringArena::intern(std::string_view sv) {
+    return intern(reinterpret_cast<const u8*>(sv.data()), sv.size());
+}
+
+
+// ============================================================================
+// 归属检查
+// ============================================================================
+
+bool Utf8StringArena::owns(const Utf8StringRef& ref) const noexcept {
+    const u8* p = ref.data();
+    if (p == nullptr) return false;
+    for (const auto& c : chunks_) {
+        if (p >= c.data && p < c.data + c.used) return true;
+    }
+    return false;
+}
+
 
 // ============================================================================
 // 统计

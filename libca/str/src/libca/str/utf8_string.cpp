@@ -876,6 +876,26 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
     return !lhs.equals(rhs.ref());
 }
 
+// string_view 比较走逐字节路径：不经 from_string_view（O(n) 算码点 + 要求合法
+// UTF-8），边界侧的 std::string 数据无需该前提。
+bool operator==(const Utf8StringRef& lhs, std::string_view rhs) noexcept {
+    const usize rhs_len = rhs.size();
+    if (lhs.byte_length() != rhs_len) return false;
+    return rhs_len == 0 || std::memcmp(lhs.data(), rhs.data(), rhs_len) == 0;
+}
+
+bool operator!=(const Utf8StringRef& lhs, std::string_view rhs) noexcept {
+    return !(lhs == rhs);
+}
+
+bool operator==(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
+    return rhs == lhs;
+}
+
+bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
+    return !(rhs == lhs);
+}
+
 // 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。
 bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
     return lhs.compare(rhs) < 0;

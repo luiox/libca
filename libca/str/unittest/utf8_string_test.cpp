@@ -1319,4 +1319,37 @@ TEST(Utf8StringTest, TryFromCstrMatchesContract) {
     EXPECT_TRUE(Utf8String::from_cstr(bad).is_empty());
 }
 
+
+// ============================================================================
+// string_view 比较运算符测试
+// ============================================================================
+
+TEST(Utf8StringRefTest, EqualsStringView) {
+    auto ref = Utf8StringRef::from_cstr("owner/name");
+    std::string_view sv("owner/name");
+    std::string_view other("owner/other");
+
+    EXPECT_TRUE(ref == sv);
+    EXPECT_FALSE(ref != sv);
+    EXPECT_TRUE(ref != other);
+    EXPECT_FALSE(ref == other);
+
+    // 对称方向
+    EXPECT_TRUE(sv == ref);
+    EXPECT_FALSE(sv != ref);
+    EXPECT_TRUE(other != ref);
+
+    // 长度不同短路（含空串）
+    EXPECT_TRUE(ref != std::string_view(""));
+    EXPECT_TRUE(ref == Utf8StringRef::from_cstr("owner/name"));
+}
+
+TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes) {
+    // 逐字节比较不要求合法 UTF-8：边界侧 std::string 可能携带任意字节
+    const ca::str::Utf8StringRef ref(
+        reinterpret_cast<const ca::u8*>("\xC0\x80"), 2, 2);
+    const std::string raw(std::string("\xC0") + "\x80");
+    EXPECT_TRUE(ref == std::string_view(raw));
+}
+
 }  // namespace ca::str
