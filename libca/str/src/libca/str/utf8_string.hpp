@@ -547,6 +547,15 @@ private:
     ZUtf8StringRef(const u8* d, usize bl, usize cl) : data_(d), byte_length_(bl), cp_length_(cl) {}
 };
 
+/// @brief `Utf8StringRef == ZUtf8StringRef` 的直接重载。
+///
+/// ZUtf8StringRef 同时可隐式转 Utf8StringRef 与 std::string_view，二者皆为
+/// 用户定义转换、优先级并列——string_view 重载存在时逐字节比较会二义
+/// （C2593）。本重载右侧精确匹配，解除该歧义。
+bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief `Utf8StringRef != ZUtf8StringRef` 的直接重载（同上，解除二义）。
+bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
+
 
 }  // namespace ca::str
 

@@ -1352,4 +1352,15 @@ TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes) {
     EXPECT_TRUE(ref == std::string_view(raw));
 }
 
+
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefNoAmbiguity) {
+    // ZUtf8StringRef 同时可转 Utf8StringRef/string_view,string_view 比较重载
+    // 在场时本表达式曾二义(C2593);精确匹配重载解歧(morpher advice_adapter 实证)。
+    const Utf8StringRef name = Utf8StringRef::from_cstr("<init>");
+    EXPECT_TRUE(name == ZUtf8StringRef::from_static("<init>"));
+    EXPECT_FALSE(name != ZUtf8StringRef::from_static("<init>"));
+    EXPECT_TRUE(name != ZUtf8StringRef::from_static("<clinit>"));
+    EXPECT_FALSE(name == ZUtf8StringRef::from_static("<clinit>"));
+}
+
 }  // namespace ca::str
