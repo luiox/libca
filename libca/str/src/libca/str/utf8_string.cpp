@@ -896,6 +896,16 @@ bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
     return !(rhs == lhs);
 }
 
+// ZUtf8StringRef 双向隐式转换（→Utf8StringRef / →string_view）同级并列，
+// string_view 重载在场时 `Utf8StringRef == ZUtf8StringRef` 二义；精确匹配解歧。
+bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return lhs.equals(static_cast<Utf8StringRef>(rhs));
+}
+
+bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return !lhs.equals(static_cast<Utf8StringRef>(rhs));
+}
+
 // 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。
 bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
     return lhs.compare(rhs) < 0;
