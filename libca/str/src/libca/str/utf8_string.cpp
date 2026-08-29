@@ -949,6 +949,16 @@ bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept {
     return !(rhs == lhs);
 }
 
+// 成员 operator==(const Utf8StringRef&) 与非成员 (Utf8StringRef, ZUtf8StringRef)
+// 对 Z==Z 各胜一个实参互不相让（C2593），直接重载解歧。见头文件同名声明。
+bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return static_cast<Utf8StringRef>(lhs).equals(static_cast<Utf8StringRef>(rhs));
+}
+
+bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return !(lhs == rhs);
+}
+
 // 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。
 bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
     return lhs.compare(rhs) < 0;

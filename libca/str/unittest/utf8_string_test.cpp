@@ -940,7 +940,9 @@ TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip) {
 TEST(ZUtf8StringRef, SimpleTest)
 {
     ZUtf8StringRef CONSTANT_RAW_STR = ZUtf8StringRef::from_static("CONSTANT_RAW_STR");
-    EXPECT_EQ(CONSTANT_RAW_STR.c_str(), "CONSTANT_RAW_STR");
+    // 不可用 EXPECT_EQ 比两个 const char*:那是地址比较,依赖编译器字面量合并
+    // (release /GF 恰好同址,debug 必不同址)——按内容断言用 EXPECT_STREQ。
+    EXPECT_STREQ(CONSTANT_RAW_STR.c_str(), "CONSTANT_RAW_STR");
 
     // ...
 }
@@ -1404,6 +1406,26 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView) {
     EXPECT_TRUE(view == z);
     EXPECT_FALSE(z != view);
     EXPECT_FALSE(view != z);
+}
+
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity) {
+    // (Utf8StringRef, ZUtf8StringRef) 自由重载引入后,Z==Z 曾在成员
+    // operator==(const Utf8StringRef&) 与该自由重载间二义(C2593)——
+    // 各胜一个实参。补 (Z, Z) 直接重载解歧;比较语义为逐字节内容比较,
+    // 与字面量是否被编译器合并同址无关。
+    const auto a1 = ZUtf8StringRef::from_static("name");
+    const auto a2 = ZUtf8StringRef::from_static("name");
+    const auto b  = ZUtf8StringRef::from_static("other");
+    const auto n1 = ZUtf8StringRef::from_static(nullptr);
+    const auto n2 = ZUtf8StringRef::from_static(nullptr);
+
+    EXPECT_TRUE(a1 == a2);
+    EXPECT_FALSE(a1 != a2);
+    EXPECT_TRUE(a1 != b);
+    EXPECT_FALSE(a1 == b);
+    EXPECT_TRUE(a1 == a1);
+    EXPECT_TRUE(n1 == n2);
+    EXPECT_TRUE(n1 != a1);
 }
 
 }  // namespace ca::str

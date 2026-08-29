@@ -249,7 +249,7 @@ public:
     // 原始字节数据指针（内部存储以 '\0' 结尾）
     const u8* data() const noexcept;
 
-    // C 风格字符串（O(1)，内部已有 '\0' 终止符）
+    // C 风格字符串（O(1)，内部已有 '\0' 终止符；moved-from 对象返回 nullptr）
     const char* c_str() const noexcept;
 
     // 隐式转换为 std::string_view（零拷贝，内部 \0 终止符不计入长度）
@@ -517,7 +517,8 @@ public:
     const u8* data() const { return data_; }
     usize byte_length() const { return byte_length_; }
     usize length() const { return cp_length_; }
-    const char* c_str() const { return reinterpret_cast<const char*>(data_); } // 安全，保证 \0
+    // 安全，保证 \0；空句柄（from_static(nullptr)）返回 nullptr
+    const char* c_str() const { return reinterpret_cast<const char*>(data_); }
     Utf8StringRef ref() const noexcept;
     operator Utf8StringRef() const noexcept;
     /// @brief 显式转换为 std::string_view，避免与 Utf8StringRef 的隐式转换产生二义。
@@ -568,6 +569,14 @@ bool operator!=(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept;
 bool operator==(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept;
 /// @brief 提供 std::string_view 与 ZUtf8StringRef 的反向不等比较。
 bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief `ZUtf8StringRef == ZUtf8StringRef` 的直接重载。
+///
+/// 成员 operator==(const Utf8StringRef&) 左实参精确、右实参需转换；非成员
+/// (Utf8StringRef, ZUtf8StringRef) 恰好相反——二者对 Z==Z 各胜一个实参互不
+/// 相让（C2593）。本重载两侧精确匹配解歧，比较语义为逐字节内容比较。
+bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief `ZUtf8StringRef != ZUtf8StringRef` 的直接重载（同上，解二义）。
+bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 
 
 }  // namespace ca::str
