@@ -76,7 +76,8 @@ public:
 
     /// @brief 视图数据是否指向本 arena 拥有的 chunk（debug 断言用，best-effort）。
     ///
-    /// 指针范围判定：落入任一 chunk 的 `[data, data + used)` 即归本池。
+    /// 指针范围判定：视图完整的 `[data, data + byte_length)` 必须落在任一
+    /// chunk 的已使用区间 `[data, data + used)` 内。
     /// 空视图返回 false。用途：上层容器（如 TreeContext）在 debug 构建断言
     /// 挂载的字符串视图确属本池，拦截「视图指向临时对象/别的池」类悬垂。
     /// @note clear()/移动赋值后旧 ref 悬垂，本方法无法侦测——语义前提是

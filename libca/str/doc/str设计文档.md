@@ -95,7 +95,12 @@ arena.intern(Utf8Twine(x) + y);        // → Utf8StringRef
 
 ### 2.5 标准库互操作
 
-UTF-8 字符串族可零拷贝接入标准库：`Utf8String` / `Utf8StringRef` / `ZUtf8StringRef` 均提供 `operator std::string_view()`（空后端安全回落，不触发 UB）。需要分配拷贝时用 `to_std_string()`。
+`Utf8String` / `Utf8StringRef` 提供到 `std::string_view` 的隐式转换，便于传给标准库的视图接口；
+`ZUtf8StringRef` 同时可转换为 `Utf8StringRef`，因此到 `std::string_view` 采用显式转换，避免重载调用产生二义。
+需要分配拷贝时用 `to_std_string()`。
+
+长度命名不照搬 STL：`length()` 始终表示 UTF-8 码点数，`byte_length()` 表示 UTF-8 字节数，
+`empty()` 只用于空判断；`Utf8String` 不提供 `size()`，避免同一个“长度”概念出现两个容易混淆的入口。
 
 ## 3. StringUtil 的边界
 

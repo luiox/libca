@@ -812,19 +812,6 @@ TEST(Utf8StringRefTest, FromCStr) {
     EXPECT_TRUE(ref3.is_empty());
 }
 
-// ============================================================================
-// size() / empty() STL 别名测试
-// ============================================================================
-
-TEST(Utf8StringTest, SizeAlias) {
-    Utf8String s("Hello");
-    EXPECT_EQ(s.size(), s.length());
-    EXPECT_TRUE(s.size() > 0);
-
-    Utf8String empty;
-    EXPECT_EQ(empty.size(), 0);
-}
-
 TEST(Utf8StringTest, EmptyAlias) {
     Utf8String s;
     EXPECT_TRUE(s.empty());
@@ -926,6 +913,19 @@ TEST(Utf8StringTest, ToStdString_Empty) {
     Utf8String s;
     auto std_str = s.to_std_string();
     EXPECT_TRUE(std_str.empty());
+}
+
+TEST(Utf8StringTest, MovedFromStringRemainsUsableAsEmpty) {
+    Utf8String source("value");
+    Utf8String moved(std::move(source));
+
+    EXPECT_TRUE(source.is_empty());
+    EXPECT_TRUE(source.empty());
+    EXPECT_TRUE(source.to_std_string().empty());
+    EXPECT_TRUE(source.clone().is_empty());
+    EXPECT_TRUE(source.begin() == source.end());
+    EXPECT_TRUE(source == Utf8StringRef());
+    EXPECT_TRUE(moved == "value");
 }
 
 TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip) {
@@ -1081,7 +1081,7 @@ TEST(Utf8StringStringViewTest, UsableWithStdStringViewConsumer)
 TEST(ZUtf8StringRefStringViewTest, ConvertsToStringView)
 {
     auto z = ZUtf8StringRef::from_static("hello");
-    std::string_view sv = z;
+    std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_EQ(sv, "hello");
     EXPECT_EQ(sv.size(), 5u);
 }
@@ -1089,7 +1089,7 @@ TEST(ZUtf8StringRefStringViewTest, ConvertsToStringView)
 TEST(ZUtf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
 {
     auto z = ZUtf8StringRef::from_static("你好");
-    std::string_view sv = z;
+    std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_EQ(sv.size(), 6u);
     EXPECT_EQ(sv, "你好");
 }
@@ -1098,7 +1098,7 @@ TEST(ZUtf8StringRefStringViewTest, NullPtrBackedIsSafe)
 {
     // from_static(nullptr) 产生 data_ 为 nullptr 的句柄；转换须安全回落，不能触发 UB。
     auto z = ZUtf8StringRef::from_static(nullptr);
-    std::string_view sv = z;
+    std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_TRUE(sv.empty());
 }
 
@@ -1136,6 +1136,17 @@ TEST(Utf8StringOpsTest, RefStartsAndEndsWith) {
     EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("")));
     EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("hello.txt")));
     EXPECT_FALSE(s.ends_with(Utf8StringRef::from_cstr("xhello.txt")));
+}
+
+TEST(Utf8StringOpsTest, EmptyPrefixAndSuffixAreSafe) {
+    Utf8StringRef empty;
+    Utf8StringRef value = Utf8StringRef::from_cstr("value");
+
+    EXPECT_TRUE(empty.starts_with(Utf8StringRef()));
+    EXPECT_TRUE(empty.ends_with(Utf8StringRef()));
+    EXPECT_TRUE(value.starts_with(empty));
+    EXPECT_TRUE(value.ends_with(empty));
+    EXPECT_TRUE(empty.begin() == empty.end());
 }
 
 TEST(Utf8StringOpsTest, RefStartsAndEndsWithMultibyte) {
@@ -1344,6 +1355,19 @@ TEST(Utf8StringRefTest, EqualsStringView) {
     EXPECT_TRUE(ref == Utf8StringRef::from_cstr("owner/name"));
 }
 
+TEST(Utf8StringRefTest, EmptyComparisonsAreSafe) {
+    Utf8StringRef empty;
+    Utf8StringRef other_empty = Utf8StringRef::from_cstr(nullptr);
+    Utf8String owned_empty;
+    ZUtf8StringRef null_z = ZUtf8StringRef::from_static(nullptr);
+
+    EXPECT_TRUE(empty == other_empty);
+    EXPECT_EQ(empty.compare(other_empty), 0);
+    EXPECT_TRUE(empty == std::string_view{});
+    EXPECT_TRUE(owned_empty == null_z);
+    EXPECT_TRUE(null_z == owned_empty);
+}
+
 TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes) {
     // 逐字节比较不要求合法 UTF-8：边界侧 std::string 可能携带任意字节
     const ca::str::Utf8StringRef ref(
@@ -1354,13 +1378,32 @@ TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes) {
 
 
 TEST(Utf8StringRefTest, EqualsZUtf8StringRefNoAmbiguity) {
-    // ZUtf8StringRef 同时可转 Utf8StringRef/string_view,string_view 比较重载
-    // 在场时本表达式曾二义(C2593);精确匹配重载解歧(morpher advice_adapter 实证)。
+    // ZUtf8StringRef 到 Utf8StringRef 的隐式转换与直接重载共同保证比较无二义。
     const Utf8StringRef name = Utf8StringRef::from_cstr("<init>");
     EXPECT_TRUE(name == ZUtf8StringRef::from_static("<init>"));
     EXPECT_FALSE(name != ZUtf8StringRef::from_static("<init>"));
     EXPECT_TRUE(name != ZUtf8StringRef::from_static("<clinit>"));
     EXPECT_FALSE(name == ZUtf8StringRef::from_static("<clinit>"));
+}
+
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndUtf8String) {
+    Utf8String owned("name");
+    ZUtf8StringRef z = ZUtf8StringRef::from_static("name");
+
+    EXPECT_TRUE(owned == z);
+    EXPECT_TRUE(z == owned);
+    EXPECT_FALSE(owned != z);
+    EXPECT_FALSE(z != owned);
+}
+
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView) {
+    ZUtf8StringRef z = ZUtf8StringRef::from_static("name");
+    std::string_view view("name");
+
+    EXPECT_TRUE(z == view);
+    EXPECT_TRUE(view == z);
+    EXPECT_FALSE(z != view);
+    EXPECT_FALSE(view != z);
 }
 
 }  // namespace ca::str

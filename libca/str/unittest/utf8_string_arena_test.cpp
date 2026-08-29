@@ -284,6 +284,16 @@ TEST(Utf8StringArenaTest, OwnsForeignOrTemporaryFalse) {
     EXPECT_FALSE(a.owns(Utf8StringRef()));
 }
 
+TEST(Utf8StringArenaTest, OwnsRequiresCompleteViewRange) {
+    Utf8StringArena arena;
+    std::vector<u8> first_chunk(64 * 1024, static_cast<u8>('a'));
+    auto stored = arena.intern_raw(first_chunk.data(), first_chunk.size());
+
+    // 起点虽然在 chunk 内，但视图尾部已经越过 chunk，不能算本池视图。
+    Utf8StringRef crossing(stored.data(), stored.byte_length() + 1, stored.length() + 1);
+    EXPECT_FALSE(arena.owns(crossing));
+}
+
 TEST(Utf8StringArenaTest, OwnsAfterClearIsMeaningless) {
     // clear 后旧 ref 悬垂（契约：语义前提是 ref 诞生后 arena 未回收）。
     // 本用例只验证 clear 后 owns 对空视图返回 false，不触碰悬垂指针。
