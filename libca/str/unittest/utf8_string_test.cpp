@@ -344,14 +344,14 @@ TEST(Utf8StringTest, MoveAssignment) {
 TEST(Utf8StringTest, MovedFromConvertsToEmptyStringView) {
     Utf8String s1("ABC");
     Utf8String s2(std::move(s1));
-    std::string_view view = s1;
+    std::string_view view = static_cast<std::string_view>(s1);
     EXPECT_TRUE(view.empty());
     EXPECT_EQ(view.data(), nullptr);
 
     Utf8String s3;
     Utf8String s4("xyz");
     s4 = std::move(s3);  // s3 成为 moved-from
-    std::string_view view2 = s3;
+    std::string_view view2 = static_cast<std::string_view>(s3);
     EXPECT_TRUE(view2.empty());
     EXPECT_EQ(view2.data(), nullptr);
 }
@@ -812,14 +812,6 @@ TEST(Utf8StringRefTest, FromCStr) {
     EXPECT_TRUE(ref3.is_empty());
 }
 
-TEST(Utf8StringTest, EmptyAlias) {
-    Utf8String s;
-    EXPECT_TRUE(s.empty());
-
-    Utf8String s2("Hi");
-    EXPECT_FALSE(s2.empty());
-}
-
 // ============================================================================
 // build_or_empty 测试
 // ============================================================================
@@ -920,7 +912,6 @@ TEST(Utf8StringTest, MovedFromStringRemainsUsableAsEmpty) {
     Utf8String moved(std::move(source));
 
     EXPECT_TRUE(source.is_empty());
-    EXPECT_TRUE(source.empty());
     EXPECT_TRUE(source.to_std_string().empty());
     EXPECT_TRUE(source.clone().is_empty());
     EXPECT_TRUE(source.begin() == source.end());
@@ -1056,10 +1047,12 @@ TEST(Utf8StringRefStringViewTest, UsableWithStdStringViewConsumer)
     EXPECT_EQ(find_in_view(ref, 'l'), 2u);
 }
 
-TEST(Utf8StringStringViewTest, ConvertsToStringView)
+TEST(Utf8StringStringViewTest, ConvertsToStringViewExplicitly)
 {
     Utf8String s = Utf8String::from_cstr("hello");
-    std::string_view sv = s;  // 隐式转换
+    // 到 string_view 为显式转换：Utf8String 的唯一隐式视图出口是 Utf8StringRef
+    // （与 ZUtf8StringRef 同口径，避免双隐式出口在重载调用点二义）。
+    std::string_view sv = static_cast<std::string_view>(s);
     EXPECT_EQ(sv, "hello");
     EXPECT_EQ(sv.size(), 5u);
 }
@@ -1067,7 +1060,7 @@ TEST(Utf8StringStringViewTest, ConvertsToStringView)
 TEST(Utf8StringStringViewTest, ConvertsToStringViewMultibyte)
 {
     Utf8String s = Utf8String::from_cstr("你好😀");
-    std::string_view sv = s;
+    std::string_view sv = static_cast<std::string_view>(s);
     EXPECT_EQ(sv.size(), s.byte_length());
     EXPECT_EQ(sv, "你好😀");
 }
@@ -1075,7 +1068,14 @@ TEST(Utf8StringStringViewTest, ConvertsToStringViewMultibyte)
 TEST(Utf8StringStringViewTest, UsableWithStdStringViewConsumer)
 {
     Utf8String s = Utf8String::from_cstr("abcabc");
-    std::string_view sv = s;
+
+    // 传 string_view 形参的规范写法：经 ref() 一跳（Ref→string_view 仍隐式）
+    auto find_in_view = [](std::string_view v, char c) {
+        return v.find(c);
+    };
+    EXPECT_EQ(find_in_view(s.ref(), 'b'), 1u);
+
+    std::string_view sv = static_cast<std::string_view>(s);
     EXPECT_EQ(sv.find('b'), 1u);
     EXPECT_EQ(sv.substr(3), "abc");
 }
