@@ -155,9 +155,11 @@ int Utf8StringRef::compare(const Utf8StringRef& other) const noexcept {
                       ? byte_length_
                       : other.byte_length_;
 
-    auto result = std::memcmp(data_, other.data_, cmp_len);
-    if (result != 0)
-        return result;
+    if (cmp_len > 0) {
+        auto result = std::memcmp(data_, other.data_, cmp_len);
+        if (result != 0)
+            return result;
+    }
 
     // 前缀相同，较短的字符串小于较长的
     if (byte_length_ < other.byte_length_)
@@ -187,7 +189,8 @@ int Utf8StringRef::compare(const char* cstr) const noexcept {
 
 bool Utf8StringRef::equals(const Utf8StringRef& other) const noexcept {
     return byte_length_ == other.byte_length_ &&
-           std::memcmp(data_, other.data_, byte_length_) == 0;
+           (byte_length_ == 0 ||
+            std::memcmp(data_, other.data_, byte_length_) == 0);
 }
 
 bool Utf8StringRef::equals(const char* cstr) const noexcept {
@@ -294,6 +297,9 @@ Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
 }
 
 Utf8String Utf8String::clone() const {
+    if (data_ == nullptr || byte_length_ == 0)
+        return Utf8String();
+
     Utf8String s;
     delete[] s.data_;
     s.data_ = new u8[byte_length_ + 1];
@@ -531,6 +537,8 @@ Utf8String::operator std::string_view() const noexcept {
 }
 
 std::string Utf8String::to_std_string() const {
+    if (data_ == nullptr || byte_length_ == 0)
+        return std::string();
     return std::string(reinterpret_cast<const char*>(data_), byte_length_);
 }
 
@@ -616,12 +624,14 @@ bool Utf8String::operator!=(const char* cstr) const noexcept {
 
 bool Utf8StringRef::starts_with(const Utf8StringRef& prefix) const noexcept {
     if (prefix.byte_length_ > byte_length_) return false;
-    return std::memcmp(data_, prefix.data_, prefix.byte_length_) == 0;
+    return prefix.byte_length_ == 0 ||
+           std::memcmp(data_, prefix.data_, prefix.byte_length_) == 0;
 }
 
 bool Utf8StringRef::ends_with(const Utf8StringRef& suffix) const noexcept {
     if (suffix.byte_length_ > byte_length_) return false;
-    return std::memcmp(data_ + byte_length_ - suffix.byte_length_,
+    return suffix.byte_length_ == 0 ||
+           std::memcmp(data_ + byte_length_ - suffix.byte_length_,
                        suffix.data_, suffix.byte_length_) == 0;
 }
 
@@ -811,11 +821,12 @@ bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept {
 // ============================================================================
 
 Utf8Iterator Utf8StringRef::begin() const noexcept {
-    return Utf8Iterator(data_, data_ + byte_length_);
+    return Utf8Iterator(data_, data_ ? data_ + byte_length_ : nullptr);
 }
 
 Utf8Iterator Utf8StringRef::end() const noexcept {
-    return Utf8Iterator(data_ + byte_length_, data_ + byte_length_);
+    const u8* end = data_ ? data_ + byte_length_ : nullptr;
+    return Utf8Iterator(end, end);
 }
 
 
@@ -896,14 +907,46 @@ bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
     return !(rhs == lhs);
 }
 
-// ZUtf8StringRef 双向隐式转换（→Utf8StringRef / →string_view）同级并列，
-// string_view 重载在场时 `Utf8StringRef == ZUtf8StringRef` 二义；精确匹配解歧。
+// ZUtf8StringRef 到 Utf8StringRef 的隐式转换与 string_view 比较路径并存，
+// 这里用直接重载固定比较语义，避免调用点依赖转换排序。
 bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
     return lhs.equals(static_cast<Utf8StringRef>(rhs));
 }
 
 bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
     return !lhs.equals(static_cast<Utf8StringRef>(rhs));
+}
+
+bool operator==(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return lhs.ref().equals(static_cast<Utf8StringRef>(rhs));
+}
+
+bool operator!=(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept {
+    return !lhs.ref().equals(static_cast<Utf8StringRef>(rhs));
+}
+
+bool operator==(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return static_cast<Utf8StringRef>(lhs).equals(rhs.ref());
+}
+
+bool operator!=(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept {
+    return !static_cast<Utf8StringRef>(lhs).equals(rhs.ref());
+}
+
+bool operator==(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept {
+    return lhs.ref() == rhs;
+}
+
+bool operator!=(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept {
+    return !(lhs == rhs);
+}
+
+bool operator==(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept {
+    return rhs == lhs;
+}
+
+bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept {
+    return !(rhs == lhs);
 }
 
 // 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。

@@ -7,6 +7,8 @@
 #include "utf8_string_arena.hpp"
 #include "utf8_util.hpp"
 
+#include <cstdint>
+
 namespace ca::str {
 
 // ============================================================================
@@ -211,10 +213,21 @@ Utf8StringRef Utf8StringArena::intern(std::string_view sv) {
 // ============================================================================
 
 bool Utf8StringArena::owns(const Utf8StringRef& ref) const noexcept {
-    const u8* p = ref.data();
-    if (p == nullptr) return false;
+    if (ref.data() == nullptr || ref.byte_length() == 0)
+        return false;
+
+    const auto begin = reinterpret_cast<std::uintptr_t>(ref.data());
+    const auto end = begin + ref.byte_length();
+    if (end < begin)
+        return false;
+
     for (const auto& c : chunks_) {
-        if (p >= c.data && p < c.data + c.used) return true;
+        const auto chunk_begin = reinterpret_cast<std::uintptr_t>(c.data);
+        const auto chunk_end = chunk_begin + c.used;
+        if (chunk_end < chunk_begin)
+            continue;
+        if (begin >= chunk_begin && end <= chunk_end)
+            return true;
     }
     return false;
 }

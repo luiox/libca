@@ -20,7 +20,6 @@
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <string_view>
 #include <vector>
 
 namespace ca::str {
@@ -245,8 +244,6 @@ public:
     // 是否为空字符串
     bool is_empty() const noexcept;
 
-    // STL 兼容别名
-    usize size() const noexcept { return length_; }
     bool empty() const noexcept { return byte_length_ == 0; }
 
     // 原始字节数据指针（内部存储以 '\0' 结尾）
@@ -523,7 +520,8 @@ public:
     const char* c_str() const { return reinterpret_cast<const char*>(data_); } // 安全，保证 \0
     Utf8StringRef ref() const noexcept;
     operator Utf8StringRef() const noexcept;
-    operator std::string_view() const noexcept {
+    /// @brief 显式转换为 std::string_view，避免与 Utf8StringRef 的隐式转换产生二义。
+    explicit operator std::string_view() const noexcept {
         // nullptr 传给 string_view(const CharT*, n) 是 UB（即便 n==0），空句柄须回落默认构造。
         return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
                                         static_cast<std::string_view::size_type>(byte_length_))
@@ -549,12 +547,27 @@ private:
 
 /// @brief `Utf8StringRef == ZUtf8StringRef` 的直接重载。
 ///
-/// ZUtf8StringRef 同时可隐式转 Utf8StringRef 与 std::string_view，二者皆为
-/// 用户定义转换、优先级并列——string_view 重载存在时逐字节比较会二义
-/// （C2593）。本重载右侧精确匹配，解除该歧义。
+/// ZUtf8StringRef 可隐式转 Utf8StringRef；本重载让右侧类型直接匹配，避免
+/// 与其它视图比较路径发生二义（C2593）。
 bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 /// @brief `Utf8StringRef != ZUtf8StringRef` 的直接重载（同上，解除二义）。
 bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief 提供 Utf8String 与 ZUtf8StringRef 的直接相等比较。
+bool operator==(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief 提供 Utf8String 与 ZUtf8StringRef 的直接不等比较。
+bool operator!=(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief 提供 ZUtf8StringRef 与 Utf8String 的反向相等比较。
+bool operator==(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept;
+/// @brief 提供 ZUtf8StringRef 与 Utf8String 的反向不等比较。
+bool operator!=(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept;
+/// @brief 提供 ZUtf8StringRef 与 std::string_view 的直接相等比较。
+bool operator==(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept;
+/// @brief 提供 ZUtf8StringRef 与 std::string_view 的直接不等比较。
+bool operator!=(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept;
+/// @brief 提供 std::string_view 与 ZUtf8StringRef 的反向相等比较。
+bool operator==(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept;
+/// @brief 提供 std::string_view 与 ZUtf8StringRef 的反向不等比较。
+bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept;
 
 
 }  // namespace ca::str
