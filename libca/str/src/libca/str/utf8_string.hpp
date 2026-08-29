@@ -244,16 +244,17 @@ public:
     // 是否为空字符串
     bool is_empty() const noexcept;
 
-    bool empty() const noexcept { return byte_length_ == 0; }
-
     // 原始字节数据指针（内部存储以 '\0' 结尾）
     const u8* data() const noexcept;
 
     // C 风格字符串（O(1)，内部已有 '\0' 终止符；moved-from 对象返回 nullptr）
     const char* c_str() const noexcept;
 
-    // 隐式转换为 std::string_view（零拷贝，内部 \0 终止符不计入长度）
-    operator std::string_view() const noexcept;
+    /// @brief 显式转换为 std::string_view（零拷贝，内部 \0 终止符不计入长度）。
+    /// @note Utf8String 的唯一隐式视图出口是 Utf8StringRef；到 string_view 走显式，
+    ///       与 ZUtf8StringRef 同口径——双隐式出口会在重载调用点产生同级竞争路径。
+    ///       传 string_view 形参可写 f(s.ref())（Ref 到 string_view 仍为隐式）。
+    explicit operator std::string_view() const noexcept;
 
     // ---- 访问 ----
 

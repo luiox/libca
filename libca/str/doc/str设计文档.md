@@ -95,12 +95,23 @@ arena.intern(Utf8Twine(x) + y);        // → Utf8StringRef
 
 ### 2.5 标准库互操作
 
-`Utf8String` / `Utf8StringRef` 提供到 `std::string_view` 的隐式转换，便于传给标准库的视图接口；
-`ZUtf8StringRef` 同时可转换为 `Utf8StringRef`，因此到 `std::string_view` 采用显式转换，避免重载调用产生二义。
-需要分配拷贝时用 `to_std_string()`。
+视图转换遵循「每个类型只有一个隐式出口」，构成单向链：
 
-长度命名不照搬 STL：`length()` 始终表示 UTF-8 码点数，`byte_length()` 表示 UTF-8 字节数，
-`empty()` 只用于空判断；`Utf8String` 不提供 `size()`，避免同一个“长度”概念出现两个容易混淆的入口。
+```
+Utf8String ──隐式──▶ Utf8StringRef ◀──隐式── ZUtf8StringRef
+                           │隐式
+                           ▼
+                    std::string_view
+```
+
+任何重载组合下都不会出现两条同级的隐式竞争路径（`Utf8StringRef` 一侧恒有恒等匹配
+优先，`Utf8String` / `ZUtf8StringRef` 到 `std::string_view` 为显式转换）。把
+`Utf8String` 传给 string_view 形参写 `f(s.ref())`——经 `ref()` 一跳即可，无需
+static_cast。需要分配拷贝时用 `to_std_string()`。
+
+长度与空判断命名不照搬 STL：`length()` 始终表示 UTF-8 码点数，`byte_length()` 表示
+UTF-8 字节数，空判断统一 `is_empty()`；不提供 `size()` / `empty()` 别名，避免同一
+概念出现两个容易混淆的入口（`size()` 的陷阱尤甚：STL 习惯当字节数，此处却是码点数）。
 
 ## 3. StringUtil 的边界
 

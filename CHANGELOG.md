@@ -20,9 +20,12 @@
   判定（上层容器 debug 断言「视图确属本池」用）；`Utf8StringRef` 与 `std::string_view`
   的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。服务 morpher 树 API 所有权重构战役
   （morpher doc_ai/ownership-model.md §1.6）。
-- **[str] 不兼容 API 收敛**：移除 `Utf8String::size()`，统一使用语义明确的
-  `length()`（码点数）和 `byte_length()`（字节数）；`ZUtf8StringRef` 到
-  `std::string_view` 改为显式转换，避免与其到 `Utf8StringRef` 的隐式转换产生二义。
+- **[str] 不兼容 API 收敛**：移除 `Utf8String::size()` / `empty()`，长度统一语义明确的
+  `length()`（码点数）与 `byte_length()`（字节数），空判断统一 `is_empty()`；
+  `ZUtf8StringRef`、`Utf8String` 到 `std::string_view` 均改为显式转换——每个字符串类型
+  只保留一个隐式视图出口（`Utf8String` / `ZUtf8StringRef` → `Utf8StringRef` →
+  `std::string_view` 单向链），杜绝双隐式出口在重载调用点的同级竞争二义；传
+  string_view 形参改写 `f(s.ref())`。
 - **[zip] 新模块**：JVM `ZipFile` 语义只读访问器（最后合法 EOCD/前缀拼接恢复/ZIP64）
   与流式读写（`ZipInputStream`/`ZipOutputStream`，DD 条目支持）；zlib 经 xrepo，
   根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
