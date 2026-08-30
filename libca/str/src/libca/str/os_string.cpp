@@ -133,7 +133,7 @@ OsString::OsString(Utf8String utf8) noexcept
 
 std::string_view OsString::as_utf8() const noexcept
 {
-    return storage_;  // Utf8String 有 operator string_view()
+    return static_cast<std::string_view>(storage_);  // 到 string_view 为显式转换
 }
 
 Utf8String OsString::into_utf8_string() noexcept
