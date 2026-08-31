@@ -220,3 +220,14 @@
   SharedMemory/NamedSemaphore/MessageQueue 的 `open` 打开不存在的名字映射为
   NOT_FOUND（Windows `ERROR_FILE_NOT_FOUND`，此前报 INTERNAL；POSIX 侧仅管道
   connect 缺映射）。
+- **[env][crypto] 移除不可达的 macOS/BSD 平台分支**：平台支持明确收敛为
+  Windows/Linux（`core/platform.hpp` 的 `#error` 不变，注释改为「有意只支持」）。
+  `env` 的 `_NSGetExecutablePath` / `sw_vers` 与 `crypto` 的 `arc4random_buf`
+  分支在现有平台宏下不可达，予以删除。
+- **[str] CharsetConverter POSIX 实现（iconv）**：非 Windows 平台此前 8 个转换
+  函数恒返回 `UNIMPLEMENTED`，现基于 iconv 实现——GBK 用 glibc "GBK" 转换器，
+  本地代码页取 `nl_langinfo(CODESET)`，wchar 用 "WCHAR_T"。错误语义与 Windows
+  分支对齐：非法/残缺序列返回 `INVALID_ARGUMENT`，转换对不被系统支持（iconv
+  缺该 gconv 模块）返回 `UNIMPLEMENTED`。跨平台注意：`std::wstring` 编码跟随
+  平台（Windows UTF-16 / Linux UCS-4）；POSIX「本地代码页」在未 setlocale 时
+  为 "C"（ASCII）。charset 测试重构为可移植用例（码点断言）+ 平台专属用例。
