@@ -36,26 +36,19 @@
 - 补 NamedSemaphore 阻塞 acquire（线程 release 唤醒）、initial_count 语义；
 - 补 SharedMemory 生命周期（size/data/is_open/close）。
 
-### 3. macOS 平台：要么支持，要么删死分支 `[决策]`
+### 3. macOS 平台：砍掉死分支 `[已完成：feat/stream-pipeline-ipc-tests]`
 
-现状：`core/platform.hpp:16` 对非 `_WIN32`/`__linux__` 直接 `#error`，macOS 编不过全库；
-但 `env/env.cpp` 写了完整的 `__APPLE__` 分支（`_NSGetExecutablePath`、`sw_vers`），
-`crypto/random.cpp` 也有 `arc4random_buf` 分支——在当前平台宏下不可达。
-CI 只有 ubuntu + windows。
+决策（用户拍板）：不做 macOS，采用方案 B。已删除 `env/env.cpp` 的
+`_NSGetExecutablePath`/`sw_vers` 分支与 `crypto/random.cpp` 的 `arc4random_buf`
+（BSD/Apple）分支——它们在 `core/platform.hpp` 的平台宏下不可达。
+`platform.hpp` 注释已明确「有意只支持 Windows/Linux」。CI 维持 ubuntu+windows。
 
-选项：
+### 4. str/charset 非 Windows 补实现 `[已完成：feat/stream-pipeline-ipc-tests]`
 
-- A（推荐）：正式支持 macOS——`platform.hpp` 放行 `__APPLE__`，审计 net/io/process 的
-  平台分支，CI 加 macos runner。env/crypto 的 Apple 分支显然是为此预写的。
-- B：明确不支持——删除不可达的 Apple 分支，platform.hpp 报错信息保持现状。
-
-需要用户拍板；工作量 A ≫ B。
-
-### 4. str/charset 非 Windows 补实现 `[待办]`
-
-`charset.cpp:175` 起，非 Windows 平台 8 个编码转换函数全部返回 UNIMPLEMENTED。
-计划：POSIX 侧用 iconv 实现（glibc 自带），Linux CI 验证。需要独立分支，
-Windows 本机无法验证 POSIX 路径。
+`charset.cpp` 的 POSIX 存根（8 个函数返回 UNIMPLEMENTED）已替换为 iconv 实现：
+GBK 用 glibc "GBK" 转换器，本地代码页取 `nl_langinfo(CODESET)`，wchar 用
+"WCHAR_T"；非法/残缺序列返回 INVALID_ARGUMENT，转换对不被支持返回
+UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu CI 验证。
 
 ### 5. CA_TRY 的 MSVC 可用性 `[搁置]`
 
@@ -88,4 +81,6 @@ Windows 本机无法验证 POSIX 路径。
 
 ## 变更记录
 
+- 2026-08-31（第二批）：macOS 决策为砍掉（方案 B）并删除死分支；charset POSIX
+  侧 iconv 实现完成——高优先级 1/2/3/4 全部落地。
 - 2026-08-31：初版，来自全库盘点；高优先级 1/2 在 `feat/stream-pipeline-ipc-tests` 实施。
