@@ -305,8 +305,13 @@ StatusResult<NamedPipeServer> NamedPipeServer::create(const std::string& name)
                                      4096,
                                      0,
                                      nullptr);
-    if (handle == INVALID_HANDLE_VALUE)
+    if (handle == INVALID_HANDLE_VALUE) {
+        // 同名管道已存在且 nMaxInstances=1 时报 ERROR_PIPE_BUSY（实例数打满），
+        // 映射为文档承诺的 ALREADY_EXISTS。
+        if (GetLastError() == ERROR_PIPE_BUSY)
+            return Err(ErrStatus(StatusCode::ALREADY_EXISTS, "named pipe already exists"));
         return Err(windows_error("CreateNamedPipeW"));
+    }
     return Ok(NamedPipeServer(to_native(handle)));
 #else
     // POSIX 用 AF_UNIX SOCK_STREAM 模拟命名管道。bind 前若已有同名 socket 文件
@@ -321,7 +326,9 @@ StatusResult<NamedPipeServer> NamedPipeServer::create(const std::string& name)
     address.sun_family = AF_UNIX;
     std::strncpy(address.sun_path, std::move(path).unwrap().c_str(), sizeof(address.sun_path) - 1);
     if (bind(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
-        const auto error = posix_error("bind");
+        const auto error = errno == EADDRINUSE
+                               ? ErrStatus(StatusCode::ALREADY_EXISTS, "named pipe already exists")
+                               : posix_error("bind");
         ::close(handle);
         return Err(error);
     }
@@ -375,8 +382,11 @@ StatusResult<NamedPipeConnection> NamedPipeClient::connect(const std::string& na
                                 OPEN_EXISTING,
                                 0,
                                 nullptr);
-    if (handle == INVALID_HANDLE_VALUE)
+    if (handle == INVALID_HANDLE_VALUE) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+            return Err(ErrStatus(StatusCode::NOT_FOUND, "named pipe not found"));
         return Err(windows_error("CreateFileW"));
+    }
     return Ok(NamedPipeConnection(to_native(handle)));
 #else
     auto path = unix_socket_path(name);
@@ -389,7 +399,9 @@ StatusResult<NamedPipeConnection> NamedPipeClient::connect(const std::string& na
     address.sun_family = AF_UNIX;
     std::strncpy(address.sun_path, std::move(path).unwrap().c_str(), sizeof(address.sun_path) - 1);
     if (::connect(handle, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
-        const auto error = posix_error("connect");
+        const auto error = errno == ENOENT
+                               ? ErrStatus(StatusCode::NOT_FOUND, "named pipe not found")
+                               : posix_error("connect");
         ::close(handle);
         return Err(error);
     }
@@ -530,8 +542,11 @@ StatusResult<SharedMemory> SharedMemory::open(const std::string& name)
         return Err(wide_name.unwrap_err());
     HANDLE handle =
         OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, std::move(wide_name).unwrap().c_str());
-    if (!handle)
+    if (!handle) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+            return Err(ErrStatus(StatusCode::NOT_FOUND, "shared memory not found"));
         return Err(windows_error("OpenFileMappingW"));
+    }
     // 传 0 给 MapViewOfFile 表示映射整个 mapping 对象，再通过 VirtualQuery 查询
     // 实际 RegionSize——Windows API 不提供"查询命名共享内存大小"的独立接口。
     MEMORY_BASIC_INFORMATION info{};
@@ -646,8 +661,11 @@ StatusResult<NamedSemaphore> NamedSemaphore::open(const std::string& name)
         return Err(wide_name.unwrap_err());
     HANDLE handle =
         OpenSemaphoreW(SEMAPHORE_ALL_ACCESS, FALSE, std::move(wide_name).unwrap().c_str());
-    if (!handle)
+    if (!handle) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+            return Err(ErrStatus(StatusCode::NOT_FOUND, "semaphore not found"));
         return Err(windows_error("OpenSemaphoreW"));
+    }
     return Ok(NamedSemaphore(to_native(handle)));
 #else
     auto path = posix_shared_memory_name(name);
@@ -792,8 +810,12 @@ StatusResult<MessageQueue> MessageQueue::create(const std::string& name, usize m
     // 客户端必须用 CreateFileW 以 GENERIC_WRITE 打开同名 slot 写入。故 receiver_=true。
     HANDLE handle = CreateMailslotW(
         std::move(path).unwrap().c_str(), static_cast<DWORD>(max_message_size), 0, nullptr);
-    if (handle == INVALID_HANDLE_VALUE)
+    if (handle == INVALID_HANDLE_VALUE) {
+        // 同名 mailslot 已存在时报 ERROR_ALREADY_EXISTS，映射为文档承诺的 ALREADY_EXISTS。
+        if (GetLastError() == ERROR_ALREADY_EXISTS)
+            return Err(ErrStatus(StatusCode::ALREADY_EXISTS, "message queue already exists"));
         return Err(windows_error("CreateMailslotW"));
+    }
     return Ok(MessageQueue(to_native(handle), max_message_size, true));
 #else
     auto path = posix_shared_memory_name(name);
@@ -829,8 +851,11 @@ StatusResult<MessageQueue> MessageQueue::open(const std::string& name)
                                 OPEN_EXISTING,
                                 0,
                                 nullptr);
-    if (handle == INVALID_HANDLE_VALUE)
+    if (handle == INVALID_HANDLE_VALUE) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+            return Err(ErrStatus(StatusCode::NOT_FOUND, "message queue not found"));
         return Err(windows_error("CreateFileW"));
+    }
     return Ok(MessageQueue(to_native(handle), 0, false));
 #else
     auto path = posix_shared_memory_name(name);

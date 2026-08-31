@@ -199,3 +199,24 @@
   拥有型 Utf8String）与 `CString`/`WString` 系均零测试覆盖，现双侧补齐
   （视图侧同时钉住"指向原数据"的非拥有语义与 split 的空片段/空分隔符
   边界）。
+- **[collection] Stream 重写为惰性流水线（不兼容行为变更）**：filter/map
+  不再是覆盖式（旧实现 `.filter(p1).filter(p2)` 静默只应用 p2），改为
+  Rust 迭代器风格的适配器链——每个适配器返回新节点按值持有上游，可任意
+  叠加；新增 `take`/`skip` 适配器与 `count`/`reduce`/`any`/`all` 终止操作；
+  `map` 允许改变元素类型。谓词/映射由 `std::function` 改为模板参数保存
+  （无类型擦除开销）。升级注意：适配器会移动消费当前节点（节点一次性，
+  与 Rust by-value 迭代器一致）；`for_each` 返回值由 `Stream&` 改为
+  `void`；`stream(const Container&)` 重载合并为单个模板（元素一律按值
+  拷出，不再产出 `Stream<const T>`）。设计见
+  `libca/collection/doc/collection设计文档.md`。
+- **[process] ipc 测试独立成文件并补缺口**：ipc 用例从 subprocess_test.cpp
+  迁至 `unittest/ipc_test.cpp`；新增错误路径（重复 create → ALREADY_EXISTS、
+  open/connect 不存在名字 → NOT_FOUND）、NamedPipe 对端关闭 EOF 契约与
+  双工 echo、MessageQueue 多消息边界与顺序、NamedSemaphore 阻塞 acquire
+  与 initial_count 语义、SharedMemory 生命周期用例。
+- **[process] ipc 错误码对齐头文件契约**：`NamedPipeServer::create` 重复名字
+  映射为 ALREADY_EXISTS（Windows `ERROR_ACCESS_DENIED` / POSIX `EADDRINUSE`，
+  此前双平台均报 INTERNAL）；`NamedPipeClient::connect` 与
+  SharedMemory/NamedSemaphore/MessageQueue 的 `open` 打开不存在的名字映射为
+  NOT_FOUND（Windows `ERROR_FILE_NOT_FOUND`，此前报 INTERNAL；POSIX 侧仅管道
+  connect 缺映射）。
