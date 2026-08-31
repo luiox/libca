@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-08-31 - Stream 重写为模板化惰性流水线（适配器可叠加），更新模块结构与性能边界
 2026-07-14 - 删除冗余英文摘要 design.md，本文成为 collection 唯一设计文档
 2026-07-06 - 首版，补充 collection 模块职责与模板组件边界
 ---
@@ -21,7 +22,8 @@ collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前
 - `hash_map.hpp`：Rust-like 基础 API 的哈希映射容器。
 - `hash_set.hpp`：Rust-like 基础 API 的哈希集合容器。
 - `immutable_list.hpp`：构造后不可修改的列表，支持范围 for、随机访问和追加生成新列表。
-- `stream.hpp`：基于容器迭代器范围的惰性 `filter/map/for_each/collect`。
+- `stream.hpp`：基于容器迭代器范围的惰性流水线：`filter/map/take/skip` 适配器可任意叠加，
+  `for_each/collect/count/reduce/any/all` 为终止操作。
 - `collection.hpp`：聚合头文件。
 
 ## 设计原则
@@ -35,9 +37,10 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 
 ## 性能边界
 
-`Stream` 当前以 `std::function` 保存 filter/map，优先表达简单而非极致零开销。性能敏感场景
-可以直接使用 STL 算法或未来新增的模板化 pipeline。`ImmutableList::appended` 会复制原列表，
-适合小列表和配置型数据，不适合大规模追加循环。
+`Stream` 是模板化的惰性流水线：适配器按值组合、逐节点 `next()` 拉取，谓词与映射函数
+以模板参数保存（非 `std::function`，无类型擦除开销）。节点是一次性的——调用适配器即
+移动消费上游，与 Rust 迭代器按值接管一致。性能敏感场景仍可直接使用 STL 算法。
+`ImmutableList::appended` 会复制原列表，适合小列表和配置型数据，不适合大规模追加循环。
 
 ## 扩展方向
 
