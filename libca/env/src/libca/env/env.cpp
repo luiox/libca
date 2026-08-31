@@ -16,11 +16,6 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#elif defined(__APPLE__)
-#include <cstdint>
-#include <mach-o/dyld.h>
-#include <unistd.h>
-extern char** environ;
 #else
 #include <unistd.h>
 extern char** environ;
@@ -268,13 +263,6 @@ std::string executable_path()
         return std::string();
     buffer.resize(static_cast<size_t>(len));
     return buffer;
-#elif defined(__APPLE__)
-    uint32_t size = 0;
-    _NSGetExecutablePath(nullptr, &size);
-    std::string buffer(size, '\0');
-    if (_NSGetExecutablePath(buffer.data(), &size) != 0)
-        return std::string();
-    return buffer;
 #else
     return std::string();
 #endif
@@ -286,8 +274,6 @@ std::string os_name()
     return "windows";
 #elif defined(__linux__)
     return "linux";
-#elif defined(__APPLE__)
-    return "macos";
 #else
     return "unknown";
 #endif
@@ -333,20 +319,6 @@ std::string os_version()
         }
     }
     std::fclose(fp);
-    return version;
-#elif defined(__APPLE__)
-    std::FILE* fp = std::popen("sw_vers -productVersion", "r");
-    if (fp == nullptr)
-        return std::string();
-    char buf[64];
-    std::string version;
-    if (std::fgets(buf, sizeof(buf), fp) != nullptr) {
-        std::string_view raw(buf);
-        if (!raw.empty() && raw.back() == '\n')
-            raw.remove_suffix(1);
-        version = std::string(raw);
-    }
-    std::pclose(fp);
     return version;
 #else
     return std::string();
