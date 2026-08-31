@@ -2,7 +2,7 @@
 
 /// @file platform.hpp
 /// @brief 平台/编译器检测宏 + get_os_name()。
-/// @note 当前只支持 Windows/Linux，其他平台直接 #error。
+/// @note 有意只支持 Windows/Linux（不做 macOS），其他平台直接 #error。
 
 // ============================================================================
 // 平台检测宏
