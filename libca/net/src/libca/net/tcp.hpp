@@ -93,9 +93,8 @@ public:
     static io::IoResult<TcpListener> from_socket(OwnedSocket socket);
 
     /// @brief 创建 socket，应用 options，然后执行 bind/listen。
-    static io::IoResult<TcpListener> bind(
-        const SocketAddress& address,
-        const TcpListenerOptions& options = TcpListenerOptions());
+    static io::IoResult<TcpListener> bind(const SocketAddress&      address,
+                                          const TcpListenerOptions& options = TcpListenerOptions());
 
     TcpListener(const TcpListener&)                = delete;
     TcpListener& operator=(const TcpListener&)     = delete;

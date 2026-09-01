@@ -28,7 +28,7 @@ public:
     {
         // tmpnam 给出平台临时目录下的唯一名；再加计数器避免同进程多次构造碰撞。
         static int counter = 0;
-        path_ = std::string(std::tmpnam(nullptr)) + "_" + std::to_string(++counter);
+        path_              = std::string(std::tmpnam(nullptr)) + "_" + std::to_string(++counter);
     }
     ~TempFile() { std::remove(path_.c_str()); }
     const std::string& path() const { return path_; }
@@ -52,12 +52,12 @@ private:
 
 TEST(SimpleLogBackendTest, WritesFormattedMessageToFile)
 {
-    TempFile tmp;
+    TempFile        tmp;
     SimpleLogConfig cfg;
     cfg.stream        = SimpleLogConfig::Stream::Stderr;
     cfg.file_path     = tmp.path();
-    cfg.color         = false;       // 文件不应含颜色码
-    cfg.time_format   = "";          // 关闭时间以便断言确定性
+    cfg.color         = false;   // 文件不应含颜色码
+    cfg.time_format   = "";      // 关闭时间以便断言确定性
     cfg.show_location = true;
     cfg.show_target   = true;
 
@@ -76,7 +76,7 @@ TEST(SimpleLogBackendTest, WritesFormattedMessageToFile)
 
 TEST(SimpleLogBackendTest, LocationCanBeHidden)
 {
-    TempFile tmp;
+    TempFile        tmp;
     SimpleLogConfig cfg;
     cfg.file_path     = tmp.path();
     cfg.color         = false;
@@ -88,18 +88,18 @@ TEST(SimpleLogBackendTest, LocationCanBeHidden)
     backend.log(Level::Warn, "fs", "x.cpp", 1, LiteralFormat("oops"));
 
     std::string content = read_file(tmp.path());
-    EXPECT_EQ(content.find("x.cpp"), std::string::npos);  // 不含文件名
+    EXPECT_EQ(content.find("x.cpp"), std::string::npos);   // 不含文件名
     EXPECT_NE(content.find("oops"), std::string::npos);
 }
 
 TEST(SimpleLogBackendTest, TargetCanBeHidden)
 {
-    TempFile tmp;
+    TempFile        tmp;
     SimpleLogConfig cfg;
-    cfg.file_path     = tmp.path();
-    cfg.color         = false;
-    cfg.time_format   = "";
-    cfg.show_target   = false;
+    cfg.file_path   = tmp.path();
+    cfg.color       = false;
+    cfg.time_format = "";
+    cfg.show_target = false;
 
     SimpleLogBackend backend(cfg);
     backend.log(Level::Error_, "secret", "y.cpp", 7, LiteralFormat("fail"));
@@ -111,11 +111,11 @@ TEST(SimpleLogBackendTest, TargetCanBeHidden)
 
 TEST(SimpleLogBackendTest, AppendsMultipleLines)
 {
-    TempFile tmp;
+    TempFile        tmp;
     SimpleLogConfig cfg;
-    cfg.file_path   = tmp.path();
-    cfg.color       = false;
-    cfg.time_format = "";
+    cfg.file_path     = tmp.path();
+    cfg.color         = false;
+    cfg.time_format   = "";
     cfg.show_location = false;
     cfg.show_target   = false;
 
@@ -137,5 +137,5 @@ TEST(SimpleLogBackendTest, DefaultConfigValid)
     EXPECT_NO_THROW({ backend.log(Level::Info, "t", "f.cpp", 1, LiteralFormat("ok")); });
 }
 
-}  // namespace
-}  // namespace ca::log::test
+}   // namespace
+}   // namespace ca::log::test

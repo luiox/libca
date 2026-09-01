@@ -10,7 +10,7 @@ namespace ca::zip {
 
 std::vector<ca::u8> inflate_raw(const ca::u8* data, size_t size, size_t hint_uncompressed_size)
 {
-    z_stream stream {};
+    z_stream stream{};
     if (::inflateInit2(&stream, -MAX_WBITS) != Z_OK) {
         throw std::runtime_error("zlib inflateInit2 failed");
     }

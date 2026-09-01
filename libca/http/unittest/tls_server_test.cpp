@@ -201,9 +201,9 @@ std::string private_key_to_pem(EVP_PKEY* key)
 {
     BioPtr output(BIO_new(BIO_s_mem()));
     require_openssl(output != nullptr, "create key memory BIO");
-    require_openssl(PEM_write_bio_PrivateKey(output.get(), key, nullptr, nullptr, 0, nullptr,
-                                              nullptr) == 1,
-                    "encode private key");
+    require_openssl(
+        PEM_write_bio_PrivateKey(output.get(), key, nullptr, nullptr, 0, nullptr, nullptr) == 1,
+        "encode private key");
     char*      data = nullptr;
     const long size = BIO_get_mem_data(output.get(), &data);
     require_openssl(size > 0 && data != nullptr, "read encoded private key");
@@ -308,43 +308,37 @@ public:
     }
 
     /// @brief 取回 serve() 的返回值(线程结束后)。
-    HttpResult<void> serve_result()
-    {
-        return completion_.get();
-    }
+    HttpResult<void> serve_result() { return completion_.get(); }
 
 private:
-    HttpServer                       server_;
-    std::promise<HttpResult<void>>   promise_;
-    std::future<HttpResult<void>>    completion_;
-    std::thread                      thread_;
+    HttpServer                     server_;
+    std::promise<HttpResult<void>> promise_;
+    std::future<HttpResult<void>>  completion_;
+    std::thread                    thread_;
 };
 
 HttpResponse text_response(u16 status, std::string_view body)
 {
     HttpResponse response;
     response.status = status;
-    response.body   = ca::core::Bytes::copy_from_slice(
-        reinterpret_cast<const u8*>(body.data()), body.size());
+    response.body =
+        ca::core::Bytes::copy_from_slice(reinterpret_cast<const u8*>(body.data()), body.size());
     response.headers.append("Content-Type", "text/plain; charset=utf-8");
     return response;
 }
 
-HttpServer make_server_with_route(const net::SocketAddress&  address,
-                                  const HttpServerOptions&   options,
-                                  std::string_view           path,
-                                  u16                        status,
-                                  std::string_view           body)
+HttpServer make_server_with_route(const net::SocketAddress& address,
+                                  const HttpServerOptions& options, std::string_view path,
+                                  u16 status, std::string_view body)
 {
     auto bound = HttpServer::bind(address, options);
     if (bound.is_err())
         throw std::runtime_error(bound.unwrap_err().to_string());
     auto server = std::move(bound).unwrap();
-    auto route  = server.route("GET", std::string(path),
-                               [status, body](const HttpServerRequestContext&) {
-                                   return ca::core::Ok(
-                                       HttpServerResponse::buffered(text_response(status, body)));
-                               });
+    auto route =
+        server.route("GET", std::string(path), [status, body](const HttpServerRequestContext&) {
+            return ca::core::Ok(HttpServerResponse::buffered(text_response(status, body)));
+        });
     if (route.is_err())
         throw std::runtime_error(route.unwrap_err().to_string());
     return server;
@@ -363,12 +357,12 @@ TEST(HttpTlsServerTest, ServesHttpsRequestWithCustomCa)
 {
     TlsServerTestMaterials materials;
     HttpServerOptions      options;
-    options.tls              = server_tls_options(materials);
-    options.worker_threads   = 1;
-    options.idle_timeout     = std::chrono::milliseconds(1000);
+    options.tls                = server_tls_options(materials);
+    options.worker_threads     = 1;
+    options.idle_timeout       = std::chrono::milliseconds(1000);
     options.stop_poll_interval = std::chrono::milliseconds(5);
     const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
-    auto server = make_server_with_route(address, options, "/hello", 200, "hello");
+    auto server        = make_server_with_route(address, options, "/hello", 200, "hello");
     auto bound_address = [&] {
         auto queried = server.local_address();
         if (queried.is_err())
@@ -377,7 +371,7 @@ TEST(HttpTlsServerTest, ServesHttpsRequestWithCustomCa)
     }();
     ScopedServer scoped(std::move(server));
 
-    auto client = HttpClient::create(client_tls_options(materials)).unwrap();
+    auto client   = HttpClient::create(client_tls_options(materials)).unwrap();
     auto response = client.get(https_url(bound_address.port(), "/hello"));
     ASSERT_TRUE(response.is_ok()) << response.unwrap_err().to_string();
     EXPECT_EQ(response.unwrap().status, 200);
@@ -388,12 +382,12 @@ TEST(HttpTlsServerTest, RejectsClientWithoutTrustedCa)
 {
     TlsServerTestMaterials materials;
     HttpServerOptions      options;
-    options.tls              = server_tls_options(materials);
-    options.worker_threads   = 1;
-    options.idle_timeout     = std::chrono::milliseconds(1000);
+    options.tls                = server_tls_options(materials);
+    options.worker_threads     = 1;
+    options.idle_timeout       = std::chrono::milliseconds(1000);
     options.stop_poll_interval = std::chrono::milliseconds(5);
     const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
-    auto server = make_server_with_route(address, options, "/hello", 200, "hello");
+    auto server        = make_server_with_route(address, options, "/hello", 200, "hello");
     auto bound_address = [&] {
         auto queried = server.local_address();
         if (queried.is_err())
@@ -405,7 +399,7 @@ TEST(HttpTlsServerTest, RejectsClientWithoutTrustedCa)
     // 客户端不配置信任 CA(且默认 verify_peer=true),应拒绝服务端证书。
     HttpClientOptions client_options = client_tls_options(materials);
     client_options.tls.ca_file.clear();
-    auto client = HttpClient::create(client_options).unwrap();
+    auto client   = HttpClient::create(client_options).unwrap();
     auto response = client.get(https_url(bound_address.port(), "/hello"));
     EXPECT_TRUE(response.is_err());
 }
@@ -413,11 +407,11 @@ TEST(HttpTlsServerTest, RejectsClientWithoutTrustedCa)
 TEST(HttpTlsServerTest, ServeFailsWhenCertificateFileMissing)
 {
     HttpServerOptions options;
-    options.tls                          = HttpTlsServerOptions{};
-    options.tls->certificate_chain_file  = "/nonexistent/cert.pem";
-    options.tls->private_key_file        = "/nonexistent/key.pem";
+    options.tls                         = HttpTlsServerOptions{};
+    options.tls->certificate_chain_file = "/nonexistent/cert.pem";
+    options.tls->private_key_file       = "/nonexistent/key.pem";
     const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
-    auto bound = HttpServer::bind(address, options);
+    auto                     bound = HttpServer::bind(address, options);
     ASSERT_TRUE(bound.is_ok()) << bound.unwrap_err().to_string();
     auto server = std::move(bound).unwrap();
 
@@ -430,15 +424,15 @@ TEST(HttpTlsServerTest, HandshakeTimeoutClosesConnection)
 {
     TlsServerTestMaterials materials;
     HttpServerOptions      options;
-    options.tls              = server_tls_options(materials);
+    options.tls                    = server_tls_options(materials);
     options.tls->handshake_timeout = std::chrono::milliseconds(50);   // 极短握手超时
-    options.worker_threads   = 1;
-    options.idle_timeout     = std::chrono::milliseconds(1000);
-    options.stop_poll_interval = std::chrono::milliseconds(5);
+    options.worker_threads         = 1;
+    options.idle_timeout           = std::chrono::milliseconds(1000);
+    options.stop_poll_interval     = std::chrono::milliseconds(5);
     const net::SocketAddress address(net::IpAddress::localhost_v4(), 0);
-    auto bound = HttpServer::bind(address, options);
+    auto                     bound = HttpServer::bind(address, options);
     ASSERT_TRUE(bound.is_ok()) << bound.unwrap_err().to_string();
-    auto server = std::move(bound).unwrap();
+    auto server        = std::move(bound).unwrap();
     auto bound_address = [&] {
         auto queried = server.local_address();
         if (queried.is_err())
@@ -448,15 +442,14 @@ TEST(HttpTlsServerTest, HandshakeTimeoutClosesConnection)
     ScopedServer scoped(std::move(server));
 
     // 建立 TCP 连接但不做 TLS 握手,触发服务端握手超时。
-    auto connected =
-        net::TcpStream::connect(net::SocketAddress(net::IpAddress::localhost_v4(),
-                                                    bound_address.port()));
+    auto connected = net::TcpStream::connect(
+        net::SocketAddress(net::IpAddress::localhost_v4(), bound_address.port()));
     ASSERT_TRUE(connected.is_ok());
     auto stream = std::move(connected).unwrap();
     // 不发送任何字节;等待超过 handshake_timeout 后,服务端应关闭连接。
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
     // 读应返回 EOF 或错误(连接已被服务端关闭)。
-    u8 buffer[16]{};
+    u8   buffer[16]{};
     auto read = stream.read(buffer, sizeof(buffer));
     EXPECT_TRUE(read.is_err() || read.unwrap() == 0);
 }

@@ -33,8 +33,8 @@ public:
     }
 
 private:
-    fmt::string_view  fmt_str_;
-    fmt::format_args  args_;
+    fmt::string_view fmt_str_;
+    fmt::format_args args_;
 };
 
-}  // namespace ca::log::detail
+}   // namespace ca::log::detail

@@ -41,4 +41,4 @@ public:
     static void clear() noexcept;
 };
 
-}  // namespace ca::log
+}   // namespace ca::log

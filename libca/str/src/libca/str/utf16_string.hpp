@@ -16,17 +16,22 @@
 namespace ca::str {
 
 /// @brief UTF-16 码元值类型，内部固定为 ca::u16，不使用标准 char16_t 作为存储类型。
-struct Char16 {
+struct Char16
+{
     /// @brief 原始 UTF-16 code unit。
     ca::u16 value;
 
-    constexpr Char16() noexcept : value(0) {}
+    constexpr Char16() noexcept
+        : value(0)
+    {}
 
     /// @brief 用原始 UTF-16 code unit 构造。
-    constexpr explicit Char16(ca::u16 unit) noexcept : value(unit) {}
+    constexpr explicit Char16(ca::u16 unit) noexcept
+        : value(unit)
+    {}
 
     /// @brief 返回原始 UTF-16 code unit。
-    constexpr ca::u16 unit() const noexcept { return value; }
+    constexpr ca::u16  unit() const noexcept { return value; }
     constexpr explicit operator ca::u16() const noexcept { return value; }
 
     /// @brief 判断是否位于 UTF-16 surrogate 区间。
@@ -36,7 +41,10 @@ struct Char16 {
     constexpr bool is_lead_surrogate() const noexcept { return value >= 0xD800 && value <= 0xDBFF; }
 
     /// @brief 判断是否为 UTF-16 low surrogate。
-    constexpr bool is_trail_surrogate() const noexcept { return value >= 0xDC00 && value <= 0xDFFF; }
+    constexpr bool is_trail_surrogate() const noexcept
+    {
+        return value >= 0xDC00 && value <= 0xDFFF;
+    }
 
     /// @brief 判断是否为非 surrogate 的 BMP code unit。
     constexpr bool is_bmp() const noexcept { return value <= 0xD7FF || value >= 0xE000; }
@@ -58,14 +66,20 @@ class Utf16String;
 /// `Utf16StringRef` 不拥有底层内存，调用方必须保证 `data()` 生命周期覆盖视图使用期。
 /// 所有下标均为 UTF-16 code unit 下标；`code_point_at()` 会在当前位置是有效
 /// surrogate pair 起点时合并为 Unicode code point。
-class Utf16StringRef {
+class Utf16StringRef
+{
 public:
     /// @brief 查找失败时返回的哨兵值。
     static constexpr ca::usize npos = ca::usize(-1);
 
-    constexpr Utf16StringRef() noexcept : data_(nullptr), length_(0) {}
+    constexpr Utf16StringRef() noexcept
+        : data_(nullptr)
+        , length_(0)
+    {}
     constexpr Utf16StringRef(const Char16* data, ca::usize length) noexcept
-        : data_(data), length_(length) {}
+        : data_(data)
+        , length_(length)
+    {}
     Utf16StringRef(const Utf16String& str) noexcept;
 
     /// @brief 从原始 u16 数组创建非拥有视图。
@@ -75,10 +89,10 @@ public:
     static Utf16StringRef from_std_u16string(const std::u16string& str) noexcept;
 
     /// @brief 返回 UTF-16 code unit 数量。
-    constexpr ca::usize length() const noexcept { return length_; }
-    constexpr ca::usize size() const noexcept { return length_; }
-    constexpr bool is_empty() const noexcept { return length_ == 0; }
-    constexpr bool empty() const noexcept { return length_ == 0; }
+    constexpr ca::usize     length() const noexcept { return length_; }
+    constexpr ca::usize     size() const noexcept { return length_; }
+    constexpr bool          is_empty() const noexcept { return length_ == 0; }
+    constexpr bool          empty() const noexcept { return length_ == 0; }
     constexpr const Char16* data() const noexcept { return data_; }
     /// @brief 返回原始 code unit 指针。
     const ca::u16* raw_data() const noexcept;
@@ -147,21 +161,22 @@ public:
 
 private:
     const Char16* data_;
-    ca::usize length_;
+    ca::usize     length_;
 };
 
 /// @brief 拥有所有权、不可变的 UTF-16 字符串。
 ///
 /// `Utf16String` 复制输入 code unit 到自有存储，不共享外部缓冲区。复制语义通过
 /// `clone()` 显式表达，类型本身只支持移动，避免隐式大拷贝。
-class Utf16String {
+class Utf16String
+{
 public:
     Utf16String() noexcept;
     Utf16String(const Char16* data, ca::usize length);
     Utf16String(const ca::u16* data, ca::usize length);
     explicit Utf16String(const std::u16string& str);
 
-    Utf16String(const Utf16String&) = delete;
+    Utf16String(const Utf16String&)            = delete;
     Utf16String& operator=(const Utf16String&) = delete;
 
     Utf16String(Utf16String&& other) noexcept;
@@ -190,42 +205,72 @@ public:
     static Utf16String value_of(const Utf8StringRef& utf8);
     static Utf16String value_of(const Utf16StringRef& value);
 
-    ca::usize length() const noexcept { return length_; }
-    ca::usize size() const noexcept { return length_; }
-    bool is_empty() const noexcept { return length_ == 0; }
-    bool empty() const noexcept { return length_ == 0; }
-    const Char16* data() const noexcept { return data_; }
+    ca::usize      length() const noexcept { return length_; }
+    ca::usize      size() const noexcept { return length_; }
+    bool           is_empty() const noexcept { return length_ == 0; }
+    bool           empty() const noexcept { return length_ == 0; }
+    const Char16*  data() const noexcept { return data_; }
     const ca::u16* raw_data() const noexcept;
 
-    Char16 char_at(ca::usize index) const noexcept { return ref().char_at(index); }
+    Char16  char_at(ca::usize index) const noexcept { return ref().char_at(index); }
     ca::u32 code_point_at(ca::usize index) const noexcept { return ref().code_point_at(index); }
 
     Utf16StringRef ref() const noexcept { return Utf16StringRef(data_, length_); }
-    Utf16StringRef slice(ca::usize begin, ca::usize end) const noexcept { return ref().slice(begin, end); }
-    Utf16String substring(ca::usize begin, ca::usize end) const { return ref().substring(begin, end); }
+    Utf16StringRef slice(ca::usize begin, ca::usize end) const noexcept
+    {
+        return ref().slice(begin, end);
+    }
+    Utf16String substring(ca::usize begin, ca::usize end) const
+    {
+        return ref().substring(begin, end);
+    }
 
     ca::usize index_of(Char16 ch) const noexcept { return ref().index_of(ch); }
-    ca::usize index_of(Char16 ch, ca::usize from) const noexcept { return ref().index_of(ch, from); }
-    ca::usize index_of(const Utf16StringRef& needle) const noexcept { return ref().index_of(needle); }
-    ca::usize index_of(const Utf16StringRef& needle, ca::usize from) const noexcept { return ref().index_of(needle, from); }
+    ca::usize index_of(Char16 ch, ca::usize from) const noexcept
+    {
+        return ref().index_of(ch, from);
+    }
+    ca::usize index_of(const Utf16StringRef& needle) const noexcept
+    {
+        return ref().index_of(needle);
+    }
+    ca::usize index_of(const Utf16StringRef& needle, ca::usize from) const noexcept
+    {
+        return ref().index_of(needle, from);
+    }
     ca::usize last_index_of(Char16 ch) const noexcept { return ref().last_index_of(ch); }
-    ca::usize last_index_of(Char16 ch, ca::usize from) const noexcept { return ref().last_index_of(ch, from); }
-    ca::usize last_index_of(const Utf16StringRef& needle) const noexcept { return ref().last_index_of(needle); }
-    ca::usize last_index_of(const Utf16StringRef& needle, ca::usize from) const noexcept { return ref().last_index_of(needle, from); }
-    bool starts_with(const Utf16StringRef& prefix) const noexcept { return ref().starts_with(prefix); }
-    bool starts_with(const Utf16StringRef& prefix, ca::usize offset) const noexcept { return ref().starts_with(prefix, offset); }
+    ca::usize last_index_of(Char16 ch, ca::usize from) const noexcept
+    {
+        return ref().last_index_of(ch, from);
+    }
+    ca::usize last_index_of(const Utf16StringRef& needle) const noexcept
+    {
+        return ref().last_index_of(needle);
+    }
+    ca::usize last_index_of(const Utf16StringRef& needle, ca::usize from) const noexcept
+    {
+        return ref().last_index_of(needle, from);
+    }
+    bool starts_with(const Utf16StringRef& prefix) const noexcept
+    {
+        return ref().starts_with(prefix);
+    }
+    bool starts_with(const Utf16StringRef& prefix, ca::usize offset) const noexcept
+    {
+        return ref().starts_with(prefix, offset);
+    }
     bool ends_with(const Utf16StringRef& suffix) const noexcept { return ref().ends_with(suffix); }
     bool contains(const Utf16StringRef& needle) const noexcept { return ref().contains(needle); }
 
-    int compare(const Utf16StringRef& other) const noexcept { return ref().compare(other); }
-    int compare_to(const Utf16StringRef& other) const noexcept { return compare(other); }
-    bool equals(const Utf16StringRef& other) const noexcept { return ref().equals(other); }
+    int     compare(const Utf16StringRef& other) const noexcept { return ref().compare(other); }
+    int     compare_to(const Utf16StringRef& other) const noexcept { return compare(other); }
+    bool    equals(const Utf16StringRef& other) const noexcept { return ref().equals(other); }
     ca::i32 hash_code() const noexcept { return ref().hash_code(); }
 
-    Utf16String concat(const Utf16StringRef& other) const { return ref().concat(other); }
-    Utf16String to_string() const { return clone(); }
+    Utf16String    concat(const Utf16StringRef& other) const { return ref().concat(other); }
+    Utf16String    to_string() const { return clone(); }
     std::u16string to_std_u16_string() const { return ref().to_std_u16_string(); }
-    Utf8String to_utf8_string() const { return ref().to_utf8_string(); }
+    Utf8String     to_utf8_string() const { return ref().to_utf8_string(); }
 
     bool operator==(const Utf16StringRef& other) const noexcept { return equals(other); }
     bool operator!=(const Utf16StringRef& other) const noexcept { return !equals(other); }
@@ -233,7 +278,7 @@ public:
     bool operator!=(const Utf16String& other) const noexcept { return !equals(other.ref()); }
 
 private:
-    Char16* data_;
+    Char16*   data_;
     ca::usize length_;
 };
 
@@ -242,7 +287,8 @@ private:
 /// `Utf16StringBuilder` 使用 UTF-16 code unit 作为索引单位。它不承担 Java 对象
 /// 布局或异常策略：越界读取返回空值，部分越界修改是 no-op 或夹到末尾；需要
 /// Java 异常时应由翻译器 runtime 外层包装。
-class Utf16StringBuilder {
+class Utf16StringBuilder
+{
 public:
     Utf16StringBuilder() = default;
 
@@ -302,7 +348,7 @@ public:
     /// @brief 返回当前 UTF-16 code unit 数量。
     ca::usize length() const noexcept { return static_cast<ca::usize>(buffer_.size()); }
     ca::usize capacity() const noexcept { return static_cast<ca::usize>(buffer_.capacity()); }
-    bool is_empty() const noexcept { return buffer_.empty(); }
+    bool      is_empty() const noexcept { return buffer_.empty(); }
     /// @brief 清空 builder 内容。
     void clear() noexcept { buffer_.clear(); }
 
@@ -327,23 +373,26 @@ std::ostream& operator<<(std::ostream& os, Char16 ch);
 std::ostream& operator<<(std::ostream& os, const Utf16StringRef& str);
 std::ostream& operator<<(std::ostream& os, const Utf16String& str);
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 namespace std {
 
-template <>
-struct hash<ca::str::Char16> {
+template<>
+struct hash<ca::str::Char16>
+{
     size_t operator()(ca::str::Char16 ch) const noexcept;
 };
 
-template <>
-struct hash<ca::str::Utf16StringRef> {
+template<>
+struct hash<ca::str::Utf16StringRef>
+{
     size_t operator()(const ca::str::Utf16StringRef& str) const noexcept;
 };
 
-template <>
-struct hash<ca::str::Utf16String> {
+template<>
+struct hash<ca::str::Utf16String>
+{
     size_t operator()(const ca::str::Utf16String& str) const noexcept;
 };
 
-}  // namespace std
+}   // namespace std

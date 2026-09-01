@@ -17,7 +17,8 @@
 namespace ca::csv {
 
 /// @brief CSV 解析选项。
-struct CsvReaderOptions {
+struct CsvReaderOptions
+{
     /// @brief 第一行是否作为标题行。
     bool first_row_is_header = false;
 
@@ -36,7 +37,8 @@ struct CsvReaderOptions {
 
     /// @brief TSV 预设（Tab 分隔、双引号）。
     /// @return delimiter 为 `\t` 的选项，其余字段保持默认。
-    static CsvReaderOptions tsv() {
+    static CsvReaderOptions tsv()
+    {
         CsvReaderOptions options{};
         options.delimiter = '\t';
         return options;
@@ -45,7 +47,8 @@ struct CsvReaderOptions {
     /// @brief 任意分隔符的 DSV 预设。
     /// @param delimiter 字段分隔符（不能与引号字符相同）。
     /// @return 使用指定分隔符的选项，其余字段保持默认。
-    static CsvReaderOptions delimited(char delimiter) {
+    static CsvReaderOptions delimited(char delimiter)
+    {
         CsvReaderOptions options{};
         options.delimiter = delimiter;
         return options;
@@ -53,23 +56,22 @@ struct CsvReaderOptions {
 };
 
 /// @brief CSV Reader。
-class CsvReader {
+class CsvReader
+{
 public:
     /// @brief 从字符串解析 CSV。
     /// @param input CSV 文本（须在使用期内有效）。
     /// @param options 解析选项。
     /// @return 成功返回 CsvDocument；格式错误返回 ParseError。
     static ca::Result<CsvDocument, ParseError> read(
-        const ca::str::Utf8StringRef& input,
-        const CsvReaderOptions& options = CsvReaderOptions());
+        const ca::str::Utf8StringRef& input, const CsvReaderOptions& options = CsvReaderOptions());
 
     /// @brief 从文件解析 CSV。
     /// @param path 文件路径。
     /// @param options 解析选项。
     /// @return 成功返回 CsvDocument；打开失败或格式错误返回 ParseError。
     static ca::Result<CsvDocument, ParseError> read_file(
-        const ca::str::Utf8StringRef& path,
-        const CsvReaderOptions& options = CsvReaderOptions());
+        const ca::str::Utf8StringRef& path, const CsvReaderOptions& options = CsvReaderOptions());
 };
 
-}  // namespace ca::csv
+}   // namespace ca::csv

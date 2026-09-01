@@ -58,4 +58,3 @@ TEST_CASE(queue_basic)
     queue_pop(&queue);
     TEST_ASSERT(queue_empty(&queue));   // 队列应该为空
 }
-

@@ -19,7 +19,7 @@
 #define LIBCA_EC11_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_EC11_PORT_MODE
-#define LIBCA_EC11_PORT_MODE LIBCA_EC11_PORT_MODE_EXTERN
+#    define LIBCA_EC11_PORT_MODE LIBCA_EC11_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -34,14 +34,15 @@ extern "C" {
 extern u8 port_ec11_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
-typedef struct ec11_port {
-    u8 (*read_pin)(void* gpio, u16 pin);  // 读引脚电平
+typedef struct ec11_port
+{
+    u8 (*read_pin)(void* gpio, u16 pin);   // 读引脚电平
 } ec11_port_t;
 void ec11_bind_port(const ec11_port_t* port);
 bool ec11_port_is_registered(void);
 
 #else
-#error "Invalid EC11 port mode"
+#    error "Invalid EC11 port mode"
 #endif
 
 /// @brief 旋转方向枚举
@@ -111,7 +112,7 @@ void ec11_reset_count(ec11_t* self);
 bool ec11_is_sw_down(ec11_t* self);
 
 /// @brief 获取上一次探测到的旋转方向
-/// 
+///
 /// @param self 对象指针
 /// @return ec11_rotation 上一次探测到的旋转方向
 ec11_rotation ec11_get_last_rotation(ec11_t* self);

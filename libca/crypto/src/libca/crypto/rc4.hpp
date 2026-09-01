@@ -15,4 +15,4 @@ namespace ca::crypto {
 ca::Result<ca::core::Bytes, CryptoError> rc4_crypt(ca::core::ByteSlice key,
                                                    ca::core::ByteSlice data);
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

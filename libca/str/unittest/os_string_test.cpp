@@ -34,9 +34,9 @@ TEST(OsStringTest, EmptyString)
 // 验收标准：Windows 上 OsString ↔ std::wstring 零拷贝互转。
 TEST(OsStringTest, WideStringZeroCopyInterop)
 {
-    std::wstring original = L"path/to/file";
-    const wchar_t* src_ptr = original.data();
-    OsString     os       = OsString::from_wstring(std::move(original));
+    std::wstring   original = L"path/to/file";
+    const wchar_t* src_ptr  = original.data();
+    OsString       os       = OsString::from_wstring(std::move(original));
 
     // as_wide 返回的视图应与原数据一致，且指针稳定（move 而非 copy）。
     std::wstring_view view = os.as_wide();
@@ -52,7 +52,7 @@ TEST(OsStringTest, WideStringZeroCopyInterop)
 // 验收标准：Windows 上含中文往返无损。
 TEST(OsStringTest, ChineseRoundtripViaUtf16)
 {
-    const char*    utf8_in = "你好世界";  // NOLINT: 故意使用 UTF-8 字面量
+    const char*    utf8_in  = "你好世界";   // NOLINT: 故意使用 UTF-8 字面量
     std::u16string expected = u"你好世界";
 
     OsString os = OsString::from_utf8(utf8_in);
@@ -68,8 +68,7 @@ TEST(OsStringTest, ChineseRoundtripViaUtf16)
 
 TEST(OsStringTest, FromUtf8StrictThrowsOnInvalid)
 {
-    EXPECT_THROW({ OsString::from_utf8(std::string_view("\xff\xfe", 2)); },
-                 std::runtime_error);
+    EXPECT_THROW({ OsString::from_utf8(std::string_view("\xff\xfe", 2)); }, std::runtime_error);
 }
 
 // to_utf8_lossy 对非法 UTF-16（未配对代理）应替换为 U+FFFD，绝不抛异常
@@ -85,12 +84,12 @@ TEST(OsStringTest, ToUtf8LossyReplacesUnpairedSurrogate)
     });
 }
 
-#else  // POSIX
+#else   // POSIX
 
 // 验收标准：POSIX 上 OsString ↔ Utf8String 零拷贝互转。
 TEST(OsStringTest, Utf8ZeroCopyInterop)
 {
-    Utf8String original = Utf8String::from_cstr("hello");
+    Utf8String original   = Utf8String::from_cstr("hello");
     const u8*  ptr_before = original.data();
 
     OsString os = OsString::from_utf8_string(std::move(original));
@@ -107,7 +106,7 @@ TEST(OsStringTest, Utf8ZeroCopyInterop)
 
 TEST(OsStringTest, ChineseRoundtripNativeUtf8)
 {
-    const char* utf8_in = "你好世界";  // NOLINT
+    const char* utf8_in = "你好世界";   // NOLINT
     OsString    os      = OsString::from_utf8(utf8_in);
 
     // POSIX 下 as_utf8 直接返回内部 UTF-8，无转换开销。
@@ -120,8 +119,8 @@ TEST(OsStringTest, ChineseRoundtripNativeUtf8)
 TEST(OsStringTest, FromUtf8LossyReplacesInvalid)
 {
     // 合法 ASCII 后跟两个孤立高位字节（非法）。
-    OsString os = OsString::from_utf8_lossy(std::string_view("ab\xff\xfe", 4));
-    Utf8String back = os.to_utf8_lossy();
+    OsString         os   = OsString::from_utf8_lossy(std::string_view("ab\xff\xfe", 4));
+    Utf8String       back = os.to_utf8_lossy();
     std::string_view out(back);
     // "ab" 保留，两个非法字节各替换为一个 U+FFFD（0xEF 0xBF 0xBD）。
     EXPECT_EQ(out, std::string_view("ab\xef\xbf\xbd\xef\xbf\xbd", 8));
@@ -145,12 +144,12 @@ TEST(OsStringTest, MoveSemantics)
 
 TEST(OsStrTest, ViewReflectsSource)
 {
-    OsString os  = OsString::from_utf8("test");
+    OsString os   = OsString::from_utf8("test");
     OsStr    view = os.as_view();
 
     EXPECT_FALSE(view.is_empty());
     EXPECT_GT(view.size(), 0u);
 }
 
-}  // namespace
-}  // namespace ca::str::test
+}   // namespace
+}   // namespace ca::str::test

@@ -4,24 +4,24 @@
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_EXTERN)
 
-#define ADS1115_I2C_WRITE(hi2c, dev_addr, reg_addr, data, size) \
-    port_ads1115_i2c_write((hi2c), (dev_addr), (reg_addr), (data), (size))
-#define ADS1115_I2C_READ(hi2c, dev_addr, reg_addr, data, size) \
-    port_ads1115_i2c_read((hi2c), (dev_addr), (reg_addr), (data), (size))
-#define ADS1115_DELAY_MS(ms) port_ads1115_delay_ms((ms))
+#    define ADS1115_I2C_WRITE(hi2c, dev_addr, reg_addr, data, size) \
+        port_ads1115_i2c_write((hi2c), (dev_addr), (reg_addr), (data), (size))
+#    define ADS1115_I2C_READ(hi2c, dev_addr, reg_addr, data, size) \
+        port_ads1115_i2c_read((hi2c), (dev_addr), (reg_addr), (data), (size))
+#    define ADS1115_DELAY_MS(ms) port_ads1115_delay_ms((ms))
 
 #elif (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
 
 static const ads1115_port_t* g_ads1115_port = NULL;
 
-#define ADS1115_I2C_WRITE(hi2c, dev_addr, reg_addr, data, size) \
-    g_ads1115_port->i2c_write((hi2c), (dev_addr), (reg_addr), (data), (size))
-#define ADS1115_I2C_READ(hi2c, dev_addr, reg_addr, data, size) \
-    g_ads1115_port->i2c_read((hi2c), (dev_addr), (reg_addr), (data), (size))
-#define ADS1115_DELAY_MS(ms) g_ads1115_port->delay_ms((ms))
+#    define ADS1115_I2C_WRITE(hi2c, dev_addr, reg_addr, data, size) \
+        g_ads1115_port->i2c_write((hi2c), (dev_addr), (reg_addr), (data), (size))
+#    define ADS1115_I2C_READ(hi2c, dev_addr, reg_addr, data, size) \
+        g_ads1115_port->i2c_read((hi2c), (dev_addr), (reg_addr), (data), (size))
+#    define ADS1115_DELAY_MS(ms) g_ads1115_port->delay_ms((ms))
 
 #else
-#error "Invalid ADS1115 port mode"
+#    error "Invalid ADS1115 port mode"
 #endif
 
 #if (LIBCA_ADS1115_PORT_MODE == LIBCA_ADS1115_PORT_MODE_DYNAMIC)
@@ -41,16 +41,16 @@ bool ads1115_port_is_registered(void)
 ////////////////////////////////////////////////////////////////////////////////
 
 /* ADS1115 寄存器地址 */
-#define ADS1115_REG_CONVERSE    0x00
-#define ADS1115_REG_CONFIG      0x01
-#define ADS1115_REG_LO_THRESH   0x02
-#define ADS1115_REG_HI_THRESH   0x03
+#define ADS1115_REG_CONVERSE 0x00
+#define ADS1115_REG_CONFIG 0x01
+#define ADS1115_REG_LO_THRESH 0x02
+#define ADS1115_REG_HI_THRESH 0x03
 
 void ads1115_init(ads1115_t* self, void* hi2c, u8 dev_addr)
 {
     self->hi2c     = hi2c;
     self->dev_addr = dev_addr;
-    self->gain_lsb = 2.048f / 32768.0f; // 默认 ±2.048V
+    self->gain_lsb = 2.048f / 32768.0f;   // 默认 ±2.048V
     self->mux      = ADS1115_MUX_DIFF_0_1;
     self->pga      = ADS1115_PGA_2048;
     self->mode     = ADS1115_MODE_SINGLE;
@@ -130,9 +130,10 @@ i32 ads1115_read_raw(ads1115_t* self, i16* raw_val)
 
         // 通过轮询 OS 位来等待转换完成 (当 OS 位为 1 时表示完成)
         // 根据采样率计算一个合理的超时时间
-        const u16 conversion_time_ms[] = { 126, 63, 32, 16, 8, 4, 3, 2 };   // 对应各速率的转换时间(ms)
-        u16       timeout_ms           = conversion_time_ms[self->rate];
-        u16       poll_count           = 0;
+        const u16 conversion_time_ms[] = {
+            126, 63, 32, 16, 8, 4, 3, 2};   // 对应各速率的转换时间(ms)
+        u16 timeout_ms = conversion_time_ms[self->rate];
+        u16 poll_count = 0;
         do {
             ADS1115_DELAY_MS(1);
             ret = ads1115_read_reg(self, ADS1115_REG_CONFIG, &config);

@@ -21,10 +21,11 @@ namespace ca::collection {
 /// 使用 bool 或只读指针表达结果，`take()` / `replace()` 用 `std::optional<T>`
 /// 返回被移出的旧值所有权。
 template<typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>>
-class HashSet {
+class HashSet
+{
 public:
-    using value_type = T;
-    using iterator = typename std::unordered_set<T, Hash, KeyEqual>::iterator;
+    using value_type     = T;
+    using iterator       = typename std::unordered_set<T, Hash, KeyEqual>::iterator;
     using const_iterator = typename std::unordered_set<T, Hash, KeyEqual>::const_iterator;
 
     HashSet() = default;
@@ -99,10 +100,10 @@ public:
     bool is_disjoint(const HashSet& other) const
     {
         const HashSet* smaller = this;
-        const HashSet* larger = &other;
+        const HashSet* larger  = &other;
         if (other.len() < len()) {
             smaller = &other;
-            larger = this;
+            larger  = this;
         }
 
         for (const auto& value : smaller->data_) {
@@ -125,10 +126,10 @@ public:
     HashSet intersection_with(const HashSet& other) const
     {
         const HashSet* smaller = this;
-        const HashSet* larger = &other;
+        const HashSet* larger  = &other;
         if (other.len() < len()) {
             smaller = &other;
-            larger = this;
+            larger  = this;
         }
 
         auto out = HashSet::with_capacity(smaller->len());
@@ -215,9 +216,7 @@ public:
     template<typename Pred>
     void retain(Pred&& keep)
     {
-        remove_if([&keep](const T& value) {
-            return !keep(value);
-        });
+        remove_if([&keep](const T& value) { return !keep(value); });
     }
 
     /// @brief 移除谓词返回 true 的元素。
@@ -230,15 +229,16 @@ public:
             if (remove(*it)) {
                 it = data_.erase(it);
                 ++removed;
-            } else {
+            }
+            else {
                 ++it;
             }
         }
         return removed;
     }
 
-    iterator begin() noexcept { return data_.begin(); }
-    iterator end() noexcept { return data_.end(); }
+    iterator       begin() noexcept { return data_.begin(); }
+    iterator       end() noexcept { return data_.end(); }
     const_iterator begin() const noexcept { return data_.begin(); }
     const_iterator end() const noexcept { return data_.end(); }
     const_iterator cbegin() const noexcept { return data_.cbegin(); }
@@ -248,4 +248,4 @@ private:
     std::unordered_set<T, Hash, KeyEqual> data_;
 };
 
-}  // namespace ca::collection
+}   // namespace ca::collection

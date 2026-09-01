@@ -27,7 +27,7 @@
 #define LIBCA_JY61P_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_JY61P_PORT_MODE
-#define LIBCA_JY61P_PORT_MODE LIBCA_JY61P_PORT_MODE_EXTERN
+#    define LIBCA_JY61P_PORT_MODE LIBCA_JY61P_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -61,15 +61,16 @@ extern i32 port_jy61p_uart_send(void* huart, const u8* buf, usize len);
 extern void port_jy61p_delay_ms(u32 ms);
 
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
-typedef struct jy61p_port {
-    i32  (*uart_send)(void* huart, const u8* buf, usize len);  // UART发送
-    void (*delay_ms)(u32 ms);                                   // 毫秒延时
+typedef struct jy61p_port
+{
+    i32 (*uart_send)(void* huart, const u8* buf, usize len);   // UART发送
+    void (*delay_ms)(u32 ms);                                  // 毫秒延时
 } jy61p_port_t;
 void jy61p_bind_port(const jy61p_port_t* port);
 bool jy61p_port_is_registered(void);
 
 #else
-#error "Invalid JY61P port mode"
+#    error "Invalid JY61P port mode"
 #endif
 
 typedef struct jy61p_frame

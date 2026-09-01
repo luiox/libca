@@ -8,8 +8,8 @@ namespace ca::core::test {
 
 TEST(ArrayUtilTest, EqualsComparesElementContent)
 {
-    const ca::i32 left[] = {1, 2, 3};
-    const ca::i32 same[] = {1, 2, 3};
+    const ca::i32 left[]      = {1, 2, 3};
+    const ca::i32 same[]      = {1, 2, 3};
     const ca::i32 different[] = {1, 2, 4};
 
     EXPECT_TRUE(ArrayUtil::equals(left, 3, same, 3));
@@ -75,4 +75,4 @@ TEST(ArrayUtilTest, CopyOfRangeSlicesAndPads)
     EXPECT_THROW(ArrayUtil::copy_of_range<ca::i32>(nullptr, 1, 0, 1), std::invalid_argument);
 }
 
-}  // namespace ca::core::test
+}   // namespace ca::core::test

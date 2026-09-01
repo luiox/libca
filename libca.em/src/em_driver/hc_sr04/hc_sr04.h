@@ -4,9 +4,9 @@
 /// @version 0.1
 /// @date 2026-01-22
 /// @update 0.2 添加extern外部依赖注入模式
-/// 
+///
 /// @copyright Copyright (c) 2026
-/// 
+///
 #ifndef LIBCA_EM_DRIVER_HC_SR04_H
 #define LIBCA_EM_DRIVER_HC_SR04_H
 
@@ -18,7 +18,7 @@
 #define LIBCA_HC_SR04_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_HC_SR04_PORT_MODE
-#define LIBCA_HC_SR04_PORT_MODE LIBCA_HC_SR04_PORT_MODE_EXTERN
+#    define LIBCA_HC_SR04_PORT_MODE LIBCA_HC_SR04_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -59,14 +59,15 @@ extern void port_hc_sr04_mutex_pend(void);
 extern void port_hc_sr04_mutex_post(void);
 
 #elif (LIBCA_HC_SR04_PORT_MODE == LIBCA_HC_SR04_PORT_MODE_DYNAMIC)
-typedef struct hc_sr04_port {
-    void (*write_pin)(void* gpio, u16 pin, u8 value);  // GPIO写引脚
-    u8   (*read_pin)(void* gpio, u16 pin);              // GPIO读引脚
+typedef struct hc_sr04_port
+{
+    void (*write_pin)(void* gpio, u16 pin, u8 value);   // GPIO写引脚
+    u8 (*read_pin)(void* gpio, u16 pin);                // GPIO读引脚
     void (*delay_us)(u32 us);                           // 微秒延时
     void (*tim_set_counter)(void* tim, u32 val);        // 设置定时器计数值
     void (*tim_start)(void* tim);                       // 启动定时器
     void (*tim_stop)(void* tim);                        // 停止定时器
-    u32  (*tim_get_counter)(void* tim);                 // 读取定时器计数值
+    u32 (*tim_get_counter)(void* tim);                  // 读取定时器计数值
     void (*mutex_pend)(void);                           // 互斥量等待（可为NULL）
     void (*mutex_post)(void);                           // 互斥量释放（可为NULL）
 } hc_sr04_port_t;
@@ -74,25 +75,27 @@ void hc_sr04_bind_port(const hc_sr04_port_t* port);
 bool hc_sr04_port_is_registered(void);
 
 #else
-#error "Invalid HC_SR04 port mode"
+#    error "Invalid HC_SR04 port mode"
 #endif
 
-typedef struct hc_sr04 {
-    void* trig_port;
-    u16   trig_pin;
-    void* echo_port;
-    u16   echo_pin;
-    void* tim;           // 计时器句柄
-    double distance;     // 单位：cm
+typedef struct hc_sr04
+{
+    void*  trig_port;
+    u16    trig_pin;
+    void*  echo_port;
+    u16    echo_pin;
+    void*  tim;        // 计时器句柄
+    double distance;   // 单位：cm
 } hc_sr04_t;
 
 /* 错误码 */
-#define HC_SR04_OK                      0
-#define HC_SR04_ERR_TIMEOUT             (-1)
-#define HC_SR04_ERR_INVALID_PARAM       (-2)
+#define HC_SR04_OK 0
+#define HC_SR04_ERR_TIMEOUT (-1)
+#define HC_SR04_ERR_INVALID_PARAM (-2)
 
 // 初始化设备（绑定引脚与定时器）
-void hc_sr04_init(hc_sr04_t* self, void* trig_port, u16 trig_pin, void* echo_port, u16 echo_pin, void* tim);
+void hc_sr04_init(hc_sr04_t* self, void* trig_port, u16 trig_pin, void* echo_port, u16 echo_pin,
+                  void* tim);
 // 发起一次测距，返回 HC_SR04_OK 或 错误码，并把测到的距离写入 self->distance
 i32 hc_sr04_measure(hc_sr04_t* self);
 
@@ -100,4 +103,4 @@ i32 hc_sr04_measure(hc_sr04_t* self);
 }
 #endif
 
-#endif // LIBCA_EM_DRIVER_HC_SR04_H
+#endif   // LIBCA_EM_DRIVER_HC_SR04_H

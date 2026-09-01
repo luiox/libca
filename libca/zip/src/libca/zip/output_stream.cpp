@@ -11,9 +11,9 @@ namespace ca::zip {
 
 namespace {
 
-constexpr ca::u32 kLocSig = 0x04034b50;
-constexpr ca::u32 kCenSig = 0x02014b50;
-constexpr ca::u32 kEndSig = 0x06054b50;
+constexpr ca::u32 kLocSig            = 0x04034b50;
+constexpr ca::u32 kCenSig            = 0x02014b50;
+constexpr ca::u32 kEndSig            = 0x06054b50;
 constexpr ca::u32 kDataDescriptorSig = 0x08074b50;
 
 void write_u16(ca::u8* p, ca::u16 v)
@@ -32,20 +32,21 @@ void write_u32(ca::u8* p, ca::u32 v)
 
 }   // anonymous namespace
 
-struct ZipOutputStream::Impl {
+struct ZipOutputStream::Impl
+{
     FILE* file   = nullptr;
     bool  opened = false;
     int   level  = Z_DEFAULT_COMPRESSION;
 
     bool        entry_open = false;
     std::string entry_name;
-    ca::u16     entry_method             = 0;
-    ca::u32     current_crc32            = 0;
-    ca::u32     current_compressed_size  = 0;
+    ca::u16     entry_method              = 0;
+    ca::u32     current_crc32             = 0;
+    ca::u32     current_compressed_size   = 0;
     ca::u32     current_uncompressed_size = 0;
-    ca::u32     current_loc_offset       = 0;
-    ca::u16     entry_flags              = 0;
-    void*       zstream                  = nullptr;
+    ca::u32     current_loc_offset        = 0;
+    ca::u16     entry_flags               = 0;
+    void*       zstream                   = nullptr;
     Crc32       crc32_;
 
     std::vector<ca::u8> cen_data;
@@ -65,8 +66,8 @@ struct ZipOutputStream::Impl {
     // 收尾 deflate 流并归还资源；失败时抛异常前先释放，避免句柄泄漏。
     void finish_and_release_zstream()
     {
-        auto* stream = static_cast<z_stream*>(zstream);
-        int   ret;
+        auto*  stream = static_cast<z_stream*>(zstream);
+        int    ret;
         ca::u8 buffer[8192];
         do {
             stream->next_in   = nullptr;
@@ -113,7 +114,8 @@ ZipOutputStream::~ZipOutputStream()
     if (impl_->opened) {
         try {
             close();
-        } catch (...) {
+        }
+        catch (...) {
             // 析构函数不抛异常
         }
     }
@@ -126,7 +128,8 @@ void ZipOutputStream::open(const std::string& path)
     }
     FILE* fp = nullptr;
 #ifdef _MSC_VER
-    if (::fopen_s(&fp, path.c_str(), "wb") != 0) fp = nullptr;
+    if (::fopen_s(&fp, path.c_str(), "wb") != 0)
+        fp = nullptr;
 #else
     fp = std::fopen(path.c_str(), "wb");
 #endif
@@ -190,9 +193,9 @@ void ZipOutputStream::put_next_entry(const ZipEntry& entry)
         close_entry();
     }
 
-    impl_->entry_name     = entry.name();
-    impl_->entry_method   = entry.compression_method();
-    impl_->current_crc32  = 0;
+    impl_->entry_name    = entry.name();
+    impl_->entry_method  = entry.compression_method();
+    impl_->current_crc32 = 0;
     impl_->crc32_.reset();
     impl_->current_compressed_size   = 0;
     impl_->current_uncompressed_size = 0;
@@ -224,9 +227,8 @@ void ZipOutputStream::put_next_entry(const ZipEntry& entry)
     }
 
     if (entry.is_deflated()) {
-        auto* zs  = new z_stream {};
-        const int ret =
-            ::deflateInit2(zs, impl_->level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+        auto*     zs  = new z_stream{};
+        const int ret = ::deflateInit2(zs, impl_->level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
         if (ret != Z_OK) {
             delete zs;
             throw std::runtime_error("deflateInit2 failed");
@@ -242,7 +244,8 @@ void ZipOutputStream::write(const ca::u8* data, size_t size)
     if (!impl_->entry_open) {
         throw std::runtime_error("No entry to write to");
     }
-    if (size == 0) return;
+    if (size == 0)
+        return;
 
     impl_->crc32_.update(data, size);
     impl_->current_uncompressed_size += static_cast<ca::u32>(size);
@@ -252,7 +255,8 @@ void ZipOutputStream::write(const ca::u8* data, size_t size)
             throw std::runtime_error("Failed to write stored data");
         }
         impl_->current_compressed_size += static_cast<ca::u32>(size);
-    } else {
+    }
+    else {
         auto* stream     = static_cast<z_stream*>(impl_->zstream);
         stream->next_in  = const_cast<ca::u8*>(data);
         stream->avail_in = static_cast<uInt>(size);
@@ -327,20 +331,19 @@ void ZipOutputStream::close_entry()
         impl_->cen_data.insert(
             impl_->cen_data.end(),
             reinterpret_cast<const ca::u8*>(impl_->entry_name.data()),
-            reinterpret_cast<const ca::u8*>(impl_->entry_name.data()) +
-                impl_->entry_name.size());
+            reinterpret_cast<const ca::u8*>(impl_->entry_name.data()) + impl_->entry_name.size());
     }
 
     impl_->total_entries++;
 
-    impl_->entry_open                 = false;
+    impl_->entry_open = false;
     impl_->entry_name.clear();
-    impl_->entry_method               = 0;
-    impl_->current_crc32              = 0;
-    impl_->current_compressed_size    = 0;
-    impl_->current_uncompressed_size  = 0;
-    impl_->current_loc_offset         = 0;
-    impl_->entry_flags                = 0;
+    impl_->entry_method              = 0;
+    impl_->current_crc32             = 0;
+    impl_->current_compressed_size   = 0;
+    impl_->current_uncompressed_size = 0;
+    impl_->current_loc_offset        = 0;
+    impl_->entry_flags               = 0;
 }
 
 void ZipOutputStream::set_level(int level)

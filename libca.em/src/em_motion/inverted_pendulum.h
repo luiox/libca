@@ -16,12 +16,13 @@ extern "C" {
 #endif
 
 /// @brief 倒立摆控制参数
-typedef struct inverted_pendulum_cfg_s {
-	f32 kp;
-	f32 kd;
-	f32 mass;
-	f32 length;
-	f32 gravity;
+typedef struct inverted_pendulum_cfg_s
+{
+    f32 kp;
+    f32 kd;
+    f32 mass;
+    f32 length;
+    f32 gravity;
 } inverted_pendulum_cfg_t;
 
 /// @brief 计算 PD 控制力矩
@@ -50,10 +51,11 @@ f32 inverted_pendulum_gravity_comp(f32 angle, f32 mass, f32 length, f32 gravity)
 /// @param target_angle 目标摆角，单位 rad
 /// @param cfg 控制参数
 /// @return f32 控制力矩
-f32 inverted_pendulum_control(f32 angle, f32 ang_vel, f32 target_angle, const inverted_pendulum_cfg_t* cfg);
+f32 inverted_pendulum_control(f32 angle, f32 ang_vel, f32 target_angle,
+                              const inverted_pendulum_cfg_t* cfg);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_INVERTED_PENDULUM_H
+#endif   // !LIBCA_EM_MOTION_INVERTED_PENDULUM_H

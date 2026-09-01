@@ -6,7 +6,8 @@
 // ============================================
 // 二阶巴特沃斯低通滤波器
 // ============================================
-typedef struct butterworth2_filter {
+typedef struct butterworth2_filter
+{
     // 滤波器系数 (由初始化函数计算)
     f32 b0;
     f32 b1;
@@ -15,10 +16,10 @@ typedef struct butterworth2_filter {
     f32 a2;
 
     // 历史状态 (x:输入, y:输出)
-    f32 x_prev1; // x[n-1]
-    f32 x_prev2; // x[n-2]
-    f32 y_prev1; // y[n-1]
-    f32 y_prev2; // y[n-2]
+    f32 x_prev1;   // x[n-1]
+    f32 x_prev2;   // x[n-2]
+    f32 y_prev1;   // y[n-1]
+    f32 y_prev2;   // y[n-2]
 } butterworth2_filter_t;
 
 /// @brief 初始化二阶巴特沃斯低通滤波器
@@ -41,12 +42,13 @@ f32 butterworth2_filter_update(butterworth2_filter_t* self, f32 input);
 // ============================================
 // 滑动平均滤波器
 // ============================================
-typedef struct mean_filter_u16 {
-    u16* buffer;      // 历史数据缓存 (外部传入)
-    u16  size;        // 缓存大小
-    u16  index;       // 当前写入位置
-    u32  sum;         // 当前和 (缓存加速)
-    u16  count;       // 当前已有数据量
+typedef struct mean_filter_u16
+{
+    u16* buffer;   // 历史数据缓存 (外部传入)
+    u16  size;     // 缓存大小
+    u16  index;    // 当前写入位置
+    u32  sum;      // 当前和 (缓存加速)
+    u16  count;    // 当前已有数据量
 } mean_filter_u16_t;
 
 /// @brief 初始化滑动平均滤波器
@@ -64,11 +66,12 @@ u16 mean_filter_u16_update(mean_filter_u16_t* self, u16 input);
 // ============================================
 // 中值滤波器
 // ============================================
-typedef struct median_filter_u16 {
-    u16* buffer;      // 历史数据缓存 (外部传入)
-    u16  size;        // 缓存大小
-    u16  index;       // 当前写入位置
-    u16  count;       // 当前已有数据量
+typedef struct median_filter_u16
+{
+    u16* buffer;   // 历史数据缓存 (外部传入)
+    u16  size;     // 缓存大小
+    u16  index;    // 当前写入位置
+    u16  count;    // 当前已有数据量
 } median_filter_u16_t;
 
 /// @brief 初始化中值滤波器
@@ -84,4 +87,4 @@ void median_filter_u16_init(median_filter_u16_t* self, u16* buffer, u16 size);
 /// @return u16 中值结果
 u16 median_filter_u16_update(median_filter_u16_t* self, u16 input);
 
-#endif // !LIBCA_EM_UTIL_FILTER_H
+#endif   // !LIBCA_EM_UTIL_FILTER_H

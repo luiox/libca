@@ -36,8 +36,8 @@ TEST(StopTokenTest, CopiesObserveOneIdempotentStopRequest)
 TEST(StopTokenTest, WaitWakesWhenStopIsRequested)
 {
     StopSource source;
-    StopToken  token = source.token();
-    auto waiter = std::async(std::launch::async, [token]() {
+    StopToken  token  = source.token();
+    auto       waiter = std::async(std::launch::async, [token]() {
         token.wait();
         return token.stop_requested();
     });

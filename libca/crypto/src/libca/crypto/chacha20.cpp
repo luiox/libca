@@ -11,10 +11,8 @@ namespace {
 
 u32 load_le32(const u8* data) noexcept
 {
-    return static_cast<u32>(data[0]) |
-           (static_cast<u32>(data[1]) << 8) |
-           (static_cast<u32>(data[2]) << 16) |
-           (static_cast<u32>(data[3]) << 24);
+    return static_cast<u32>(data[0]) | (static_cast<u32>(data[1]) << 8) |
+           (static_cast<u32>(data[2]) << 16) | (static_cast<u32>(data[3]) << 24);
 }
 
 void store_le32(u8* out, u32 value) noexcept
@@ -32,16 +30,27 @@ u32 rotl32(u32 value, u32 bits) noexcept
 
 void quarter_round(u32& a, u32& b, u32& c, u32& d) noexcept
 {
-    a += b; d ^= a; d = rotl32(d, 16);
-    c += d; b ^= c; b = rotl32(b, 12);
-    a += b; d ^= a; d = rotl32(d, 8);
-    c += d; b ^= c; b = rotl32(b, 7);
+    a += b;
+    d ^= a;
+    d = rotl32(d, 16);
+    c += d;
+    b ^= c;
+    b = rotl32(b, 12);
+    a += b;
+    d ^= a;
+    d = rotl32(d, 8);
+    c += d;
+    b ^= c;
+    b = rotl32(b, 7);
 }
 
 void chacha20_init_state(u32* state, ByteSlice key, u32 counter, ByteSlice nonce) noexcept
 {
     const u32 initial[16] = {
-        0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
+        0x61707865,
+        0x3320646e,
+        0x79622d32,
+        0x6b206574,
         load_le32(key.data() + 0),
         load_le32(key.data() + 4),
         load_le32(key.data() + 8),
@@ -79,10 +88,10 @@ void chacha20_block_impl(const u32* state, u8* out) noexcept
     for (usize i = 0; i < 16; ++i)
         store_le32(out + (i * 4), working[i] + state[i]);
 
-    secure_zero(working, sizeof(working));  // working 含密钥派生态
+    secure_zero(working, sizeof(working));   // working 含密钥派生态
 }
 
-}  // namespace
+}   // namespace
 
 Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice nonce)
 {
@@ -90,10 +99,10 @@ Result<Bytes, CryptoError> chacha20_block(ByteSlice key, u32 counter, ByteSlice 
         return Err(CryptoError::INVALID_ARGUMENT);
 
     u32 state[16];
-    u8 out[CHACHA20_BLOCK_SIZE];
+    u8  out[CHACHA20_BLOCK_SIZE];
     chacha20_init_state(state, key, counter, nonce);
     chacha20_block_impl(state, out);
-    secure_zero(state, sizeof(state));  // state 前四个常量后接密钥字
+    secure_zero(state, sizeof(state));   // state 前四个常量后接密钥字
 
     return Ok(Bytes::copy_from_slice(out, CHACHA20_BLOCK_SIZE));
 }
@@ -104,17 +113,17 @@ Result<Bytes, CryptoError> chacha20_xor(ByteSlice key, u32 counter, ByteSlice no
         return Err(CryptoError::INVALID_ARGUMENT);
 
     u32 state[16];
-    u8 block[CHACHA20_BLOCK_SIZE];
+    u8  block[CHACHA20_BLOCK_SIZE];
     chacha20_init_state(state, key, counter, nonce);
 
     BytesMut output = BytesMut::with_capacity(data.size());
-    usize offset = 0;
+    usize    offset = 0;
     while (offset < data.size()) {
         state[12] = counter;
         chacha20_block_impl(state, block);
 
         const usize remaining = data.size() - offset;
-        const usize take = remaining < CHACHA20_BLOCK_SIZE ? remaining : CHACHA20_BLOCK_SIZE;
+        const usize take      = remaining < CHACHA20_BLOCK_SIZE ? remaining : CHACHA20_BLOCK_SIZE;
         for (usize i = 0; i < take; ++i)
             output.put_u8(static_cast<u8>(data[offset + i] ^ block[i]));
 
@@ -127,4 +136,4 @@ Result<Bytes, CryptoError> chacha20_xor(ByteSlice key, u32 counter, ByteSlice no
     return Ok(output.freeze());
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

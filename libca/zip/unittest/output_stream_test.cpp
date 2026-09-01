@@ -29,7 +29,7 @@ TEST(ZipOutputStreamTest, WriteReadStored)
         zos.close_entry();
     }
 
-    ZipFile     zf(outPath.string());
+    ZipFile zf(outPath.string());
     EXPECT_EQ(zf.size(), 1u);
     auto        data = zf.read("test.txt");
     std::string result(data.begin(), data.end());
@@ -43,7 +43,8 @@ TEST(ZipOutputStreamTest, WriteReadDeflated)
         ZipOutputStream zos(outPath.string());
         zos.put_next_entry(ZipEntry("data.bin", 0, 1000, 8, 0, 0));
         std::vector<ca::u8> data(1000);
-        for (int i = 0; i < 1000; i++) data[i] = static_cast<ca::u8>(i % 256);
+        for (int i = 0; i < 1000; i++)
+            data[i] = static_cast<ca::u8>(i % 256);
         zos.write(data);
         zos.close_entry();
     }
@@ -64,11 +65,11 @@ TEST(ZipOutputStreamTest, MultipleEntries)
         ZipOutputStream zos(outPath.string());
 
         zos.put_next_entry(ZipEntry("a.txt", 0, 3, 0, 0, 0));
-        zos.write(std::vector<ca::u8> {'a', 'b', 'c'});
+        zos.write(std::vector<ca::u8>{'a', 'b', 'c'});
         zos.close_entry();
 
         zos.put_next_entry(ZipEntry("b.txt", 0, 3, 8, 0, 0));
-        zos.write(std::vector<ca::u8> {'d', 'e', 'f'});
+        zos.write(std::vector<ca::u8>{'d', 'e', 'f'});
         zos.close_entry();
     }
 
@@ -118,18 +119,16 @@ TEST(ZipOutputStreamTest, DeflatedDataIntegrity)
 
 TEST(ZipOutputStreamTest, CompressionLevels)
 {
-    const std::string data =
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const std::string data = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
     for (const int level : {0, 1, 6, 9}) {
         const auto outPath = temp_path("zos_level" + std::to_string(level) + ".zip");
         {
             ZipOutputStream zos(outPath.string());
             zos.set_level(level);
-            zos.put_next_entry(
-                ZipEntry("test.txt", 0, static_cast<ca::u32>(data.size()), 8, 0, 0));
+            zos.put_next_entry(ZipEntry("test.txt", 0, static_cast<ca::u32>(data.size()), 8, 0, 0));
             zos.write(reinterpret_cast<const ca::u8*>(data.data()), data.size());
             zos.close_entry();
         }
@@ -142,8 +141,8 @@ TEST(ZipOutputStreamTest, CompressionLevels)
 
 TEST(ZipOutputStreamTest, ManyEntries)
 {
-    const auto          outPath     = temp_path("zos_many_entries.zip");
-    constexpr int       kEntryCount = 50;
+    const auto    outPath     = temp_path("zos_many_entries.zip");
+    constexpr int kEntryCount = 50;
     {
         ZipOutputStream zos(outPath.string());
         for (int i = 0; i < kEntryCount; i++) {
@@ -161,7 +160,7 @@ TEST(ZipOutputStreamTest, ManyEntries)
     for (int i = 0; i < kEntryCount; i++) {
         const std::string expectedName = "file" + std::to_string(i) + ".txt";
         EXPECT_NE(std::find(names.begin(), names.end(), expectedName), names.end());
-        auto        data   = zf.read(expectedName);
+        auto        data = zf.read(expectedName);
         std::string actual(data.begin(), data.end());
         EXPECT_EQ(actual, std::to_string(i));
     }
@@ -197,14 +196,11 @@ TEST(ZipOutputStreamTest, SpecialCharacters)
 TEST(ZipOutputStreamTest, RoundtripMetadata)
 {
     const auto          outPath = temp_path("zos_metadata.zip");
-    std::vector<ca::u8> data    = {'H', 'e', 'l', 'l', 'o', ',', ' ', 'W', 'o',
-                                   'r', 'l', 'd', '!'};
-    const ca::u32       expectedCrc =
-        ::crc32(0, data.data(), static_cast<uInt>(data.size()));
+    std::vector<ca::u8> data    = {'H', 'e', 'l', 'l', 'o', ',', ' ', 'W', 'o', 'r', 'l', 'd', '!'};
+    const ca::u32       expectedCrc = ::crc32(0, data.data(), static_cast<uInt>(data.size()));
     {
         ZipOutputStream zos(outPath.string());
-        zos.put_next_entry(
-            ZipEntry("hello.dat", 0, static_cast<ca::u32>(data.size()), 8, 0, 0));
+        zos.put_next_entry(ZipEntry("hello.dat", 0, static_cast<ca::u32>(data.size()), 8, 0, 0));
         zos.write(data);
         zos.close_entry();
     }

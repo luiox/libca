@@ -11,42 +11,42 @@
 namespace ca::csv {
 namespace {
 
-std::string trim_ascii_space(const std::string& value) {
+std::string trim_ascii_space(const std::string& value)
+{
     ca::usize begin = 0;
-    ca::usize end = value.size();
-    while (begin < end &&
-           (value[begin] == ' ' || value[begin] == '\t' ||
-            value[begin] == '\r' || value[begin] == '\n')) {
+    ca::usize end   = value.size();
+    while (begin < end && (value[begin] == ' ' || value[begin] == '\t' || value[begin] == '\r' ||
+                           value[begin] == '\n')) {
         ++begin;
     }
-    while (end > begin &&
-           (value[end - 1] == ' ' || value[end - 1] == '\t' ||
-            value[end - 1] == '\r' || value[end - 1] == '\n')) {
+    while (end > begin && (value[end - 1] == ' ' || value[end - 1] == '\t' ||
+                           value[end - 1] == '\r' || value[end - 1] == '\n')) {
         --end;
     }
     return value.substr(begin, end - begin);
 }
 
 // 构造 ParseError（line/column + 消息）。
-ParseError make_error(ca::usize line, ca::usize column, const std::string& message) {
+ParseError make_error(ca::usize line, ca::usize column, const std::string& message)
+{
     ParseError err;
     err.location = SourceLocation{line, column};
-    err.message = ca::str::Utf8String(reinterpret_cast<const ca::u8*>(message.data()),
-                                      message.size());
+    err.message =
+        ca::str::Utf8String(reinterpret_cast<const ca::u8*>(message.data()), message.size());
     return err;
 }
 
-}  // namespace
+}   // namespace
 
-ca::Result<CsvDocument, ParseError> CsvReader::read(
-    const ca::str::Utf8StringRef& input,
-    const CsvReaderOptions& options) {
+ca::Result<CsvDocument, ParseError> CsvReader::read(const ca::str::Utf8StringRef& input,
+                                                    const CsvReaderOptions&       options)
+{
     if (options.delimiter == options.quote) {
         return ca::Err(make_error(1, 1, "CSV delimiter and quote must be different"));
     }
 
     CsvDocument document;
-    auto& arena = document.arena();
+    auto&       arena = document.arena();
 
     // 字段收集用 Utf8StringRef vector，每个字段经 intern_raw 入池（不校验 UTF-8，
     // 按原始字节保留——CSV 字段可能是任意字节序列）。
@@ -54,20 +54,21 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
         return arena.intern_raw(reinterpret_cast<const ca::u8*>(s.data()), s.size());
     };
 
-    std::vector<CsvRow> parsed_rows;
+    std::vector<CsvRow>                 parsed_rows;
     std::vector<ca::str::Utf8StringRef> current_row;
-    std::string current_field;
-    bool in_quotes = false;
-    bool field_was_quoted = false;
-    bool saw_any_char = false;
-    ca::usize line = 1;
-    ca::usize column = 1;
+    std::string                         current_field;
+    bool                                in_quotes        = false;
+    bool                                field_was_quoted = false;
+    bool                                saw_any_char     = false;
+    ca::usize                           line             = 1;
+    ca::usize                           column           = 1;
 
     auto finish_field = [&]() {
         std::string value;
         if (!field_was_quoted && options.trim_unquoted_space) {
             value = trim_ascii_space(current_field);
-        } else {
+        }
+        else {
             value = std::move(current_field);
         }
         current_row.push_back(intern_field(value));
@@ -83,17 +84,17 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
 
     // 直接对 input 视图做单趟字节扫描（CSV 字段不保证 UTF-8，按字节处理更稳妥）。
     const ca::u8* const data = input.data();
-    const ca::usize size = input.byte_length();
+    const ca::usize     size = input.byte_length();
 
     // 跳过 UTF-8 BOM（Windows 记事本默认带）：BOM 本身是合法 UTF-8，经 intern_raw
     // 原样入池会让首个字段带不可见的 U+FEFF 前缀，按 header 名取列全部失配
-    //（与 xml/ini 的跳过策略一致；json 为显式拒绝）。
+    // （与 xml/ini 的跳过策略一致；json 为显式拒绝）。
     const ca::usize begin =
         (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) ? 3 : 0;
 
     for (ca::usize i = begin; i < size; ++i) {
         const char ch = static_cast<char>(data[i]);
-        saw_any_char = true;
+        saw_any_char  = true;
 
         if (in_quotes) {
             if (ch == options.quote) {
@@ -101,10 +102,12 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
                     current_field.push_back(options.quote);
                     ++i;
                     ++column;
-                } else {
+                }
+                else {
                     in_quotes = false;
                 }
-            } else {
+            }
+            else {
                 current_field.push_back(ch);
                 if (ch == '\n') {
                     ++line;
@@ -116,21 +119,24 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
         }
 
         if (ch == options.quote && current_field.empty()) {
-            in_quotes = true;
+            in_quotes        = true;
             field_was_quoted = true;
-        } else if (ch == options.delimiter) {
+        }
+        else if (ch == options.delimiter) {
             finish_field();
-        } else if (ch == '\r' || ch == '\n') {
+        }
+        else if (ch == '\r' || ch == '\n') {
             finish_row();
             if (ch == '\r' && i + 1 < size && static_cast<char>(data[i + 1]) == '\n') {
                 ++i;
             }
             ++line;
             column = 0;
-        } else if (field_was_quoted) {
-            return ca::Err(make_error(line, column,
-                                      "unexpected character after closing quote"));
-        } else {
+        }
+        else if (field_was_quoted) {
+            return ca::Err(make_error(line, column, "unexpected character after closing quote"));
+        }
+        else {
             current_field.push_back(ch);
         }
         ++column;
@@ -148,12 +154,14 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     }
 
     if (options.first_row_is_header && !parsed_rows.empty()) {
-        // header 字段已 intern 入池，直接接管（header() 的非 const 重载会置 header_enabled_=true）。
+        // header 字段已 intern 入池，直接接管（header() 的非 const 重载会置
+        // header_enabled_=true）。
         document.header() = std::move(parsed_rows.front().fields());
         for (ca::usize i = 1; i < parsed_rows.size(); ++i) {
             document.add_row(std::move(parsed_rows[i]));
         }
-    } else {
+    }
+    else {
         for (auto& row : parsed_rows) {
             document.add_row(std::move(row));
         }
@@ -162,23 +170,24 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     return ca::Ok(std::move(document));
 }
 
-ca::Result<CsvDocument, ParseError> CsvReader::read_file(
-    const ca::str::Utf8StringRef& path,
-    const CsvReaderOptions& options) {
-    std::string path_str(reinterpret_cast<const char*>(path.data()),
+ca::Result<CsvDocument, ParseError> CsvReader::read_file(const ca::str::Utf8StringRef& path,
+                                                         const CsvReaderOptions&       options)
+{
+    std::string   path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
     std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
     if (!input.is_open()) {
-        return ca::Err(make_error(1, 1,
-            ca::str::format_std("failed to open CSV file: {}", path_str)));
+        return ca::Err(
+            make_error(1, 1, ca::str::format_std("failed to open CSV file: {}", path_str)));
     }
 
     std::ostringstream buffer;
     buffer << input.rdbuf();
     std::string text = buffer.str();
     // text 是局部 std::string，Utf8StringRef 在解析期间必须有效；read() 同步完成。
-    return read(ca::str::Utf8StringRef::from_string_view(
-        std::string_view(text.data(), text.size())), options);
+    return read(
+        ca::str::Utf8StringRef::from_string_view(std::string_view(text.data(), text.size())),
+        options);
 }
 
-}  // namespace ca::csv
+}   // namespace ca::csv

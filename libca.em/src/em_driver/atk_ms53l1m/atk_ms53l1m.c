@@ -34,26 +34,26 @@ enum
 
 #if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_EXTERN)
 
-#define ATK_MS53L1M_UART_INIT(baudrate)      port_atk_ms53l1m_uart_init((baudrate))
-#define ATK_MS53L1M_UART_SEND(buf, len)      port_atk_ms53l1m_uart_send((buf), (len))
-#define ATK_MS53L1M_UART_RX_GET_FRAME()      port_atk_ms53l1m_uart_rx_get_frame()
-#define ATK_MS53L1M_UART_RX_GET_FRAME_LEN()  port_atk_ms53l1m_uart_rx_get_frame_len()
-#define ATK_MS53L1M_UART_RX_RESTART()        port_atk_ms53l1m_uart_rx_restart()
-#define ATK_MS53L1M_DELAY_MS(ms)             port_atk_ms53l1m_delay_ms((ms))
+#    define ATK_MS53L1M_UART_INIT(baudrate) port_atk_ms53l1m_uart_init((baudrate))
+#    define ATK_MS53L1M_UART_SEND(buf, len) port_atk_ms53l1m_uart_send((buf), (len))
+#    define ATK_MS53L1M_UART_RX_GET_FRAME() port_atk_ms53l1m_uart_rx_get_frame()
+#    define ATK_MS53L1M_UART_RX_GET_FRAME_LEN() port_atk_ms53l1m_uart_rx_get_frame_len()
+#    define ATK_MS53L1M_UART_RX_RESTART() port_atk_ms53l1m_uart_rx_restart()
+#    define ATK_MS53L1M_DELAY_MS(ms) port_atk_ms53l1m_delay_ms((ms))
 
 #elif (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
 
 static const atk_ms53l1m_port_t* g_atk_ms53l1m_port = NULL;
 
-#define ATK_MS53L1M_UART_INIT(baudrate)      g_atk_ms53l1m_port->uart_init((baudrate))
-#define ATK_MS53L1M_UART_SEND(buf, len)      g_atk_ms53l1m_port->uart_send((buf), (len))
-#define ATK_MS53L1M_UART_RX_GET_FRAME()      g_atk_ms53l1m_port->uart_rx_get_frame()
-#define ATK_MS53L1M_UART_RX_GET_FRAME_LEN()  g_atk_ms53l1m_port->uart_rx_get_frame_len()
-#define ATK_MS53L1M_UART_RX_RESTART()        g_atk_ms53l1m_port->uart_rx_restart()
-#define ATK_MS53L1M_DELAY_MS(ms)             g_atk_ms53l1m_port->delay_ms((ms))
+#    define ATK_MS53L1M_UART_INIT(baudrate) g_atk_ms53l1m_port->uart_init((baudrate))
+#    define ATK_MS53L1M_UART_SEND(buf, len) g_atk_ms53l1m_port->uart_send((buf), (len))
+#    define ATK_MS53L1M_UART_RX_GET_FRAME() g_atk_ms53l1m_port->uart_rx_get_frame()
+#    define ATK_MS53L1M_UART_RX_GET_FRAME_LEN() g_atk_ms53l1m_port->uart_rx_get_frame_len()
+#    define ATK_MS53L1M_UART_RX_RESTART() g_atk_ms53l1m_port->uart_rx_restart()
+#    define ATK_MS53L1M_DELAY_MS(ms) g_atk_ms53l1m_port->delay_ms((ms))
 
 #else
-#error "Invalid ATK_MS53L1M port mode"
+#    error "Invalid ATK_MS53L1M port mode"
 #endif
 
 #if (LIBCA_ATK_MS53L1M_PORT_MODE == LIBCA_ATK_MS53L1M_PORT_MODE_DYNAMIC)
@@ -230,8 +230,8 @@ static i32 atk_ms53l1m_read_data(atk_ms53l1m_t* self, u16 addr, u8 fun_code, u8 
     buf[7] = (u8)(check_sum >> 8);   /* CRC校验码，高8位 */
     buf[8] = (u8)(check_sum & 0xFF); /* CRC校验码，低8位 */
 
-    ATK_MS53L1M_UART_RX_RESTART();                /* 准备重新开始接收新的一帧数据 */
-    ATK_MS53L1M_UART_SEND(buf, 9);                /* 发送数据 */
+    ATK_MS53L1M_UART_RX_RESTART();           /* 准备重新开始接收新的一帧数据 */
+    ATK_MS53L1M_UART_SEND(buf, 9);           /* 发送数据 */
     ret = atk_ms53l1m_unpack_recv_data(dat); /* 解析应答数据 */
 
     return ret;
@@ -259,8 +259,8 @@ static i32 atk_ms53l1m_write_data(atk_ms53l1m_t* self, u16 addr, u8 fun_code, u8
     buf[8] = (u8)(check_sum >> 8);   /* CRC校验码，高8位 */
     buf[9] = (u8)(check_sum & 0xFF); /* CRC校验码，低8位 */
 
-    ATK_MS53L1M_UART_RX_RESTART();                 /* 准备重新开始接收新的一帧数据 */
-    ATK_MS53L1M_UART_SEND(buf, 10);                /* 发送数据 */
+    ATK_MS53L1M_UART_RX_RESTART();            /* 准备重新开始接收新的一帧数据 */
+    ATK_MS53L1M_UART_SEND(buf, 10);           /* 发送数据 */
     ret = atk_ms53l1m_unpack_recv_data(NULL); /* 解析应答数据 */
 
     return ret;

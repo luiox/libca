@@ -15,7 +15,10 @@ using ca::str::Utf8String;
 
 namespace {
 
-Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
+Utf8StringRef R(const char* s)
+{
+    return Utf8StringRef::from_cstr(s);
+}
 
 JsonDocument read_ok(const char* text)
 {
@@ -33,14 +36,15 @@ std::string to_std(const Utf8String& s)
 /// 校验并返回错误数；schema 非法时返回 -1。
 int error_count(const char* doc_text, const char* schema_text)
 {
-    auto doc = read_ok(doc_text);
+    auto doc    = read_ok(doc_text);
     auto schema = read_ok(schema_text);
-    auto r = validate(doc.root(), schema.root());
-    if (r.is_err()) return -1;
+    auto r      = validate(doc.root(), schema.root());
+    if (r.is_err())
+        return -1;
     return static_cast<int>(std::move(r).unwrap().size());
 }
 
-}  // namespace
+}   // namespace
 
 // ==================== type ====================
 
@@ -141,7 +145,8 @@ TEST(JsonSchemaTest, Required_Missing)
 
 TEST(JsonSchemaTest, Properties_NestedTypeMatch)
 {
-    const char* schema = R"({"properties":{"classes":{"type":"integer"},"name":{"type":"string"}}})";
+    const char* schema =
+        R"({"properties":{"classes":{"type":"integer"},"name":{"type":"string"}}})";
     EXPECT_EQ(error_count(R"({"classes":1,"name":"x"})", schema), 0);
 }
 
@@ -161,7 +166,8 @@ TEST(JsonSchemaTest, Properties_AbsentFieldNotChecked)
 TEST(JsonSchemaTest, Properties_DeepNestedErrorPath)
 {
     // 校验深层嵌套：before/classes 必须是 integer。
-    const char* schema = R"({"properties":{"before":{"properties":{"classes":{"type":"integer"}}}}})";
+    const char* schema =
+        R"({"properties":{"before":{"properties":{"classes":{"type":"integer"}}}}})";
     EXPECT_EQ(error_count(R"({"before":{"classes":5}})", schema), 0);
     EXPECT_EQ(error_count(R"({"before":{"classes":"bad"}})", schema), 1);
 }
@@ -251,9 +257,13 @@ TEST(JsonSchemaTest, Combined_ContractLikeSchema)
         }
     })";
     // 合法文档。
-    EXPECT_EQ(error_count(R"({"schema_version":1,"before":{"classes":10},"after":{"classes":8}})", schema), 0);
+    EXPECT_EQ(error_count(R"({"schema_version":1,"before":{"classes":10},"after":{"classes":8}})",
+                          schema),
+              0);
     // schema_version 错值。
-    EXPECT_EQ(error_count(R"({"schema_version":2,"before":{"classes":10},"after":{"classes":8}})", schema), 1);
+    EXPECT_EQ(error_count(R"({"schema_version":2,"before":{"classes":10},"after":{"classes":8}})",
+                          schema),
+              1);
     // 缺 before。
     EXPECT_EQ(error_count(R"({"schema_version":1,"after":{"classes":8}})", schema), 1);
 }
@@ -270,32 +280,32 @@ TEST(JsonSchemaTest, MultipleErrorsCollected)
 TEST(JsonSchemaTest, SchemaError_UnknownType)
 {
     auto schema = read_ok(R"({"type":"integre"})");
-    auto doc = read_ok("42");
-    auto r = validate(doc.root(), schema.root());
+    auto doc    = read_ok("42");
+    auto r      = validate(doc.root(), schema.root());
     EXPECT_TRUE(r.is_err());
 }
 
 TEST(JsonSchemaTest, SchemaError_TypeNotStringOrArray)
 {
     auto schema = read_ok(R"({"type":123})");
-    auto doc = read_ok("42");
-    auto r = validate(doc.root(), schema.root());
+    auto doc    = read_ok("42");
+    auto r      = validate(doc.root(), schema.root());
     EXPECT_TRUE(r.is_err());
 }
 
 TEST(JsonSchemaTest, SchemaError_RootNotObject)
 {
     auto schema = read_ok(R"("not an object")");
-    auto doc = read_ok("42");
-    auto r = validate(doc.root(), schema.root());
+    auto doc    = read_ok("42");
+    auto r      = validate(doc.root(), schema.root());
     EXPECT_TRUE(r.is_err());
 }
 
 TEST(JsonSchemaTest, SchemaError_PropertiesNotObject)
 {
     auto schema = read_ok(R"({"properties":[1,2]})");
-    auto doc = read_ok("{}");
-    auto r = validate(doc.root(), schema.root());
+    auto doc    = read_ok("{}");
+    auto r      = validate(doc.root(), schema.root());
     EXPECT_TRUE(r.is_err());
 }
 
@@ -304,7 +314,8 @@ TEST(JsonSchemaTest, SchemaError_PropertiesNotObject)
 TEST(JsonSchemaTest, ErrorCarriesInstancePath)
 {
     auto doc = read_ok(R"({"before":{"classes":"bad"}})");
-    auto schema = read_ok(R"({"properties":{"before":{"properties":{"classes":{"type":"integer"}}}}})");
+    auto schema =
+        read_ok(R"({"properties":{"before":{"properties":{"classes":{"type":"integer"}}}}})");
     auto r = validate(doc.root(), schema.root());
     ASSERT_TRUE(r.is_ok());
     auto errors = std::move(r).unwrap();

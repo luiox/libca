@@ -3,12 +3,13 @@
 #include <filesystem>
 #include <algorithm>
 
-namespace ca { namespace fs {
+namespace ca {
+namespace fs {
 
 std::string PathUtil::normalize(const std::string& path)
 {
-    auto p = std::filesystem::u8path(to_unix_separators(path)).lexically_normal();
-    auto result = p.generic_u8string();  // 统一使用 '/' 分隔符
+    auto p      = std::filesystem::u8path(to_unix_separators(path)).lexically_normal();
+    auto result = p.generic_u8string();   // 统一使用 '/' 分隔符
     return result;
 }
 
@@ -24,9 +25,12 @@ std::string PathUtil::join(const std::string& base, const std::string& part1)
     return (std::filesystem::u8path(base) /= std::filesystem::u8path(part1)).generic_u8string();
 }
 
-std::string PathUtil::join(const std::string& base, const std::string& part1, const std::string& part2)
+std::string PathUtil::join(const std::string& base, const std::string& part1,
+                           const std::string& part2)
 {
-    return ((std::filesystem::u8path(base) /= std::filesystem::u8path(part1)) /= std::filesystem::u8path(part2)).generic_u8string();
+    return ((std::filesystem::u8path(base) /= std::filesystem::u8path(part1)) /=
+            std::filesystem::u8path(part2))
+        .generic_u8string();
 }
 
 std::string PathUtil::extension(const std::string& path)
@@ -68,4 +72,5 @@ std::vector<std::string> PathUtil::split(const std::string& path)
     return parts;
 }
 
-}}  // namespace ca::fs
+}   // namespace fs
+}   // namespace ca

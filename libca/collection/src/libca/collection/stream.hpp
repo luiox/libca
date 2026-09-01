@@ -22,19 +22,23 @@ namespace ca::collection {
 ///          `stream(c).filter(p1).filter(p2)` 只会应用 p2，不会取交集。
 ///          需要组合条件时请把多个条件写进同一个谓词（`p1(x) && p2(x)`）。
 template<typename T, typename Iter>
-class Stream {
+class Stream
+{
 public:
     using value_type = T;
-    using iterator = Iter;
+    using iterator   = Iter;
 
     /// @brief 用迭代器范围构造流。
     Stream(iterator begin, iterator end)
-        : begin_(begin), end_(end) {}
+        : begin_(begin)
+        , end_(end)
+    {}
 
     /// @brief 设置过滤谓词（惰性，不立即遍历）。
     /// @warning 覆盖式：替换而非叠加先前设置的谓词（见类注释）。
     /// @return *this，便于链式调用。
-    Stream& filter(std::function<bool(value_type)> predicate) {
+    Stream& filter(std::function<bool(value_type)> predicate)
+    {
         filter_ = std::move(predicate);
         return *this;
     }
@@ -42,18 +46,21 @@ public:
     /// @brief 设置映射函数（惰性，不立即遍历）。
     /// @warning 覆盖式：替换而非叠加先前设置的映射（见类注释）。
     /// @return *this，便于链式调用。
-    Stream& map(std::function<value_type(value_type)> mapper) {
+    Stream& map(std::function<value_type(value_type)> mapper)
+    {
         map_ = std::move(mapper);
         return *this;
     }
 
     /// @brief 遍历并应用 consumer，对每个通过 filter 的元素执行操作。
     /// @return *this。
-    Stream& for_each(std::function<void(value_type)> consumer) {
+    Stream& for_each(std::function<void(value_type)> consumer)
+    {
         for (auto it = begin_; it != end_; ++it) {
             if (!filter_ || filter_(*it)) {
                 auto val = *it;
-                if (map_) val = map_(val);
+                if (map_)
+                    val = map_(val);
                 consumer(val);
             }
         }
@@ -64,12 +71,14 @@ public:
     /// @tparam Container 目标容器，需支持 push_back。
     /// @return 填充后的容器。
     template<typename Container>
-    Container collect() {
+    Container collect()
+    {
         Container result;
         for (auto it = begin_; it != end_; ++it) {
             if (!filter_ || filter_(*it)) {
                 auto val = *it;
-                if (map_) val = map_(val);
+                if (map_)
+                    val = map_(val);
                 result.push_back(std::move(val));
             }
         }
@@ -77,9 +86,9 @@ public:
     }
 
 private:
-    iterator begin_;
-    iterator end_;
-    std::function<bool(value_type)> filter_;
+    iterator                              begin_;
+    iterator                              end_;
+    std::function<bool(value_type)>       filter_;
     std::function<value_type(value_type)> map_;
 };
 
@@ -88,25 +97,31 @@ private:
 // ============================================================================
 
 namespace detail {
-    template<typename T, typename = void>
-    struct has_begin : std::false_type {};
-    template<typename T>
-    struct has_begin<T, std::void_t<decltype(std::declval<T>().begin())>> : std::true_type {};
+template<typename T, typename = void>
+struct has_begin : std::false_type
+{};
+template<typename T>
+struct has_begin<T, std::void_t<decltype(std::declval<T>().begin())>> : std::true_type
+{};
 
-    template<typename T, typename = void>
-    struct has_end : std::false_type {};
-    template<typename T>
-    struct has_end<T, std::void_t<decltype(std::declval<T>().end())>> : std::true_type {};
+template<typename T, typename = void>
+struct has_end : std::false_type
+{};
+template<typename T>
+struct has_end<T, std::void_t<decltype(std::declval<T>().end())>> : std::true_type
+{};
 
-    template<typename T, typename = void>
-    struct has_value_type : std::false_type {};
-    template<typename T>
-    struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {};
+template<typename T, typename = void>
+struct has_value_type : std::false_type
+{};
+template<typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type
+{};
 
-    template<typename T>
-    struct container_traits
-        : std::conjunction<has_begin<T>, has_end<T>, has_value_type<T>> {};
-}
+template<typename T>
+struct container_traits : std::conjunction<has_begin<T>, has_end<T>, has_value_type<T>>
+{};
+}   // namespace detail
 
 /// @brief 从可变容器创建 Stream（SFINAE：要求容器有 begin/end/value_type）。
 template<typename Container>
@@ -114,8 +129,8 @@ auto stream(Container& container)
     -> std::enable_if_t<detail::container_traits<Container>::value,
                         Stream<typename Container::value_type, decltype(container.begin())>>
 {
-    return Stream<typename Container::value_type, decltype(container.begin())>(
-        container.begin(), container.end());
+    return Stream<typename Container::value_type, decltype(container.begin())>(container.begin(),
+                                                                               container.end());
 }
 
 /// @brief 从 const 容器创建 Stream，元素为 const T。
@@ -128,4 +143,4 @@ auto stream(const Container& container)
         container.begin(), container.end());
 }
 
-} // namespace ca::collection
+}   // namespace ca::collection

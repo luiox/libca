@@ -4,21 +4,27 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_EXTERN)
-#define JY61P_UART_SEND(huart, buf, len) port_jy61p_uart_send((huart), (buf), (len))
-#define JY61P_DELAY_MS(ms)               port_jy61p_delay_ms(ms)
+#    define JY61P_UART_SEND(huart, buf, len) port_jy61p_uart_send((huart), (buf), (len))
+#    define JY61P_DELAY_MS(ms) port_jy61p_delay_ms(ms)
 
 #elif (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
 static const jy61p_port_t* g_jy61p_port = NULL;
-#define JY61P_UART_SEND(huart, buf, len) g_jy61p_port->uart_send((huart), (buf), (len))
-#define JY61P_DELAY_MS(ms)               g_jy61p_port->delay_ms(ms)
+#    define JY61P_UART_SEND(huart, buf, len) g_jy61p_port->uart_send((huart), (buf), (len))
+#    define JY61P_DELAY_MS(ms) g_jy61p_port->delay_ms(ms)
 
 #else
-#error "Invalid JY61P port mode"
+#    error "Invalid JY61P port mode"
 #endif
 
 #if (LIBCA_JY61P_PORT_MODE == LIBCA_JY61P_PORT_MODE_DYNAMIC)
-void jy61p_bind_port(const jy61p_port_t* port) { g_jy61p_port = port; }
-bool jy61p_port_is_registered(void) { return g_jy61p_port != NULL; }
+void jy61p_bind_port(const jy61p_port_t* port)
+{
+    g_jy61p_port = port;
+}
+bool jy61p_port_is_registered(void)
+{
+    return g_jy61p_port != NULL;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -191,7 +197,7 @@ static const u8 JY61P_ACC_CMD[5]   = {0xFF, 0xAA, 0x01, 0x01, 0x00};   // 加速
 static const u8 JY61P_XY0_CMD[5]   = {0xFF, 0xAA, 0x01, 0x08, 0x00};   // XY轴归零
 static const u8 JY61P_Z0_CMD[5]    = {0xFF, 0xAA, 0x01, 0x04, 0x00};   // Z轴归零
 #define jy61p_send_cmd(cmd, len) JY61P_UART_SEND(self->huart, (const u8*)(cmd), (len))
-#define jy61p_delay_ms(ms)       JY61P_DELAY_MS(ms)
+#define jy61p_delay_ms(ms) JY61P_DELAY_MS(ms)
 
 // 校准加速度器
 void jy61p_acc_calibration(jy61p_t* self)

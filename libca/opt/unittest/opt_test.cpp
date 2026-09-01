@@ -19,8 +19,8 @@ using ca::opt::Parser;
 // 持有参数字符串及其 argv 视图，避免悬垂指针（字符串生命周期与视图一致）。
 struct Argv
 {
-    int                     argc;
-    std::vector<std::string> storage;  // 持有 prog + args
+    int                      argc;
+    std::vector<std::string> storage;   // 持有 prog + args
     std::vector<const char*> argv;
 
     const char* const* data() const { return argv.data(); }
@@ -42,10 +42,11 @@ Argv make_argv(const std::vector<std::string>& args)
 Arg flag(std::string name, char short_name, std::string help = "")
 {
     Arg a;
-    a.name    = std::move(name);
-    a.kind    = OptKind::Flag;
-    a.help    = std::move(help);
-    if (short_name != 0) a.aliases = {std::string("-") + short_name};
+    a.name = std::move(name);
+    a.kind = OptKind::Flag;
+    a.help = std::move(help);
+    if (short_name != 0)
+        a.aliases = {std::string("-") + short_name};
     return a;
 }
 
@@ -53,10 +54,11 @@ Arg opt(std::string name, char short_name, std::string help = "", std::string de
         bool required = false)
 {
     Arg a;
-    a.name          = std::move(name);
-    a.kind          = OptKind::String;
-    a.help          = std::move(help);
-    if (short_name != 0) a.aliases = {std::string("-") + short_name};
+    a.name = std::move(name);
+    a.kind = OptKind::String;
+    a.help = std::move(help);
+    if (short_name != 0)
+        a.aliases = {std::string("-") + short_name};
     a.default_value = std::move(defv);
     a.required      = required;
     return a;
@@ -79,7 +81,7 @@ Command make_root_with_options()
 TEST(OptParseTest, ShortFlag)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-v"});
+    Argv   argv = make_argv({"-v"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -91,7 +93,7 @@ TEST(OptParseTest, ShortFlag)
 TEST(OptParseTest, LongFlag)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--verbose"});
+    Argv   argv = make_argv({"--verbose"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -101,7 +103,7 @@ TEST(OptParseTest, LongFlag)
 TEST(OptParseTest, LongOptionWithSpaceValue)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--output", "file.txt"});
+    Argv   argv = make_argv({"--output", "file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -111,7 +113,7 @@ TEST(OptParseTest, LongOptionWithSpaceValue)
 TEST(OptParseTest, LongOptionWithEqualsValue)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--output=file.txt"});
+    Argv   argv = make_argv({"--output=file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -121,7 +123,7 @@ TEST(OptParseTest, LongOptionWithEqualsValue)
 TEST(OptParseTest, ShortOptionWithSpaceValue)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-o", "file.txt"});
+    Argv   argv = make_argv({"-o", "file.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -131,7 +133,7 @@ TEST(OptParseTest, ShortOptionWithSpaceValue)
 TEST(OptParseTest, ShortOptionWithAttachedValue)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-ofile.txt"});
+    Argv   argv = make_argv({"-ofile.txt"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -149,7 +151,7 @@ TEST(OptParseTest, CombinedShortFlags)
         flag("gamma", 'g'),
     };
     Parser p(root);
-    Argv argv = make_argv({"-abg"});
+    Argv   argv = make_argv({"-abg"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -162,17 +164,17 @@ TEST(OptParseTest, CombinedShortFlags)
 TEST(OptParseTest, DefaultAppliedWhenAbsent)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-v"});
+    Argv   argv = make_argv({"-v"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok());
-    EXPECT_EQ(r.unwrap().get("count"), "1");  // 默认值
+    EXPECT_EQ(r.unwrap().get("count"), "1");   // 默认值
 }
 
 TEST(OptParseTest, DefaultOverriddenWhenProvided)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-n", "5"});
+    Argv   argv = make_argv({"-n", "5"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok());
@@ -188,7 +190,7 @@ TEST(OptParseTest, MissingRequiredReturnsError)
         opt("input", 'i', "input", "", true),
     };
     Parser p(root);
-    Argv argv = make_argv({});  // 不提供 -i
+    Argv   argv = make_argv({});   // 不提供 -i
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -207,7 +209,7 @@ TEST(OptParseTest, RequiredSatisfied)
         opt("input", 'i', "input", "", true),
     };
     Parser p(root);
-    Argv argv = make_argv({"-i", "data.bin"});
+    Argv   argv = make_argv({"-i", "data.bin"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -220,13 +222,13 @@ TEST(OptParseTest, SubcommandDispatch)
     Command root;
     root.name = "git";
     Command commit;
-    commit.name = "commit";
-    commit.help = "record changes";
-    commit.args = {opt("message", 'm', "msg")};
+    commit.name      = "commit";
+    commit.help      = "record changes";
+    commit.args      = {opt("message", 'm', "msg")};
     root.subcommands = {commit};
 
     Parser p(root);
-    Argv argv = make_argv({"commit", "-m", "hello"});
+    Argv   argv = make_argv({"commit", "-m", "hello"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -243,13 +245,13 @@ TEST(OptParseTest, NestedSubcommands)
     Command remote;
     remote.name = "remote";
     Command add;
-    add.name = "add";
-    add.args = {opt("name", 'n', "n", "", true)};
+    add.name           = "add";
+    add.args           = {opt("name", 'n', "n", "", true)};
     remote.subcommands = {add};
-    root.subcommands = {remote};
+    root.subcommands   = {remote};
 
     Parser p(root);
-    Argv argv = make_argv({"remote", "add", "-n", "origin"});
+    Argv   argv = make_argv({"remote", "add", "-n", "origin"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -271,7 +273,7 @@ TEST(OptParseTest, DoubleDashTerminatesOptions)
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_TRUE(result.has("verbose"));
-    EXPECT_FALSE(result.has("output"));  // 在 -- 之后，不再解析为选项
+    EXPECT_FALSE(result.has("output"));   // 在 -- 之后，不再解析为选项
     ASSERT_EQ(result.positionals().size(), 2u);
     EXPECT_EQ(result.positionals()[0], "--output");
     EXPECT_EQ(result.positionals()[1], "plain.txt");
@@ -281,7 +283,7 @@ TEST(OptParseTest, DoubleDashTerminatesOptions)
 TEST(OptParseTest, HelpReturnsCancelledStatusWithHelpText)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--help"});
+    Argv   argv = make_argv({"--help"});
 
     auto r = p.parse(argv.argc, argv.data());
     // --help 走 Err 分支，category 为 HelpRequested（区别于真正的解析错误）。
@@ -295,7 +297,7 @@ TEST(OptParseTest, HelpReturnsCancelledStatusWithHelpText)
 TEST(OptParseTest, ShortHelpFlag)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-h"});
+    Argv   argv = make_argv({"-h"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -305,7 +307,7 @@ TEST(OptParseTest, ShortHelpFlag)
 TEST(OptParseTest, UnknownLongOptionIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--nope"});
+    Argv   argv = make_argv({"--nope"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -315,7 +317,7 @@ TEST(OptParseTest, UnknownLongOptionIsError)
 TEST(OptParseTest, UnknownShortOptionIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"-z"});
+    Argv   argv = make_argv({"-z"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -325,7 +327,7 @@ TEST(OptParseTest, UnknownShortOptionIsError)
 TEST(OptParseTest, ValueOptionWithoutValueAtEndIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--output"});  // 缺值
+    Argv   argv = make_argv({"--output"});   // 缺值
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -336,7 +338,7 @@ TEST(OptParseTest, ValueOptionWithoutValueAtEndIsError)
 TEST(OptParseTest, FlagGivenInlineValueIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--verbose=yes"});
+    Argv   argv = make_argv({"--verbose=yes"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -350,11 +352,11 @@ TEST(OptParseTest, EmptyNameIsRejected)
     root.name = "prog";
     Arg a;
     a.aliases = {"-v"};
-    a.name    = "";  // 空 name，仅别名 —— 应被拒绝
+    a.name    = "";   // 空 name，仅别名 —— 应被拒绝
     a.kind    = OptKind::Flag;
     root.args = {a};
     Parser p(root);
-    Argv argv = make_argv({"-v"});
+    Argv   argv = make_argv({"-v"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -369,7 +371,7 @@ TEST(OptParseTest, RequiredWithDefaultIsRejected)
     // required + default_value 同时为真 —— 语义矛盾，应拒绝。
     root.args = {opt("cfg", 'c', "config", "default.ini", true)};
     Parser p(root);
-    Argv argv = make_argv({"-c", "x.ini"});
+    Argv   argv = make_argv({"-c", "x.ini"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -383,10 +385,10 @@ TEST(OptParseTest, RootRequiredNotSkippedWhenEnteringSubcommand)
 {
     Command root;
     root.name = "git";
-    root.args = {opt("repo", 'r', "repo path", "", true)};  // 根级 required
+    root.args = {opt("repo", 'r', "repo path", "", true)};   // 根级 required
     Command commit;
-    commit.name = "commit";
-    commit.args = {opt("message", 'm', "msg")};
+    commit.name      = "commit";
+    commit.args      = {opt("message", 'm', "msg")};
     root.subcommands = {commit};
 
     Parser p(root);
@@ -406,12 +408,12 @@ TEST(OptParseTest, RootRequiredAndSubcommandBothSatisfied)
     root.name = "git";
     root.args = {opt("repo", 'r', "repo path", "", true)};
     Command commit;
-    commit.name = "commit";
-    commit.args = {opt("message", 'm', "msg")};
+    commit.name      = "commit";
+    commit.args      = {opt("message", 'm', "msg")};
     root.subcommands = {commit};
 
     Parser p(root);
-    Argv argv = make_argv({"-r", "/p", "commit", "-m", "hi"});
+    Argv   argv = make_argv({"-r", "/p", "commit", "-m", "hi"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -443,7 +445,7 @@ TEST(OptV2Test, PositionalCollectedInOrder)
     root.args = {positional, case_flag};
 
     Parser p(root);
-    Argv argv = make_argv({"hello", "--ignore-case", "world"});
+    Argv   argv = make_argv({"hello", "--ignore-case", "world"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -458,7 +460,7 @@ TEST(OptV2Test, PositionalCollectedInOrder)
 TEST(OptV2Test, UnexpectedPositionalIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"stray"});
+    Argv   argv = make_argv({"stray"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -482,16 +484,16 @@ TEST(OptV2Test, AliasedOptionCanonicalKey)
     // 短别名
     {
         Parser p(root);
-        Argv argv = make_argv({"-i", "a.jar"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-i", "a.jar"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("input"), "a.jar");
     }
     // 长别名
     {
         Parser p(root);
-        Argv argv = make_argv({"--in=b.jar"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--in=b.jar"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("input"), "b.jar");
     }
@@ -526,8 +528,8 @@ TEST(OptV2Test, MultiCharSingleDashAlias)
     // 空格取值 + Flag 裸出现
     {
         Parser p(root);
-        Argv argv = make_argv({"-vm-range", "1000:2000", "-vm-scan"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-vm-range", "1000:2000", "-vm-scan"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto parsed = r.unwrap();
         EXPECT_TRUE(parsed.has("vm-scan"));
@@ -537,33 +539,32 @@ TEST(OptV2Test, MultiCharSingleDashAlias)
     // =value 内联形态
     {
         Parser p(root);
-        Argv argv = make_argv({"-start-delay=300"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-start-delay=300"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("start-delay"), 300);
     }
     // 多次出现追加（StringList）
     {
         Parser p(root);
-        Argv argv = make_argv({"-vm-range", "a", "-vm-range", "b"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-vm-range", "a", "-vm-range", "b"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
-        EXPECT_EQ(r.unwrap().get_list("vm-range"),
-                  (std::vector<std::string>{"a", "b"}));
+        EXPECT_EQ(r.unwrap().get_list("vm-range"), (std::vector<std::string>{"a", "b"}));
     }
     // 带值别名位于参数末尾：MissingValue 而非拆成短簇
     {
         Parser p(root);
-        Argv argv = make_argv({"-vm-range"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-vm-range"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MissingValue);
     }
     // 未注册的多字符单横线 token：报全名（不截断为首字符短名）
     {
         Parser p(root);
-        Argv argv = make_argv({"-vm-scanx"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-vm-scanx"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
         EXPECT_EQ(r.unwrap_err().message, "unknown option: -vm-scanx");
@@ -571,8 +572,8 @@ TEST(OptV2Test, MultiCharSingleDashAlias)
     // 未注册的 -name=value 形态：报去值后的全名
     {
         Parser p(root);
-        Argv argv = make_argv({"-vm-scanx=1"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-vm-scanx=1"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnknownOption);
         EXPECT_EQ(r.unwrap_err().message, "unknown option: -vm-scanx");
@@ -593,15 +594,15 @@ TEST(OptV2Test, IntTypeValidAndInvalid)
 
     {
         Parser p(root);
-        Argv argv = make_argv({"--timeout", "120"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout", "120"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("timeout"), 120);
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"--timeout=12abc"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout=12abc"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
         EXPECT_EQ(r.unwrap_err().option, "timeout");
@@ -610,15 +611,15 @@ TEST(OptV2Test, IntTypeValidAndInvalid)
     // 负数与溢出边界
     {
         Parser p(root);
-        Argv argv = make_argv({"--timeout", "-5"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout", "-5"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get_int("timeout"), -5);
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"--timeout", "99999999999999"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--timeout", "99999999999999"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
     }
 }
@@ -637,7 +638,7 @@ TEST(OptV2Test, StringListCommaAndRepeated)
     root.args = {pass};
 
     Parser p(root);
-    Argv argv = make_argv({"--define=A,B", "-DC"});
+    Argv   argv = make_argv({"--define=A,B", "-DC"});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
@@ -665,8 +666,8 @@ TEST(OptV2Test, LastWinsAndDefaultOverloads)
     root.args = {output, level};
 
     Parser p(root);
-    Argv argv = make_argv({"--output", "a.bin", "--output", "b.bin"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--output", "a.bin", "--output", "b.bin"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
 
@@ -688,7 +689,7 @@ TEST(OptV2Test, LastWinsAndDefaultOverloads)
 TEST(OptV2P1Test, EmptyInlineValueIsError)
 {
     Parser p(make_root_with_options());
-    Argv argv = make_argv({"--output="});
+    Argv   argv = make_argv({"--output="});
 
     auto r = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
@@ -712,8 +713,8 @@ TEST(OptV2P1Test, MutexConflictRejected)
     root.mutex_groups = {{{"json", "yaml"}, false}};
 
     Parser p(root);
-    Argv argv = make_argv({"--json", "--yaml"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--json", "--yaml"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
     // 无 label 的组：错误标识为成员名拼接。
@@ -721,8 +722,8 @@ TEST(OptV2P1Test, MutexConflictRejected)
     EXPECT_NE(r.unwrap_err().message.find("--json"), std::string::npos);
     // 只出现一个成员时合法。
     Parser p2(root);
-    Argv argv2 = make_argv({"--yaml"});
-    auto r2 = p2.parse(argv2.argc, argv2.data());
+    Argv   argv2 = make_argv({"--yaml"});
+    auto   r2    = p2.parse(argv2.argc, argv2.data());
     ASSERT_TRUE(r2.is_ok()) << r2.unwrap_err().message;
     EXPECT_TRUE(r2.unwrap().has("yaml"));
 }
@@ -741,26 +742,26 @@ TEST(OptV2P1Test, MutexGroupLabelInError)
     root.name = "prog";
     root.args = {schema, tmpl};
     MutexGroup once;
-    once.names  = {"dump-config-schema", "dump-config-template"};
-    once.label  = "dump_once";
+    once.names        = {"dump-config-schema", "dump-config-template"};
+    once.label        = "dump_once";
     root.mutex_groups = {once};
 
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump-config-schema", "--dump-config-template"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--dump-config-schema", "--dump-config-template"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
         EXPECT_EQ(r.unwrap_err().group, "dump_once");
     }
     {
-        MutexGroup req = once;
-        req.required   = true;
-        Command root2  = root;
+        MutexGroup req     = once;
+        req.required       = true;
+        Command root2      = root;
         root2.mutex_groups = {req};
         Parser p(root2);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
         EXPECT_EQ(r.unwrap_err().group, "dump_once");
@@ -783,14 +784,14 @@ TEST(OptV2P1Test, MutexRequiredEnforced)
     root.mutex_groups = {{{"tcp", "unix"}, true}};
 
     Parser p(root);
-    Argv argv = make_argv({});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
 
     Parser p2(root);
-    Argv argv2 = make_argv({"--tcp"});
-    auto r2 = p2.parse(argv2.argc, argv2.data());
+    Argv   argv2 = make_argv({"--tcp"});
+    auto   r2    = p2.parse(argv2.argc, argv2.data());
     ASSERT_TRUE(r2.is_ok()) << r2.unwrap_err().message;
 }
 
@@ -807,8 +808,8 @@ TEST(OptV2P1Test, MutexGroupUnknownMemberIsInvalidDefinition)
     root.mutex_groups = {{{"tcp", "nope"}, false}};
 
     Parser p(root);
-    Argv argv = make_argv({"--tcp"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--tcp"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidDefinition);
     EXPECT_NE(r.unwrap_err().message.find("nope"), std::string::npos);
@@ -829,12 +830,12 @@ TEST(OptV2P1Test, ParentMutexCheckedBeforeSubcommand)
     root.args         = {json, xml};
     root.mutex_groups = {{{"json", "xml"}, false}};
     Command show;
-    show.name = "show";
+    show.name        = "show";
     root.subcommands = {show};
 
     Parser p(root);
-    Argv argv = make_argv({"--json", "--xml", "show"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--json", "--xml", "show"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
 }
@@ -865,8 +866,8 @@ TEST(OptV2P1Test, HelpRendersGroupsAndMutexAnnotation)
     root.mutex_groups = {{{"input", "output"}, false}};
 
     Parser p(root);
-    Argv argv = make_argv({"--help"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--help"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     const std::string help = r.unwrap_err().message;
     // 默认节仍存在
@@ -887,8 +888,8 @@ TEST(OptV2P1Test, CustomUsageLine)
     root.help  = "convert files";
 
     Parser p(root);
-    Argv argv = make_argv({"--help"});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({"--help"});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_err());
     const std::string help = r.unwrap_err().message;
     EXPECT_NE(help.find("Usage: demo [--backend <name>] <in> <out>\n"), std::string::npos);
@@ -928,24 +929,24 @@ TEST(OptV2P2Test, InitialValuesPrecedence)
     // 无 CLI：取注入初值。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), initials);
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), initials);
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("output"), "from-config");
     }
     // 有 CLI：CLI 覆盖注入初值。
     {
         Parser p(root);
-        Argv argv = make_argv({"--output", "from-cli"});
-        auto r = p.parse(argv.argc, argv.data(), initials);
+        Argv   argv = make_argv({"--output", "from-cli"});
+        auto   r    = p.parse(argv.argc, argv.data(), initials);
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("output"), "from-cli");
     }
     // 无初值无 CLI：回落静态默认。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("output"), "from-default");
     }
@@ -969,8 +970,8 @@ TEST(OptV2P2Test, InitialValuesValidationAndScope)
     // 非法整数初值。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), {{"timeout", "12x"}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"timeout", "12x"}});
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::InvalidInteger);
         EXPECT_EQ(r.unwrap_err().option, "timeout");
@@ -978,17 +979,17 @@ TEST(OptV2P2Test, InitialValuesValidationAndScope)
     // 空串初值。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), {{"timeout", ""}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"timeout", ""}});
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::EmptyValue);
     }
     // 未知名字忽略，合法整数生效，Flag 注入被忽略（保持未置位）。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(),
-                         {{"nope", "x"}, {"timeout", "42"}, {"verbose", "true"}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(
+            argv.argc, argv.data(), {{"nope", "x"}, {"timeout", "42"}, {"verbose", "true"}});
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.get_int("timeout"), 42);
@@ -1009,8 +1010,8 @@ TEST(OptV2P2Test, InitialValuesStringListAppend)
     root.args = {define};
 
     Parser p(root);
-    Argv argv = make_argv({"-DC"});
-    auto r = p.parse(argv.argc, argv.data(), {{"define", "A,B"}});
+    Argv   argv = make_argv({"-DC"});
+    auto   r    = p.parse(argv.argc, argv.data(), {{"define", "A,B"}});
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto list = r.unwrap().get_list("define");
     ASSERT_EQ(list.size(), 3u);
@@ -1050,8 +1051,8 @@ TEST(OptV2P2Test, InitialValuesSubcommandAndConstraints)
     root.subcommands = {commit};
 
     Parser p(root);
-    Argv argv = make_argv({"commit"});
-    auto r = p.parse(argv.argc, argv.data(), initials);
+    Argv   argv = make_argv({"commit"});
+    auto   r    = p.parse(argv.argc, argv.data(), initials);
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     EXPECT_EQ(result.get("message"), "hi");
@@ -1064,11 +1065,11 @@ TEST(OptV2P2Test, InitialValuesSubcommandAndConstraints)
 TEST(OptV2P2Test, RootMetadataAccess)
 {
     Arg input;
-    input.name    = "input";
-    input.aliases = {"-i"};
-    input.kind    = OptKind::String;
-    input.group   = "Source";
-    input.help    = "input file";
+    input.name     = "input";
+    input.aliases  = {"-i"};
+    input.kind     = OptKind::String;
+    input.group    = "Source";
+    input.help     = "input file";
     input.required = true;
 
     Command root;
@@ -1076,7 +1077,7 @@ TEST(OptV2P2Test, RootMetadataAccess)
     root.usage = "demo [options] <in>";
     root.args  = {input};
 
-    const Parser p(root);
+    const Parser   p(root);
     const Command& meta = p.root();
     EXPECT_EQ(meta.name, "demo");
     EXPECT_EQ(meta.usage, "demo [options] <in>");
@@ -1158,8 +1159,8 @@ TEST(OptV2ProvenanceTest, SourceOfDistinguishesThreeOrigins)
     // 无 CLI、有注入：output=Initial，level=None。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), {{"level", "3"}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"level", "3"}});
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.source_of("output"), ValueSource::Default);
@@ -1169,8 +1170,8 @@ TEST(OptV2ProvenanceTest, SourceOfDistinguishesThreeOrigins)
     // CLI 显式给出：覆盖注入，来源翻转为 CommandLine。
     {
         Parser p(root);
-        Argv argv = make_argv({"--output", "from-cli"});
-        auto r = p.parse(argv.argc, argv.data(), {{"output", "from-config"}});
+        Argv   argv = make_argv({"--output", "from-cli"});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"output", "from-config"}});
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.get("output"), "from-cli");
@@ -1197,8 +1198,8 @@ TEST(OptV2ProvenanceTest, MutexDefaultsNoFalseConflict)
     root.mutex_groups = {{{"format-json", "format-yaml"}, false}};
 
     Parser p(root);
-    Argv argv = make_argv({});
-    auto r = p.parse(argv.argc, argv.data());
+    Argv   argv = make_argv({});
+    auto   r    = p.parse(argv.argc, argv.data());
     ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
     auto result = r.unwrap();
     // 默认值仍然生效可取。
@@ -1223,9 +1224,8 @@ TEST(OptV2ProvenanceTest, MutexInitialChoicesConflict)
     root.mutex_groups = {{{"format-json", "format-yaml"}, false}};
 
     Parser p(root);
-    Argv argv = make_argv({});
-    auto r = p.parse(argv.argc, argv.data(),
-                     {{"format-json", "pretty"}, {"format-yaml", "raw"}});
+    Argv   argv = make_argv({});
+    auto   r = p.parse(argv.argc, argv.data(), {{"format-json", "pretty"}, {"format-yaml", "raw"}});
     ASSERT_TRUE(r.is_err());
     EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
 }
@@ -1251,27 +1251,27 @@ TEST(OptV2ProvenanceTest, MutexRequiredIgnoresPureDefaults)
     // 空命令行：默认值不算选择，报缺失。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexRequired);
     }
     // 注入初值算选择，满足 required 组。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), {{"format-json", "compact"}});
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"format-json", "compact"}});
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().source_of("format-json"), ValueSource::Initial);
     }
     // 用户显式选择另一个带默认的成员：仅一个显式选择，无冲突。
     {
         Parser p(root);
-        Argv argv = make_argv({"--format-xml", "x.xml"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--format-xml", "x.xml"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
-        EXPECT_EQ(result.get("format-json"), "pretty");  // 未被选择的成员回落默认值
+        EXPECT_EQ(result.get("format-json"), "pretty");   // 未被选择的成员回落默认值
         EXPECT_EQ(result.source_of("format-xml"), ValueSource::CommandLine);
     }
 }
@@ -1295,8 +1295,8 @@ TEST(OptV2OptionalTest, BareAndInlineForms)
     // 裸出现：值为空串，来源 CommandLine。
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump-config-schema"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--dump-config-schema"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_TRUE(result.has("dump-config-schema"));
@@ -1306,8 +1306,8 @@ TEST(OptV2OptionalTest, BareAndInlineForms)
     // 内联：写文件语义。
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump-config-schema=out.json"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--dump-config-schema=out.json"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("dump-config-schema"), "out.json");
     }
@@ -1327,8 +1327,8 @@ TEST(OptV2OptionalTest, SpaceFormNeverConsumesNextToken)
 
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump", "out.json"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--dump", "out.json"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::UnexpectedArgument);
         EXPECT_EQ(r.unwrap_err().option, "out.json");
@@ -1340,8 +1340,8 @@ TEST(OptV2OptionalTest, SpaceFormNeverConsumesNextToken)
     root.args.push_back(pattern);
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump", "out.json"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--dump", "out.json"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.get("dump"), "");
@@ -1364,15 +1364,15 @@ TEST(OptV2OptionalTest, ShortBareAndAttached)
 
     {
         Parser p(root);
-        Argv argv = make_argv({"-d"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-d"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("dump"), "");
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"-dout.json"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"-dout.json"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("dump"), "out.json");
     }
@@ -1395,8 +1395,8 @@ TEST(OptV2OptionalTest, DefaultAndInitialInterplay)
     // 缺席：静态默认。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.get("dump"), "schema.json");
@@ -1405,16 +1405,16 @@ TEST(OptV2OptionalTest, DefaultAndInitialInterplay)
     // 注入初值。
     {
         Parser p(root);
-        Argv argv = make_argv({});
-        auto r = p.parse(argv.argc, argv.data(), initials);
+        Argv   argv = make_argv({});
+        auto   r    = p.parse(argv.argc, argv.data(), initials);
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         EXPECT_EQ(r.unwrap().get("dump"), "from-config");
     }
     // CLI 裸出现：空串覆盖注入初值（stdout 约定优先于配置文件）。
     {
         Parser p(root);
-        Argv argv = make_argv({"--dump"});
-        auto r = p.parse(argv.argc, argv.data(), initials);
+        Argv   argv = make_argv({"--dump"});
+        auto   r    = p.parse(argv.argc, argv.data(), initials);
         ASSERT_TRUE(r.is_ok()) << r.unwrap_err().message;
         auto result = r.unwrap();
         EXPECT_EQ(result.get("dump"), "");
@@ -1441,15 +1441,15 @@ TEST(OptV2OptionalTest, HelpAndMutexSemantics)
 
     {
         Parser p(root);
-        Argv argv = make_argv({"--help"});
-        auto r = p.parse(argv.argc, argv.data());
+        Argv   argv = make_argv({"--help"});
+        auto   r    = p.parse(argv.argc, argv.data());
         ASSERT_TRUE(r.is_err());
         EXPECT_NE(r.unwrap_err().message.find("--dump-schema [=file]"), std::string::npos);
     }
     {
         Parser p(root);
-        Argv argv = make_argv({"--quiet"});
-        auto r = p.parse(argv.argc, argv.data(), {{"dump-schema", "a.json"}});
+        Argv   argv = make_argv({"--quiet"});
+        auto   r    = p.parse(argv.argc, argv.data(), {{"dump-schema", "a.json"}});
         ASSERT_TRUE(r.is_err());
         EXPECT_EQ(r.unwrap_err().category, ParseErrorCategory::MutexConflict);
     }

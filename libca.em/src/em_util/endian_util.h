@@ -125,4 +125,4 @@ static inline void little_endian_write_s32(u8* bytes, i32 value)
 }
 
 
-#endif // !LIBCA_EM_UTIL_ENDIAN_UTIL_H
+#endif   // !LIBCA_EM_UTIL_ENDIAN_UTIL_H

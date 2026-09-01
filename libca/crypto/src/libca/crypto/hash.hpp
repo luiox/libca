@@ -8,7 +8,8 @@ namespace ca::crypto {
 /// @brief 哈希算法抽象基类，统一一次性计算与增量更新两种用法。
 /// @note 子类（如 MD5、SHA1、SHA256）实现具体算法。一次性调用用 operator()，
 ///       分块/流式更新用 add() 累积 + get_hash() 取结果，reset() 复用实例。
-class Hash {
+class Hash
+{
 public:
     virtual ~Hash() = default;
     /// 一次性计算并返回十六进制 digest 字符串。
@@ -25,4 +26,4 @@ public:
     virtual void reset() = 0;
 };
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

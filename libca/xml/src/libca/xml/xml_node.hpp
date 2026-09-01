@@ -26,18 +26,20 @@
 namespace ca::xml {
 
 /// @brief XML 节点的 4 种形态。
-enum class XmlNodeType {
-    Element,  ///< 元素：名字 + 属性 + 子节点
-    Text,     ///< 文本内容（实体已解码）
-    Comment,  ///< 注释 `<!-- ... -->`（内容不含定界符）
-    Cdata     ///< CDATA 段 `<![CDATA[ ... ]]>`（内容原样，不解码实体）
+enum class XmlNodeType
+{
+    Element,   ///< 元素：名字 + 属性 + 子节点
+    Text,      ///< 文本内容（实体已解码）
+    Comment,   ///< 注释 `<!-- ... -->`（内容不含定界符）
+    Cdata      ///< CDATA 段 `<![CDATA[ ... ]]>`（内容原样，不解码实体）
 };
 
 /// @brief XML DOM 节点。
 /// @details 节点内不拥有字符串内存：元素名、属性名/值、文本/注释/CDATA 内容均为
 ///          `Utf8StringRef`，指向所属 `XmlDocument` 的 `Utf8StringArena`。
 /// @warning 拷贝/移动语义为浅引用：拷贝得到的 XmlNode 的字符串引用仍指向原 arena。
-class XmlNode {
+class XmlNode
+{
 public:
     /// 属性存储：pair 的 first 是属性名，second 是属性值（均 Utf8StringRef）。
     using Attribute        = std::pair<ca::str::Utf8StringRef, ca::str::Utf8StringRef>;
@@ -49,18 +51,19 @@ private:
     /// 元素专属数据：名字 + 属性（保序 + 索引）+ 子节点。
     /// attr_index 的 string_view 指向属性名的 arena 字节（arena 不搬移，vector 扩容不影响），
     /// 只经 set_attribute/remove_attribute 同步修改，不对外暴露可变引用。
-    struct ElementData {
-        ca::str::Utf8StringRef name;
-        AttributeStorage attributes;
+    struct ElementData
+    {
+        ca::str::Utf8StringRef                          name;
+        AttributeStorage                                attributes;
         std::unordered_map<std::string_view, ca::usize> attr_index;
-        ChildStorage children;
+        ChildStorage                                    children;
     };
 
 public:
     // ---- 构造 / 析构 / 拷贝 / 移动 ----
 
-    XmlNode() noexcept;                            // 默认构造为空 Text 节点
-    XmlNode(const XmlNode&) = default;             // 浅拷贝（Utf8StringRef 可拷贝）
+    XmlNode() noexcept;                             // 默认构造为空 Text 节点
+    XmlNode(const XmlNode&)            = default;   // 浅拷贝（Utf8StringRef 可拷贝）
     XmlNode& operator=(const XmlNode&) = default;
     XmlNode(XmlNode&& other) noexcept;
     XmlNode& operator=(XmlNode&& other) noexcept;
@@ -80,10 +83,10 @@ public:
     // ---- 类型查询 ----
 
     XmlNodeType type() const noexcept;
-    bool is_element() const noexcept;
-    bool is_text() const noexcept;
-    bool is_comment() const noexcept;
-    bool is_cdata() const noexcept;
+    bool        is_element() const noexcept;
+    bool        is_text() const noexcept;
+    bool        is_comment() const noexcept;
+    bool        is_cdata() const noexcept;
 
     // ---- 元素：名字 ----
 
@@ -120,7 +123,7 @@ public:
     /// @brief 按名字查首个**元素**子节点（跳过 text/comment/cdata），未找到返回 nullptr。
     /// @warning 必须为 Element。
     const XmlNode* first_element(const ca::str::Utf8StringRef& name) const noexcept;
-    XmlNode* first_element(const ca::str::Utf8StringRef& name) noexcept;
+    XmlNode*       first_element(const ca::str::Utf8StringRef& name) noexcept;
 
     /// @brief 拼接元素的**直接** Text 与 Cdata 子节点内容，返回独立 Utf8String。
     /// @details 常用于取「只有文本内容」的元素的值（如 `<port>8080</port>` 取 "8080"）。
@@ -141,4 +144,4 @@ private:
     std::variant<ElementData, ca::str::Utf8StringRef> data_;
 };
 
-}  // namespace ca::xml
+}   // namespace ca::xml

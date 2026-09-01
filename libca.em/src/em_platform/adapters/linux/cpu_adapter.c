@@ -4,15 +4,15 @@
 
 /* PTHREAD_MUTEX_RECURSIVE 等常量需 _GNU_SOURCE 才在 strict c99 下暴露（glibc）。
    必须在所有系统头之前定义。本文件仅在 Linux 平台编译。 */
-#ifndef _GNU_SOURCE
-#    define _GNU_SOURCE
-#endif
+#    ifndef _GNU_SOURCE
+#        define _GNU_SOURCE
+#    endif
 
-#include <stdbool.h>
-#include <pthread.h>
+#    include <stdbool.h>
+#    include <pthread.h>
 
 static pthread_mutex_t g_log_mutex;
-static bool g_log_mutex_init = false;
+static bool            g_log_mutex_init = false;
 
 void local_cpu_enter_critical(void)
 {
@@ -33,4 +33,4 @@ void local_cpu_exit_critical(void)
     pthread_mutex_unlock(&g_log_mutex);
 }
 
-#endif // USE_CUSTOM_CPU_ADAPTER
+#endif   // USE_CUSTOM_CPU_ADAPTER

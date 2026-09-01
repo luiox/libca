@@ -102,8 +102,9 @@ io::IoResult<IpAddress> IpAddress::parse(const std::string& value)
     if (inet_pton(AF_INET6, value.c_str(), octets.data()) == 1)
         return ca::core::Ok(IpAddress(IpVersion::V6, octets));
 
-    return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::InvalidInput,
-                                                ca::str::format_std("invalid IPv4 or IPv6 address: {}", value)));
+    return ca::core::Err(
+        io::IoError::from_kind(io::IoErrorKind::InvalidInput,
+                               ca::str::format_std("invalid IPv4 or IPv6 address: {}", value)));
 }
 
 IpVersion IpAddress::version() const noexcept

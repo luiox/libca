@@ -21,7 +21,7 @@ class ThreadCompletion;
 
 std::shared_ptr<ThreadCompletion> make_thread_completion();
 void record_thread_exception(const std::shared_ptr<ThreadCompletion>& completion,
-                             std::exception_ptr                        exception) noexcept;
+                             std::exception_ptr                       exception) noexcept;
 
 template<typename Function>
 void invoke_thread_function(Function& function, const StopToken& token)
@@ -69,40 +69,39 @@ public:
     static ca::core::StatusResult<Thread> start(Function&& function)
     {
         using Callable = std::decay_t<Function>;
-        static_assert(std::is_invocable_v<Callable&> ||
-                          std::is_invocable_v<Callable&, StopToken>,
+        static_assert(std::is_invocable_v<Callable&> || std::is_invocable_v<Callable&, StopToken>,
                       "Thread callable must accept no arguments or one StopToken");
 
         try {
-            StopSource source;
-            StopToken  token      = source.token();
-            auto       completion = details::make_thread_completion();
-            std::thread native(
-                [callable = Callable(std::forward<Function>(function)), token, completion]() mutable
-                noexcept {
-                    try {
-                        details::invoke_thread_function(callable, token);
-                    }
-                    catch (...) {
-                        details::record_thread_exception(completion, std::current_exception());
-                    }
-                });
+            StopSource  source;
+            StopToken   token      = source.token();
+            auto        completion = details::make_thread_completion();
+            std::thread native([callable = Callable(std::forward<Function>(function)),
+                                token,
+                                completion]() mutable noexcept {
+                try {
+                    details::invoke_thread_function(callable, token);
+                }
+                catch (...) {
+                    details::record_thread_exception(completion, std::current_exception());
+                }
+            });
             return ca::core::Ok(
                 Thread(std::move(native), std::move(source), std::move(completion)));
         }
         catch (const std::system_error& error) {
-            return ca::core::Err(ca::core::ErrStatus(
-                ca::core::StatusCode::RESOURCE_EXHAUSTED,
-                std::string("thread creation failed: ") + error.what()));
+            return ca::core::Err(
+                ca::core::ErrStatus(ca::core::StatusCode::RESOURCE_EXHAUSTED,
+                                    std::string("thread creation failed: ") + error.what()));
         }
         catch (const std::exception& error) {
-            return ca::core::Err(ca::core::ErrStatus(
-                ca::core::StatusCode::INTERNAL,
-                std::string("thread setup failed: ") + error.what()));
+            return ca::core::Err(
+                ca::core::ErrStatus(ca::core::StatusCode::INTERNAL,
+                                    std::string("thread setup failed: ") + error.what()));
         }
         catch (...) {
-            return ca::core::Err(ca::core::ErrStatus(ca::core::StatusCode::INTERNAL,
-                                                      "thread setup failed"));
+            return ca::core::Err(
+                ca::core::ErrStatus(ca::core::StatusCode::INTERNAL, "thread setup failed"));
         }
     }
 
@@ -124,18 +123,17 @@ public:
     ca::core::Status join();
 
 private:
-    Thread(std::thread                              native,
-           StopSource                              stop_source,
+    Thread(std::thread native, StopSource stop_source,
            std::shared_ptr<details::ThreadCompletion> completion) noexcept;
 
     void finish_noexcept() noexcept;
 
-    std::thread                                 native_;
-    std::optional<StopSource>                   stop_source_;
+    std::thread                                native_;
+    std::optional<StopSource>                  stop_source_;
     std::shared_ptr<details::ThreadCompletion> completion_;
-    bool                                        started_{false};
-    bool                                        joined_{false};
-    ca::core::Status                            join_status_;
+    bool                                       started_{false};
+    bool                                       joined_{false};
+    ca::core::Status                           join_status_;
 };
 
 }   // namespace ca::thread

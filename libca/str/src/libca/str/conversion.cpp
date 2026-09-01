@@ -18,12 +18,14 @@ namespace ca::str {
 // Utf8String ↔ CString
 // ============================================================================
 
-CString to_cstring(const Utf8StringRef& str) {
+CString to_cstring(const Utf8StringRef& str)
+{
     // Utf8String 内部是 u8[] = UTF-8 编码 → 直接当 char[] 拷贝
     return CString(reinterpret_cast<const char*>(str.data()), str.byte_length());
 }
 
-Utf8String to_utf8_string(const CStringRef& str) {
+Utf8String to_utf8_string(const CStringRef& str)
+{
     // C 字符串的 char 数据视为 UTF-8 编码
     return Utf8String(reinterpret_cast<const u8*>(str.data()), str.length());
 }
@@ -33,14 +35,15 @@ Utf8String to_utf8_string(const CStringRef& str) {
 // Utf8String ↔ WString
 // ============================================================================
 
-WString to_wstring(const Utf8StringRef& str) {
-    auto  data = str.data();
-    auto  len  = str.byte_length();
+WString to_wstring(const Utf8StringRef& str)
+{
+    auto data = str.data();
+    auto len  = str.byte_length();
 
     // 第一遍：计算需要的 wchar_t 数量
     // 对于 UTF-32 (Linux/macOS): 每个码点 = 1 wchar_t
     // 对于 UTF-16 (Windows): 码点 > U+FFFF 需要 2 个 wchar_t (代理对)
-    usize pos = 0;
+    usize pos     = 0;
     usize wcCount = 0;
     while (pos < len) {
         auto clen = utf8_code_point_bytes(data[pos]);
@@ -51,8 +54,9 @@ WString to_wstring(const Utf8StringRef& str) {
 #if defined(_WIN32)
         // Windows: wchar_t = UTF-16LE
         if (cp >= 0x10000 && cp <= 0x10FFFF) {
-            wcCount += 2;  // 代理对
-        } else {
+            wcCount += 2;   // 代理对
+        }
+        else {
             wcCount += 1;
         }
 #else
@@ -63,8 +67,8 @@ WString to_wstring(const Utf8StringRef& str) {
     }
 
     // 分配并填充
-    auto buf = std::unique_ptr<wchar_t[]>(new wchar_t[wcCount + 1]);
-    pos = 0;
+    auto buf     = std::unique_ptr<wchar_t[]>(new wchar_t[wcCount + 1]);
+    pos          = 0;
     usize outIdx = 0;
     while (pos < len) {
         auto clen = utf8_code_point_bytes(data[pos]);
@@ -79,7 +83,8 @@ WString to_wstring(const Utf8StringRef& str) {
             Utf16Char::encode_pair(cp, high, low);
             buf[outIdx++] = static_cast<wchar_t>(high.unit());
             buf[outIdx++] = static_cast<wchar_t>(low.unit());
-        } else {
+        }
+        else {
             buf[outIdx++] = static_cast<wchar_t>(cp);
         }
 #else
@@ -92,7 +97,8 @@ WString to_wstring(const Utf8StringRef& str) {
     return WString(buf.get(), wcCount);
 }
 
-Utf8String to_utf8_string(const WStringRef& str) {
+Utf8String to_utf8_string(const WStringRef& str)
+{
     auto data = str.data();
     auto len  = str.length();
 
@@ -112,10 +118,12 @@ Utf8String to_utf8_string(const WStringRef& str) {
                 throw std::runtime_error("to_utf8_string: invalid surrogate pair");
             }
             cp = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
-            ++i;  // 消耗低位代理
-        } else if (Utf16Char(wc).is_trail_surrogate()) {
+            ++i;   // 消耗低位代理
+        }
+        else if (Utf16Char(wc).is_trail_surrogate()) {
             throw std::runtime_error("to_utf8_string: unexpected trail surrogate");
-        } else {
+        }
+        else {
             cp = wc;
         }
 #else
@@ -126,14 +134,18 @@ Utf8String to_utf8_string(const WStringRef& str) {
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
             throw std::runtime_error("to_utf8_string: invalid code point");
         }
-        if (cp <= 0x7F)       byteCount += 1;
-        else if (cp <= 0x7FF) byteCount += 2;
-        else if (cp <= 0xFFFF) byteCount += 3;
-        else                   byteCount += 4;
+        if (cp <= 0x7F)
+            byteCount += 1;
+        else if (cp <= 0x7FF)
+            byteCount += 2;
+        else if (cp <= 0xFFFF)
+            byteCount += 3;
+        else
+            byteCount += 4;
     }
 
     // 分配并编码
-    auto buf = std::unique_ptr<u8[]>(new u8[byteCount + 1]);
+    auto  buf    = std::unique_ptr<u8[]>(new u8[byteCount + 1]);
     usize outPos = 0;
     for (usize i = 0; i < len; ++i) {
         u32 cp;
@@ -141,11 +153,13 @@ Utf8String to_utf8_string(const WStringRef& str) {
         auto wc = static_cast<u16>(data[i]);
         if (Utf16Char(wc).is_lead_surrogate()) {
             auto low = static_cast<u16>(data[i + 1]);
-            cp = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
+            cp       = Utf16Char::decode_pair(Utf16Char(wc), Utf16Char(low));
             ++i;
-        } else if (Utf16Char(wc).is_trail_surrogate()) {
-            continue;  // 不应到达
-        } else {
+        }
+        else if (Utf16Char(wc).is_trail_surrogate()) {
+            continue;   // 不应到达
+        }
+        else {
             cp = wc;
         }
 #else
@@ -163,13 +177,15 @@ Utf8String to_utf8_string(const WStringRef& str) {
 // CString ↔ WString（经 UTF-8 中转）
 // ============================================================================
 
-WString to_wstring(const CStringRef& str) {
+WString to_wstring(const CStringRef& str)
+{
     // CString → Utf8String → WString
     auto utf8 = to_utf8_string(str);
     return to_wstring(utf8.ref());
 }
 
-CString to_cstring(const WStringRef& str) {
+CString to_cstring(const WStringRef& str)
+{
     // WString → Utf8String → CString
     auto utf8 = to_utf8_string(str);
     return to_cstring(utf8.ref());
@@ -180,8 +196,9 @@ CString to_cstring(const WStringRef& str) {
 // UTF-8 ↔ raw UTF-16 工具
 // ============================================================================
 
-usize utf8_to_utf16_length(const u8* utf8, usize byteLength) noexcept {
-    usize pos = 0;
+usize utf8_to_utf16_length(const u8* utf8, usize byteLength) noexcept
+{
+    usize pos   = 0;
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
@@ -196,7 +213,8 @@ usize utf8_to_utf16_length(const u8* utf8, usize byteLength) noexcept {
     return count;
 }
 
-usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
+usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept
+{
     usize pos = 0;
     usize out = 0;
     while (pos < byteLength) {
@@ -211,7 +229,8 @@ usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
             Utf16Char::encode_pair(cp, high, low);
             utf16[out++] = high.unit();
             utf16[out++] = low.unit();
-        } else {
+        }
+        else {
             utf16[out++] = static_cast<u16>(cp);
         }
         pos += clen;
@@ -219,7 +238,8 @@ usize utf8_to_utf16(const u8* utf8, usize byteLength, u16* utf16) noexcept {
     return out;
 }
 
-usize utf16_to_utf8_length(const u16* utf16, usize unitCount) noexcept {
+usize utf16_to_utf8_length(const u16* utf16, usize unitCount) noexcept
+{
     usize byteCount = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
@@ -228,20 +248,27 @@ usize utf16_to_utf8_length(const u16* utf16, usize unitCount) noexcept {
                 return 0;
             cp = Utf16Char::decode_pair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
             ++i;
-        } else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
+        }
+        else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
             return 0;
-        } else {
+        }
+        else {
             cp = utf16[i];
         }
-        if (cp <= 0x7F)       byteCount += 1;
-        else if (cp <= 0x7FF) byteCount += 2;
-        else if (cp <= 0xFFFF) byteCount += 3;
-        else                   byteCount += 4;
+        if (cp <= 0x7F)
+            byteCount += 1;
+        else if (cp <= 0x7FF)
+            byteCount += 2;
+        else if (cp <= 0xFFFF)
+            byteCount += 3;
+        else
+            byteCount += 4;
     }
     return byteCount;
 }
 
-usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
+usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept
+{
     usize out = 0;
     for (usize i = 0; i < unitCount; ++i) {
         u32 cp;
@@ -252,9 +279,11 @@ usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
                 return 0;
             cp = Utf16Char::decode_pair(Utf16Char(utf16[i]), Utf16Char(utf16[i + 1]));
             ++i;
-        } else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
+        }
+        else if (Utf16Char(utf16[i]).is_trail_surrogate()) {
             return 0;
-        } else {
+        }
+        else {
             cp = utf16[i];
         }
         out += utf8_encode_code_point(cp, utf8 + out);
@@ -267,8 +296,9 @@ usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
 // UTF-8 ↔ UTF-32
 // ============================================================================
 
-usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept {
-    usize pos = 0;
+usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept
+{
+    usize pos   = 0;
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
@@ -283,7 +313,8 @@ usize utf8_to_utf32_length(const u8* utf8, usize byteLength) noexcept {
     return count;
 }
 
-usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept {
+usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept
+{
     usize pos = 0;
     usize out = 0;
     while (pos < byteLength) {
@@ -299,25 +330,31 @@ usize utf8_to_utf32(const u8* utf8, usize byteLength, u32* utf32) noexcept {
     return out;
 }
 
-usize utf32_to_utf8_length(const u32* utf32, usize count) noexcept {
+usize utf32_to_utf8_length(const u32* utf32, usize count) noexcept
+{
     usize byteCount = 0;
     for (usize i = 0; i < count; ++i) {
         u32 cp = utf32[i];
         if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
             return 0;
-        if (cp <= 0x7F)        byteCount += 1;
-        else if (cp <= 0x7FF)  byteCount += 2;
-        else if (cp <= 0xFFFF) byteCount += 3;
-        else                   byteCount += 4;
+        if (cp <= 0x7F)
+            byteCount += 1;
+        else if (cp <= 0x7FF)
+            byteCount += 2;
+        else if (cp <= 0xFFFF)
+            byteCount += 3;
+        else
+            byteCount += 4;
     }
     return byteCount;
 }
 
-usize utf32_to_utf8(const u32* utf32, usize count, u8* utf8) noexcept {
+usize utf32_to_utf8(const u32* utf32, usize count, u8* utf8) noexcept
+{
     usize out = 0;
     for (usize i = 0; i < count; ++i) {
         auto n = utf8_encode_code_point(utf32[i], utf8 + out);
-        if (n == 0)  // utf8_encode_code_point 已拒绝代理项 / >U+10FFFF
+        if (n == 0)   // utf8_encode_code_point 已拒绝代理项 / >U+10FFFF
             return 0;
         out += n;
     }
@@ -329,20 +366,23 @@ usize utf32_to_utf8(const u32* utf32, usize count, u8* utf8) noexcept {
 // Latin-1 (ISO-8859-1) ↔ UTF-8
 // ============================================================================
 
-usize latin1_to_utf8_length(const u8* latin1, usize length) noexcept {
+usize latin1_to_utf8_length(const u8* latin1, usize length) noexcept
+{
     usize byteCount = 0;
     for (usize i = 0; i < length; ++i)
         byteCount += (latin1[i] < 0x80) ? 1 : 2;
     return byteCount;
 }
 
-usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept {
+usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept
+{
     usize out = 0;
     for (usize i = 0; i < length; ++i) {
         u8 b = latin1[i];
         if (b < 0x80) {
             utf8[out++] = b;
-        } else {
+        }
+        else {
             // U+0080..U+00FF → 2 字节 UTF-8
             utf8[out++] = static_cast<u8>(0xC0 | (b >> 6));
             utf8[out++] = static_cast<u8>(0x80 | (b & 0x3F));
@@ -351,15 +391,16 @@ usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept {
     return out;
 }
 
-usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept {
-    usize pos = 0;
+usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept
+{
+    usize pos   = 0;
     usize count = 0;
     while (pos < byteLength) {
         auto clen = utf8_code_point_bytes(utf8[pos]);
         if (clen == 0 || pos + clen > byteLength || !utf8_valid_continuation(utf8 + pos, clen))
             return UTF8_TO_LATIN1_INVALID;
         auto cp = utf8_decode_code_point(utf8 + pos);
-        if (cp > 0x00FF)  // Latin-1 只能表示 U+0000..U+00FF
+        if (cp > 0x00FF)   // Latin-1 只能表示 U+0000..U+00FF
             return UTF8_TO_LATIN1_INVALID;
         ++count;
         pos += clen;
@@ -367,7 +408,8 @@ usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept {
     return count;
 }
 
-usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept {
+usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept
+{
     usize pos = 0;
     usize out = 0;
     while (pos < byteLength) {
@@ -383,4 +425,4 @@ usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept {
     return out;
 }
 
-}  // namespace ca::str
+}   // namespace ca::str

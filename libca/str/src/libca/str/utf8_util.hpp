@@ -13,7 +13,8 @@ namespace ca::str {
 usize utf8_code_point_bytes(u8 first_byte) noexcept;
 
 /// @brief 安全版码点字节数：至少返回 1，避免非法字节导致解码死循环。
-inline usize utf8_code_point_bytes_safe(u8 first_byte) noexcept {
+inline usize utf8_code_point_bytes_safe(u8 first_byte) noexcept
+{
     auto n = utf8_code_point_bytes(first_byte);
     return n > 0 ? n : 1;
 }
@@ -37,4 +38,4 @@ usize utf8_count_code_points(const u8* data, usize byte_length,
 /// @brief 检查是否为合法 UTF-8。
 bool utf8_is_valid(const u8* data, usize byte_length) noexcept;
 
-}  // namespace ca::str
+}   // namespace ca::str

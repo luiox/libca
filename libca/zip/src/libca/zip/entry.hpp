@@ -8,7 +8,8 @@
 namespace ca::zip {
 
 /// @brief ZIP 条目元数据（对应 java.util.zip.ZipEntry 的信息面）。
-class ZipEntry {
+class ZipEntry
+{
 public:
     ZipEntry() = default;
     ZipEntry(std::string name, ca::u32 compressed_size, ca::u32 uncompressed_size,

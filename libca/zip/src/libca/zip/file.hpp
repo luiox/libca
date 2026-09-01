@@ -13,7 +13,8 @@ namespace ca::zip {
 ///
 /// 解析行为对齐 java.util.zip.ZipFile：以最后一条合法 EOCD 为准，支持
 /// 前缀拼接（自提取类）与 ZIP64。错误时抛 std::runtime_error。
-class ZipFile {
+class ZipFile
+{
 public:
     ZipFile();
 

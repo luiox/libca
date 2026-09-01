@@ -36,7 +36,7 @@ TEST(ArrayListTest, AddGetSetAndIterate)
 TEST(ArrayListTest, FromSliceAndBulkAppend)
 {
     const ca::i32 raw[] = {1, 2, 3};
-    auto list = ArrayList<ca::i32>::from_slice(raw, 3);
+    auto          list  = ArrayList<ca::i32>::from_slice(raw, 3);
 
     ASSERT_EQ(list.len(), 3u);
     EXPECT_EQ(list.get(0), 1);
@@ -245,7 +245,7 @@ TEST(ArrayListTest, TryGetReturnsPointerOrNull)
     *value = "BETA";
     EXPECT_EQ(list.get(1), "BETA");
 
-    const auto& const_list = list;
+    const auto& const_list  = list;
     const auto* const_value = const_list.try_get(0);
     ASSERT_NE(const_value, nullptr);
     EXPECT_EQ(*const_value, "alpha");
@@ -270,7 +270,7 @@ TEST(ArrayListTest, FirstAndLastReturnPointersOrNull)
     EXPECT_EQ(*list.last(), "beta");
 
     *list.first() = "ALPHA";
-    *list.last() = "BETA";
+    *list.last()  = "BETA";
     EXPECT_EQ(list.get(0), "ALPHA");
     EXPECT_EQ(list.get(1), "BETA");
 
@@ -341,7 +341,8 @@ TEST(ArrayListTest, RemoveIfSupportsMoveOnlyValues)
 
     EXPECT_EQ(list.remove_if([](const std::unique_ptr<ca::i32>& value) {
         return value != nullptr && *value == 2;
-    }), 1u);
+    }),
+              1u);
 
     ASSERT_EQ(list.len(), 2u);
     ASSERT_NE(list.get(0), nullptr);
@@ -350,4 +351,4 @@ TEST(ArrayListTest, RemoveIfSupportsMoveOnlyValues)
     EXPECT_EQ(*list.get(1), 3);
 }
 
-}  // namespace ca::collection
+}   // namespace ca::collection

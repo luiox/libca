@@ -16,7 +16,8 @@ namespace ca::str {
 
 /// @brief std::string 辅助工具（大小写/修剪/拆分/合并/数值互转/比较）。
 /// @note 面向 std::string、按字节/ASCII 操作；需要 UTF-8 码点语义请用 Utf8String/Utf8StringRef。
-class StringUtil {
+class StringUtil
+{
 public:
     // ==================== 大小写转换 ====================
     static std::string to_lower_case(const std::string& input);
@@ -104,7 +105,7 @@ public:
     /// @param plus_as_space true 时将 '+' 解码为空格，用于表单风格解码。
     /// @return 成功返回解码后的字节串；遇到不完整或非法十六进制转义返回错误说明。
     static ca::core::Result<std::string, std::string> percent_decode(const std::string& input,
-                                                                      bool plus_as_space = false);
+                                                                     bool plus_as_space = false);
 
     /// @brief URL 表单组件编码：空格编码为 '+'，其它非 unreserved 字节编码为 %HH。
     /// @param input 输入文本，按字节处理。
@@ -114,7 +115,8 @@ public:
     /// @brief URL 表单组件解码：'+' 解码为空格，并解析 %HH。
     /// @param input URL 表单组件文本。
     /// @return 成功返回解码后的字节串；非法 percent escape 返回错误说明。
-    static ca::core::Result<std::string, std::string> url_decode_component(const std::string& input);
+    static ca::core::Result<std::string, std::string> url_decode_component(
+        const std::string& input);
 
     /// @brief Base64url 编码，使用 '-' 和 '_'，默认不输出 '=' padding。
     /// @param input 原始字节串。
@@ -132,8 +134,6 @@ public:
     static bool starts_with(const std::string& input, const std::string& prefix);
     static bool ends_with(const std::string& input, const std::string& suffix);
     static bool contains(const std::string& input, const std::string& substr);
-
-    
 };
 
-} // namespace ca::str
+}   // namespace ca::str

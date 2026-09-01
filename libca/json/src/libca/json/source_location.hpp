@@ -10,7 +10,8 @@
 namespace ca::json {
 
 /// @brief 源码位置：字节偏移 + 行 + 列，均从 1 起计（offset 从 0 起）。
-struct SourceLocation {
+struct SourceLocation
+{
     /// 字节偏移（从 0 起）。
     usize offset = 0;
     /// 行号（1-based）。
@@ -19,4 +20,4 @@ struct SourceLocation {
     usize column = 1;
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

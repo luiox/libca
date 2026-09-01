@@ -20,9 +20,9 @@ extern "C" {
 // - le/be 仅影响读取/写入 value 的字节序，不改变 bitstream 的位序。
 
 // 返回码
-#define BITS_UTIL_OK       0
-#define BITS_UTIL_EINVAL   (-1)
-#define BITS_UTIL_ERANGE   (-2)
+#define BITS_UTIL_OK 0
+#define BITS_UTIL_EINVAL (-1)
+#define BITS_UTIL_ERANGE (-2)
 
 // 对于需要精准控制高低位的情况下使用下面的宏
 // 其中bits是一个整数类型的变量，一般是u8、u16、u32、u64等
@@ -31,7 +31,8 @@ extern "C" {
 // 取一个位上的值
 #define bits_get(bits, n) (((bits) >> (n)) & 0x01u)
 // 设置一个位上的值
-#define bits_set(bits, n, val) ((bits) = ((bits) & ~(1ULL << (n))) | (((val) & 0x01u) ? (1ULL << (n)) : 0ULL))
+#define bits_set(bits, n, val) \
+    ((bits) = ((bits) & ~(1ULL << (n))) | (((val) & 0x01u) ? (1ULL << (n)) : 0ULL))
 // 反转一个位上的值
 #define bits_toggle(bits, n) ((bits) ^= (1ULL << (n)))
 // 获取第n位的掩码
@@ -119,4 +120,4 @@ i32 bits_read64_be(const u8* data, usize data_size, usize start_bit, u8 length, 
 }
 #endif
 
-#endif // !LIBCA_EM_UTIL_BITS_UTIL_H
+#endif   // !LIBCA_EM_UTIL_BITS_UTIL_H

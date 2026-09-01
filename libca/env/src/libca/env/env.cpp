@@ -9,20 +9,20 @@
 #include <vector>
 
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
 #elif defined(__APPLE__)
-#include <cstdint>
-#include <mach-o/dyld.h>
-#include <unistd.h>
+#    include <cstdint>
+#    include <mach-o/dyld.h>
+#    include <unistd.h>
 extern char** environ;
 #else
-#include <unistd.h>
+#    include <unistd.h>
 extern char** environ;
 #endif
 
@@ -38,21 +38,12 @@ std::wstring utf8_to_wide(std::string_view utf8)
 {
     if (utf8.empty())
         return std::wstring();
-    int len = MultiByteToWideChar(CP_UTF8,
-                                  0,
-                                  utf8.data(),
-                                  static_cast<int>(utf8.size()),
-                                  nullptr,
-                                  0);
+    int len =
+        MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
     if (len <= 0)
         return std::wstring();
     std::wstring wide(static_cast<size_t>(len), L'\0');
-    MultiByteToWideChar(CP_UTF8,
-                        0,
-                        utf8.data(),
-                        static_cast<int>(utf8.size()),
-                        wide.data(),
-                        len);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), wide.data(), len);
     return wide;
 }
 
@@ -60,25 +51,11 @@ std::string wide_to_utf8(const wchar_t* wide, int len)
 {
     if (wide == nullptr || len <= 0)
         return std::string();
-    int out = WideCharToMultiByte(CP_UTF8,
-                                  0,
-                                  wide,
-                                  len,
-                                  nullptr,
-                                  0,
-                                  nullptr,
-                                  nullptr);
+    int out = WideCharToMultiByte(CP_UTF8, 0, wide, len, nullptr, 0, nullptr, nullptr);
     if (out <= 0)
         return std::string();
     std::string utf8(static_cast<size_t>(out), '\0');
-    WideCharToMultiByte(CP_UTF8,
-                        0,
-                        wide,
-                        len,
-                        utf8.data(),
-                        out,
-                        nullptr,
-                        nullptr);
+    WideCharToMultiByte(CP_UTF8, 0, wide, len, utf8.data(), out, nullptr, nullptr);
     return utf8;
 }
 
@@ -87,19 +64,19 @@ std::string wide_to_utf8(const std::wstring& wide)
     return wide_to_utf8(wide.data(), static_cast<int>(wide.size()));
 }
 
-#endif  // _WIN32
+#endif   // _WIN32
 
-}  // namespace
+}   // namespace
 
 std::optional<std::string> get(std::string_view name)
 {
 #if defined(_WIN32)
-    auto wide_name = utf8_to_wide(name);
-    DWORD need = GetEnvironmentVariableW(wide_name.c_str(), nullptr, 0);
+    auto  wide_name = utf8_to_wide(name);
+    DWORD need      = GetEnvironmentVariableW(wide_name.c_str(), nullptr, 0);
     if (need == 0)
-        return std::nullopt;  // 不存在（或空值变量，二者难以区分，统一按不存在处理）
+        return std::nullopt;   // 不存在（或空值变量，二者难以区分，统一按不存在处理）
     std::wstring buffer(static_cast<size_t>(need), L'\0');
-    DWORD actual = GetEnvironmentVariableW(wide_name.c_str(), buffer.data(), need);
+    DWORD        actual = GetEnvironmentVariableW(wide_name.c_str(), buffer.data(), need);
     if (actual == 0)
         return std::nullopt;
     // actual 不含末尾 '\0'，截断到实际长度。
@@ -171,11 +148,10 @@ std::vector<std::pair<std::string, std::string>> all()
         return result;
     for (char** entry = environ; *entry != nullptr; ++entry) {
         std::string_view raw(*entry);
-        auto eq = raw.find('=');
+        auto             eq = raw.find('=');
         if (eq == std::string_view::npos)
             continue;
-        result.emplace_back(std::string(raw.substr(0, eq)),
-                            std::string(raw.substr(eq + 1)));
+        result.emplace_back(std::string(raw.substr(0, eq)), std::string(raw.substr(eq + 1)));
     }
 #endif
     return result;
@@ -188,7 +164,7 @@ std::string current_dir()
     if (need == 0)
         return std::string();
     std::wstring buffer(static_cast<size_t>(need), L'\0');
-    DWORD actual = GetCurrentDirectoryW(need, buffer.data());
+    DWORD        actual = GetCurrentDirectoryW(need, buffer.data());
     if (actual == 0)
         return std::string();
     buffer.resize(actual);
@@ -221,7 +197,7 @@ std::string temp_dir()
     if (need == 0)
         return std::string();
     std::wstring buffer(static_cast<size_t>(need), L'\0');
-    DWORD actual = GetTempPathW(need, buffer.data());
+    DWORD        actual = GetTempPathW(need, buffer.data());
     if (actual == 0)
         return std::string();
     buffer.resize(actual);
@@ -253,7 +229,7 @@ std::string executable_path()
     DWORD actual = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
     if (actual == 0)
         return std::string();
-    while (actual == buffer.size()) {  // 缓冲区不足，扩容重试
+    while (actual == buffer.size()) {   // 缓冲区不足，扩容重试
         buffer.resize(buffer.size() * 2);
         actual = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
         if (actual == 0)
@@ -299,16 +275,14 @@ std::string os_version()
     // RtlGetVersion 比 GetVersionEx 更可靠（不受 manifest 兼容性声明影响）。
     OSVERSIONINFOW info{};
     info.dwOSVersionInfoSize = sizeof(info);
-    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    HMODULE ntdll            = GetModuleHandleW(L"ntdll.dll");
     if (ntdll != nullptr) {
         typedef LONG(WINAPI * RtlGetVersionPtr)(OSVERSIONINFOW*);
-        auto rtl_get_version = reinterpret_cast<RtlGetVersionPtr>(
-            GetProcAddress(ntdll, "RtlGetVersion"));
+        auto rtl_get_version =
+            reinterpret_cast<RtlGetVersionPtr>(GetProcAddress(ntdll, "RtlGetVersion"));
         if (rtl_get_version != nullptr && rtl_get_version(&info) == 0) {
-            return ca::str::format_std("{}.{}.{}",
-                                       info.dwMajorVersion,
-                                       info.dwMinorVersion,
-                                       info.dwBuildNumber);
+            return ca::str::format_std(
+                "{}.{}.{}", info.dwMajorVersion, info.dwMinorVersion, info.dwBuildNumber);
         }
     }
     return std::string();
@@ -318,7 +292,7 @@ std::string os_version()
     if (fp == nullptr)
         return std::string();
     std::string version;
-    char line[256];
+    char        line[256];
     while (std::fgets(line, sizeof(line), fp) != nullptr) {
         std::string_view raw(line);
         if (raw.substr(0, 11) == "VERSION_ID=") {
@@ -338,7 +312,7 @@ std::string os_version()
     std::FILE* fp = std::popen("sw_vers -productVersion", "r");
     if (fp == nullptr)
         return std::string();
-    char buf[64];
+    char        buf[64];
     std::string version;
     if (std::fgets(buf, sizeof(buf), fp) != nullptr) {
         std::string_view raw(buf);
@@ -353,4 +327,4 @@ std::string os_version()
 #endif
 }
 
-}  // namespace ca::env
+}   // namespace ca::env

@@ -25,4 +25,4 @@ std::string nil();
 /// `v4()` 的输出。
 bool is_valid(std::string_view s, bool check_variant_version = true) noexcept;
 
-}  // namespace ca::uuid
+}   // namespace ca::uuid

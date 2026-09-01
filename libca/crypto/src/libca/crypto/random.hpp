@@ -12,4 +12,4 @@ namespace ca::crypto {
 /// @return 成功返回随机字节；系统 RNG 失败时返回 RANDOM_FAILED。
 ca::Result<ca::core::Bytes, CryptoError> secure_random_bytes(ca::usize len);
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

@@ -3,36 +3,42 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_EXTERN)
-#define DS18B20_WRITE_PIN(gpio, pin, v)    port_ds18b20_write_pin((gpio), (pin), (v))
-#define DS18B20_READ_PIN(gpio, pin)        port_ds18b20_read_pin((gpio), (pin))
-#define DS18B20_SET_OUTPUT_MODE(gpio, pin) port_ds18b20_set_output_mode((gpio), (pin))
-#define DS18B20_SET_INPUT_MODE(gpio, pin)  port_ds18b20_set_input_mode((gpio), (pin))
-#define DS18B20_DELAY_US(us)               port_ds18b20_delay_us(us)
+#    define DS18B20_WRITE_PIN(gpio, pin, v) port_ds18b20_write_pin((gpio), (pin), (v))
+#    define DS18B20_READ_PIN(gpio, pin) port_ds18b20_read_pin((gpio), (pin))
+#    define DS18B20_SET_OUTPUT_MODE(gpio, pin) port_ds18b20_set_output_mode((gpio), (pin))
+#    define DS18B20_SET_INPUT_MODE(gpio, pin) port_ds18b20_set_input_mode((gpio), (pin))
+#    define DS18B20_DELAY_US(us) port_ds18b20_delay_us(us)
 
 #elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
 static const ds18b20_port_t* g_ds18b20_port = NULL;
-#define DS18B20_WRITE_PIN(gpio, pin, v)    g_ds18b20_port->write_pin((gpio), (pin), (v))
-#define DS18B20_READ_PIN(gpio, pin)        g_ds18b20_port->read_pin((gpio), (pin))
-#define DS18B20_SET_OUTPUT_MODE(gpio, pin) g_ds18b20_port->set_output_mode((gpio), (pin))
-#define DS18B20_SET_INPUT_MODE(gpio, pin)  g_ds18b20_port->set_input_mode((gpio), (pin))
-#define DS18B20_DELAY_US(us)               g_ds18b20_port->delay_us(us)
+#    define DS18B20_WRITE_PIN(gpio, pin, v) g_ds18b20_port->write_pin((gpio), (pin), (v))
+#    define DS18B20_READ_PIN(gpio, pin) g_ds18b20_port->read_pin((gpio), (pin))
+#    define DS18B20_SET_OUTPUT_MODE(gpio, pin) g_ds18b20_port->set_output_mode((gpio), (pin))
+#    define DS18B20_SET_INPUT_MODE(gpio, pin) g_ds18b20_port->set_input_mode((gpio), (pin))
+#    define DS18B20_DELAY_US(us) g_ds18b20_port->delay_us(us)
 
 #else
-#error "Invalid DS18B20 port mode"
+#    error "Invalid DS18B20 port mode"
 #endif
 
 #if (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
-void ds18b20_bind_port(const ds18b20_port_t* port) { g_ds18b20_port = port; }
-bool ds18b20_port_is_registered(void) { return g_ds18b20_port != NULL; }
+void ds18b20_bind_port(const ds18b20_port_t* port)
+{
+    g_ds18b20_port = port;
+}
+bool ds18b20_port_is_registered(void)
+{
+    return g_ds18b20_port != NULL;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // 简化访问宏
-#define DS_OUT(self, n)       DS18B20_WRITE_PIN((self)->gpio, (self)->pin, (n))
-#define DS_IN(self)           DS18B20_READ_PIN((self)->gpio, (self)->pin)
-#define DS_OUTPUT_MODE(self)  DS18B20_SET_OUTPUT_MODE((self)->gpio, (self)->pin)
-#define DS_INPUT_MODE(self)   DS18B20_SET_INPUT_MODE((self)->gpio, (self)->pin)
+#define DS_OUT(self, n) DS18B20_WRITE_PIN((self)->gpio, (self)->pin, (n))
+#define DS_IN(self) DS18B20_READ_PIN((self)->gpio, (self)->pin)
+#define DS_OUTPUT_MODE(self) DS18B20_SET_OUTPUT_MODE((self)->gpio, (self)->pin)
+#define DS_INPUT_MODE(self) DS18B20_SET_INPUT_MODE((self)->gpio, (self)->pin)
 
 void ds18b20_init(ds18b20_t* self, void* gpio, u16 pin)
 {
@@ -144,16 +150,16 @@ static uint8_t ds18b20_read_byte(ds18b20_t* self)
 /// 返回：0 成功，负值为错误码
 i32 ds18b20_read_temperature(ds18b20_t* self, u16* temp)
 {
-    u8 temp_L, temp_H;
+    u8  temp_L, temp_H;
     i32 ret;
 
     ret = ds18b20_check_device(self);
     if (ret != DS18B20_OK) {
-        return ret; // 返回更具体的错误码
+        return ret;   // 返回更具体的错误码
     }
 
-    ds18b20_write_byte(self, 0xCC); // skip ROM
-    ds18b20_write_byte(self, 0x44); // convert T
+    ds18b20_write_byte(self, 0xCC);   // skip ROM
+    ds18b20_write_byte(self, 0x44);   // convert T
 
     // 等待转换完成（设备忙时会返回 0xFF）
     while (ds18b20_read_byte(self) != 0xFF)
@@ -161,11 +167,11 @@ i32 ds18b20_read_temperature(ds18b20_t* self, u16* temp)
 
     ret = ds18b20_check_device(self);
     if (ret != DS18B20_OK) {
-        return ret; // 返回更具体的错误码
+        return ret;   // 返回更具体的错误码
     }
 
-    ds18b20_write_byte(self, 0xCC); // skip ROM
-    ds18b20_write_byte(self, 0xBE); // read scratchpad
+    ds18b20_write_byte(self, 0xCC);   // skip ROM
+    ds18b20_write_byte(self, 0xBE);   // read scratchpad
 
     temp_L = ds18b20_read_byte(self);
     temp_H = ds18b20_read_byte(self);

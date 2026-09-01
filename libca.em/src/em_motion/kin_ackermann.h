@@ -16,7 +16,8 @@ extern "C" {
 #endif
 
 /// @brief 阿克曼底盘参数
-typedef struct ackermann_param_s {
+typedef struct ackermann_param_s
+{
     f32 wheel_base;
     f32 wheel_track;
 } ackermann_param_t;
@@ -35,14 +36,11 @@ f32 ackermann_calc_steer_angle(f32 v, f32 w, f32 wheel_base);
 /// @param p 阿克曼参数
 /// @param steer_left 左前轮转角输出，单位 rad
 /// @param steer_right 右前轮转角输出，单位 rad
-void ackermann_split_steer(
-    f32 steer_center,
-    const ackermann_param_t* p,
-    f32* steer_left,
-    f32* steer_right);
+void ackermann_split_steer(f32 steer_center, const ackermann_param_t* p, f32* steer_left,
+                           f32* steer_right);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_KIN_ACKERMANN_H
+#endif   // !LIBCA_EM_MOTION_KIN_ACKERMANN_H

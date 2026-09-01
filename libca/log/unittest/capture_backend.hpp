@@ -15,24 +15,21 @@ class CaptureBackend final : public ILogBackend
 public:
     struct Entry
     {
-        Level         level;
-        std::string   target;
-        std::string   file;
-        int           line;
-        std::string   message;
+        Level       level;
+        std::string target;
+        std::string file;
+        int         line;
+        std::string message;
     };
 
-    void log(Level              level,
-             std::string_view   target,
-             std::string_view   file,
-             int                line,
+    void log(Level level, std::string_view target, std::string_view file, int line,
              const OpaqueFormat& message) override
     {
         std::string rendered;
         message.render_to(rendered);
         std::lock_guard<std::mutex> lock(mutex_);
-        entries_.push_back({level, std::string(target), std::string(file), line,
-                            std::move(rendered)});
+        entries_.push_back(
+            {level, std::string(target), std::string(file), line, std::move(rendered)});
     }
 
     std::vector<Entry> entries()
@@ -58,4 +55,4 @@ private:
     std::vector<Entry> entries_;
 };
 
-}  // namespace ca::log::test
+}   // namespace ca::log::test

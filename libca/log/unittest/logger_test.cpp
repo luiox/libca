@@ -55,8 +55,7 @@ TEST(LoggerMacroTest, LogReachesBackend)
 {
     RegistryGuard guard;
     auto          backend = std::make_shared<CaptureBackend>();
-    LoggerRegistry::register_logger("default",
-                                    std::make_shared<Logger>(backend));
+    LoggerRegistry::register_logger("default", std::make_shared<Logger>(backend));
 
     CA_LOG_INFO("hello {}", 42);
 
@@ -72,7 +71,7 @@ TEST(LoggerMacroTest, LogReachesBackend)
 TEST(LoggerMacroTest, TargettedMacroUsesGivenTarget)
 {
     RegistryGuard guard;
-    auto net_backend = std::make_shared<CaptureBackend>();
+    auto          net_backend = std::make_shared<CaptureBackend>();
     LoggerRegistry::register_logger("net", std::make_shared<Logger>(net_backend));
 
     CA_LOGT_WARN("net", "conn lost: {}", "10.0.0.1");
@@ -95,8 +94,8 @@ TEST(LoggerMacroTest, UnregisteredTargetIsDropped)
 TEST(LoggerMacroTest, RuntimeLevelFiltersAtLogger)
 {
     RegistryGuard guard;
-    auto backend = std::make_shared<CaptureBackend>();
-    auto logger  = std::make_shared<Logger>(backend);
+    auto          backend = std::make_shared<CaptureBackend>();
+    auto          logger  = std::make_shared<Logger>(backend);
     logger->set_level(Level::Error_);
     LoggerRegistry::register_logger("default", logger);
 
@@ -108,5 +107,5 @@ TEST(LoggerMacroTest, RuntimeLevelFiltersAtLogger)
     EXPECT_EQ(entries[0].message, "passes 1");
 }
 
-}  // namespace
-}  // namespace ca::log::test
+}   // namespace
+}   // namespace ca::log::test

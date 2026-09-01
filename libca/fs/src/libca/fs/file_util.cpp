@@ -10,35 +10,37 @@
 #include <stdexcept>
 
 #ifdef _WIN32
-#include <io.h>
-#include <wchar.h>   // _waccess（宽字符版 access，配合 path::wstring() 无损 Unicode）
+#    include <io.h>
+#    include <wchar.h>   // _waccess（宽字符版 access，配合 path::wstring() 无损 Unicode）
 #endif
 
-namespace ca { namespace fs {
+namespace ca {
+namespace fs {
 
 namespace {
 
 // 把 std::error_code 归类为 FsError。无错误映射时退回 Unknown。
 FsError classify_fs_error(const std::error_code& ec) noexcept
 {
-    if (!ec) return FsError::Unknown;
+    if (!ec)
+        return FsError::Unknown;
     // 优先用 std::errc 条件值判断，跨平台稳定。
     const auto cond = static_cast<std::errc>(ec.default_error_condition().value());
     switch (cond) {
-        case std::errc::no_such_file_or_directory:    return FsError::FileNotFound;
-        case std::errc::not_a_directory:              return FsError::NotADirectory;
-        case std::errc::is_a_directory:               return FsError::IsADirectory;
-        case std::errc::directory_not_empty:          return FsError::DirectoryNotEmpty;
-        case std::errc::permission_denied:            return FsError::PermissionDenied;
-        case std::errc::operation_not_permitted:      return FsError::PermissionDenied;
-        case std::errc::read_only_file_system:        return FsError::PermissionDenied;
-        case std::errc::file_exists:                  return FsError::AlreadyExists;
-        case std::errc::no_space_on_device:           return FsError::DiskFull;
-        case std::errc::no_buffer_space:              return FsError::DiskFull;
-        case std::errc::filename_too_long:            return FsError::NameTooLong;
-        case std::errc::too_many_files_open:          return FsError::TooManyOpenFiles;
-        case std::errc::too_many_files_open_in_system: return FsError::TooManyOpenFiles;
-        default:                                       return FsError::Unknown;
+    case std::errc::no_such_file_or_directory: return FsError::FileNotFound;
+    case std::errc::not_a_directory: return FsError::NotADirectory;
+    case std::errc::is_a_directory: return FsError::IsADirectory;
+    case std::errc::directory_not_empty: return FsError::DirectoryNotEmpty;
+    case std::errc::permission_denied: return FsError::PermissionDenied;
+    case std::errc::operation_not_permitted: return FsError::PermissionDenied;
+    case std::errc::read_only_file_system: return FsError::PermissionDenied;
+    case std::errc::file_exists: return FsError::AlreadyExists;
+    case std::errc::no_space_on_device: return FsError::DiskFull;
+    case std::errc::no_buffer_space: return FsError::DiskFull;
+    case std::errc::filename_too_long: return FsError::NameTooLong;
+    case std::errc::too_many_files_open: return FsError::TooManyOpenFiles;
+    case std::errc::too_many_files_open_in_system: return FsError::TooManyOpenFiles;
+    default: return FsError::Unknown;
     }
 }
 
@@ -86,7 +88,7 @@ FsError open_for_read(const std::string& path, std::ifstream& out_file, std::str
 std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
 {
     auto parent = dst.has_parent_path() ? dst.parent_path() : std::filesystem::u8path(".");
-    auto name = dst.filename().generic_u8string();
+    auto name   = dst.filename().generic_u8string();
     // 每个线程只初始化一次随机源，避免 atomic write 高频调用时反复触发系统熵源。
     thread_local static std::mt19937_64 rng(std::random_device{}());
     for (int i = 0; i < 128; ++i) {
@@ -99,8 +101,7 @@ std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
 
 bool has_glob_wildcard(const std::string& pattern) noexcept
 {
-    return pattern.find('*') != std::string::npos ||
-           pattern.find('?') != std::string::npos;
+    return pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos;
 }
 
 bool is_regex_meta(char ch) noexcept
@@ -117,10 +118,8 @@ bool is_regex_meta(char ch) noexcept
     case '{':
     case '}':
     case '|':
-    case '\\':
-        return true;
-    default:
-        return false;
+    case '\\': return true;
+    default: return false;
     }
 }
 
@@ -134,18 +133,22 @@ std::string glob_to_regex(const std::string& pattern)
                 if (i + 2 < pattern.size() && pattern[i + 2] == '/') {
                     out += "(?:.*/)?";
                     i += 3;
-                } else {
+                }
+                else {
                     out += ".*";
                     i += 2;
                 }
-            } else {
+            }
+            else {
                 out += "[^/]*";
                 ++i;
             }
-        } else if (ch == '?') {
+        }
+        else if (ch == '?') {
             out += "[^/]";
             ++i;
-        } else {
+        }
+        else {
             if (is_regex_meta(ch))
                 out += '\\';
             out += ch;
@@ -180,20 +183,19 @@ bool glob_needs_recursive_walk(const std::string& pattern) noexcept
         return true;
 
     const auto first_wildcard = pattern.find_first_of("*?");
-    const auto last_slash = pattern.find_last_of('/');
-    return first_wildcard != std::string::npos &&
-           last_slash != std::string::npos &&
+    const auto last_slash     = pattern.find_last_of('/');
+    return first_wildcard != std::string::npos && last_slash != std::string::npos &&
            first_wildcard < last_slash;
 }
 
-}  // namespace
+}   // namespace
 
 // ==================== 读写 ====================
 
 Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& path)
 {
     try {
-        std::ifstream file;
+        std::ifstream  file;
         std::streamoff size = 0;
         if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
             return Err(e);
@@ -213,9 +215,11 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
         file.close();
 
         return Ok(ca::core::Bytes::copy_from_slice(buffer.data(), buffer.size()));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -223,7 +227,7 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
 Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
 {
     try {
-        std::ifstream file;
+        std::ifstream  file;
         std::streamoff size = 0;
         if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
             return Err(e);
@@ -242,14 +246,16 @@ Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
         file.close();
 
         return Ok(std::move(buffer));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
 
-Result<void, FsError> FileUtil::write_bytes(const std::string& path,
+Result<void, FsError> FileUtil::write_bytes(const std::string&         path,
                                             const ca::core::ByteSlice& content, unsigned int mode)
 {
     try {
@@ -266,21 +272,26 @@ Result<void, FsError> FileUtil::write_bytes(const std::string& path,
         std::ios::openmode openMode = std::ios::binary;
         if (mode & FileMode::APPEND) {
             openMode |= std::ios::app;
-        } else {
+        }
+        else {
             openMode |= std::ios::trunc;
         }
 
         std::ofstream file(p, openMode);
-        if (!file.is_open()) return Err(FsError::OpenFailed);
+        if (!file.is_open())
+            return Err(FsError::OpenFailed);
 
         file.write(reinterpret_cast<const char*>(content.data()),
                    static_cast<std::streamsize>(content.size()));
         file.close();
-        if (file.fail()) return Err(FsError::WriteFailed);
+        if (file.fail())
+            return Err(FsError::WriteFailed);
         return Ok();
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -292,7 +303,7 @@ Result<void, FsError> FileUtil::write_text(const std::string& path, const std::s
     return write_bytes(path, bytes, mode);
 }
 
-Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
+Result<void, FsError> FileUtil::atomic_write_bytes(const std::string&         path,
                                                    const ca::core::ByteSlice& content)
 {
     auto dst = std::filesystem::u8path(path);
@@ -313,10 +324,12 @@ Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
             return Err(classify_fs_error(ec));
         }
         return Ok();
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         remove_if_exists(tmp);
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         remove_if_exists(tmp);
         return Err(FsError::Unknown);
     }
@@ -332,13 +345,13 @@ Result<void, FsError> FileUtil::atomic_write_text(const std::string& path,
 Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string& path)
 {
     try {
-        std::ifstream file;
+        std::ifstream  file;
         std::streamoff size = 0;
         if (auto e = open_for_read(path, file, size); e != FsError::Ok)
             return Err(e);
 
         std::vector<std::string> lines;
-        std::string line;
+        std::string              line;
         file.seekg(0, std::ios::beg);
         while (std::getline(file, line)) {
             if (!line.empty() && line.back() == '\r')
@@ -349,9 +362,11 @@ Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string
             return Err(FsError::ReadFailed);
 
         return Ok(std::move(lines));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -362,9 +377,11 @@ ca::i64 FileUtil::size(const std::string& path)
 {
     try {
         auto p = std::filesystem::u8path(path);
-        if (!std::filesystem::exists(p) || !std::filesystem::is_regular_file(p)) return -1;
+        if (!std::filesystem::exists(p) || !std::filesystem::is_regular_file(p))
+            return -1;
         return static_cast<ca::i64>(std::filesystem::file_size(p));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return -1;
     }
 }
@@ -390,20 +407,20 @@ bool FileUtil::is_directory(const std::string& path)
 Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
 {
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    auto st = std::filesystem::symlink_status(p, ec);
+    auto            p  = std::filesystem::u8path(path);
+    auto            st = std::filesystem::symlink_status(p, ec);
     if (ec)
         return Err(classify_fs_error(ec));
     if (!std::filesystem::exists(st))
         return Err(FsError::FileNotFound);
 
     FileMetadata meta;
-    meta.exists = true;
-    meta.is_file = std::filesystem::is_regular_file(st);
+    meta.exists       = true;
+    meta.is_file      = std::filesystem::is_regular_file(st);
     meta.is_directory = std::filesystem::is_directory(st);
-    meta.is_symlink = std::filesystem::is_symlink(st);
-    meta.permissions = st.permissions();
-    meta.modified_at = std::filesystem::last_write_time(p, ec);
+    meta.is_symlink   = std::filesystem::is_symlink(st);
+    meta.permissions  = st.permissions();
+    meta.modified_at  = std::filesystem::last_write_time(p, ec);
     if (ec)
         return Err(classify_fs_error(ec));
     if (meta.is_file) {
@@ -419,7 +436,7 @@ Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
 Result<std::filesystem::perms, FsError> FileUtil::permissions(const std::string& path)
 {
     std::error_code ec;
-    auto st = std::filesystem::symlink_status(std::filesystem::u8path(path), ec);
+    auto            st = std::filesystem::symlink_status(std::filesystem::u8path(path), ec);
     if (ec)
         return Err(classify_fs_error(ec));
     if (!std::filesystem::exists(st))
@@ -429,25 +446,33 @@ Result<std::filesystem::perms, FsError> FileUtil::permissions(const std::string&
 
 // ==================== 遍历 ====================
 
-Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string& dir, bool recursive)
+Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string& dir,
+                                                               bool               recursive)
 {
     try {
         auto p = std::filesystem::u8path(dir);
-        if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
-        if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
+        if (!std::filesystem::exists(p))
+            return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(p))
+            return Err(FsError::NotADirectory);
 
         std::vector<std::string> files;
         if (recursive) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(p))
-                if (entry.is_regular_file()) files.push_back(entry.path().generic_u8string());
-        } else {
+                if (entry.is_regular_file())
+                    files.push_back(entry.path().generic_u8string());
+        }
+        else {
             for (const auto& entry : std::filesystem::directory_iterator(p))
-                if (entry.is_regular_file()) files.push_back(entry.path().generic_u8string());
+                if (entry.is_regular_file())
+                    files.push_back(entry.path().generic_u8string());
         }
         return Ok(std::move(files));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -456,16 +481,20 @@ Result<std::vector<std::string>, FsError> FileUtil::list_entries(const std::stri
 {
     try {
         auto p = std::filesystem::u8path(dir);
-        if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
-        if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
+        if (!std::filesystem::exists(p))
+            return Err(FsError::FileNotFound);
+        if (!std::filesystem::is_directory(p))
+            return Err(FsError::NotADirectory);
 
         std::vector<std::string> entries;
         for (const auto& entry : std::filesystem::directory_iterator(p))
             entries.push_back(entry.path().generic_u8string());
         return Ok(std::move(entries));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -477,16 +506,21 @@ bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwri
     try {
         auto srcPath = std::filesystem::u8path(src);
         auto dstPath = std::filesystem::u8path(dst);
-        if (!std::filesystem::exists(srcPath)) return false;
+        if (!std::filesystem::exists(srcPath))
+            return false;
 
-        auto opts = overwrite
-            ? std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive
-            : std::filesystem::copy_options::recursive;
+        auto opts = overwrite ? std::filesystem::copy_options::overwrite_existing |
+                                    std::filesystem::copy_options::recursive
+                              : std::filesystem::copy_options::recursive;
 
-        if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
+        if (dstPath.has_parent_path())
+            std::filesystem::create_directories(dstPath.parent_path());
         std::filesystem::copy(srcPath, dstPath, opts);
         return true;
-    } catch (const std::exception&) { return false; }
+    }
+    catch (const std::exception&) {
+        return false;
+    }
 }
 
 bool FileUtil::move(const std::string& src, const std::string& dst, bool overwrite)
@@ -494,24 +528,28 @@ bool FileUtil::move(const std::string& src, const std::string& dst, bool overwri
     try {
         auto srcPath = std::filesystem::u8path(src);
         auto dstPath = std::filesystem::u8path(dst);
-        if (!std::filesystem::exists(srcPath)) return false;
+        if (!std::filesystem::exists(srcPath))
+            return false;
 
         // 防止 src == dst 时先删除源文件导致数据丢失
-        if (std::filesystem::exists(dstPath) &&
-            std::filesystem::equivalent(srcPath, dstPath)) {
+        if (std::filesystem::exists(dstPath) && std::filesystem::equivalent(srcPath, dstPath)) {
             return true;
         }
 
-        if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
+        if (dstPath.has_parent_path())
+            std::filesystem::create_directories(dstPath.parent_path());
         // 不预删目标：rename 在两平台都会原子替换已存在的普通文件目标
-        //（POSIX rename(2)；MSVC 经 MoveFileExW+MOVEFILE_REPLACE_EXISTING）。
+        // （POSIX rename(2)；MSVC 经 MoveFileExW+MOVEFILE_REPLACE_EXISTING）。
         // 此前的 remove_all-then-rename 在 rename 失败时目标已被整棵删光。
         // 目标是已存在目录时 rename 拒绝（返回 false），不再删除目录换移动成功。
         if (!overwrite && std::filesystem::exists(dstPath))
-            return false;  // 不覆盖模式：目标存在即失败，不再静默替换
+            return false;   // 不覆盖模式：目标存在即失败，不再静默替换
         std::filesystem::rename(srcPath, dstPath);
         return true;
-    } catch (const std::exception&) { return false; }
+    }
+    catch (const std::exception&) {
+        return false;
+    }
 }
 
 Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::string& dst,
@@ -531,20 +569,21 @@ Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::stri
         }
 
         std::filesystem::create_directories(dstPath);
-        auto opts = overwrite
-            ? std::filesystem::copy_options::overwrite_existing
-            : std::filesystem::copy_options::none;
+        auto opts = overwrite ? std::filesystem::copy_options::overwrite_existing
+                              : std::filesystem::copy_options::none;
 
         for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath)) {
-            auto rel = std::filesystem::relative(entry.path(), srcPath);
+            auto rel    = std::filesystem::relative(entry.path(), srcPath);
             auto target = dstPath / rel;
             if (entry.is_directory()) {
                 std::filesystem::create_directories(target);
-            } else if (entry.is_regular_file()) {
+            }
+            else if (entry.is_regular_file()) {
                 if (target.has_parent_path())
                     std::filesystem::create_directories(target.parent_path());
                 std::filesystem::copy_file(entry.path(), target, opts);
-            } else if (entry.is_symlink()) {
+            }
+            else if (entry.is_symlink()) {
                 if (target.has_parent_path())
                     std::filesystem::create_directories(target.parent_path());
                 // remove 不跟随符号链接；即使 target 是 broken symlink 也能安全替换。
@@ -554,9 +593,11 @@ Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::stri
             }
         }
         return Ok();
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -568,7 +609,8 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         if (!has_glob_wildcard(normalized)) {
             if (!std::filesystem::exists(std::filesystem::u8path(normalized)))
                 return Err(FsError::FileNotFound);
-            return Ok(std::vector<std::string>{std::filesystem::u8path(normalized).generic_u8string()});
+            return Ok(
+                std::vector<std::string>{std::filesystem::u8path(normalized).generic_u8string()});
         }
 
         auto root = glob_root(normalized);
@@ -577,7 +619,7 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         if (!std::filesystem::is_directory(root))
             return Err(FsError::NotADirectory);
 
-        const std::regex matcher(glob_to_regex(normalized), std::regex::ECMAScript);
+        const std::regex         matcher(glob_to_regex(normalized), std::regex::ECMAScript);
         std::vector<std::string> matches;
         auto options = std::filesystem::directory_options::skip_permission_denied;
         if (glob_needs_recursive_walk(normalized)) {
@@ -586,15 +628,16 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
                 if (std::regex_match(candidate, matcher))
                     matches.push_back(candidate);
             }
-        } else {
+        }
+        else {
             // 普通文件名通配只扫描 root 一层，避免在大目录树上做不必要的递归遍历。
             // 候选 = 模式的目录前缀 + 条目文件名：与模式文本形状严格一致。裸相对
             // 模式（"*.txt" 前缀为空）此前用 directory_iterator(".") 产出的
             // "./a.txt" 候选，多出的 "./" 使正则永不匹配、恒返回空结果。
-            const auto  last_slash = normalized.find_last_of('/');
-            const std::string prefix =
-                (last_slash == std::string::npos) ? std::string()
-                                                  : normalized.substr(0, last_slash + 1);
+            const auto        last_slash = normalized.find_last_of('/');
+            const std::string prefix     = (last_slash == std::string::npos)
+                                               ? std::string()
+                                               : normalized.substr(0, last_slash + 1);
             for (const auto& entry : std::filesystem::directory_iterator(root, options)) {
                 auto candidate = prefix + entry.path().filename().generic_u8string();
                 if (std::regex_match(candidate, matcher))
@@ -603,9 +646,11 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         }
         std::sort(matches.begin(), matches.end());
         return Ok(std::move(matches));
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -621,8 +666,9 @@ bool FileUtil::remove(const std::string& path)
 bool FileUtil::remove_all(const std::string& path)
 {
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    if (!std::filesystem::exists(p, ec)) return true;  // 不存在视为已删除
+    auto            p = std::filesystem::u8path(path);
+    if (!std::filesystem::exists(p, ec))
+        return true;   // 不存在视为已删除
     return std::filesystem::remove_all(p, ec) > 0;
 }
 
@@ -632,20 +678,27 @@ bool FileUtil::create_file(const std::string& path)
 {
     try {
         auto p = std::filesystem::u8path(path);
-        if (std::filesystem::exists(p)) return false;  // 已有文件不截断
-        if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
+        if (std::filesystem::exists(p))
+            return false;   // 已有文件不截断
+        if (p.has_parent_path())
+            std::filesystem::create_directories(p.parent_path());
         std::ofstream file(p, std::ios::binary | std::ios::out);
-        if (!file.is_open()) return false;
+        if (!file.is_open())
+            return false;
         file.close();
         return std::filesystem::exists(p);
-    } catch (const std::exception&) { return false; }
+    }
+    catch (const std::exception&) {
+        return false;
+    }
 }
 
 bool FileUtil::create_directories(const std::string& path)
 {
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    if (std::filesystem::exists(p, ec)) return true;  // 已存在视为成功
+    auto            p = std::filesystem::u8path(path);
+    if (std::filesystem::exists(p, ec))
+        return true;   // 已存在视为成功
     return std::filesystem::create_directories(p, ec);
 }
 
@@ -655,19 +708,24 @@ Result<std::string, FsError> FileUtil::create_temp_file(const std::string& prefi
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
         std::random_device rd;
-        std::mt19937_64 rng(rd());
+        std::mt19937_64    rng(rd());
         for (int i = 0; i < 1024; ++i) {
             auto id = std::to_string(rng());
-            auto p = basePath / std::filesystem::u8path(prefix + id + suffix);
+            auto p  = basePath / std::filesystem::u8path(prefix + id + suffix);
             if (!std::filesystem::exists(p)) {
                 std::ofstream f(p, std::ios::binary);
-                if (f.is_open()) { f.close(); return Ok(p.generic_u8string()); }
+                if (f.is_open()) {
+                    f.close();
+                    return Ok(p.generic_u8string());
+                }
             }
         }
         return Err(FsError::OpenFailed);
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -677,16 +735,19 @@ Result<std::string, FsError> FileUtil::create_temp_directory(const std::string& 
     try {
         auto basePath = std::filesystem::absolute(std::filesystem::temp_directory_path());
         std::random_device rd;
-        std::mt19937_64 rng(rd());
+        std::mt19937_64    rng(rd());
         for (int i = 0; i < 1024; ++i) {
             auto id = std::to_string(rng());
-            auto p = basePath / std::filesystem::u8path(prefix + id);
-            if (std::filesystem::create_directory(p)) return Ok(p.generic_u8string());
+            auto p  = basePath / std::filesystem::u8path(prefix + id);
+            if (std::filesystem::create_directory(p))
+                return Ok(p.generic_u8string());
         }
         return Err(FsError::OpenFailed);
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -697,26 +758,34 @@ Result<std::string, FsError> FileUtil::backup(const std::string& path)
 {
     try {
         auto srcPath = std::filesystem::u8path(path);
-        if (!std::filesystem::exists(srcPath)) return Err(FsError::FileNotFound);
+        if (!std::filesystem::exists(srcPath))
+            return Err(FsError::FileNotFound);
 
         auto backupPath = srcPath;
-        auto newName = srcPath.filename().generic_u8string() + ".backup";
-        backupPath = srcPath.has_parent_path()
-            ? srcPath.parent_path() / std::filesystem::u8path(newName)
-            : std::filesystem::u8path(newName);
+        auto newName    = srcPath.filename().generic_u8string() + ".backup";
+        backupPath      = srcPath.has_parent_path()
+                              ? srcPath.parent_path() / std::filesystem::u8path(newName)
+                              : std::filesystem::u8path(newName);
 
         if (std::filesystem::is_regular_file(srcPath)) {
-            std::filesystem::copy(srcPath, backupPath, std::filesystem::copy_options::overwrite_existing);
-        } else if (std::filesystem::is_directory(srcPath)) {
-            std::filesystem::copy(srcPath, backupPath,
-                std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
-        } else {
+            std::filesystem::copy(
+                srcPath, backupPath, std::filesystem::copy_options::overwrite_existing);
+        }
+        else if (std::filesystem::is_directory(srcPath)) {
+            std::filesystem::copy(srcPath,
+                                  backupPath,
+                                  std::filesystem::copy_options::overwrite_existing |
+                                      std::filesystem::copy_options::recursive);
+        }
+        else {
             return Err(FsError::NotARegularFile);
         }
         return Ok(backupPath.generic_u8string());
-    } catch (const std::filesystem::filesystem_error& e) {
+    }
+    catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_fs_error(e.code()));
-    } catch (const std::exception&) {
+    }
+    catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
 }
@@ -726,18 +795,19 @@ Result<std::string, FsError> FileUtil::backup(const std::string& path)
 bool FileUtil::is_readable(const std::string& path)
 {
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    if (!std::filesystem::exists(p, ec)) return false;
+    auto            p = std::filesystem::u8path(path);
+    if (!std::filesystem::exists(p, ec))
+        return false;
 
 #ifdef _WIN32
     return ::_waccess(p.wstring().c_str(), 4) == 0;
 #else
     auto s = std::filesystem::status(p, ec);
-    if (ec) return false;
+    if (ec)
+        return false;
     using P = std::filesystem::perms;
     auto pm = s.permissions();
-    return (pm & P::owner_read) != P::none ||
-           (pm & P::group_read) != P::none ||
+    return (pm & P::owner_read) != P::none || (pm & P::group_read) != P::none ||
            (pm & P::others_read) != P::none;
 #endif
 }
@@ -745,20 +815,22 @@ bool FileUtil::is_readable(const std::string& path)
 bool FileUtil::is_writable(const std::string& path)
 {
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    if (!std::filesystem::exists(p, ec)) return false;
+    auto            p = std::filesystem::u8path(path);
+    if (!std::filesystem::exists(p, ec))
+        return false;
 
 #ifdef _WIN32
     return ::_waccess(p.wstring().c_str(), 2) == 0;
 #else
     auto s = std::filesystem::status(p, ec);
-    if (ec) return false;
+    if (ec)
+        return false;
     using P = std::filesystem::perms;
     auto pm = s.permissions();
-    return (pm & P::owner_write) != P::none ||
-           (pm & P::group_write) != P::none ||
+    return (pm & P::owner_write) != P::none || (pm & P::group_write) != P::none ||
            (pm & P::others_write) != P::none;
 #endif
 }
 
-}} // namespace ca::fs
+}   // namespace fs
+}   // namespace ca

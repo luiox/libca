@@ -16,23 +16,25 @@ extern "C" {
 #endif
 
 /// @brief 梯形规划参数
-typedef struct trapezoidal_config_s {
-	f32 start;
-	f32 end;
-	f32 max_vel;
-	f32 accel;
+typedef struct trapezoidal_config_s
+{
+    f32 start;
+    f32 end;
+    f32 max_vel;
+    f32 accel;
 } trapezoidal_config_t;
 
 /// @brief 梯形规划状态
-typedef struct trapezoidal_s {
-	trapezoidal_config_t cfg;
-	f32 distance;
-	f32 direction;
-	f32 t_acc;
-	f32 t_cruise;
-	f32 t_dec;
-	f32 t_total;
-	bool triangular;
+typedef struct trapezoidal_s
+{
+    trapezoidal_config_t cfg;
+    f32                  distance;
+    f32                  direction;
+    f32                  t_acc;
+    f32                  t_cruise;
+    f32                  t_dec;
+    f32                  t_total;
+    bool                 triangular;
 } trapezoidal_t;
 
 /// @brief 初始化梯形规划器
@@ -65,4 +67,4 @@ f32 trapezoidal_calc(f32 start, f32 end, f32 max_vel, f32 accel, f32 t);
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_TRAPEZOIDAL_H
+#endif   // !LIBCA_EM_MOTION_TRAPEZOIDAL_H

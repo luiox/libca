@@ -7,50 +7,57 @@ namespace ca::crypto {
 
 namespace {
 
-inline uint32_t f1(uint32_t b, uint32_t c, uint32_t d) {
+inline uint32_t f1(uint32_t b, uint32_t c, uint32_t d)
+{
     return d ^ (b & (c ^ d));
 }
 
-inline uint32_t f2(uint32_t b, uint32_t c, uint32_t d) {
+inline uint32_t f2(uint32_t b, uint32_t c, uint32_t d)
+{
     return b ^ c ^ d;
 }
 
-inline uint32_t f3(uint32_t b, uint32_t c, uint32_t d) {
+inline uint32_t f3(uint32_t b, uint32_t c, uint32_t d)
+{
     return (b & c) | (b & d) | (c & d);
 }
 
-inline uint32_t rotate(uint32_t a, uint32_t c) {
+inline uint32_t rotate(uint32_t a, uint32_t c)
+{
     return (a << (c & 0x1F)) | (a >> ((32 - (c & 0x1F)) & 0x1F));
 }
 
-inline uint32_t byteswap(uint32_t x) {
+inline uint32_t byteswap(uint32_t x)
+{
 #if defined(_MSC_VER)
     return _byteswap_ulong(x);
 #elif defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap32(x);
 #else
-    return (x >> 24) |
-          ((x >>  8) & 0x0000FF00) |
-          ((x <<  8) & 0x00FF0000) |
-           (x << 24);
+    return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24);
 #endif
 }
 
+}   // namespace
+
+SHA1::SHA1()
+{
+    reset();
 }
 
-SHA1::SHA1() { reset(); }
-
-void SHA1::reset() {
-    num_bytes_ = 0;
+void SHA1::reset()
+{
+    num_bytes_   = 0;
     buffer_size_ = 0;
-    hash_[0] = 0x67452301;
-    hash_[1] = 0xefcdab89;
-    hash_[2] = 0x98badcfe;
-    hash_[3] = 0x10325476;
-    hash_[4] = 0xc3d2e1f0;
+    hash_[0]     = 0x67452301;
+    hash_[1]     = 0xefcdab89;
+    hash_[2]     = 0x98badcfe;
+    hash_[3]     = 0x10325476;
+    hash_[4]     = 0xc3d2e1f0;
 }
 
-void SHA1::process_block(const void* data) {
+void SHA1::process_block(const void* data)
+{
     uint32_t a = hash_[0];
     uint32_t b = hash_[1];
     uint32_t c = hash_[2];
@@ -63,43 +70,63 @@ void SHA1::process_block(const void* data) {
         words[i] = byteswap(words[i]);
     }
     for (int i = 16; i < 80; i++) {
-        words[i] = rotate(words[i-3] ^ words[i-8] ^ words[i-14] ^ words[i-16], 1);
+        words[i] = rotate(words[i - 3] ^ words[i - 8] ^ words[i - 14] ^ words[i - 16], 1);
     }
 
     for (int i = 0; i < 4; i++) {
         int offset = 5 * i;
-        e += rotate(a, 5) + f1(b, c, d) + words[offset  ] + 0x5a827999; b = rotate(b, 30);
-        d += rotate(e, 5) + f1(a, b, c) + words[offset+1] + 0x5a827999; a = rotate(a, 30);
-        c += rotate(d, 5) + f1(e, a, b) + words[offset+2] + 0x5a827999; e = rotate(e, 30);
-        b += rotate(c, 5) + f1(d, e, a) + words[offset+3] + 0x5a827999; d = rotate(d, 30);
-        a += rotate(b, 5) + f1(c, d, e) + words[offset+4] + 0x5a827999; c = rotate(c, 30);
+        e += rotate(a, 5) + f1(b, c, d) + words[offset] + 0x5a827999;
+        b = rotate(b, 30);
+        d += rotate(e, 5) + f1(a, b, c) + words[offset + 1] + 0x5a827999;
+        a = rotate(a, 30);
+        c += rotate(d, 5) + f1(e, a, b) + words[offset + 2] + 0x5a827999;
+        e = rotate(e, 30);
+        b += rotate(c, 5) + f1(d, e, a) + words[offset + 3] + 0x5a827999;
+        d = rotate(d, 30);
+        a += rotate(b, 5) + f1(c, d, e) + words[offset + 4] + 0x5a827999;
+        c = rotate(c, 30);
     }
 
     for (int i = 4; i < 8; i++) {
         int offset = 5 * i;
-        e += rotate(a, 5) + f2(b, c, d) + words[offset  ] + 0x6ed9eba1; b = rotate(b, 30);
-        d += rotate(e, 5) + f2(a, b, c) + words[offset+1] + 0x6ed9eba1; a = rotate(a, 30);
-        c += rotate(d, 5) + f2(e, a, b) + words[offset+2] + 0x6ed9eba1; e = rotate(e, 30);
-        b += rotate(c, 5) + f2(d, e, a) + words[offset+3] + 0x6ed9eba1; d = rotate(d, 30);
-        a += rotate(b, 5) + f2(c, d, e) + words[offset+4] + 0x6ed9eba1; c = rotate(c, 30);
+        e += rotate(a, 5) + f2(b, c, d) + words[offset] + 0x6ed9eba1;
+        b = rotate(b, 30);
+        d += rotate(e, 5) + f2(a, b, c) + words[offset + 1] + 0x6ed9eba1;
+        a = rotate(a, 30);
+        c += rotate(d, 5) + f2(e, a, b) + words[offset + 2] + 0x6ed9eba1;
+        e = rotate(e, 30);
+        b += rotate(c, 5) + f2(d, e, a) + words[offset + 3] + 0x6ed9eba1;
+        d = rotate(d, 30);
+        a += rotate(b, 5) + f2(c, d, e) + words[offset + 4] + 0x6ed9eba1;
+        c = rotate(c, 30);
     }
 
     for (int i = 8; i < 12; i++) {
         int offset = 5 * i;
-        e += rotate(a, 5) + f3(b, c, d) + words[offset  ] + 0x8f1bbcdc; b = rotate(b, 30);
-        d += rotate(e, 5) + f3(a, b, c) + words[offset+1] + 0x8f1bbcdc; a = rotate(a, 30);
-        c += rotate(d, 5) + f3(e, a, b) + words[offset+2] + 0x8f1bbcdc; e = rotate(e, 30);
-        b += rotate(c, 5) + f3(d, e, a) + words[offset+3] + 0x8f1bbcdc; d = rotate(d, 30);
-        a += rotate(b, 5) + f3(c, d, e) + words[offset+4] + 0x8f1bbcdc; c = rotate(c, 30);
+        e += rotate(a, 5) + f3(b, c, d) + words[offset] + 0x8f1bbcdc;
+        b = rotate(b, 30);
+        d += rotate(e, 5) + f3(a, b, c) + words[offset + 1] + 0x8f1bbcdc;
+        a = rotate(a, 30);
+        c += rotate(d, 5) + f3(e, a, b) + words[offset + 2] + 0x8f1bbcdc;
+        e = rotate(e, 30);
+        b += rotate(c, 5) + f3(d, e, a) + words[offset + 3] + 0x8f1bbcdc;
+        d = rotate(d, 30);
+        a += rotate(b, 5) + f3(c, d, e) + words[offset + 4] + 0x8f1bbcdc;
+        c = rotate(c, 30);
     }
 
     for (int i = 12; i < 16; i++) {
         int offset = 5 * i;
-        e += rotate(a, 5) + f2(b, c, d) + words[offset  ] + 0xca62c1d6; b = rotate(b, 30);
-        d += rotate(e, 5) + f2(a, b, c) + words[offset+1] + 0xca62c1d6; a = rotate(a, 30);
-        c += rotate(d, 5) + f2(e, a, b) + words[offset+2] + 0xca62c1d6; e = rotate(e, 30);
-        b += rotate(c, 5) + f2(d, e, a) + words[offset+3] + 0xca62c1d6; d = rotate(d, 30);
-        a += rotate(b, 5) + f2(c, d, e) + words[offset+4] + 0xca62c1d6; c = rotate(c, 30);
+        e += rotate(a, 5) + f2(b, c, d) + words[offset] + 0xca62c1d6;
+        b = rotate(b, 30);
+        d += rotate(e, 5) + f2(a, b, c) + words[offset + 1] + 0xca62c1d6;
+        a = rotate(a, 30);
+        c += rotate(d, 5) + f2(e, a, b) + words[offset + 2] + 0xca62c1d6;
+        e = rotate(e, 30);
+        b += rotate(c, 5) + f2(d, e, a) + words[offset + 3] + 0xca62c1d6;
+        d = rotate(d, 30);
+        a += rotate(b, 5) + f2(c, d, e) + words[offset + 4] + 0xca62c1d6;
+        c = rotate(c, 30);
     }
 
     hash_[0] += a;
@@ -109,7 +136,8 @@ void SHA1::process_block(const void* data) {
     hash_[4] += e;
 }
 
-void SHA1::add(const void* data, size_t num_bytes) {
+void SHA1::add(const void* data, size_t num_bytes)
+{
     const uint8_t* current = static_cast<const uint8_t*>(data);
 
     if (buffer_size_ > 0) {
@@ -125,7 +153,8 @@ void SHA1::add(const void* data, size_t num_bytes) {
         buffer_size_ = 0;
     }
 
-    if (num_bytes == 0) return;
+    if (num_bytes == 0)
+        return;
 
     while (num_bytes >= BlockSize) {
         process_block(current);
@@ -140,7 +169,8 @@ void SHA1::add(const void* data, size_t num_bytes) {
     }
 }
 
-void SHA1::process_buffer() {
+void SHA1::process_buffer()
+{
     size_t paddedLength = buffer_size_ * 8;
     paddedLength++;
 
@@ -164,7 +194,7 @@ void SHA1::process_buffer() {
     for (; i < paddedLength; i++)
         extra[i - BlockSize] = 0;
 
-    uint64_t msgBits = 8 * (num_bytes_ + buffer_size_);
+    uint64_t       msgBits = 8 * (num_bytes_ + buffer_size_);
     unsigned char* addLength;
     if (paddedLength < BlockSize)
         addLength = buffer_ + paddedLength;
@@ -177,15 +207,16 @@ void SHA1::process_buffer() {
     *addLength++ = static_cast<unsigned char>((msgBits >> 32) & 0xFF);
     *addLength++ = static_cast<unsigned char>((msgBits >> 24) & 0xFF);
     *addLength++ = static_cast<unsigned char>((msgBits >> 16) & 0xFF);
-    *addLength++ = static_cast<unsigned char>((msgBits >>  8) & 0xFF);
-    *addLength   = static_cast<unsigned char>( msgBits        & 0xFF);
+    *addLength++ = static_cast<unsigned char>((msgBits >> 8) & 0xFF);
+    *addLength   = static_cast<unsigned char>(msgBits & 0xFF);
 
     process_block(buffer_);
     if (paddedLength > BlockSize)
         process_block(extra);
 }
 
-std::string SHA1::get_hash() {
+std::string SHA1::get_hash()
+{
     unsigned char rawHash[HashBytes];
     get_hash(rawHash);
 
@@ -194,12 +225,13 @@ std::string SHA1::get_hash() {
     for (int i = 0; i < HashBytes; i++) {
         static const char dec2hex[17] = "0123456789abcdef";
         result += dec2hex[(rawHash[i] >> 4) & 15];
-        result += dec2hex[ rawHash[i]       & 15];
+        result += dec2hex[rawHash[i] & 15];
     }
     return result;
 }
 
-void SHA1::get_hash(unsigned char buffer[HashBytes]) {
+void SHA1::get_hash(unsigned char buffer[HashBytes])
+{
     uint32_t oldHash[HashValues];
     for (int i = 0; i < HashValues; i++)
         oldHash[i] = hash_[i];
@@ -210,22 +242,24 @@ void SHA1::get_hash(unsigned char buffer[HashBytes]) {
     for (int i = 0; i < HashValues; i++) {
         *current++ = static_cast<unsigned char>((hash_[i] >> 24) & 0xFF);
         *current++ = static_cast<unsigned char>((hash_[i] >> 16) & 0xFF);
-        *current++ = static_cast<unsigned char>((hash_[i] >>  8) & 0xFF);
-        *current++ = static_cast<unsigned char>( hash_[i]        & 0xFF);
-        hash_[i] = oldHash[i];
+        *current++ = static_cast<unsigned char>((hash_[i] >> 8) & 0xFF);
+        *current++ = static_cast<unsigned char>(hash_[i] & 0xFF);
+        hash_[i]   = oldHash[i];
     }
 }
 
-std::string SHA1::operator()(const void* data, size_t num_bytes) {
+std::string SHA1::operator()(const void* data, size_t num_bytes)
+{
     reset();
     add(data, num_bytes);
     return get_hash();
 }
 
-std::string SHA1::operator()(const std::string& text) {
+std::string SHA1::operator()(const std::string& text)
+{
     reset();
     add(text.c_str(), text.size());
     return get_hash();
 }
 
-}
+}   // namespace ca::crypto

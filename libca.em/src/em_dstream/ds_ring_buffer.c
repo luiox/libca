@@ -1,13 +1,13 @@
 #include "ds_ring_buffer.h"
 #include "dstream.h"
 #include "ring_buffer.h"
-#include <string.h> // for memcpy
+#include <string.h>   // for memcpy
 
 
 typedef struct ring_buf_adapter
 {
     ring_buffer_t* rb;
-    usize cursor; // offset from current rb->read
+    usize          cursor;   // offset from current rb->read
 } ring_buf_adapter_t;
 
 static inline usize ring_buf_dstream_capacity(dstream_t* self)
@@ -24,12 +24,13 @@ static inline usize ring_buf_dstream_used(dstream_t* self)
 
 static inline void ring_buf_dstream_skip(dstream_t* self, usize len)
 {
-    ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
-    usize used = ring_buf_used(a->rb);
-    usize avail = (used > a->cursor) ? (used - a->cursor) : 0;
+    ring_buf_adapter_t* a     = (ring_buf_adapter_t*)self->buf_obj;
+    usize               used  = ring_buf_used(a->rb);
+    usize               avail = (used > a->cursor) ? (used - a->cursor) : 0;
     if (len >= avail) {
         a->cursor = used;
-    } else {
+    }
+    else {
         a->cursor += len;
     }
 }
@@ -39,7 +40,8 @@ static inline void ring_buf_dstream_rewind(dstream_t* self, usize len)
     ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
     if (len >= a->cursor) {
         a->cursor = 0;
-    } else {
+    }
+    else {
         a->cursor -= len;
     }
 }
@@ -52,8 +54,8 @@ static inline usize ring_buf_dstream_offset(dstream_t* self)
 
 static inline bool ring_buf_dstream_reset(dstream_t* self, usize pos)
 {
-    ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
-    usize used = ring_buf_used(a->rb);
+    ring_buf_adapter_t* a    = (ring_buf_adapter_t*)self->buf_obj;
+    usize               used = ring_buf_used(a->rb);
     if (pos > used) {
         return false;
     }
@@ -63,17 +65,19 @@ static inline bool ring_buf_dstream_reset(dstream_t* self, usize pos)
 
 static inline i32 ring_buf_dstream_read(dstream_t* self, void* dest, usize len)
 {
-    ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
-    ring_buffer_t* rb = a->rb;
-    usize used = ring_buf_used(rb);
-    usize remaining = (used > a->cursor) ? (used - a->cursor) : 0;
-    if (remaining == 0 || len == 0) return 0;
-    usize to_read = (len > remaining) ? remaining : len;
-    uint8_t* out = (uint8_t*)dest;
-    usize start_idx = (rb->read + a->cursor) & (rb->size - 1);
+    ring_buf_adapter_t* a         = (ring_buf_adapter_t*)self->buf_obj;
+    ring_buffer_t*      rb        = a->rb;
+    usize               used      = ring_buf_used(rb);
+    usize               remaining = (used > a->cursor) ? (used - a->cursor) : 0;
+    if (remaining == 0 || len == 0)
+        return 0;
+    usize    to_read   = (len > remaining) ? remaining : len;
+    uint8_t* out       = (uint8_t*)dest;
+    usize    start_idx = (rb->read + a->cursor) & (rb->size - 1);
     if (start_idx + to_read <= rb->size) {
         memcpy(out, &rb->buffer[start_idx], to_read);
-    } else {
+    }
+    else {
         usize first = rb->size - start_idx;
         memcpy(out, &rb->buffer[start_idx], first);
         memcpy(out + first, rb->buffer, to_read - first);
@@ -84,18 +88,20 @@ static inline i32 ring_buf_dstream_read(dstream_t* self, void* dest, usize len)
 
 static inline i32 ring_buf_dstream_peek(dstream_t* self, usize offset, void* dest, usize len)
 {
-    ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
-    ring_buffer_t* rb = a->rb;
-    usize used = ring_buf_used(rb);
-    usize remaining = (used > a->cursor) ? (used - a->cursor) : 0;
-    if (offset >= remaining || len == 0) return 0;
-    usize available = remaining - offset;
-    usize to_read = (len > available) ? available : len;
-    uint8_t* out = (uint8_t*)dest;
-    usize start_idx = (rb->read + a->cursor + offset) & (rb->size - 1);
+    ring_buf_adapter_t* a         = (ring_buf_adapter_t*)self->buf_obj;
+    ring_buffer_t*      rb        = a->rb;
+    usize               used      = ring_buf_used(rb);
+    usize               remaining = (used > a->cursor) ? (used - a->cursor) : 0;
+    if (offset >= remaining || len == 0)
+        return 0;
+    usize    available = remaining - offset;
+    usize    to_read   = (len > available) ? available : len;
+    uint8_t* out       = (uint8_t*)dest;
+    usize    start_idx = (rb->read + a->cursor + offset) & (rb->size - 1);
     if (start_idx + to_read <= rb->size) {
         memcpy(out, &rb->buffer[start_idx], to_read);
-    } else {
+    }
+    else {
         usize first = rb->size - start_idx;
         memcpy(out, &rb->buffer[start_idx], first);
         memcpy(out + first, rb->buffer, to_read - first);
@@ -105,26 +111,28 @@ static inline i32 ring_buf_dstream_peek(dstream_t* self, usize offset, void* des
 
 static inline i32 ring_buf_dstream_write(dstream_t* self, const void* src, usize len)
 {
-    ring_buf_adapter_t* a = (ring_buf_adapter_t*)self->buf_obj;
-    ring_buffer_t* rb = a->rb;
-    const uint8_t* in = (const uint8_t*)src;
-    usize written = 0;
-    usize used = ring_buf_used(rb);
-    usize mask = rb->size - 1;
+    ring_buf_adapter_t* a       = (ring_buf_adapter_t*)self->buf_obj;
+    ring_buffer_t*      rb      = a->rb;
+    const uint8_t*      in      = (const uint8_t*)src;
+    usize               written = 0;
+    usize               used    = ring_buf_used(rb);
+    usize               mask    = rb->size - 1;
 
     for (usize i = 0; i < len; ++i) {
         usize pos = a->cursor + i;
         if (pos < used) {
             // overwrite existing data
-            usize idx = (rb->read + pos) & mask;
+            usize idx       = (rb->read + pos) & mask;
             rb->buffer[idx] = in[i];
             written++;
-        } else {
+        }
+        else {
             // append if free
             usize free_space = ring_buf_free(rb);
-            if (free_space == 0) break;
+            if (free_space == 0)
+                break;
             rb->buffer[rb->write] = in[i];
-            rb->write = (rb->write + 1) & mask;
+            rb->write             = (rb->write + 1) & mask;
             rb->used += 1;
             written++;
         }
@@ -134,28 +142,25 @@ static inline i32 ring_buf_dstream_write(dstream_t* self, const void* src, usize
     used = ring_buf_used(rb);
     if (a->cursor + written > used) {
         a->cursor = used;
-    } else {
+    }
+    else {
         a->cursor += written;
     }
 
     return (i32)written;
 }
 
-static dstream_ops_t g_ring_buf_dstream_ops = {
-    .capacity = ring_buf_dstream_capacity,
-    .used     = ring_buf_dstream_used,
-    .skip     = ring_buf_dstream_skip,
-    .rewind   = ring_buf_dstream_rewind,
-    .offset   = ring_buf_dstream_offset,
-    .reset    = ring_buf_dstream_reset,
-    .read     = ring_buf_dstream_read,
-    .peek     = ring_buf_dstream_peek,
-    .write    = ring_buf_dstream_write
-};
+static dstream_ops_t g_ring_buf_dstream_ops = {.capacity = ring_buf_dstream_capacity,
+                                               .used     = ring_buf_dstream_used,
+                                               .skip     = ring_buf_dstream_skip,
+                                               .rewind   = ring_buf_dstream_rewind,
+                                               .offset   = ring_buf_dstream_offset,
+                                               .reset    = ring_buf_dstream_reset,
+                                               .read     = ring_buf_dstream_read,
+                                               .peek     = ring_buf_dstream_peek,
+                                               .write    = ring_buf_dstream_write};
 
 const dstream_ops_t* ring_buf_get_dstream_ops(void)
 {
     return &g_ring_buf_dstream_ops;
 }
-
-

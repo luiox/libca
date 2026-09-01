@@ -15,7 +15,8 @@
 namespace ca::json {
 
 /// @brief JSON 解析选项（DOM 入口）。
-struct JsonReaderOptions {
+struct JsonReaderOptions
+{
     /// 允许尾随逗号。
     bool allow_trailing_comma = false;
     /// 允许 `//` 和 `/* */` 注释。
@@ -23,7 +24,8 @@ struct JsonReaderOptions {
 };
 
 /// @brief JSON DOM 读取器。
-class JsonReader {
+class JsonReader
+{
 public:
     /// @brief 从字符串解析 JSON 为 JsonDocument。
     /// @param input JSON 文本视图（须在使用期内有效）。
@@ -35,7 +37,7 @@ public:
     ///       首个优先且不丢弃后续副本。（此前实现为后者覆盖前者，为消除 O(n^2) 装配已调整。）
     static ca::Result<JsonDocument, ParseError> read(
         const ca::str::Utf8StringRef& input,
-        const JsonReaderOptions& options = JsonReaderOptions());
+        const JsonReaderOptions&      options = JsonReaderOptions());
 
     /// @brief 从文件解析 JSON 为 JsonDocument。
     /// @param path 文件路径。
@@ -43,8 +45,7 @@ public:
     /// @return 成功返回 JsonDocument；打开失败或格式错误返回 ParseError。
     /// @note 重复 key 语义同 read()：保序保留全部，find() 返回首个。
     static ca::Result<JsonDocument, ParseError> read_file(
-        const ca::str::Utf8StringRef& path,
-        const JsonReaderOptions& options = JsonReaderOptions());
+        const ca::str::Utf8StringRef& path, const JsonReaderOptions& options = JsonReaderOptions());
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

@@ -1,7 +1,7 @@
 #include "simple_logger.h"
 #include <em_format/format.h>
 #include <stdarg.h>
-#include <stdio.h> // 仅用于 vsnprintf
+#include <stdio.h>   // 仅用于 vsnprintf
 
 
 static slog_output_fn_t g_out_fn = NULL;
@@ -11,7 +11,7 @@ static u8 g_runtime_level = LOG_LEVEL_DEBUG;
 #endif
 
 /// @brief 统一格式化入口，可在标准 vsnprintf 与 fast_vsnprintf 之间切换
-static i32 slog_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list args)
+static i32 slog_vsnprintf(char* buf, usize buf_size, const char* fmt, va_list args)
 {
 #if SLOG_USE_FAST_VSNPRINTF
     return fmt_vsnprintf(buf, buf_size, fmt, args);
@@ -24,7 +24,8 @@ static i32 slog_vsnprintf(char *buf, usize buf_size, const char *fmt, va_list ar
 #endif
 }
 
-void slog_init(slog_output_fn_t out_fn) {
+void slog_init(slog_output_fn_t out_fn)
+{
     SLOG_LOCK_ENTER();
     g_out_fn = out_fn;
     SLOG_LOCK_EXIT();
@@ -51,7 +52,8 @@ bool slog_should_log(u8 level)
 #endif
 
 // 唯一的底层函数
-void _slog_printf(const char *fmt, ...) {
+void _slog_printf(const char* fmt, ...)
+{
     if (fmt == NULL) {
         return;
     }
@@ -62,9 +64,9 @@ void _slog_printf(const char *fmt, ...) {
         return;
     }
 
-    char buf[SLOG_BUFFER_SIZE];
+    char    buf[SLOG_BUFFER_SIZE];
     va_list args;
-    
+
     va_start(args, fmt);
     i32 len = slog_vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
@@ -79,7 +81,6 @@ void _slog_printf(const char *fmt, ...) {
         len = (i32)(sizeof(buf) - 1U);
     }
 
-    g_out_fn((const u8 *)buf, (usize)len);
+    g_out_fn((const u8*)buf, (usize)len);
     SLOG_LOCK_EXIT();
 }
-

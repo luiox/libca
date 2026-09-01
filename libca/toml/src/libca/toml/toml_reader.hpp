@@ -15,12 +15,14 @@
 namespace ca::toml {
 
 /// @brief TOML 解析选项（TOML 1.0 严格模式，目前无可配项，保留扩展位）。
-struct TomlReaderOptions {
+struct TomlReaderOptions
+{
     // TOML 1.0 没什么可配的；保留扩展位。
 };
 
 /// @brief TOML DOM 读取器。
-class TomlReader {
+class TomlReader
+{
 public:
     /// @brief 从字符串解析 TOML 为 TomlDocument。
     /// @param input TOML 文本视图（须在使用期内有效）。
@@ -28,15 +30,14 @@ public:
     /// @return 成功返回 TomlDocument；失败返回 ParseError。
     static ca::Result<TomlDocument, ParseError> read(
         const ca::str::Utf8StringRef& input,
-        const TomlReaderOptions& options = TomlReaderOptions());
+        const TomlReaderOptions&      options = TomlReaderOptions());
 
     /// @brief 从文件解析 TOML 为 TomlDocument。
     /// @param path 文件路径。
     /// @param options 解析选项。
     /// @return 成功返回 TomlDocument；打开失败或格式错误返回 ParseError。
     static ca::Result<TomlDocument, ParseError> read_file(
-        const ca::str::Utf8StringRef& path,
-        const TomlReaderOptions& options = TomlReaderOptions());
+        const ca::str::Utf8StringRef& path, const TomlReaderOptions& options = TomlReaderOptions());
 };
 
-}  // namespace ca::toml
+}   // namespace ca::toml

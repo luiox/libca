@@ -3,19 +3,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_EXTERN)
-#define KEY_READ_PIN(gpio, pin) port_key_read_pin((gpio), (pin))
+#    define KEY_READ_PIN(gpio, pin) port_key_read_pin((gpio), (pin))
 
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
 static const key_port_t* g_key_port = NULL;
-#define KEY_READ_PIN(gpio, pin) g_key_port->read_pin((gpio), (pin))
+#    define KEY_READ_PIN(gpio, pin) g_key_port->read_pin((gpio), (pin))
 
 #else
-#error "Invalid KEY port mode"
+#    error "Invalid KEY port mode"
 #endif
 
 #if (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
-void key_bind_port(const key_port_t* port) { g_key_port = port; }
-bool key_port_is_registered(void) { return g_key_port != NULL; }
+void key_bind_port(const key_port_t* port)
+{
+    g_key_port = port;
+}
+bool key_port_is_registered(void)
+{
+    return g_key_port != NULL;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +52,7 @@ void key_scan_all(key_t* keys, usize keys_size)
         case KEY_JUDGE_STATE_NORMAL:
             if (keys[i].key_state == KEY_STATE_PRESS) {
                 keys[i].judge_state = KEY_JUDGE_STATE_FIRST_PRESS;
-                keys[i].time       = 0;
+                keys[i].time        = 0;
             }
             break;
         case KEY_JUDGE_STATE_FIRST_PRESS:
@@ -59,9 +65,10 @@ void key_scan_all(key_t* keys, usize keys_size)
             break;
         case KEY_JUDGE_STATE_FILTER:
             // 滤波状态
-            if(keys[i].time < KEY_ELIMIT_DITCHING_TICK){
+            if (keys[i].time < KEY_ELIMIT_DITCHING_TICK) {
                 keys[i].time++;
-            }else{
+            }
+            else {
                 keys[i].judge_state = KEY_JUDGE_STATE_PRESS;
                 // 重置时间，因为后面是存的是按下时间
                 keys[i].time = 0;
@@ -77,7 +84,8 @@ void key_scan_all(key_t* keys, usize keys_size)
                 }
                 else if (keys[i].time > KEY_MIN_LONG_TICK) {
                     keys[i].long_flag = 1;
-                }else{
+                }
+                else {
                     keys[i].normal_flag = 1;
                 }
                 keys[i].judge_state = 0;

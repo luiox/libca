@@ -15,13 +15,15 @@ namespace ca::str {
 // 工具函数测试
 // ============================================================================
 
-TEST(Utf8UtilTest, CodePointBytes_Ascii) {
+TEST(Utf8UtilTest, CodePointBytes_Ascii)
+{
     EXPECT_EQ(utf8_code_point_bytes(0x00), 1);
-    EXPECT_EQ(utf8_code_point_bytes(0x41), 1);  // 'A'
+    EXPECT_EQ(utf8_code_point_bytes(0x41), 1);   // 'A'
     EXPECT_EQ(utf8_code_point_bytes(0x7F), 1);
 }
 
-TEST(Utf8UtilTest, CodePointBytes_MultiByte) {
+TEST(Utf8UtilTest, CodePointBytes_MultiByte)
+{
     EXPECT_EQ(utf8_code_point_bytes(0xC0), 2);
     EXPECT_EQ(utf8_code_point_bytes(0xDF), 2);
     EXPECT_EQ(utf8_code_point_bytes(0xE0), 3);
@@ -30,14 +32,16 @@ TEST(Utf8UtilTest, CodePointBytes_MultiByte) {
     EXPECT_EQ(utf8_code_point_bytes(0xF7), 4);
 }
 
-TEST(Utf8UtilTest, CodePointBytes_Invalid) {
-    EXPECT_EQ(utf8_code_point_bytes(0xF8), 0);  // 11111xxx 非法
+TEST(Utf8UtilTest, CodePointBytes_Invalid)
+{
+    EXPECT_EQ(utf8_code_point_bytes(0xF8), 0);   // 11111xxx 非法
     EXPECT_EQ(utf8_code_point_bytes(0xFC), 0);
     EXPECT_EQ(utf8_code_point_bytes(0xFE), 0);
     EXPECT_EQ(utf8_code_point_bytes(0xFF), 0);
 }
 
-TEST(Utf8UtilTest, DecodeCodePoint) {
+TEST(Utf8UtilTest, DecodeCodePoint)
+{
     // ASCII: 'A' = U+0041
     u8 ascii[] = {0x41};
     EXPECT_EQ(utf8_decode_code_point(ascii), 0x41);
@@ -55,14 +59,16 @@ TEST(Utf8UtilTest, DecodeCodePoint) {
     EXPECT_EQ(utf8_decode_code_point(four), 0x1F600);
 }
 
-TEST(Utf8UtilTest, EncodeCodePoint_Ascii) {
-    u8 buf[4] = {};
-    auto len = utf8_encode_code_point(0x41, buf);
+TEST(Utf8UtilTest, EncodeCodePoint_Ascii)
+{
+    u8   buf[4] = {};
+    auto len    = utf8_encode_code_point(0x41, buf);
     EXPECT_EQ(len, 1);
     EXPECT_EQ(buf[0], 0x41);
 }
 
-TEST(Utf8UtilTest, EncodeCodePoint_MultiByte) {
+TEST(Utf8UtilTest, EncodeCodePoint_MultiByte)
+{
     u8 buf[4] = {};
 
     // U+00A9 → 0xC2 0xA9
@@ -87,7 +93,8 @@ TEST(Utf8UtilTest, EncodeCodePoint_MultiByte) {
     EXPECT_EQ(buf[3], 0x80);
 }
 
-TEST(Utf8UtilTest, EncodeCodePoint_Invalid) {
+TEST(Utf8UtilTest, EncodeCodePoint_Invalid)
+{
     u8 buf[4] = {};
 
     // 代理项非法
@@ -98,23 +105,26 @@ TEST(Utf8UtilTest, EncodeCodePoint_Invalid) {
     EXPECT_EQ(utf8_encode_code_point(0x110000, buf), 0);
 }
 
-TEST(Utf8UtilTest, CountCodePoints) {
+TEST(Utf8UtilTest, CountCodePoints)
+{
     // "A中😀" = 0x41 + 3 + 4 = 8 bytes, 3 code points
-    u8 utf8[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
+    u8    utf8[]      = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
     usize invalid_pos = 999;
     EXPECT_EQ(utf8_count_code_points(utf8, 8, &invalid_pos), 3);
-    EXPECT_EQ(invalid_pos, 999);  // 未修改
+    EXPECT_EQ(invalid_pos, 999);   // 未修改
 }
 
-TEST(Utf8UtilTest, CountCodePoints_Invalid) {
+TEST(Utf8UtilTest, CountCodePoints_Invalid)
+{
     // 非法续字节
-    u8 bad[] = {0xE4, 0x00, 0xAD};
+    u8    bad[]       = {0xE4, 0x00, 0xAD};
     usize invalid_pos = 999;
     EXPECT_EQ(utf8_count_code_points(bad, 3, &invalid_pos), 0);
-    EXPECT_EQ(invalid_pos, 1);  // 第二个字节非法
+    EXPECT_EQ(invalid_pos, 1);   // 第二个字节非法
 }
 
-TEST(Utf8UtilTest, IsValid) {
+TEST(Utf8UtilTest, IsValid)
+{
     u8 valid[] = {0x41, 0xE4, 0xB8, 0xAD};
     EXPECT_TRUE(utf8_is_valid(valid, 4));
 
@@ -126,7 +136,8 @@ TEST(Utf8UtilTest, IsValid) {
 // Utf8StringRef 测试
 // ============================================================================
 
-TEST(Utf8StringRefTest, DefaultConstructor) {
+TEST(Utf8StringRefTest, DefaultConstructor)
+{
     Utf8StringRef ref;
     EXPECT_TRUE(ref.is_empty());
     EXPECT_EQ(ref.length(), 0);
@@ -134,8 +145,9 @@ TEST(Utf8StringRefTest, DefaultConstructor) {
     EXPECT_EQ(ref.data(), nullptr);
 }
 
-TEST(Utf8StringRefTest, ConstructFromData) {
-    u8 data[] = {0x41, 0x42, 0x43};
+TEST(Utf8StringRefTest, ConstructFromData)
+{
+    u8            data[] = {0x41, 0x42, 0x43};
     Utf8StringRef ref(data, 3, 3);
     EXPECT_EQ(ref.length(), 3);
     EXPECT_EQ(ref.byte_length(), 3);
@@ -143,24 +155,27 @@ TEST(Utf8StringRefTest, ConstructFromData) {
     EXPECT_EQ(ref.data(), data);
 }
 
-TEST(Utf8StringRefTest, ByteAt) {
-    u8 data[] = {0x41, 0xE4, 0xB8, 0xAD};
+TEST(Utf8StringRefTest, ByteAt)
+{
+    u8            data[] = {0x41, 0xE4, 0xB8, 0xAD};
     Utf8StringRef ref(data, 4, 2);
     EXPECT_EQ(ref.byte_at(0), 0x41);
     EXPECT_EQ(ref.byte_at(1), 0xE4);
 }
 
-TEST(Utf8StringRefTest, CodePointAt) {
+TEST(Utf8StringRefTest, CodePointAt)
+{
     // "A中" = 0x41 (1B) + 0xE4 0xB8 0xAD (3B)
-    u8 data[] = {0x41, 0xE4, 0xB8, 0xAD};
+    u8            data[] = {0x41, 0xE4, 0xB8, 0xAD};
     Utf8StringRef ref(data, 4, 2);
-    EXPECT_EQ(ref.code_point_at(0), 0x41);       // 'A'
-    EXPECT_EQ(ref.code_point_at(1), 0x4E2D);     // '中'
+    EXPECT_EQ(ref.code_point_at(0), 0x41);     // 'A'
+    EXPECT_EQ(ref.code_point_at(1), 0x4E2D);   // '中'
 }
 
-TEST(Utf8StringRefTest, SliceByBytes) {
+TEST(Utf8StringRefTest, SliceByBytes)
+{
     // "AB中" = 0x41 0x42 0xE4 0xB8 0xAD
-    u8 data[] = {0x41, 0x42, 0xE4, 0xB8, 0xAD};
+    u8            data[] = {0x41, 0x42, 0xE4, 0xB8, 0xAD};
     Utf8StringRef ref(data, 5, 3);
 
     // 取字节 [0..2) → "AB"
@@ -177,8 +192,9 @@ TEST(Utf8StringRefTest, SliceByBytes) {
     EXPECT_EQ(s2.code_point_at(0), 0x4E2D);
 }
 
-TEST(Utf8StringRefTest, SliceByCp) {
-    u8 data[] = {0x41, 0x42, 0xE4, 0xB8, 0xAD};  // "AB中"
+TEST(Utf8StringRefTest, SliceByCp)
+{
+    u8            data[] = {0x41, 0x42, 0xE4, 0xB8, 0xAD};   // "AB中"
     Utf8StringRef ref(data, 5, 3);
 
     // 取第 1~2 码点 → "B中"
@@ -189,9 +205,10 @@ TEST(Utf8StringRefTest, SliceByCp) {
     EXPECT_EQ(s.code_point_at(1), 0x4E2D);
 }
 
-TEST(Utf8StringRefTest, Compare) {
-    u8 abc[] = {0x41, 0x42, 0x43};  // "ABC"
-    u8 abd[] = {0x41, 0x42, 0x44};  // "ABD"
+TEST(Utf8StringRefTest, Compare)
+{
+    u8 abc[] = {0x41, 0x42, 0x43};   // "ABC"
+    u8 abd[] = {0x41, 0x42, 0x44};   // "ABD"
 
     Utf8StringRef r1(abc, 3, 3);
     Utf8StringRef r2(abd, 3, 3);
@@ -201,9 +218,10 @@ TEST(Utf8StringRefTest, Compare) {
     EXPECT_EQ(r1.compare(r1), 0);
 }
 
-TEST(Utf8StringRefTest, OrderingOperators) {
-    auto abc = Utf8StringRef::from_cstr("ABC");
-    auto abd = Utf8StringRef::from_cstr("ABD");
+TEST(Utf8StringRefTest, OrderingOperators)
+{
+    auto abc    = Utf8StringRef::from_cstr("ABC");
+    auto abd    = Utf8StringRef::from_cstr("ABD");
     auto longer = Utf8StringRef::from_cstr("ABCD");
 
     EXPECT_TRUE(abc < abd);
@@ -234,7 +252,8 @@ TEST(Utf8StringRefTest, OrderingOperators) {
     EXPECT_EQ(map.begin()->second, 1);
 }
 
-TEST(Utf8StringRefTest, Equals) {
+TEST(Utf8StringRefTest, Equals)
+{
     u8 a[] = {0x41, 0x42};
     u8 b[] = {0x41, 0x42};
     u8 c[] = {0x41, 0x43};
@@ -249,14 +268,16 @@ TEST(Utf8StringRefTest, Equals) {
     EXPECT_TRUE(r1 != r3);
 }
 
-TEST(Utf8StringRefTest, CompareWithCStrWithoutOwningString) {
+TEST(Utf8StringRefTest, CompareWithCStrWithoutOwningString)
+{
     auto ref = Utf8StringRef::from_cstr("你好");
     EXPECT_EQ(ref.compare("你好"), 0);
     EXPECT_LT(ref.compare("你好啊"), 0);
     EXPECT_GT(ref.compare("你"), 0);
 }
 
-TEST(Utf8StringRefTest, EqualityWithCStrWithoutOwningString) {
+TEST(Utf8StringRefTest, EqualityWithCStrWithoutOwningString)
+{
     auto ref = Utf8StringRef::from_cstr("你好");
     EXPECT_TRUE(ref.equals("你好"));
     EXPECT_TRUE(ref == "你好");
@@ -276,7 +297,8 @@ TEST(Utf8StringRefTest, EqualityWithCStrWithoutOwningString) {
 // Utf8String 测试
 // ============================================================================
 
-TEST(Utf8StringTest, DefaultConstructor) {
+TEST(Utf8StringTest, DefaultConstructor)
+{
     Utf8String s;
     EXPECT_TRUE(s.is_empty());
     EXPECT_EQ(s.length(), 0);
@@ -285,27 +307,31 @@ TEST(Utf8StringTest, DefaultConstructor) {
     EXPECT_EQ(s.c_str()[0], '\0');
 }
 
-TEST(Utf8StringTest, ConstructFromBytes) {
-    u8 hello[] = {0xE4, 0xBD, 0xA0, 0xE5, 0xA5, 0xBD};  // "你好"
+TEST(Utf8StringTest, ConstructFromBytes)
+{
+    u8         hello[] = {0xE4, 0xBD, 0xA0, 0xE5, 0xA5, 0xBD};   // "你好"
     Utf8String s(hello, 6);
     EXPECT_EQ(s.length(), 2);
     EXPECT_EQ(s.byte_length(), 6);
     EXPECT_FALSE(s.is_empty());
 }
 
-TEST(Utf8StringTest, ConstructFromCStr) {
+TEST(Utf8StringTest, ConstructFromCStr)
+{
     Utf8String s("你好");
     EXPECT_EQ(s.length(), 2);
     EXPECT_EQ(s.byte_length(), 6);
     EXPECT_STREQ(s.c_str(), "你好");
 }
 
-TEST(Utf8StringTest, ConstructFromCStr_Null) {
+TEST(Utf8StringTest, ConstructFromCStr_Null)
+{
     Utf8String s(static_cast<const char*>(nullptr));
     EXPECT_TRUE(s.is_empty());
 }
 
-TEST(Utf8StringTest, Clone) {
+TEST(Utf8StringTest, Clone)
+{
     Utf8String s1("Hello");
     Utf8String s2 = s1.clone();
     EXPECT_EQ(s2.length(), 5);
@@ -315,76 +341,85 @@ TEST(Utf8StringTest, Clone) {
     EXPECT_NE(s1.data(), s2.data());
 }
 
-TEST(Utf8StringTest, MoveConstructor) {
+TEST(Utf8StringTest, MoveConstructor)
+{
     Utf8String s1("ABC");
-    auto* original_data = s1.data();
+    auto*      original_data = s1.data();
     Utf8String s2(std::move(s1));
     EXPECT_EQ(s2.length(), 3);
     EXPECT_EQ(s2.data(), original_data);
     EXPECT_TRUE(s1.is_empty());   // 源被清空
 }
 
-TEST(Utf8StringTest, CloneAssignment) {
+TEST(Utf8StringTest, CloneAssignment)
+{
     Utf8String s1("Hello");
     Utf8String s2 = s1.clone();
     EXPECT_STREQ(s2.c_str(), "Hello");
     EXPECT_NE(s1.data(), s2.data());
 }
 
-TEST(Utf8StringTest, MoveAssignment) {
+TEST(Utf8StringTest, MoveAssignment)
+{
     Utf8String s1("Hello");
     Utf8String s2;
-    auto* original_data = s1.data();
-    s2 = std::move(s1);
+    auto*      original_data = s1.data();
+    s2                       = std::move(s1);
     EXPECT_EQ(s2.data(), original_data);
     EXPECT_TRUE(s1.is_empty());
 }
 
 // moved-from 对象 data_ 为 nullptr，转 string_view 须回落空视图而非 UB。
-TEST(Utf8StringTest, MovedFromConvertsToEmptyStringView) {
-    Utf8String s1("ABC");
-    Utf8String s2(std::move(s1));
+TEST(Utf8StringTest, MovedFromConvertsToEmptyStringView)
+{
+    Utf8String       s1("ABC");
+    Utf8String       s2(std::move(s1));
     std::string_view view = static_cast<std::string_view>(s1);
     EXPECT_TRUE(view.empty());
     EXPECT_EQ(view.data(), nullptr);
 
     Utf8String s3;
     Utf8String s4("xyz");
-    s4 = std::move(s3);  // s3 成为 moved-from
+    s4                     = std::move(s3);   // s3 成为 moved-from
     std::string_view view2 = static_cast<std::string_view>(s3);
     EXPECT_TRUE(view2.empty());
     EXPECT_EQ(view2.data(), nullptr);
 }
 
-TEST(Utf8StringTest, MoveSelfAssignment) {
+TEST(Utf8StringTest, MoveSelfAssignment)
+{
     Utf8String s("Test");
     s = std::move(s);
     EXPECT_STREQ(s.c_str(), "Test");
 }
 
-TEST(Utf8StringTest, FromCodePoint) {
-    auto s = Utf8String::from_code_point(0x4E2D);  // '中'
+TEST(Utf8StringTest, FromCodePoint)
+{
+    auto s = Utf8String::from_code_point(0x4E2D);   // '中'
     EXPECT_EQ(s.length(), 1);
     EXPECT_EQ(s.byte_length(), 3);
     EXPECT_STREQ(s.c_str(), "中");
 }
 
-TEST(Utf8StringTest, FromCodePoint_Invalid) {
+TEST(Utf8StringTest, FromCodePoint_Invalid)
+{
     EXPECT_THROW(Utf8String::from_code_point(0xD800), std::runtime_error);
     EXPECT_THROW(Utf8String::from_code_point(0x110000), std::runtime_error);
 }
 
-TEST(Utf8StringTest, FromData) {
-    u8 data[] = {0xE4, 0xB8, 0xAD, 0xE5, 0x9B, 0xBD};  // "中国"
-    auto s = Utf8String::from_data(data, 6);
+TEST(Utf8StringTest, FromData)
+{
+    u8   data[] = {0xE4, 0xB8, 0xAD, 0xE5, 0x9B, 0xBD};   // "中国"
+    auto s      = Utf8String::from_data(data, 6);
     EXPECT_EQ(s.length(), 2);
     EXPECT_STREQ(s.c_str(), "中国");
 }
 
-TEST(Utf8StringTest, FromDataUnchecked_PreservesInvalidUtf8) {
+TEST(Utf8StringTest, FromDataUnchecked_PreservesInvalidUtf8)
+{
     // 0xFF 不是合法 UTF-8 首字节；from_data_unchecked 不抛异常，原样保留字节。
-    u8 bad[] = {0xFF, 0x41, 0x42};
-    auto s = Utf8String::from_data_unchecked(bad, 3);
+    u8   bad[] = {0xFF, 0x41, 0x42};
+    auto s     = Utf8String::from_data_unchecked(bad, 3);
     EXPECT_FALSE(s.is_empty());
     EXPECT_EQ(s.byte_length(), 3u);
     // 码点数取保守值 = 字节长度
@@ -394,73 +429,83 @@ TEST(Utf8StringTest, FromDataUnchecked_PreservesInvalidUtf8) {
     EXPECT_EQ(s.data()[2], 0x42);
 }
 
-TEST(Utf8StringTest, FromDataUnchecked_AcceptsValidUtf8) {
+TEST(Utf8StringTest, FromDataUnchecked_AcceptsValidUtf8)
+{
     // 合法 UTF-8 字节也走原样保留路径（码点数仍是字节长度，与 intern_raw 语义一致）
-    u8 data[] = {0xE4, 0xB8, 0xAD};  // "中"
-    auto s = Utf8String::from_data_unchecked(data, 3);
+    u8   data[] = {0xE4, 0xB8, 0xAD};   // "中"
+    auto s      = Utf8String::from_data_unchecked(data, 3);
     EXPECT_EQ(s.byte_length(), 3u);
-    EXPECT_EQ(s.length(), 3u);  // 保守值
+    EXPECT_EQ(s.length(), 3u);   // 保守值
     EXPECT_EQ(s.data()[0], 0xE4);
 }
 
-TEST(Utf8StringTest, FromDataUnchecked_NullOrEmptyReturnsEmpty) {
+TEST(Utf8StringTest, FromDataUnchecked_NullOrEmptyReturnsEmpty)
+{
     EXPECT_TRUE(Utf8String::from_data_unchecked(nullptr, 3).is_empty());
     u8 data[] = {0x41};
     EXPECT_TRUE(Utf8String::from_data_unchecked(data, 0).is_empty());
 }
 
-TEST(Utf8StringTest, FromCStrFactory) {
+TEST(Utf8StringTest, FromCStrFactory)
+{
     auto s = Utf8String::from_cstr("你好");
     EXPECT_EQ(s.length(), 2);
     EXPECT_EQ(s.byte_length(), 6);
     EXPECT_STREQ(s.c_str(), "你好");
 }
 
-TEST(Utf8StringTest, FromCStrFactoryNull) {
+TEST(Utf8StringTest, FromCStrFactoryNull)
+{
     auto s = Utf8String::from_cstr(nullptr);
     EXPECT_TRUE(s.is_empty());
     EXPECT_STREQ(s.c_str(), "");
 }
 
-TEST(Utf8StringTest, ByteAt) {
+TEST(Utf8StringTest, ByteAt)
+{
     Utf8String s("ABC");
     EXPECT_EQ(s.byte_at(0), 0x41);
     EXPECT_EQ(s.byte_at(1), 0x42);
     EXPECT_EQ(s.byte_at(2), 0x43);
 }
 
-TEST(Utf8StringTest, CodePointAt) {
+TEST(Utf8StringTest, CodePointAt)
+{
     Utf8String s("A中😀");
-    EXPECT_EQ(s.code_point_at(0), 0x41);     // 'A'
-    EXPECT_EQ(s.code_point_at(1), 0x4E2D);   // '中'
-    EXPECT_EQ(s.code_point_at(2), 0x1F600);  // '😀'
+    EXPECT_EQ(s.code_point_at(0), 0x41);      // 'A'
+    EXPECT_EQ(s.code_point_at(1), 0x4E2D);    // '中'
+    EXPECT_EQ(s.code_point_at(2), 0x1F600);   // '😀'
 }
 
-TEST(Utf8StringTest, CStr_NullTerminated) {
+TEST(Utf8StringTest, CStr_NullTerminated)
+{
     Utf8String s("Hello");
     EXPECT_STREQ(s.c_str(), "Hello");
     // 验证 c_str() 的返回值确实指向内部缓冲区
     EXPECT_EQ(reinterpret_cast<const u8*>(s.c_str()), s.data());
 }
 
-TEST(Utf8StringTest, Ref) {
+TEST(Utf8StringTest, Ref)
+{
     Utf8String s("Test");
-    auto ref = s.ref();
+    auto       ref = s.ref();
     EXPECT_EQ(ref.length(), s.length());
     EXPECT_EQ(ref.byte_length(), s.byte_length());
     EXPECT_EQ(ref.data(), s.data());
 }
 
-TEST(Utf8StringTest, Slice) {
+TEST(Utf8StringTest, Slice)
+{
     // "AB中" → slice(2,5) → "中"
     Utf8String s("AB中");
-    auto ref = s.slice(2, 5);
+    auto       ref = s.slice(2, 5);
     EXPECT_EQ(ref.length(), 1);
     EXPECT_EQ(ref.byte_length(), 3);
     EXPECT_EQ(ref.code_point_at(0), 0x4E2D);
 }
 
-TEST(Utf8StringTest, SliceByCp) {
+TEST(Utf8StringTest, SliceByCp)
+{
     Utf8String s("AB中");
     // 取第 0~1 码点 → "AB"
     auto ref = s.slice_by_cp(0, 2);
@@ -473,7 +518,8 @@ TEST(Utf8StringTest, SliceByCp) {
     EXPECT_EQ(ref.code_point_at(0), 0x4E2D);
 }
 
-TEST(Utf8StringTest, Substr) {
+TEST(Utf8StringTest, Substr)
+{
     Utf8String s("Hello世界");
     // 取后 2 个码点 → "世界"
     auto sub = s.substr(5, 2);
@@ -484,47 +530,54 @@ TEST(Utf8StringTest, Substr) {
 
 // ---- to_lower / to_upper：ASCII 快路径 + 混合/边界 ----
 
-TEST(Utf8StringRefTest, ToLowerAscii) {
+TEST(Utf8StringRefTest, ToLowerAscii)
+{
     Utf8String s("Hello, WORLD 123!");
     EXPECT_STREQ(s.ref().to_lower().c_str(), "hello, world 123!");
 }
 
-TEST(Utf8StringRefTest, ToUpperAscii) {
+TEST(Utf8StringRefTest, ToUpperAscii)
+{
     Utf8String s("Hello, world 123!");
     EXPECT_STREQ(s.ref().to_upper().c_str(), "HELLO, WORLD 123!");
 }
 
-TEST(Utf8StringRefTest, ToLowerUpperEmpty) {
+TEST(Utf8StringRefTest, ToLowerUpperEmpty)
+{
     Utf8String s("");
     EXPECT_TRUE(s.ref().to_lower().is_empty());
     EXPECT_TRUE(s.ref().to_upper().is_empty());
 }
 
-TEST(Utf8StringRefTest, ToLowerMixedAsciiAndNonAscii) {
+TEST(Utf8StringRefTest, ToLowerMixedAsciiAndNonAscii)
+{
     // 非 ASCII 段落回 locale 感知路径；ASCII 段走快路径。二者拼接须正确。
     Utf8String s("AbC世界XyZ");
-    auto lower = s.ref().to_lower();
+    auto       lower = s.ref().to_lower();
     EXPECT_STREQ(lower.c_str(), "abc世界xyz");
-    EXPECT_EQ(lower.length(), 8);  // 6 ASCII + 2 CJK 码点
+    EXPECT_EQ(lower.length(), 8);   // 6 ASCII + 2 CJK 码点
 }
 
-TEST(Utf8StringRefTest, ToUpperMixedAsciiAndNonAscii) {
+TEST(Utf8StringRefTest, ToUpperMixedAsciiAndNonAscii)
+{
     Utf8String s("aB世cD");
     EXPECT_STREQ(s.ref().to_upper().c_str(), "AB世CD");
 }
 
-TEST(Utf8StringRefTest, ToLowerLongCrossesBatchBoundary) {
+TEST(Utf8StringRefTest, ToLowerLongCrossesBatchBoundary)
+{
     // 超过 ASCII 快路径内部 256 字节缓冲的边界，验证分段追加无遗漏。
     std::string src(1000, 'X');
-    Utf8String s(src.c_str());
-    auto lower = s.ref().to_lower();
+    Utf8String  s(src.c_str());
+    auto        lower = s.ref().to_lower();
     EXPECT_EQ(lower.byte_length(), 1000u);
     EXPECT_EQ(lower.c_str()[0], 'x');
     EXPECT_EQ(lower.c_str()[999], 'x');
     EXPECT_EQ(std::string(lower.c_str()), std::string(1000, 'x'));
 }
 
-TEST(Utf8StringTest, Compare) {
+TEST(Utf8StringTest, Compare)
+{
     Utf8String a("ABC");
     Utf8String b("ABD");
 
@@ -537,10 +590,11 @@ TEST(Utf8StringTest, Compare) {
     EXPECT_LT(a.compare(ref), 0);
 }
 
-TEST(Utf8StringTest, OrderingOperators) {
+TEST(Utf8StringTest, OrderingOperators)
+{
     Utf8String abc("ABC");
     Utf8String abd("ABD");
-    auto ref_abd = abd.ref();
+    auto       ref_abd = abd.ref();
 
     EXPECT_TRUE(abc < abd);
     EXPECT_TRUE(abd > abc);
@@ -560,7 +614,8 @@ TEST(Utf8StringTest, OrderingOperators) {
     EXPECT_TRUE(static_cast<const char*>("ABD") >= abd);
 }
 
-TEST(Utf8StringTest, Equals) {
+TEST(Utf8StringTest, Equals)
+{
     Utf8String a("Hello");
     Utf8String b("Hello");
     Utf8String c("World");
@@ -569,7 +624,8 @@ TEST(Utf8StringTest, Equals) {
     EXPECT_FALSE(a.equals(c.ref()));
 }
 
-TEST(Utf8StringTest, EqualityOperators) {
+TEST(Utf8StringTest, EqualityOperators)
+{
     Utf8String a("Hi");
     Utf8String b("Hi");
     Utf8String c("Bye");
@@ -585,14 +641,16 @@ TEST(Utf8StringTest, EqualityOperators) {
     EXPECT_TRUE(ref == a);
 }
 
-TEST(Utf8StringTest, CompareWithCStrWithoutTemporaryString) {
+TEST(Utf8StringTest, CompareWithCStrWithoutTemporaryString)
+{
     Utf8String s("你好");
     EXPECT_EQ(s.compare("你好"), 0);
     EXPECT_LT(s.compare("你好啊"), 0);
     EXPECT_GT(s.compare("你"), 0);
 }
 
-TEST(Utf8StringTest, EqualityWithCStrWithoutTemporaryString) {
+TEST(Utf8StringTest, EqualityWithCStrWithoutTemporaryString)
+{
     Utf8String s("你好");
     EXPECT_TRUE(s.equals("你好"));
     EXPECT_TRUE(s == "你好");
@@ -607,7 +665,8 @@ TEST(Utf8StringTest, EqualityWithCStrWithoutTemporaryString) {
     EXPECT_FALSE(s == nullptr);
 }
 
-TEST(Utf8StringTest, InvalidUtf8_Throws) {
+TEST(Utf8StringTest, InvalidUtf8_Throws)
+{
     // 非法的首字节 0xFF
     u8 bad[] = {0xFF, 0x41, 0x42};
     EXPECT_THROW(Utf8String(bad, 3), std::runtime_error);
@@ -617,17 +676,24 @@ TEST(Utf8StringTest, InvalidUtf8_Throws) {
     EXPECT_THROW(Utf8String(bad2, 3), std::runtime_error);
 
     // 截断的序列
-    u8 bad3[] = {0xF0, 0x9F, 0x98};  // 4 字节序列缺 1 字节
+    u8 bad3[] = {0xF0, 0x9F, 0x98};   // 4 字节序列缺 1 字节
     EXPECT_THROW(Utf8String(bad3, 3), std::runtime_error);
 }
 
-TEST(Utf8StringTest, UnicodeMixed) {
+TEST(Utf8StringTest, UnicodeMixed)
+{
     // 混合 ASCII、2 字节、3 字节、4 字节
     const u8 mixed[] = {
-        0x48,                               // 'H' (1B)
-        0xC3, 0xA9,                         // 'é' (2B) U+00E9
-        0xE4, 0xB8, 0x96,                   // '世' (3B) U+4E16
-        0xF0, 0x9F, 0x8C, 0x8D             // '🌍' (4B) U+1F30D
+        0x48,   // 'H' (1B)
+        0xC3,
+        0xA9,   // 'é' (2B) U+00E9
+        0xE4,
+        0xB8,
+        0x96,   // '世' (3B) U+4E16
+        0xF0,
+        0x9F,
+        0x8C,
+        0x8D   // '🌍' (4B) U+1F30D
     };
     Utf8String s(mixed, 10);
     EXPECT_EQ(s.length(), 4);
@@ -638,7 +704,8 @@ TEST(Utf8StringTest, UnicodeMixed) {
     EXPECT_EQ(s.code_point_at(3), 0x1F30D);
 }
 
-TEST(Utf8StringTest, EmptyStringConstructors) {
+TEST(Utf8StringTest, EmptyStringConstructors)
+{
     Utf8String s1;
     EXPECT_TRUE(s1.is_empty());
 
@@ -649,13 +716,15 @@ TEST(Utf8StringTest, EmptyStringConstructors) {
     EXPECT_TRUE(s3.is_empty());
 }
 
-TEST(Utf8StringTest, NullDataWithNonZeroLengthConstructsEmpty) {
+TEST(Utf8StringTest, NullDataWithNonZeroLengthConstructsEmpty)
+{
     Utf8String s(static_cast<const u8*>(nullptr), 3);
     EXPECT_TRUE(s.is_empty());
     EXPECT_STREQ(s.c_str(), "");
 }
 
-TEST(Utf8StringTest, LargeString) {
+TEST(Utf8StringTest, LargeString)
+{
     // 构造一个较长的字符串，确保无内存问题
     std::string large;
     for (int i = 0; i < 1000; ++i) {
@@ -672,10 +741,11 @@ TEST(Utf8StringTest, LargeString) {
 // Utf8Iterator 测试
 // ============================================================================
 
-TEST(Utf8IteratorTest, RangeForLoop) {
+TEST(Utf8IteratorTest, RangeForLoop)
+{
     Utf8String s("A中😀");
-    u32 expected[] = {0x41, 0x4E2D, 0x1F600};
-    usize idx = 0;
+    u32        expected[] = {0x41, 0x4E2D, 0x1F600};
+    usize      idx        = 0;
     for (u32 cp : s) {
         EXPECT_EQ(cp, expected[idx]);
         ++idx;
@@ -683,9 +753,10 @@ TEST(Utf8IteratorTest, RangeForLoop) {
     EXPECT_EQ(idx, 3);
 }
 
-TEST(Utf8IteratorTest, EmptyString) {
+TEST(Utf8IteratorTest, EmptyString)
+{
     Utf8String empty;
-    usize count = 0;
+    usize      count = 0;
     for (u32 cp : empty) {
         (void)cp;
         ++count;
@@ -693,11 +764,12 @@ TEST(Utf8IteratorTest, EmptyString) {
     EXPECT_EQ(count, 0);
 }
 
-TEST(Utf8IteratorTest, RefRangeForLoop) {
-    u8 data[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
+TEST(Utf8IteratorTest, RefRangeForLoop)
+{
+    u8            data[] = {0x41, 0xE4, 0xB8, 0xAD, 0xF0, 0x9F, 0x98, 0x80};
     Utf8StringRef ref(data, 8, 3);
-    u32 expected[] = {0x41, 0x4E2D, 0x1F600};
-    usize idx = 0;
+    u32           expected[] = {0x41, 0x4E2D, 0x1F600};
+    usize         idx        = 0;
     for (u32 cp : ref) {
         EXPECT_EQ(cp, expected[idx]);
         ++idx;
@@ -705,10 +777,11 @@ TEST(Utf8IteratorTest, RefRangeForLoop) {
     EXPECT_EQ(idx, 3);
 }
 
-TEST(Utf8IteratorTest, IteratorComparison) {
+TEST(Utf8IteratorTest, IteratorComparison)
+{
     Utf8String s("ABC");
-    auto it = s.begin();
-    auto end = s.end();
+    auto       it  = s.begin();
+    auto       end = s.end();
     EXPECT_NE(it, end);
     EXPECT_EQ(*it, 0x41);
     ++it;
@@ -719,16 +792,18 @@ TEST(Utf8IteratorTest, IteratorComparison) {
     EXPECT_EQ(it, end);
 }
 
-TEST(Utf8IteratorTest, BytePtr) {
+TEST(Utf8IteratorTest, BytePtr)
+{
     Utf8String s("AB");
-    auto it = s.begin();
+    auto       it = s.begin();
     EXPECT_NE(it.byte_ptr(), nullptr);
     EXPECT_EQ(*it.byte_ptr(), 0x41);
 }
 
-TEST(Utf8IteratorTest, UnicodeMixedWithBuilder) {
+TEST(Utf8IteratorTest, UnicodeMixedWithBuilder)
+{
     // for-range 配合 Utf8StringBuilder 使用
-    Utf8String s("Hello世界");
+    Utf8String        s("Hello世界");
     Utf8StringBuilder b;
     for (u32 cp : s) {
         b.append_code_point(cp);
@@ -741,14 +816,16 @@ TEST(Utf8IteratorTest, UnicodeMixedWithBuilder) {
 // index_of / contains 测试
 // ============================================================================
 
-TEST(Utf8StringRefTest, IndexOfSubstring) {
+TEST(Utf8StringRefTest, IndexOfSubstring)
+{
     auto ref = Utf8StringRef::from_cstr("Hello世界");
     EXPECT_EQ(ref.index_of(Utf8StringRef::from_cstr("世界")), 5);
     EXPECT_EQ(ref.index_of(Utf8StringRef::from_cstr("Hello")), 0);
     EXPECT_EQ(ref.index_of(Utf8StringRef::from_cstr("foo")), Utf8StringRef::npos);
 }
 
-TEST(Utf8StringRefTest, IndexOfWithStart) {
+TEST(Utf8StringRefTest, IndexOfWithStart)
+{
     auto ref = Utf8StringRef::from_cstr("aaabaa");
     // 第一个 'a' 在 0
     EXPECT_EQ(ref.index_of(Utf8StringRef::from_cstr("a"), 0), 0);
@@ -758,21 +835,24 @@ TEST(Utf8StringRefTest, IndexOfWithStart) {
     EXPECT_EQ(ref.index_of(Utf8StringRef::from_cstr("a"), 99), Utf8StringRef::npos);
 }
 
-TEST(Utf8StringRefTest, IndexOfCodePoint) {
+TEST(Utf8StringRefTest, IndexOfCodePoint)
+{
     auto ref = Utf8StringRef::from_cstr("A中😀");
-    EXPECT_EQ(ref.index_of(0x41), 0);       // 'A'
-    EXPECT_EQ(ref.index_of(0x4E2D), 1);     // '中'
-    EXPECT_EQ(ref.index_of(0x1F600), 2);    // '😀'
+    EXPECT_EQ(ref.index_of(0x41), 0);      // 'A'
+    EXPECT_EQ(ref.index_of(0x4E2D), 1);    // '中'
+    EXPECT_EQ(ref.index_of(0x1F600), 2);   // '😀'
     EXPECT_EQ(ref.index_of(0x9999), Utf8StringRef::npos);
 }
 
-TEST(Utf8StringRefTest, IndexOfCodePointWithStart) {
+TEST(Utf8StringRefTest, IndexOfCodePointWithStart)
+{
     auto ref = Utf8StringRef::from_cstr("ABA");
-    EXPECT_EQ(ref.index_of(0x41, 0), 0);    // 第一个 'A'
-    EXPECT_EQ(ref.index_of(0x41, 1), 2);    // 从码点 1 开始找 'A'
+    EXPECT_EQ(ref.index_of(0x41, 0), 0);   // 第一个 'A'
+    EXPECT_EQ(ref.index_of(0x41, 1), 2);   // 从码点 1 开始找 'A'
 }
 
-TEST(Utf8StringRefTest, Contains) {
+TEST(Utf8StringRefTest, Contains)
+{
     auto ref = Utf8StringRef::from_cstr("Hello世界");
     EXPECT_TRUE(ref.contains(Utf8StringRef::from_cstr("世界")));
     EXPECT_TRUE(ref.contains(Utf8StringRef::from_cstr("Hello")));
@@ -780,13 +860,15 @@ TEST(Utf8StringRefTest, Contains) {
 }
 
 // Utf8String 版本（委托至 Utf8StringRef）
-TEST(Utf8StringTest, IndexOfSubstring) {
+TEST(Utf8StringTest, IndexOfSubstring)
+{
     Utf8String s("Hello世界");
     EXPECT_EQ(s.index_of(Utf8StringRef::from_cstr("世界")), 5);
     EXPECT_EQ(s.index_of(Utf8StringRef::from_cstr("Hello")), 0);
 }
 
-TEST(Utf8StringTest, Contains) {
+TEST(Utf8StringTest, Contains)
+{
     Utf8String s("Hello世界");
     EXPECT_TRUE(s.contains(Utf8StringRef::from_cstr("世界")));
     EXPECT_FALSE(s.contains(Utf8StringRef::from_cstr("World")));
@@ -796,7 +878,8 @@ TEST(Utf8StringTest, Contains) {
 // from_cstr 测试
 // ============================================================================
 
-TEST(Utf8StringRefTest, FromCStr) {
+TEST(Utf8StringRefTest, FromCStr)
+{
     auto ref = Utf8StringRef::from_cstr("ABC");
     EXPECT_EQ(ref.length(), 3);
     EXPECT_EQ(ref.byte_length(), 3);
@@ -816,7 +899,8 @@ TEST(Utf8StringRefTest, FromCStr) {
 // build_or_empty 测试
 // ============================================================================
 
-TEST(Utf8StringBuilderTest, BuildOrEmpty_Valid) {
+TEST(Utf8StringBuilderTest, BuildOrEmpty_Valid)
+{
     Utf8StringBuilder b;
     b.append("Hello");
     auto s = b.build_or_empty();
@@ -824,8 +908,9 @@ TEST(Utf8StringBuilderTest, BuildOrEmpty_Valid) {
     EXPECT_STREQ(s.c_str(), "Hello");
 }
 
-TEST(Utf8StringBuilderTest, AppendCharBufferWithExplicitLength) {
-    const char data[] = {'A', '\0', 'B', 'X'};
+TEST(Utf8StringBuilderTest, AppendCharBufferWithExplicitLength)
+{
+    const char        data[] = {'A', '\0', 'B', 'X'};
     Utf8StringBuilder b;
 
     EXPECT_EQ(&b.append(data, 3), &b);
@@ -836,9 +921,10 @@ TEST(Utf8StringBuilderTest, AppendCharBufferWithExplicitLength) {
     EXPECT_EQ(std::memcmp(s.data(), data, 3), 0);
 }
 
-TEST(Utf8StringBuilderTest, BuildOrEmpty_Invalid) {
+TEST(Utf8StringBuilderTest, BuildOrEmpty_Invalid)
+{
     // 通过 append raw bytes 放入非法序列
-    u8 bad[] = {0xFF, 0xFE};
+    u8                bad[] = {0xFF, 0xFE};
     Utf8StringBuilder b;
     b.append(bad, 2);
     auto s = b.build_or_empty();
@@ -849,15 +935,17 @@ TEST(Utf8StringBuilderTest, BuildOrEmpty_Invalid) {
 // operator<< 测试
 // ============================================================================
 
-TEST(Utf8StringTest, StreamOutput) {
-    Utf8String s("Hello世界");
+TEST(Utf8StringTest, StreamOutput)
+{
+    Utf8String         s("Hello世界");
     std::ostringstream oss;
     oss << s;
     EXPECT_EQ(oss.str(), "Hello世界");
 }
 
-TEST(Utf8StringRefTest, StreamOutput) {
-    auto ref = Utf8StringRef::from_cstr("Test");
+TEST(Utf8StringRefTest, StreamOutput)
+{
+    auto               ref = Utf8StringRef::from_cstr("Test");
     std::ostringstream oss;
     oss << ref;
     EXPECT_EQ(oss.str(), "Test");
@@ -867,47 +955,54 @@ TEST(Utf8StringRefTest, StreamOutput) {
 // to_std_string 测试
 // ============================================================================
 
-TEST(Utf8StringRefTest, ToStdString) {
-    auto ref = Utf8StringRef::from_cstr("Hello");
+TEST(Utf8StringRefTest, ToStdString)
+{
+    auto ref     = Utf8StringRef::from_cstr("Hello");
     auto std_str = ref.to_std_string();
     EXPECT_EQ(std_str, "Hello");
     EXPECT_EQ(std_str.size(), 5);
 }
 
-TEST(Utf8StringRefTest, ToStdString_Unicode) {
-    auto ref = Utf8StringRef::from_cstr("你好😀");
+TEST(Utf8StringRefTest, ToStdString_Unicode)
+{
+    auto ref     = Utf8StringRef::from_cstr("你好😀");
     auto std_str = ref.to_std_string();
     EXPECT_EQ(std_str, "你好😀");
     EXPECT_EQ(std_str.size(), 10);
 }
 
-TEST(Utf8StringRefTest, ToStdString_Empty) {
+TEST(Utf8StringRefTest, ToStdString_Empty)
+{
     Utf8StringRef ref;
-    auto std_str = ref.to_std_string();
+    auto          std_str = ref.to_std_string();
     EXPECT_TRUE(std_str.empty());
 }
 
-TEST(Utf8StringTest, ToStdString) {
+TEST(Utf8StringTest, ToStdString)
+{
     Utf8String s("Hello");
-    auto std_str = s.to_std_string();
+    auto       std_str = s.to_std_string();
     EXPECT_EQ(std_str, "Hello");
     EXPECT_EQ(std_str.size(), 5);
 }
 
-TEST(Utf8StringTest, ToStdString_Unicode) {
+TEST(Utf8StringTest, ToStdString_Unicode)
+{
     Utf8String s("你好😀");
-    auto std_str = s.to_std_string();
+    auto       std_str = s.to_std_string();
     EXPECT_EQ(std_str, "你好😀");
     EXPECT_EQ(std_str.size(), 10);
 }
 
-TEST(Utf8StringTest, ToStdString_Empty) {
+TEST(Utf8StringTest, ToStdString_Empty)
+{
     Utf8String s;
-    auto std_str = s.to_std_string();
+    auto       std_str = s.to_std_string();
     EXPECT_TRUE(std_str.empty());
 }
 
-TEST(Utf8StringTest, MovedFromStringRemainsUsableAsEmpty) {
+TEST(Utf8StringTest, MovedFromStringRemainsUsableAsEmpty)
+{
     Utf8String source("value");
     Utf8String moved(std::move(source));
 
@@ -919,9 +1014,10 @@ TEST(Utf8StringTest, MovedFromStringRemainsUsableAsEmpty) {
     EXPECT_TRUE(moved == "value");
 }
 
-TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip) {
+TEST(Utf8StringTest, ToStdString_FromCStrRoundtrip)
+{
     Utf8String s("Hello世界");
-    auto std_str = s.to_std_string();
+    auto       std_str = s.to_std_string();
     EXPECT_EQ(std_str, "Hello世界");
     // 验证可重新构造 Utf8String
     Utf8String roundtrip(std_str.c_str());
@@ -941,7 +1037,7 @@ TEST(ZUtf8StringRef, SimpleTest)
 TEST(ZUtf8StringRef, FromStdStringCountsUtf8CodePoints)
 {
     std::string value = "你好😀";
-    auto ref = ZUtf8StringRef::from_std_string(value);
+    auto        ref   = ZUtf8StringRef::from_std_string(value);
     EXPECT_EQ(ref.byte_length(), value.size());
     EXPECT_EQ(ref.length(), 3);
     EXPECT_EQ(ref.c_str(), value.c_str());
@@ -949,7 +1045,7 @@ TEST(ZUtf8StringRef, FromStdStringCountsUtf8CodePoints)
 
 TEST(ZUtf8StringRef, ConvertsToUtf8StringRef)
 {
-    auto z = ZUtf8StringRef::from_static("你好");
+    auto          z   = ZUtf8StringRef::from_static("你好");
     Utf8StringRef ref = z;
     EXPECT_EQ(ref.byte_length(), 6);
     EXPECT_EQ(ref.length(), 2);
@@ -976,24 +1072,24 @@ TEST(ZUtf8StringRef, EqualityWithCStrWithoutOwningString)
 
 TEST(Utf8StringRefStringViewTest, ConvertsToStringViewAscii)
 {
-    Utf8StringRef ref = Utf8StringRef::from_cstr("hello");
-    std::string_view sv = ref;  // 隐式转换，零拷贝
+    Utf8StringRef    ref = Utf8StringRef::from_cstr("hello");
+    std::string_view sv  = ref;   // 隐式转换，零拷贝
     EXPECT_EQ(sv, "hello");
     EXPECT_EQ(sv.size(), 5u);
 }
 
 TEST(Utf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
 {
-    Utf8StringRef ref = Utf8StringRef::from_cstr("你好😀");
-    std::string_view sv = ref;
-    EXPECT_EQ(sv.size(), ref.byte_length());  // 字节数，非码点数
-    EXPECT_EQ(sv.size(), 10u);                // 3 + 3 + 4
+    Utf8StringRef    ref = Utf8StringRef::from_cstr("你好😀");
+    std::string_view sv  = ref;
+    EXPECT_EQ(sv.size(), ref.byte_length());   // 字节数，非码点数
+    EXPECT_EQ(sv.size(), 10u);                 // 3 + 3 + 4
     EXPECT_EQ(sv, "你好😀");
 }
 
 TEST(Utf8StringRefStringViewTest, EmptyRefConvertsToEmptyView)
 {
-    Utf8StringRef ref;
+    Utf8StringRef    ref;
     std::string_view sv = ref;
     EXPECT_TRUE(sv.empty());
     // 默认构造的 ref 内部 data 为 nullptr；nullptr 传 string_view 是 UB，须安全回落空视图。
@@ -1003,28 +1099,28 @@ TEST(Utf8StringRefStringViewTest, EmptyRefConvertsToEmptyView)
 TEST(Utf8StringRefStringViewTest, NullPtrBackedRefIsSafe)
 {
     // 明确覆盖 nullptr 后端：from_data 传入空输入也产生空视图，确保转换无 UB。
-    Utf8StringRef ref = Utf8StringRef::from_cstr(nullptr);
-    std::string_view sv = ref;
+    Utf8StringRef    ref = Utf8StringRef::from_cstr(nullptr);
+    std::string_view sv  = ref;
     EXPECT_TRUE(sv.empty());
 }
 
 TEST(Utf8StringRefStringViewTest, SliceProducesIndependentView)
 {
     // Utf8StringRef 不保证 \0，但 string_view 只看 [data, data+size)，无需 \0
-    Utf8StringRef whole = Utf8StringRef::from_cstr("hello world");
-    Utf8StringRef mid   = whole.slice(6, 11);  // "world"
-    std::string_view sv = mid;
+    Utf8StringRef    whole = Utf8StringRef::from_cstr("hello world");
+    Utf8StringRef    mid   = whole.slice(6, 11);   // "world"
+    std::string_view sv    = mid;
     EXPECT_EQ(sv, "world");
     EXPECT_EQ(sv.size(), 5u);
 }
 
 TEST(Utf8StringRefStringViewTest, FromStringViewRoundtrip)
 {
-    std::string original = "测试test";
+    std::string      original = "测试test";
     std::string_view sv(original);
-    Utf8StringRef ref = Utf8StringRef::from_string_view(sv);
+    Utf8StringRef    ref = Utf8StringRef::from_string_view(sv);
     EXPECT_EQ(ref.byte_length(), original.size());
-    EXPECT_EQ(ref.length(), 6u);  // 2 中文 + 4 ASCII
+    EXPECT_EQ(ref.length(), 6u);   // 2 中文 + 4 ASCII
     EXPECT_TRUE(ref == "测试test");
     // 数据指针指向同一块内存（零拷贝）
     EXPECT_EQ(ref.data(), reinterpret_cast<const u8*>(sv.data()));
@@ -1033,17 +1129,15 @@ TEST(Utf8StringRefStringViewTest, FromStringViewRoundtrip)
 TEST(Utf8StringRefStringViewTest, FromEmptyStringView)
 {
     std::string_view sv;
-    Utf8StringRef ref = Utf8StringRef::from_string_view(sv);
+    Utf8StringRef    ref = Utf8StringRef::from_string_view(sv);
     EXPECT_TRUE(ref.is_empty());
 }
 
 TEST(Utf8StringRefStringViewTest, UsableWithStdStringViewConsumer)
 {
     // 证明可作为接受 string_view 的标准库/用户 API 的实参
-    Utf8StringRef ref = Utf8StringRef::from_cstr("hello");
-    auto find_in_view = [](std::string_view v, char c) {
-        return v.find(c);
-    };
+    Utf8StringRef ref          = Utf8StringRef::from_cstr("hello");
+    auto          find_in_view = [](std::string_view v, char c) { return v.find(c); };
     EXPECT_EQ(find_in_view(ref, 'l'), 2u);
 }
 
@@ -1059,7 +1153,7 @@ TEST(Utf8StringStringViewTest, ConvertsToStringViewExplicitly)
 
 TEST(Utf8StringStringViewTest, ConvertsToStringViewMultibyte)
 {
-    Utf8String s = Utf8String::from_cstr("你好😀");
+    Utf8String       s  = Utf8String::from_cstr("你好😀");
     std::string_view sv = static_cast<std::string_view>(s);
     EXPECT_EQ(sv.size(), s.byte_length());
     EXPECT_EQ(sv, "你好😀");
@@ -1070,9 +1164,7 @@ TEST(Utf8StringStringViewTest, UsableWithStdStringViewConsumer)
     Utf8String s = Utf8String::from_cstr("abcabc");
 
     // 传 string_view 形参的规范写法：经 ref() 一跳（Ref→string_view 仍隐式）
-    auto find_in_view = [](std::string_view v, char c) {
-        return v.find(c);
-    };
+    auto find_in_view = [](std::string_view v, char c) { return v.find(c); };
     EXPECT_EQ(find_in_view(s.ref(), 'b'), 1u);
 
     std::string_view sv = static_cast<std::string_view>(s);
@@ -1082,7 +1174,7 @@ TEST(Utf8StringStringViewTest, UsableWithStdStringViewConsumer)
 
 TEST(ZUtf8StringRefStringViewTest, ConvertsToStringView)
 {
-    auto z = ZUtf8StringRef::from_static("hello");
+    auto             z  = ZUtf8StringRef::from_static("hello");
     std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_EQ(sv, "hello");
     EXPECT_EQ(sv.size(), 5u);
@@ -1090,7 +1182,7 @@ TEST(ZUtf8StringRefStringViewTest, ConvertsToStringView)
 
 TEST(ZUtf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
 {
-    auto z = ZUtf8StringRef::from_static("你好");
+    auto             z  = ZUtf8StringRef::from_static("你好");
     std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_EQ(sv.size(), 6u);
     EXPECT_EQ(sv, "你好");
@@ -1099,7 +1191,7 @@ TEST(ZUtf8StringRefStringViewTest, ConvertsToStringViewMultibyte)
 TEST(ZUtf8StringRefStringViewTest, NullPtrBackedIsSafe)
 {
     // from_static(nullptr) 产生 data_ 为 nullptr 的句柄；转换须安全回落，不能触发 UB。
-    auto z = ZUtf8StringRef::from_static(nullptr);
+    auto             z  = ZUtf8StringRef::from_static(nullptr);
     std::string_view sv = static_cast<std::string_view>(z);
     EXPECT_TRUE(sv.empty());
 }
@@ -1112,7 +1204,8 @@ TEST(ZUtf8StringRefStringViewTest, NullPtrBackedIsSafe)
 namespace {
 
 // 把 Ref 列表转成 std::string 便于断言。
-std::vector<std::string> to_std_vector(const std::vector<Utf8StringRef>& parts) {
+std::vector<std::string> to_std_vector(const std::vector<Utf8StringRef>& parts)
+{
     std::vector<std::string> out;
     out.reserve(parts.size());
     for (const auto& p : parts)
@@ -1120,15 +1213,17 @@ std::vector<std::string> to_std_vector(const std::vector<Utf8StringRef>& parts) 
     return out;
 }
 
-std::string to_std(const Utf8StringRef& s) {
+std::string to_std(const Utf8StringRef& s)
+{
     return std::string(reinterpret_cast<const char*>(s.data()), s.byte_length());
 }
 
-}  // namespace
+}   // namespace
 
 // ---- starts_with / ends_with ----
 
-TEST(Utf8StringOpsTest, RefStartsAndEndsWith) {
+TEST(Utf8StringOpsTest, RefStartsAndEndsWith)
+{
     Utf8StringRef s = Utf8StringRef::from_cstr("hello.txt");
     EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("")));
     EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("hello")));
@@ -1140,7 +1235,8 @@ TEST(Utf8StringOpsTest, RefStartsAndEndsWith) {
     EXPECT_FALSE(s.ends_with(Utf8StringRef::from_cstr("xhello.txt")));
 }
 
-TEST(Utf8StringOpsTest, EmptyPrefixAndSuffixAreSafe) {
+TEST(Utf8StringOpsTest, EmptyPrefixAndSuffixAreSafe)
+{
     Utf8StringRef empty;
     Utf8StringRef value = Utf8StringRef::from_cstr("value");
 
@@ -1151,7 +1247,8 @@ TEST(Utf8StringOpsTest, EmptyPrefixAndSuffixAreSafe) {
     EXPECT_TRUE(empty.begin() == empty.end());
 }
 
-TEST(Utf8StringOpsTest, RefStartsAndEndsWithMultibyte) {
+TEST(Utf8StringOpsTest, RefStartsAndEndsWithMultibyte)
+{
     // 多字节内容按字节级匹配，中文前后缀不误判。
     Utf8StringRef s = Utf8StringRef::from_cstr("你好世界");
     EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("你好")));
@@ -1161,7 +1258,8 @@ TEST(Utf8StringOpsTest, RefStartsAndEndsWithMultibyte) {
     EXPECT_FALSE(s.starts_with(Utf8StringRef::from_cstr("好")));
 }
 
-TEST(Utf8StringOpsTest, StringStartsAndEndsWith) {
+TEST(Utf8StringOpsTest, StringStartsAndEndsWith)
+{
     Utf8String s("prefix-suffix");
     EXPECT_TRUE(s.starts_with(Utf8StringRef::from_cstr("prefix-")));
     EXPECT_TRUE(s.ends_with(Utf8StringRef::from_cstr("-suffix")));
@@ -1171,8 +1269,9 @@ TEST(Utf8StringOpsTest, StringStartsAndEndsWith) {
 
 // ---- trim 家族 ----
 
-TEST(Utf8StringOpsTest, RefTrimFamily) {
-    auto s      = Utf8StringRef::from_cstr("  \t 你好 \t ");
+TEST(Utf8StringOpsTest, RefTrimFamily)
+{
+    auto s       = Utf8StringRef::from_cstr("  \t 你好 \t ");
     auto trimmed = s.trim();
     EXPECT_EQ(to_std(trimmed), "你好");
 
@@ -1190,9 +1289,10 @@ TEST(Utf8StringOpsTest, RefTrimFamily) {
     EXPECT_EQ(to_std(Utf8StringRef::from_cstr(" \t\r\n ").trim()), "");
 }
 
-TEST(Utf8StringOpsTest, StringTrimFamilyReturnsViewOfSelf) {
+TEST(Utf8StringOpsTest, StringTrimFamilyReturnsViewOfSelf)
+{
     Utf8String s("  hello  ");
-    auto trimmed = s.trim();
+    auto       trimmed = s.trim();
     EXPECT_EQ(to_std(trimmed), "hello");
     // trim 返回视图：指向原字符串缓冲内部（可能带偏移），不做拷贝分配。
     EXPECT_GE(trimmed.data(), s.data());
@@ -1201,9 +1301,9 @@ TEST(Utf8StringOpsTest, StringTrimFamilyReturnsViewOfSelf) {
 
 // ---- split ----
 
-TEST(Utf8StringOpsTest, RefSplitBasics) {
-    auto parts = Utf8StringRef::from_cstr("a,b,c")
-                     .split(Utf8StringRef::from_cstr(","));
+TEST(Utf8StringOpsTest, RefSplitBasics)
+{
+    auto parts = Utf8StringRef::from_cstr("a,b,c").split(Utf8StringRef::from_cstr(","));
     EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", "b", "c"}));
 
     // 连续分隔符保留空段。
@@ -1224,15 +1324,17 @@ TEST(Utf8StringOpsTest, RefSplitBasics) {
     EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"abc"}));
 }
 
-TEST(Utf8StringOpsTest, RefSplitMultibyteDelimiter) {
-    auto parts = Utf8StringRef::from_cstr("a，b，c")
-                     .split(Utf8StringRef::from_cstr("，"));  // 全角逗号 U+FF0C
+TEST(Utf8StringOpsTest, RefSplitMultibyteDelimiter)
+{
+    auto parts = Utf8StringRef::from_cstr("a，b，c").split(
+        Utf8StringRef::from_cstr("，"));   // 全角逗号 U+FF0C
     EXPECT_EQ(to_std_vector(parts), (std::vector<std::string>{"a", "b", "c"}));
 }
 
-TEST(Utf8StringOpsTest, StringSplit) {
+TEST(Utf8StringOpsTest, StringSplit)
+{
     Utf8String s("one::two::three");
-    auto parts = s.split(Utf8StringRef::from_cstr("::"));
+    auto       parts = s.split(Utf8StringRef::from_cstr("::"));
     ASSERT_EQ(parts.size(), 3u);
     EXPECT_EQ(to_std(parts[0]), "one");
     EXPECT_EQ(to_std(parts[1]), "two");
@@ -1241,9 +1343,10 @@ TEST(Utf8StringOpsTest, StringSplit) {
 
 // ---- replace_all ----
 
-TEST(Utf8StringOpsTest, RefReplaceAll) {
-    auto r = Utf8StringRef::from_cstr("a-b-c").replace_all(
-        Utf8StringRef::from_cstr("-"), Utf8StringRef::from_cstr("+"));
+TEST(Utf8StringOpsTest, RefReplaceAll)
+{
+    auto r = Utf8StringRef::from_cstr("a-b-c").replace_all(Utf8StringRef::from_cstr("-"),
+                                                           Utf8StringRef::from_cstr("+"));
     EXPECT_EQ(r, Utf8StringRef::from_cstr("a+b+c"));
 
     // 无命中返回原文。
@@ -1270,15 +1373,15 @@ TEST(Utf8StringOpsTest, RefReplaceAll) {
     EXPECT_EQ(r, Utf8StringRef::from_cstr("bab"));
 
     // 多字节内容替换。
-    r = Utf8StringRef::from_cstr("你好，世界，!").replace_all(
-        Utf8StringRef::from_cstr("，"), Utf8StringRef::from_cstr(", "));
+    r = Utf8StringRef::from_cstr("你好，世界，!")
+            .replace_all(Utf8StringRef::from_cstr("，"), Utf8StringRef::from_cstr(", "));
     EXPECT_EQ(r, Utf8StringRef::from_cstr("你好, 世界, !"));
 }
 
-TEST(Utf8StringOpsTest, StringReplaceAll) {
+TEST(Utf8StringOpsTest, StringReplaceAll)
+{
     Utf8String s("path\\to\\file");
-    auto r = s.replace_all(Utf8StringRef::from_cstr("\\"),
-                           Utf8StringRef::from_cstr("/"));
+    auto       r = s.replace_all(Utf8StringRef::from_cstr("\\"), Utf8StringRef::from_cstr("/"));
     EXPECT_EQ(r, Utf8StringRef::from_cstr("path/to/file"));
     // 原 string 不被修改。
     EXPECT_EQ(s, Utf8StringRef::from_cstr("path\\to\\file"));
@@ -1286,34 +1389,38 @@ TEST(Utf8StringOpsTest, StringReplaceAll) {
 
 // ---- try_from_data / try_from_cstr（Result 错误通道）----
 
-TEST(Utf8StringTest, TryFromDataValidInput) {
-    const u8 valid[] = "h\xE4\xB8\xAD";  // "h中"
-    auto result = Utf8String::try_from_data(valid, sizeof(valid) - 1);
+TEST(Utf8StringTest, TryFromDataValidInput)
+{
+    const u8 valid[] = "h\xE4\xB8\xAD";   // "h中"
+    auto     result  = Utf8String::try_from_data(valid, sizeof(valid) - 1);
     ASSERT_TRUE(result.is_ok());
     auto s = std::move(result).unwrap();
     EXPECT_EQ(s.byte_length(), 4u);
     EXPECT_EQ(s.length(), 2u);
 }
 
-TEST(Utf8StringTest, TryFromDataInvalidReturnsErr) {
-    const u8 invalid[] = "\xC3\x28";  // 非法首字节+续字节组合
-    auto result = Utf8String::try_from_data(invalid, sizeof(invalid) - 1);
+TEST(Utf8StringTest, TryFromDataInvalidReturnsErr)
+{
+    const u8 invalid[] = "\xC3\x28";   // 非法首字节+续字节组合
+    auto     result    = Utf8String::try_from_data(invalid, sizeof(invalid) - 1);
     ASSERT_TRUE(result.is_err());
     EXPECT_EQ(result.unwrap_err().code(), ca::core::StatusCode::INVALID_ARGUMENT);
 }
 
-TEST(Utf8StringTest, TryFromDataEmptyAndNull) {
+TEST(Utf8StringTest, TryFromDataEmptyAndNull)
+{
     auto r1 = Utf8String::try_from_data(nullptr, 0);
     ASSERT_TRUE(r1.is_ok());
     EXPECT_TRUE(std::move(r1).unwrap().is_empty());
 
     const u8 dummy[] = "x";
-    auto r2 = Utf8String::try_from_data(dummy, 0);
+    auto     r2      = Utf8String::try_from_data(dummy, 0);
     ASSERT_TRUE(r2.is_ok());
     EXPECT_TRUE(std::move(r2).unwrap().is_empty());
 }
 
-TEST(Utf8StringTest, TryFromCstrMatchesContract) {
+TEST(Utf8StringTest, TryFromCstrMatchesContract)
+{
     auto ok = Utf8String::try_from_cstr("hello");
     ASSERT_TRUE(ok.is_ok());
     EXPECT_EQ(std::move(ok).unwrap(), Utf8StringRef::from_cstr("hello"));
@@ -1325,7 +1432,7 @@ TEST(Utf8StringTest, TryFromCstrMatchesContract) {
 
     // 非法 UTF-8 → Err（对照：from_cstr 吞错返回空串）。
     const char bad[] = {'a', '\xFF', 'b', '\0'};
-    auto err = Utf8String::try_from_cstr(bad);
+    auto       err   = Utf8String::try_from_cstr(bad);
     ASSERT_TRUE(err.is_err());
     EXPECT_EQ(err.unwrap_err().code(), ca::core::StatusCode::INVALID_ARGUMENT);
     // 对照吞错契约：from_cstr 同输入静默返回空串。
@@ -1337,8 +1444,9 @@ TEST(Utf8StringTest, TryFromCstrMatchesContract) {
 // string_view 比较运算符测试
 // ============================================================================
 
-TEST(Utf8StringRefTest, EqualsStringView) {
-    auto ref = Utf8StringRef::from_cstr("owner/name");
+TEST(Utf8StringRefTest, EqualsStringView)
+{
+    auto             ref = Utf8StringRef::from_cstr("owner/name");
     std::string_view sv("owner/name");
     std::string_view other("owner/other");
 
@@ -1357,10 +1465,11 @@ TEST(Utf8StringRefTest, EqualsStringView) {
     EXPECT_TRUE(ref == Utf8StringRef::from_cstr("owner/name"));
 }
 
-TEST(Utf8StringRefTest, EmptyComparisonsAreSafe) {
-    Utf8StringRef empty;
-    Utf8StringRef other_empty = Utf8StringRef::from_cstr(nullptr);
-    Utf8String owned_empty;
+TEST(Utf8StringRefTest, EmptyComparisonsAreSafe)
+{
+    Utf8StringRef  empty;
+    Utf8StringRef  other_empty = Utf8StringRef::from_cstr(nullptr);
+    Utf8String     owned_empty;
     ZUtf8StringRef null_z = ZUtf8StringRef::from_static(nullptr);
 
     EXPECT_TRUE(empty == other_empty);
@@ -1370,16 +1479,17 @@ TEST(Utf8StringRefTest, EmptyComparisonsAreSafe) {
     EXPECT_TRUE(null_z == owned_empty);
 }
 
-TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes) {
+TEST(Utf8StringRefTest, EqualsStringViewNonUtf8Bytes)
+{
     // 逐字节比较不要求合法 UTF-8：边界侧 std::string 可能携带任意字节
-    const ca::str::Utf8StringRef ref(
-        reinterpret_cast<const ca::u8*>("\xC0\x80"), 2, 2);
-    const std::string raw(std::string("\xC0") + "\x80");
+    const ca::str::Utf8StringRef ref(reinterpret_cast<const ca::u8*>("\xC0\x80"), 2, 2);
+    const std::string            raw(std::string("\xC0") + "\x80");
     EXPECT_TRUE(ref == std::string_view(raw));
 }
 
 
-TEST(Utf8StringRefTest, EqualsZUtf8StringRefNoAmbiguity) {
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefNoAmbiguity)
+{
     // ZUtf8StringRef 到 Utf8StringRef 的隐式转换与直接重载共同保证比较无二义。
     const Utf8StringRef name = Utf8StringRef::from_cstr("<init>");
     EXPECT_TRUE(name == ZUtf8StringRef::from_static("<init>"));
@@ -1388,8 +1498,9 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefNoAmbiguity) {
     EXPECT_FALSE(name == ZUtf8StringRef::from_static("<clinit>"));
 }
 
-TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndUtf8String) {
-    Utf8String owned("name");
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndUtf8String)
+{
+    Utf8String     owned("name");
     ZUtf8StringRef z = ZUtf8StringRef::from_static("name");
 
     EXPECT_TRUE(owned == z);
@@ -1398,8 +1509,9 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndUtf8String) {
     EXPECT_FALSE(z != owned);
 }
 
-TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView) {
-    ZUtf8StringRef z = ZUtf8StringRef::from_static("name");
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView)
+{
+    ZUtf8StringRef   z = ZUtf8StringRef::from_static("name");
     std::string_view view("name");
 
     EXPECT_TRUE(z == view);
@@ -1408,7 +1520,8 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView) {
     EXPECT_FALSE(view != z);
 }
 
-TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity) {
+TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity)
+{
     // (Utf8StringRef, ZUtf8StringRef) 自由重载引入后,Z==Z 曾在成员
     // operator==(const Utf8StringRef&) 与该自由重载间二义(C2593)——
     // 各胜一个实参。补 (Z, Z) 直接重载解歧;比较语义为逐字节内容比较,
@@ -1428,4 +1541,4 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity) {
     EXPECT_TRUE(n1 != a1);
 }
 
-}  // namespace ca::str
+}   // namespace ca::str

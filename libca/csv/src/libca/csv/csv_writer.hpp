@@ -15,7 +15,8 @@
 namespace ca::csv {
 
 /// @brief CSV 写出选项。
-struct CsvWriterOptions {
+struct CsvWriterOptions
+{
     /// @brief 是否写出 CsvDocument 的标题行。
     bool write_header = true;
 
@@ -45,7 +46,8 @@ struct CsvWriterOptions {
 
     /// @brief TSV 预设（Tab 分隔、双引号）。
     /// @return delimiter 为 `\t` 的选项，其余字段保持默认。
-    static CsvWriterOptions tsv() {
+    static CsvWriterOptions tsv()
+    {
         CsvWriterOptions options{};
         options.delimiter = '\t';
         return options;
@@ -54,7 +56,8 @@ struct CsvWriterOptions {
     /// @brief 任意分隔符的 DSV 预设。
     /// @param delimiter 字段分隔符（不能与引号字符相同）。
     /// @return 使用指定分隔符的选项，其余字段保持默认。
-    static CsvWriterOptions delimited(char delimiter) {
+    static CsvWriterOptions delimited(char delimiter)
+    {
         CsvWriterOptions options{};
         options.delimiter = delimiter;
         return options;
@@ -62,20 +65,19 @@ struct CsvWriterOptions {
 };
 
 /// @brief CSV Writer。
-class CsvWriter {
+class CsvWriter
+{
 public:
     /// @brief 将文档序列化为 Utf8String。
     /// @return 成功返回序列化文本；validate_utf8 开启且字段含非法 UTF-8 时返回错误说明。
     static ca::Result<ca::str::Utf8String, ca::str::Utf8String> write(
-        const CsvDocument& document,
-        const CsvWriterOptions& options = CsvWriterOptions());
+        const CsvDocument& document, const CsvWriterOptions& options = CsvWriterOptions());
 
     /// @brief 将文档写入文件。
     /// @return 写入成功返回 Ok；打开或写入失败返回错误说明。
     static ca::Result<void, ca::str::Utf8String> write_file(
-        const ca::str::Utf8StringRef& path,
-        const CsvDocument& document,
+        const ca::str::Utf8StringRef& path, const CsvDocument& document,
         const CsvWriterOptions& options = CsvWriterOptions());
 };
 
-}  // namespace ca::csv
+}   // namespace ca::csv

@@ -42,4 +42,4 @@ std::string hex_string(usize len);
 /// @throws std::runtime_error 系统随机源失败时抛出。
 std::string alphanumeric_string(usize len);
 
-}  // namespace ca::random
+}   // namespace ca::random

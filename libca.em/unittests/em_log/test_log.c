@@ -21,35 +21,35 @@
 
 #define LOG_BUF_SIZE 256
 
-static int test_backend_calls;
-static char test_payload[LOG_BUF_SIZE + 1];
-static usize test_payload_len;
+static int         test_backend_calls;
+static char        test_payload[LOG_BUF_SIZE + 1];
+static usize       test_payload_len;
 static const char* test_tag;
 static log_level_t test_level;
-static u32 test_time_sec;
-static u16 test_time_ms;
-static u16 test_time_us;
+static u32         test_time_sec;
+static u16         test_time_ms;
+static u16         test_time_us;
 
 static void test_backend_init(log_backend_t* b)
 {
     (void)b;
     test_backend_calls = 0;
-    test_payload_len = 0;
-    test_tag = NULL;
-    test_time_sec = 0;
-    test_time_ms = 0;
-    test_time_us = 0;
+    test_payload_len   = 0;
+    test_tag           = NULL;
+    test_time_sec      = 0;
+    test_time_ms       = 0;
+    test_time_us       = 0;
 }
 
 static void test_backend_output(log_backend_t* b, const log_record_t* rec)
 {
     (void)b;
     test_backend_calls++;
-    test_level = rec->level;
-    test_tag = rec->tag;
-    test_time_sec = rec->time_sec;
-    test_time_ms = rec->time_ms;
-    test_time_us = rec->time_us;
+    test_level       = rec->level;
+    test_tag         = rec->tag;
+    test_time_sec    = rec->time_sec;
+    test_time_ms     = rec->time_ms;
+    test_time_us     = rec->time_us;
     test_payload_len = rec->payload_len;
     if (test_payload_len > LOG_BUF_SIZE)
         test_payload_len = LOG_BUF_SIZE;
@@ -63,9 +63,10 @@ static void test_backend_output(log_backend_t* b, const log_record_t* rec)
 static volatile int g_time_thread_stop = 0;
 
 #ifdef _WIN32
-#include <windows.h>
-#include <process.h>
-static void __cdecl log_time_update_thread(void* arg) {
+#    include <windows.h>
+#    include <process.h>
+static void __cdecl log_time_update_thread(void* arg)
+{
     (void)arg;
     while (!g_time_thread_stop) {
         time_update_tick_ms(10);
@@ -73,10 +74,11 @@ static void __cdecl log_time_update_thread(void* arg) {
     }
 }
 #else
-#include <time.h>
-#include <pthread.h>
-#include <unistd.h>
-static void* log_time_update_thread(void* arg) {
+#    include <time.h>
+#    include <pthread.h>
+#    include <unistd.h>
+static void* log_time_update_thread(void* arg)
+{
     (void)arg;
     struct timespec ts = {0, 10 * 1000000}; /* 10ms */
     while (!g_time_thread_stop) {
@@ -92,8 +94,9 @@ static void* log_time_update_thread(void* arg) {
 
 // 模拟一个get_us函数，返回带随机抖动的微秒时间
 // 为了防止在同一个ms内多次调用，可能前一次比后一次大，每次调用后推进1ms
-static u32 test_us_provider(void) {
-    u32 ms = time_get_ms();
+static u32 test_us_provider(void)
+{
+    u32 ms  = time_get_ms();
     u32 val = (u32)(ms * 1000 + (u32)(rand() % 1000));
     /* advance ms to make subsequent readings vary */
     time_update_tick_ms(1);
@@ -101,13 +104,13 @@ static u32 test_us_provider(void) {
 }
 
 static log_backend_t s_test_backend = {
-    .name = "unit_test",
-    .min_level = LOG_LEVEL_INFO,
-    .enabled = true,
+    .name          = "unit_test",
+    .min_level     = LOG_LEVEL_INFO,
+    .enabled       = true,
     .support_color = false,
-    .init = test_backend_init,
-    .output = test_backend_output,
-    .next = NULL,
+    .init          = test_backend_init,
+    .output        = test_backend_output,
+    .next          = NULL,
 };
 
 TEST_CASE(log_time_provider)
@@ -206,7 +209,8 @@ TEST_CASE(log_tag_filter)
     TEST_ASSERT_EQUAL_STRING("warn_T2", test_payload);
 }
 
-// 测试：当 filter 使用与消息 tag 指针不同但字符串相等的 tag（例如 strdup），应通过 strcmp 正确匹配过滤
+// 测试：当 filter 使用与消息 tag 指针不同但字符串相等的 tag（例如 strdup），应通过 strcmp
+// 正确匹配过滤
 TEST_CASE(log_tag_filter_strcmp_path)
 {
     log_init();
@@ -246,7 +250,8 @@ TEST_CASE(log_truncation)
     log_output_all_backends_handler();
 
     TEST_ASSERT_EQUAL_INT(1, test_backend_calls);
-    TEST_ASSERT_INT_WITHIN((int)(LOG_FORMAT_BUF_SIZE - 10), (int)(LOG_FORMAT_BUF_SIZE - 1), (int)test_payload_len);
+    TEST_ASSERT_INT_WITHIN(
+        (int)(LOG_FORMAT_BUF_SIZE - 10), (int)(LOG_FORMAT_BUF_SIZE - 1), (int)test_payload_len);
     TEST_ASSERT_EQUAL_MEMORY(longstr, test_payload, (size_t)test_payload_len);
     TEST_ASSERT_EQUAL_INT((int)test_payload_len, (int)strlen(test_payload));
 }
@@ -257,11 +262,11 @@ TEST_CASE(log_backend_min_level)
     log_init();
     log_set_level(LOG_LEVEL_INFO);
     log_backend_t b = s_test_backend;
-    b.min_level = LOG_LEVEL_WARN;
-    b.enabled = true;
-    b.init = NULL;
-    b.output = test_backend_output;
-    b.next = NULL;
+    b.min_level     = LOG_LEVEL_WARN;
+    b.enabled       = true;
+    b.init          = NULL;
+    b.output        = test_backend_output;
+    b.next          = NULL;
 
     /* 注册本地后端实例 */
     log_backend_register(&b);
@@ -281,11 +286,11 @@ TEST_CASE(log_backend_enabled)
     log_init();
     log_set_level(LOG_LEVEL_INFO);
     log_backend_t b = s_test_backend;
-    b.min_level = LOG_LEVEL_INFO;
-    b.enabled = false;
-    b.init = NULL;
-    b.output = test_backend_output;
-    b.next = NULL;
+    b.min_level     = LOG_LEVEL_INFO;
+    b.enabled       = false;
+    b.init          = NULL;
+    b.output        = test_backend_output;
+    b.next          = NULL;
 
     /* 注册本地后端实例 */
     log_backend_register(&b);
@@ -310,34 +315,33 @@ void console_output(log_backend_t* backend, const log_record_t* record)
     // 按照时间的方式打印
     // [seconds.ms.us] [TAG] [LEVEL]: payload
     printf("%s[%03u.%03u.%03u] [%s] [%s]: %.*s%s\n",
-        backend->support_color ? log_level_to_ansi_color(record->level) : "",
-        record->time_sec,
-        record->time_ms,
-        record->time_us,
-        record->tag ? record->tag : "NO_TAG",
-        log_level_to_string(record->level),
-        (int)record->payload_len,
-        record->payload,
-        // 去除颜色
-        backend->support_color ? "\x1b[0m" : ""    
-    );
+           backend->support_color ? log_level_to_ansi_color(record->level) : "",
+           record->time_sec,
+           record->time_ms,
+           record->time_us,
+           record->tag ? record->tag : "NO_TAG",
+           log_level_to_string(record->level),
+           (int)record->payload_len,
+           record->payload,
+           // 去除颜色
+           backend->support_color ? "\x1b[0m" : "");
 }
 
 log_backend_t dht11_logger = {
-    .name = "dht11_console",
-    .min_level = LOG_LEVEL_INFO,
-    .enabled = true,
+    .name          = "dht11_console",
+    .min_level     = LOG_LEVEL_INFO,
+    .enabled       = true,
     .support_color = true,
-    .init = NULL,
-    .output = console_output,
-    .next = NULL,
+    .init          = NULL,
+    .output        = console_output,
+    .next          = NULL,
 };
 
 TEST_CASE(log_demo_dht11_module_log)
 {
     // 使用默认的日志级别
     log_init();
-   
+
     log_backend_register(&dht11_logger);
     dht11_log_info("DHT11 initialized");
     dht11_log_warn("DHT11 read timeout");
@@ -345,4 +349,3 @@ TEST_CASE(log_demo_dht11_module_log)
 
     log_output_all_backends_handler();
 }
-

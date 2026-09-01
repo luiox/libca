@@ -10,16 +10,16 @@
 #include <utility>
 
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <io.h>      // _isatty
-#include <windows.h>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <io.h>   // _isatty
+#    include <windows.h>
 #else
-#include <unistd.h>  // isatty
+#    include <unistd.h>   // isatty
 #endif
 
 namespace ca::log {
@@ -34,14 +34,19 @@ void set_console_color(Level level, FILE* fp)
     HANDLE h = GetStdHandle(fp == stdout ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE);
     if (h == INVALID_HANDLE_VALUE)
         return;
-    WORD attr = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;  // 默认灰白
+    WORD attr = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;   // 默认灰白
     switch (level) {
-    case Level::Trace:    attr = FOREGROUND_INTENSITY; break;                              // 灰
-    case Level::Debug:    attr = FOREGROUND_GREEN | FOREGROUND_BLUE; break;               // 青
-    case Level::Info:     attr = FOREGROUND_GREEN; break;                                 // 绿
-    case Level::Warn:     attr = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY; break;  // 黄
-    case Level::Error_:    attr = FOREGROUND_RED | FOREGROUND_INTENSITY; break;            // 亮红
-    case Level::Critical: attr = BACKGROUND_RED | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY; break;  // 红底
+    case Level::Trace: attr = FOREGROUND_INTENSITY; break;                 // 灰
+    case Level::Debug: attr = FOREGROUND_GREEN | FOREGROUND_BLUE; break;   // 青
+    case Level::Info: attr = FOREGROUND_GREEN; break;                      // 绿
+    case Level::Warn:
+        attr = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+        break;                                                                 // 黄
+    case Level::Error_: attr = FOREGROUND_RED | FOREGROUND_INTENSITY; break;   // 亮红
+    case Level::Critical:
+        attr = BACKGROUND_RED | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE |
+               FOREGROUND_INTENSITY;
+        break;   // 红底
     case Level::Off: break;
     }
     SetConsoleTextAttribute(h, attr);
@@ -60,18 +65,18 @@ bool is_tty(FILE* fp)
     return _isatty(_fileno(fp)) != 0;
 }
 
-#else  // POSIX
+#else   // POSIX
 
 const char* ansi_color(Level level)
 {
     switch (level) {
-    case Level::Trace:    return "\033[90m";   // 灰
-    case Level::Debug:    return "\033[36m";   // 青
-    case Level::Info:     return "\033[32m";   // 绿
-    case Level::Warn:     return "\033[33m";   // 黄
-    case Level::Error_:    return "\033[1;31m"; // 亮红
-    case Level::Critical: return "\033[41;1;37m";  // 红底白字
-    case Level::Off:      return "";
+    case Level::Trace: return "\033[90m";           // 灰
+    case Level::Debug: return "\033[36m";           // 青
+    case Level::Info: return "\033[32m";            // 绿
+    case Level::Warn: return "\033[33m";            // 黄
+    case Level::Error_: return "\033[1;31m";        // 亮红
+    case Level::Critical: return "\033[41;1;37m";   // 红底白字
+    case Level::Off: return "";
     }
     return "";
 }
@@ -91,7 +96,7 @@ std::string format_now(const std::string& fmt)
     if (fmt.empty())
         return std::string();
     using std::chrono::system_clock;
-    auto now = system_clock::to_time_t(system_clock::now());
+    auto    now = system_clock::to_time_t(system_clock::now());
     std::tm tm_buf{};
 #if defined(_WIN32)
     localtime_s(&tm_buf, &now);
@@ -106,12 +111,12 @@ std::string format_now(const std::string& fmt)
             return out;
         }
         out.resize(out.size() * 2);
-        if (out.size() > 256)  // 防御性上限
+        if (out.size() > 256)   // 防御性上限
             return std::string();
     }
 }
 
-}  // namespace
+}   // namespace
 
 SimpleLogBackend::SimpleLogBackend() = default;
 
@@ -124,10 +129,7 @@ SimpleLogBackend::SimpleLogBackend(SimpleLogConfig config)
     }
 }
 
-void SimpleLogBackend::log(Level              level,
-                           std::string_view   target,
-                           std::string_view   file,
-                           int                line,
+void SimpleLogBackend::log(Level level, std::string_view target, std::string_view file, int line,
                            const OpaqueFormat& message)
 {
     // 组装一行（不含颜色），日志内容统一格式：
@@ -186,4 +188,4 @@ void SimpleLogBackend::log(Level              level,
     }
 }
 
-}  // namespace ca::log
+}   // namespace ca::log

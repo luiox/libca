@@ -8,9 +8,9 @@
 /// @copyright Copyright (c) 2025
 ///
 #ifndef INI_H
-#define INI_H 
+#define INI_H
 
-#include <em_base/datatype.h> 
+#include <em_base/datatype.h>
 
 // 需要移植的部分
 // 读取配置字符串大小
@@ -33,20 +33,23 @@ void ini_write_str(u8* buf);
 #define INI_MAX_VALUE_LEN 16
 #define INI_MAX_SECTION_NAME_LEN 16
 
-typedef struct ini_kv {
+typedef struct ini_kv
+{
     char key[INI_MAX_KEY_LEN];
     char value[INI_MAX_VALUE_LEN];
-}ini_kv_t;
+} ini_kv_t;
 
-typedef struct ini_section {
-    char name[INI_MAX_SECTION_NAME_LEN];
+typedef struct ini_section
+{
+    char      name[INI_MAX_SECTION_NAME_LEN];
     ini_kv_t* kvs;
-}ini_section_t;
+} ini_section_t;
 
-typedef struct ini {
+typedef struct ini
+{
     ini_section_t* sections;
-    u32 section_num;
-}ini_t;
+    u32            section_num;
+} ini_t;
 
 // 转字符串
 void ini_to_str(ini_t* ini, u8* buf);
@@ -61,4 +64,4 @@ void ini_to_str(ini_t* ini, u8* buf);
 
 
 
-#endif // !INI_H
+#endif   // !INI_H

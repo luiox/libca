@@ -17,13 +17,13 @@ const char* system_library_path()
     return "kernel32.dll";
 }
 
-#if defined(_MSC_VER)
+#    if defined(_MSC_VER)
 using ProcessIdFunction = DWORD(WINAPI)();
-#else
+#    else
 // MinGW gcc 不接受 "DWORD(WINAPI)()" 的调用约定内嵌别名语法（MSVC 扩展）。
 // x64 Windows 下 WINAPI(stdcall) 即默认调用约定，直接省略不影响符号解析与调用。
 using ProcessIdFunction = DWORD();
-#endif
+#    endif
 const char* process_id_symbol()
 {
     return "GetCurrentProcessId";

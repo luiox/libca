@@ -113,10 +113,10 @@ usize latin1_to_utf8(const u8* latin1, usize length, u8* utf8) noexcept;
 // 输入非法 UTF-8，或含 >U+00FF 的码点（Latin-1 不可表示）时返回哨兵。
 // 用返回值区分 0（空输入合法）与不可表示：见 UTF8_TO_LATIN1_INVALID。
 static constexpr usize UTF8_TO_LATIN1_INVALID = usize(-1);
-usize utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept;
+usize                  utf8_to_latin1_length(const u8* utf8, usize byteLength) noexcept;
 
 // UTF-8 → Latin-1：latin1 缓冲区应能容纳至少 utf8_to_latin1_length 个 u8。
 // 返回写入的 u8 个数；输入非法或含 >U+00FF 码点时返回 UTF8_TO_LATIN1_INVALID。
 usize utf8_to_latin1(const u8* utf8, usize byteLength, u8* latin1) noexcept;
 
-}  // namespace ca::str
+}   // namespace ca::str

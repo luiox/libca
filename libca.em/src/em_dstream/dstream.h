@@ -155,12 +155,14 @@ static inline u16 dstream_peek_u16_be(dstream_t* self, usize offset)
 static inline u32 dstream_peek_u32_le(dstream_t* self, usize offset)
 {
     return (u32)dstream_peek_u8(self, offset) | ((u32)dstream_peek_u8(self, offset + 1) << 8) |
-           ((u32)dstream_peek_u8(self, offset + 2) << 16) | ((u32)dstream_peek_u8(self, offset + 3) << 24);
+           ((u32)dstream_peek_u8(self, offset + 2) << 16) |
+           ((u32)dstream_peek_u8(self, offset + 3) << 24);
 }
 
 static inline u32 dstream_peek_u32_be(dstream_t* self, usize offset)
 {
-    return ((u32)dstream_peek_u8(self, offset) << 24) | ((u32)dstream_peek_u8(self, offset + 1) << 16) |
+    return ((u32)dstream_peek_u8(self, offset) << 24) |
+           ((u32)dstream_peek_u8(self, offset + 1) << 16) |
            ((u32)dstream_peek_u8(self, offset + 2) << 8) | (u32)dstream_peek_u8(self, offset + 3);
 }
 
@@ -184,12 +186,14 @@ static inline i16 dstream_peek_i16_be(dstream_t* self, usize offset)
 static inline i32 dstream_peek_i32_le(dstream_t* self, usize offset)
 {
     return (i32)dstream_peek_u8(self, offset) | ((i32)dstream_peek_u8(self, offset + 1) << 8) |
-           ((i32)dstream_peek_u8(self, offset + 2) << 16) | ((i32)dstream_peek_u8(self, offset + 3) << 24);
+           ((i32)dstream_peek_u8(self, offset + 2) << 16) |
+           ((i32)dstream_peek_u8(self, offset + 3) << 24);
 }
 
 static inline i32 dstream_peek_i32_be(dstream_t* self, usize offset)
 {
-    return ((i32)dstream_peek_u8(self, offset) << 24) | ((i32)dstream_peek_u8(self, offset + 1) << 16) |
+    return ((i32)dstream_peek_u8(self, offset) << 24) |
+           ((i32)dstream_peek_u8(self, offset + 1) << 16) |
            ((i32)dstream_peek_u8(self, offset + 2) << 8) | (i32)dstream_peek_u8(self, offset + 3);
 }
 

@@ -14,4 +14,4 @@
 
 const dstream_ops_t* ring_buf_get_dstream_ops(void);
 
-#endif // !LIBCA_EM_DSTREAM_DS_RING_BUFFER_H
+#endif   // !LIBCA_EM_DSTREAM_DS_RING_BUFFER_H

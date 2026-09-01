@@ -26,16 +26,13 @@ spdlog::level::level_enum to_spdlog_level(Level level)
     return kSpdlogLevelMap[index];
 }
 
-}  // namespace
+}   // namespace
 
 SpdlogBackend::SpdlogBackend(std::shared_ptr<spdlog::logger> logger)
     : logger_(std::move(logger))
 {}
 
-void SpdlogBackend::log(Level              level,
-                        std::string_view   /*target*/,
-                        std::string_view   file,
-                        int                line,
+void SpdlogBackend::log(Level level, std::string_view /*target*/, std::string_view file, int line,
                         const OpaqueFormat& message)
 {
     if (!logger_)
@@ -46,9 +43,7 @@ void SpdlogBackend::log(Level              level,
     std::string rendered;
     message.render_to(rendered);
 
-    logger_->log(spdlog::source_loc{file.data(), line, ""},
-                 to_spdlog_level(level),
-                 rendered);
+    logger_->log(spdlog::source_loc{file.data(), line, ""}, to_spdlog_level(level), rendered);
 }
 
-}  // namespace ca::log
+}   // namespace ca::log

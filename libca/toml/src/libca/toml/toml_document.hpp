@@ -20,12 +20,13 @@ class TomlWriter;
 class TomlParser;
 
 /// @brief TOML 文档：arena + root。
-class TomlDocument {
+class TomlDocument
+{
 public:
     TomlDocument();
     ~TomlDocument();
 
-    TomlDocument(const TomlDocument&) = delete;
+    TomlDocument(const TomlDocument&)            = delete;
     TomlDocument& operator=(const TomlDocument&) = delete;
     TomlDocument(TomlDocument&& other) noexcept;
     TomlDocument& operator=(TomlDocument&& other) noexcept;
@@ -43,7 +44,7 @@ public:
 
 private:
     ca::str::Utf8StringArena arena_;
-    TomlValue root_;
+    TomlValue                root_;
 };
 
-}  // namespace ca::toml
+}   // namespace ca::toml

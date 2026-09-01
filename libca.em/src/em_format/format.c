@@ -107,7 +107,7 @@ static u32 fmt_next_frac_digit(f64* frac_val)
         scaled = 9.999999999;
     }
 
-    digit = (u32)scaled;
+    digit     = (u32)scaled;
     *frac_val = scaled - (f64)digit;
     if (*frac_val < 0.0) {
         *frac_val = 0.0;
@@ -222,7 +222,7 @@ static usize f32_to_str_core_fast(char* buf, usize buf_len, f32 val, u32 decimal
     if (decimal_num > 0U) {
         safe_buf_putc(buf, buf_len, &pos, '.');
 
-        pow10 = fmt_pow10_u32(decimal_num);
+        pow10     = fmt_pow10_u32(decimal_num);
         frac_part = (u32)(frac_val * (f32)pow10);
 
         if (pow10 > 1U) {
@@ -333,9 +333,9 @@ static void fmt_buf_put_u32_hex(char* buf, usize buf_size, usize* pos, u32 value
 
     while (value != 0U && i < (usize)sizeof(tmp)) {
         // 明确写出以提高优化性能
-        u32 d = value & 0xFU; // u32 d = value % 16U;
+        u32 d    = value & 0xFU;   // u32 d = value % 16U;
         tmp[i++] = upper ? digits_upper[d] : digits_lower[d];
-        value >>= 4; // value /= 16U;
+        value >>= 4;   // value /= 16U;
     }
 
     while (i > 0U) {
@@ -655,4 +655,3 @@ i32 fmt_sprintf(char* buf, const char* fmt, ...)
 
     return len;
 }
-

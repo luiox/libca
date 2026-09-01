@@ -16,7 +16,8 @@ extern "C" {
 #endif
 
 /// @brief 五次多项式参数
-typedef struct poly5_coeff_s {
+typedef struct poly5_coeff_s
+{
     f32 a0;
     f32 a1;
     f32 a2;
@@ -44,4 +45,4 @@ f32 poly5_eval_pos(const poly5_coeff_t* coeff, f32 t);
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_POLYNOMIAL_H
+#endif   // !LIBCA_EM_MOTION_POLYNOMIAL_H

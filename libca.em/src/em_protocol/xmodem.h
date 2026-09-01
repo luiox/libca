@@ -12,35 +12,38 @@
 #include "file_transfer.h"
 #include <em_util/soft_timer.h>
 
-#define XMODEM_OK                 0
-#define XMODEM_ERR_RB_TOO_SMALL   1
-#define XMODEM_ERR_TIMEOUT        2
-#define XMODEM_ERR_RETRY_EXCEED   3
-#define XMODEM_ERR_CANCELLED      4
+#define XMODEM_OK 0
+#define XMODEM_ERR_RB_TOO_SMALL 1
+#define XMODEM_ERR_TIMEOUT 2
+#define XMODEM_ERR_RETRY_EXCEED 3
+#define XMODEM_ERR_CANCELLED 4
 
-typedef enum xmodem_mode_enum{
+typedef enum xmodem_mode_enum
+{
     XMODEM_MODE_STANDARD,
     XMODEM_MODE_CRC,
     XMODEM_MODE_1K,
-}xmodem_mode_t;
+} xmodem_mode_t;
 
-typedef struct xmodem_config{
+typedef struct xmodem_config
+{
     // 用户自定义数据
     void* user_data;
     // 模式选择
     xmodem_mode_t mode;
     // 接收缓冲区
-    u8* recv_buffer;
+    u8*   recv_buffer;
     usize recv_buffer_size;
 
     // 是否是发送者模式
     bool is_transmitter;
     // 最大重试次数，如果为负数则无限重试，特征值-1表示无限重试
     i8 max_retries;
-}xmodem_config_t;
+} xmodem_config_t;
 
 // NOTE: xmodem now adapted to generic file transfer callbacks
-typedef struct xmodem {
+typedef struct xmodem
+{
     // 协议层持有的 transport
     transport_t* io;
 
@@ -70,7 +73,7 @@ typedef struct xmodem {
     acumulate_timer_t idle_timer;
     // 重试次数
     u8 retry_count;
-}xmodem_t;
+} xmodem_t;
 
 /// @brief 获取 XMODEM 的全局唯一文件传输协议接口
 ///
@@ -90,7 +93,7 @@ const file_transfer_ops_t* get_xmodem_file_transfer_ops(void);
 /// @param config 指向 XMODEM 配置参数（xmodem_config_t）的指针，包含工作模式和重试策略
 ///
 /// @return 0 表示初始化成功，非 0 表示初始化失败
-i32 xmodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* config);
+i32 xmodem_init(void* self, transport_t* io, const file_transfer_cbs_t* cbs, void* config);
 
 /// @brief XMODEM 协议的时钟滴答处理
 ///
@@ -123,7 +126,7 @@ i32 xmodem_process(void* self, const u8* in_buf, usize in_len);
 /// 来驱动接收流程。
 ///
 /// @param self 指向 xmodem_t 实例的指针
-void xmodem_start_recv(void *self);
+void xmodem_start_recv(void* self);
 
 /// @brief 启动 XMODEM 发送模式
 ///
@@ -134,7 +137,7 @@ void xmodem_start_recv(void *self);
 /// @param self 指向 xmodem_t 实例的指针
 /// @param filename 要发送的文件名称（可选，某些协议变体可能使用）
 /// @param file_size 要发送的文件总大小，单位为字节
-void xmodem_start_send(void *self, const char* filename, u32 file_size);
+void xmodem_start_send(void* self, const char* filename, u32 file_size);
 
 /// @brief 获取已传输的数据大小
 ///
@@ -144,7 +147,7 @@ void xmodem_start_send(void *self, const char* filename, u32 file_size);
 /// @param self 指向 xmodem_t 实例的指针
 ///
 /// @return 已传输的数据大小，单位为字节
-i32 xmodem_get_transferred_size(void *self);
+i32 xmodem_get_transferred_size(void* self);
 
 
-#endif // !LIBCA_EM_PROTOCOL_XMODEM_H
+#endif   // !LIBCA_EM_PROTOCOL_XMODEM_H

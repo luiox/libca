@@ -4,19 +4,25 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_EXTERN)
-#define LED_WRITE_PIN(gpio, pin, value) port_led_write_pin((gpio), (pin), (value))
+#    define LED_WRITE_PIN(gpio, pin, value) port_led_write_pin((gpio), (pin), (value))
 
 #elif (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
 static const led_port_t* g_led_port = NULL;
-#define LED_WRITE_PIN(gpio, pin, value) g_led_port->write_pin((gpio), (pin), (value))
+#    define LED_WRITE_PIN(gpio, pin, value) g_led_port->write_pin((gpio), (pin), (value))
 
 #else
-#error "Invalid LED port mode"
+#    error "Invalid LED port mode"
 #endif
 
 #if (LIBCA_LED_PORT_MODE == LIBCA_LED_PORT_MODE_DYNAMIC)
-void led_bind_port(const led_port_t* port) { g_led_port = port; }
-bool led_port_is_registered(void) { return g_led_port != NULL; }
+void led_bind_port(const led_port_t* port)
+{
+    g_led_port = port;
+}
+bool led_port_is_registered(void)
+{
+    return g_led_port != NULL;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +66,7 @@ void led_off(led_t* self)
 void led_toggle(led_t* self)
 {
     param_check(self != NULL);
-    
+
     // 判断当前状态
     if (self->state == led_state_on) {
         led_off(self);

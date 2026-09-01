@@ -100,7 +100,7 @@ TEST(TagIsaTest, isaFalseForNullptr)
 
 // ---- dyn_cast: 受检向下转型 ----
 // 注意：dyn_cast/isa 只有 const U* 重载，因此 dyn_cast 恒产出 const 目标指针
-//（cast 另有非 const 重载，不受此限）。
+// （cast 另有非 const 重载，不受此限）。
 
 TEST(TagDynCastTest, dynCastReturnsPointerOnMatch)
 {

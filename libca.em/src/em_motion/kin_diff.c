@@ -14,36 +14,36 @@
 
 void diff_drive_ik(f32 v, f32 w, f32 wheel_base, f32* left, f32* right)
 {
-	if (!left || !right || wheel_base <= 0.0f) {
-		return;
-	}
+    if (!left || !right || wheel_base <= 0.0f) {
+        return;
+    }
 
-	*right = v + (w * wheel_base * 0.5f);
-	*left = v - (w * wheel_base * 0.5f);
+    *right = v + (w * wheel_base * 0.5f);
+    *left  = v - (w * wheel_base * 0.5f);
 }
 
 void diff_drive_fk(f32 left, f32 right, f32 wheel_base, f32* v, f32* w)
 {
-	if (!v || !w || wheel_base <= 0.0f) {
-		return;
-	}
+    if (!v || !w || wheel_base <= 0.0f) {
+        return;
+    }
 
-	*v = 0.5f * (right + left);
-	*w = (right - left) / wheel_base;
+    *v = 0.5f * (right + left);
+    *w = (right - left) / wheel_base;
 }
 
 void diff_drive_odometry(f32 left, f32 right, f32 wheel_base, f32 dt, pose2d_t* pose)
 {
-	f32 v = 0.0f;
-	f32 w = 0.0f;
+    f32 v = 0.0f;
+    f32 w = 0.0f;
 
-	if (!pose || dt <= 0.0f || wheel_base <= 0.0f) {
-		return;
-	}
+    if (!pose || dt <= 0.0f || wheel_base <= 0.0f) {
+        return;
+    }
 
-	diff_drive_fk(left, right, wheel_base, &v, &w);
+    diff_drive_fk(left, right, wheel_base, &v, &w);
 
-	pose->x += v * dt * cosf(pose->theta);
-	pose->y += v * dt * sinf(pose->theta);
-	pose->theta += w * dt;
+    pose->x += v * dt * cosf(pose->theta);
+    pose->y += v * dt * sinf(pose->theta);
+    pose->theta += w * dt;
 }

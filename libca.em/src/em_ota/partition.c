@@ -6,9 +6,9 @@
  * Port 管理
  * ============================================================================ */
 
-static const partition_port_t *g_partition_port = NULL;
+static const partition_port_t* g_partition_port = NULL;
 
-void partition_register_port(const partition_port_t *port)
+void partition_register_port(const partition_port_t* port)
 {
     g_partition_port = port;
 }
@@ -22,7 +22,7 @@ bool partition_port_is_registered(void)
  * 分区查找
  * ============================================================================ */
 
-const partition_t* partition_find(const partition_t *table, usize count, const char *name)
+const partition_t* partition_find(const partition_t* table, usize count, const char* name)
 {
     if (table == NULL || name == NULL) {
         return NULL;
@@ -40,7 +40,7 @@ const partition_t* partition_find(const partition_t *table, usize count, const c
  * 基础操作
  * ============================================================================ */
 
-i32 partition_read(const partition_t *part, u32 offset, u8 *buf, u32 len)
+i32 partition_read(const partition_t* part, u32 offset, u8* buf, u32 len)
 {
     if (part == NULL || buf == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -74,7 +74,7 @@ i32 partition_read(const partition_t *part, u32 offset, u8 *buf, u32 len)
     return PARTITION_OK;
 }
 
-i32 partition_write(const partition_t *part, u32 offset, const u8 *data, u32 len)
+i32 partition_write(const partition_t* part, u32 offset, const u8* data, u32 len)
 {
     if (part == NULL || data == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -108,7 +108,7 @@ i32 partition_write(const partition_t *part, u32 offset, const u8 *data, u32 len
     return PARTITION_OK;
 }
 
-i32 partition_erase(const partition_t *part)
+i32 partition_erase(const partition_t* part)
 {
     if (part == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -132,7 +132,7 @@ i32 partition_erase(const partition_t *part)
     return PARTITION_OK;
 }
 
-i32 partition_erase_range(const partition_t *part, u32 offset, u32 len)
+i32 partition_erase_range(const partition_t* part, u32 offset, u32 len)
 {
     if (part == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -170,7 +170,7 @@ i32 partition_erase_range(const partition_t *part, u32 offset, u32 len)
  * 流式写入
  * ============================================================================ */
 
-i32 partition_stream_open(partition_stream_t *stream, const partition_t *part, u32 total_size)
+i32 partition_stream_open(partition_stream_t* stream, const partition_t* part, u32 total_size)
 {
     if (stream == NULL || part == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -190,17 +190,17 @@ i32 partition_stream_open(partition_stream_t *stream, const partition_t *part, u
         return PARTITION_ERR_OUT_OF_RANGE;
     }
 
-    stream->part = part;
-    stream->current_offset = 0;
-    stream->total_size = total_size;
-    stream->written = 0;
+    stream->part             = part;
+    stream->current_offset   = 0;
+    stream->total_size       = total_size;
+    stream->written          = 0;
     stream->on_block_written = NULL;
-    stream->userdata = NULL;
+    stream->userdata         = NULL;
 
     return PARTITION_OK;
 }
 
-i32 partition_stream_write(partition_stream_t *stream, const u8 *data, u32 len)
+i32 partition_stream_write(partition_stream_t* stream, const u8* data, u32 len)
 {
     if (stream == NULL || data == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -247,7 +247,7 @@ i32 partition_stream_write(partition_stream_t *stream, const u8 *data, u32 len)
     return PARTITION_OK;
 }
 
-i32 partition_stream_close(partition_stream_t *stream)
+i32 partition_stream_close(partition_stream_t* stream)
 {
     if (stream == NULL) {
         return PARTITION_ERR_INVALID_PARAM;
@@ -260,18 +260,19 @@ i32 partition_stream_close(partition_stream_t *stream)
     /* 检查写入大小是否匹配预期 */
     if (stream->written != stream->total_size) {
         debug_print("[partition] stream close: size mismatch, written=%u, expected=%u",
-                    stream->written, stream->total_size);
+                    stream->written,
+                    stream->total_size);
         return PARTITION_ERR_SIZE_MISMATCH;
     }
 
     /* 清理状态 */
-    stream->part = NULL;
+    stream->part           = NULL;
     stream->current_offset = 0;
 
     return PARTITION_OK;
 }
 
-u32 partition_stream_offset(const partition_stream_t *stream)
+u32 partition_stream_offset(const partition_stream_t* stream)
 {
     if (stream == NULL) {
         return 0;
@@ -279,7 +280,7 @@ u32 partition_stream_offset(const partition_stream_t *stream)
     return stream->current_offset;
 }
 
-u32 partition_stream_remaining(const partition_stream_t *stream)
+u32 partition_stream_remaining(const partition_stream_t* stream)
 {
     if (stream == NULL || stream->part == NULL) {
         return 0;
@@ -290,4 +291,3 @@ u32 partition_stream_remaining(const partition_stream_t *stream)
 /* ============================================================================
  * 单元测试
  * ============================================================================ */
-

@@ -71,8 +71,8 @@ TEST(NextTest, NOneAlwaysReturnsZero)
 TEST(NextTest, DistributionRoughlyUniform)
 {
     // 粗略均匀性检查：10000 次 next(100)，每个桶应远小于总次数的 1/4。
-    constexpr u64 n     = 100;
-    constexpr int total = 20000;
+    constexpr u64 n           = 100;
+    constexpr int total       = 20000;
     int           counts[100] = {0};
 
     for (int i = 0; i < total; ++i)
@@ -148,5 +148,5 @@ TEST(AlphanumericTest, ZeroLengthIsEmpty)
     EXPECT_EQ(alphanumeric_string(0), "");
 }
 
-}  // namespace
-}  // namespace ca::random::test
+}   // namespace
+}   // namespace ca::random::test

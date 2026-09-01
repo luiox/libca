@@ -25,13 +25,15 @@
 namespace ca::toml {
 
 /// @brief TOML 解析选项（TOML 1.0 严格模式，目前无可配项，保留扩展位）。
-struct TomlParserOptions {
+struct TomlParserOptions
+{
     /// 最大嵌套深度（数组/表/inline table），超出报错以防栈溢出。
     ca::usize max_depth = 1000;
 };
 
 /// @brief TOML 递归下降解析器，把输入构建为 TomlDocument。
-class TomlParser {
+class TomlParser
+{
 public:
     /// @brief 构造解析器。document 持有 arena + root；解析期间所有字符串入 arena。
     ///        输入视图须在使用期内有效（零拷贝）。
@@ -47,16 +49,16 @@ public:
 
 private:
     // ---- 字节流游标 ----
-    const u8* data_;
-    usize byte_length_;
-    usize pos_;
+    const u8*      data_;
+    usize          byte_length_;
+    usize          pos_;
     SourceLocation loc_;
-    bool failed_;
-    ca::usize depth_;
+    bool           failed_;
+    ca::usize      depth_;
 
-    TomlDocument& document_;
+    TomlDocument&     document_;
     TomlParserOptions options_;
-    ParseError error_;
+    ParseError        error_;
 
     // 已显式定义过的 table header 完整路径（O(1) 精确重复检测）。
     // 路径编码为 segment1\x1Fsegment2\x1F...（\x1F 作分隔符，避免与 key 字符冲突）。
@@ -79,16 +81,16 @@ private:
     std::string current_table_path_;
 
     // ---- 基本字节操作 ----
-    u8 peek() const noexcept;
-    u8 peek_at(usize offset) const noexcept;
+    u8   peek() const noexcept;
+    u8   peek_at(usize offset) const noexcept;
     void advance() noexcept;
     bool at_end() const noexcept;
 
     // ---- 空白 / 注释 / 行 ----
-    void skip_inline_ws();         // 空格 + tab
-    void skip_ws_comments_newlines();  // 任意空白/注释/换行
-    bool skip_comment();           // # 到行尾
-    bool skip_to_newline_or_end(); // 行尾空白 + 可选注释 + 换行；返回 false 表示行没结束
+    void skip_inline_ws();              // 空格 + tab
+    void skip_ws_comments_newlines();   // 任意空白/注释/换行
+    bool skip_comment();                // # 到行尾
+    bool skip_to_newline_or_end();   // 行尾空白 + 可选注释 + 换行；返回 false 表示行没结束
 
     // ---- 错误报告 ----
     void fail(SourceLocation loc, const char* message);
@@ -101,22 +103,22 @@ private:
     /// out_segments 输出每个段的 Utf8StringRef（已 intern）。
     /// out_locs 输出每段起始位置（用于错误定位）。
     bool parse_key_path(std::vector<ca::str::Utf8StringRef>& out_segments,
-                        std::vector<SourceLocation>& out_locs);
+                        std::vector<SourceLocation>&         out_locs);
 
     /// 处理 [a.b.c] 或 [[a.b.c]] 行。已消费到 [ 或 [[。
     bool parse_table_header(bool array_of_tables);
 
     /// 处理 key = value 行。segments 是完整 dotted-key 路径。
     bool parse_key_value(const std::vector<ca::str::Utf8StringRef>& segments,
-                         const std::vector<SourceLocation>& seg_locs);
+                         const std::vector<SourceLocation>&         seg_locs);
 
     /// 标记完整路径（last_index 段）为已被 [header] 定义（segments 相对 root）。
     void mark_header_defined(const std::vector<ca::str::Utf8StringRef>& segments,
-                            ca::usize last_index);
+                             ca::usize                                  last_index);
 
     /// 计算 segments[0..last_index] 相对 current_table_ 的全局路径（编码同 defined_paths_）。
     std::string global_path(const std::vector<ca::str::Utf8StringRef>& segments,
-                            ca::usize last_index) const;
+                            ca::usize                                  last_index) const;
 
     // ---- 值解析 ----
     bool parse_value(TomlValue& out);
@@ -146,4 +148,4 @@ private:
     static bool decode_utf8(const u8* data, usize len, usize& i, u32& cp);
 };
 
-}  // namespace ca::toml
+}   // namespace ca::toml

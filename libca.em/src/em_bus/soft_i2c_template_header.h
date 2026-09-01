@@ -5,7 +5,8 @@
 ///
 /// 使用方法：
 /// 1. 在头文件包含之前soft_i2c_template_header.h 定义 USER_I2C_PREFIX_NAME 宏（可选，默认为 soft）
-/// 2. 在源文件包含soft_i2c_template_source.h之前先再次定义USER_I2C_PREFIX_NAME，要跟头文件的一模一样。
+/// 2.
+/// 在源文件包含soft_i2c_template_source.h之前先再次定义USER_I2C_PREFIX_NAME，要跟头文件的一模一样。
 ///    并且定义底层操作宏：
 ///    - I2C_SCL_H()      : 拉高 SCL
 ///    - I2C_SCL_L()      : 拉低 SCL
@@ -31,19 +32,19 @@
 
 // 如果没有就用这个
 #ifndef USER_I2C_PREFIX_NAME
-#define USER_I2C_PREFIX_NAME soft
+#    define USER_I2C_PREFIX_NAME soft
 #endif
 
 #ifndef NAME_CONNECT
-#define NAME_CONNECT(a, b) a##b
+#    define NAME_CONNECT(a, b) a##b
 #endif
 
 #ifndef I2C_CLASS_NAME
-#define I2C_CLASS_NAME NAME_CONNECT(USER_I2C_PREFIX_NAME, _i2c_)
+#    define I2C_CLASS_NAME NAME_CONNECT(USER_I2C_PREFIX_NAME, _i2c_)
 #endif
 
 #ifndef I2C_CLASS_FUNC_NAME
-#define I2C_CLASS_FUNC_NAME(func) NAME_CONNECT(I2C_CLASS_NAME, func)
+#    define I2C_CLASS_FUNC_NAME(func) NAME_CONNECT(I2C_CLASS_NAME, func)
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -93,35 +94,35 @@ u8 I2C_CLASS_FUNC_NAME(read_byte)(void);
 
 // 生成完以后取消宏定义
 #ifdef USER_I2C_PREFIX_NAME
-#undef USER_I2C_PREFIX_NAME
+#    undef USER_I2C_PREFIX_NAME
 #endif
 
 #ifdef NAME_CONNECT
-#undef NAME_CONNECT
+#    undef NAME_CONNECT
 #endif
 
 #ifdef I2C_CLASS_NAME
-#undef I2C_CLASS_NAME
+#    undef I2C_CLASS_NAME
 #endif
 
 #ifdef I2C_CLASS_FUNC_NAME
-#undef I2C_CLASS_FUNC_NAME
+#    undef I2C_CLASS_FUNC_NAME
 #endif
 
 // 使用例子
 #if 0
 // 头文件my_i2c_device.h内
-#ifndef MY_I2C_DEVICE_H
-#define MY_I2C_DEVICE_H
+#    ifndef MY_I2C_DEVICE_H
+#        define MY_I2C_DEVICE_H
 
-#define USER_I2C_PREFIX_NAME my_dev
-#include "soft_i2c_template_header.h"
+#        define USER_I2C_PREFIX_NAME my_dev
+#        include "soft_i2c_template_header.h"
 
-#endif // !MY_I2C_DEVICE_H
+#    endif   // !MY_I2C_DEVICE_H
 
 // 源文件my_i2c_device.c内
 // 先包含头文件
-#include "my_i2c_device.h"
+#    include "my_i2c_device.h"
 
 // 修改为针对平台的不同实现
 
@@ -183,16 +184,16 @@ static void i2c_delay(void)
 }
 
 // 定义所需的宏
-#define I2C_SCL_H i2c_scl_high
-#define I2C_SCL_L i2c_scl_low
-#define I2C_SDA_H i2c_sda_high
-#define I2C_SDA_L i2c_sda_low
-#define I2C_SDA_READ i2c_sda_read
-#define I2C_SDA_OUT i2c_sda_out
-#define I2C_SDA_IN i2c_sda_in
-#define I2C_DELAY i2c_delay
+#    define I2C_SCL_H i2c_scl_high
+#    define I2C_SCL_L i2c_scl_low
+#    define I2C_SDA_H i2c_sda_high
+#    define I2C_SDA_L i2c_sda_low
+#    define I2C_SDA_READ i2c_sda_read
+#    define I2C_SDA_OUT i2c_sda_out
+#    define I2C_SDA_IN i2c_sda_in
+#    define I2C_DELAY i2c_delay
 
 // 然后包含生成实现的头文件
-#include "soft_i2c_template_source.h"
+#    include "soft_i2c_template_source.h"
 
 #endif

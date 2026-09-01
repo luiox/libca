@@ -7,7 +7,8 @@
 
 namespace ca::core::test {
 
-TEST(ScopeGuardTest, RunsOnScopeExit) {
+TEST(ScopeGuardTest, RunsOnScopeExit)
+{
     bool called = false;
     {
         auto guard = make_scope_guard([&]() { called = true; });
@@ -16,7 +17,8 @@ TEST(ScopeGuardTest, RunsOnScopeExit) {
     EXPECT_TRUE(called);
 }
 
-TEST(ScopeGuardTest, DismissSkipsCallback) {
+TEST(ScopeGuardTest, DismissSkipsCallback)
+{
     bool called = false;
     {
         auto guard = make_scope_guard([&]() { called = true; });
@@ -26,10 +28,11 @@ TEST(ScopeGuardTest, DismissSkipsCallback) {
     EXPECT_FALSE(called);
 }
 
-TEST(ScopeGuardTest, MoveTransfersCallback) {
+TEST(ScopeGuardTest, MoveTransfersCallback)
+{
     int calls = 0;
     {
-        auto first = make_scope_guard([&]() { ++calls; });
+        auto first  = make_scope_guard([&]() { ++calls; });
         auto second = std::move(first);
         EXPECT_FALSE(first.is_active());
         EXPECT_TRUE(second.is_active());
@@ -37,7 +40,8 @@ TEST(ScopeGuardTest, MoveTransfersCallback) {
     EXPECT_EQ(calls, 1);
 }
 
-TEST(ScopeGuardTest, DeferRunsAtScopeExit) {
+TEST(ScopeGuardTest, DeferRunsAtScopeExit)
+{
     int value = 1;
     {
         DEFER(value += 2);
@@ -46,7 +50,8 @@ TEST(ScopeGuardTest, DeferRunsAtScopeExit) {
     EXPECT_EQ(value, 3);
 }
 
-TEST(ScopeGuardTest, DeferRunsInReverseDeclarationOrder) {
+TEST(ScopeGuardTest, DeferRunsInReverseDeclarationOrder)
+{
     std::string order;
     {
         DEFER(order += "b");
@@ -55,4 +60,4 @@ TEST(ScopeGuardTest, DeferRunsInReverseDeclarationOrder) {
     EXPECT_EQ(order, "ab");
 }
 
-} // namespace ca::core::test
+}   // namespace ca::core::test

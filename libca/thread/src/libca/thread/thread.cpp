@@ -18,7 +18,7 @@ std::shared_ptr<ThreadCompletion> make_thread_completion()
 }
 
 void record_thread_exception(const std::shared_ptr<ThreadCompletion>& completion,
-                             std::exception_ptr exception) noexcept
+                             std::exception_ptr                       exception) noexcept
 {
     try {
         std::lock_guard<std::mutex> lock(completion->mutex);
@@ -53,8 +53,7 @@ ca::core::Status completion_status(const std::shared_ptr<ThreadCompletion>& comp
 
 }   // namespace details
 
-Thread::Thread(std::thread native,
-               StopSource stop_source,
+Thread::Thread(std::thread native, StopSource stop_source,
                std::shared_ptr<details::ThreadCompletion> completion) noexcept
     : native_(std::move(native))
     , stop_source_(std::move(stop_source))

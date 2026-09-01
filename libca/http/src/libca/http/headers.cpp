@@ -83,10 +83,11 @@ HttpResult<void> HttpHeaders::set(std::string name, std::string value)
 usize HttpHeaders::remove(std::string_view name) noexcept
 {
     const auto previous_size = entries_.size();
-    entries_.erase(std::remove_if(entries_.begin(), entries_.end(), [&](const HttpHeader& header) {
-                       return name_equals(header.name, name);
-                   }),
-                   entries_.end());
+    entries_.erase(
+        std::remove_if(entries_.begin(),
+                       entries_.end(),
+                       [&](const HttpHeader& header) { return name_equals(header.name, name); }),
+        entries_.end());
     return previous_size - entries_.size();
 }
 

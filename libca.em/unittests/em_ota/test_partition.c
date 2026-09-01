@@ -19,14 +19,23 @@ static u8 g_mock_flash[MOCK_FLASH_SIZE];
 
 /* 测试用分区表（适配 256KB 模拟 Flash） */
 static const partition_t test_partitions[] = {
-    {"bootloader", 0x08000000, 0x00004000, PARTITION_FLAG_READONLY},  /* 16KB */
-    {"app",        0x08004000, 0x00020000, PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},  /* 128KB */
-    {"download",   0x08024000, 0x00010000, PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},  /* 64KB */
-    {"params",     0x08034000, 0x00004000, PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},  /* 16KB */
+    {"bootloader", 0x08000000, 0x00004000, PARTITION_FLAG_READONLY}, /* 16KB */
+    {"app",
+     0x08004000,
+     0x00020000,
+     PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE}, /* 128KB */
+    {"download",
+     0x08024000,
+     0x00010000,
+     PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE}, /* 64KB */
+    {"params",
+     0x08034000,
+     0x00004000,
+     PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE}, /* 16KB */
 };
 
 /* 模拟读取 */
-static i32 mock_read(u32 addr, u8 *buf, u32 len)
+static i32 mock_read(u32 addr, u8* buf, u32 len)
 {
     u32 offset = addr - MOCK_FLASH_BASE;
     if (offset + len > MOCK_FLASH_SIZE) {
@@ -37,7 +46,7 @@ static i32 mock_read(u32 addr, u8 *buf, u32 len)
 }
 
 /* 模拟写入 */
-static i32 mock_write(u32 addr, const u8 *data, u32 len)
+static i32 mock_write(u32 addr, const u8* data, u32 len)
 {
     u32 offset = addr - MOCK_FLASH_BASE;
     if (offset + len > MOCK_FLASH_SIZE) {
@@ -59,7 +68,7 @@ static i32 mock_erase(u32 addr, u32 len)
 }
 
 static const partition_port_t mock_port = {
-    .read = mock_read,
+    .read  = mock_read,
     .write = mock_write,
     .erase = mock_erase,
 };
@@ -74,26 +83,28 @@ static u32 g_callback_count;
 static u32 g_callback_last_offset;
 static u32 g_callback_last_len;
 
-static void test_callback(u32 offset, const u8 *data, u32 len, void *userdata)
+static void test_callback(u32 offset, const u8* data, u32 len, void* userdata)
 {
     g_callback_count++;
     g_callback_last_offset = offset;
-    g_callback_last_len = len;
+    g_callback_last_len    = len;
     unused_param(data);
     unused_param(userdata);
 }
 
-TEST_CASE(partition_port_register) {
+TEST_CASE(partition_port_register)
+{
     partition_register_port(NULL);
     TEST_ASSERT(!partition_port_is_registered());
     partition_register_port(&mock_port);
     TEST_ASSERT(partition_port_is_registered());
 }
 
-TEST_CASE(partition_find_test) {
+TEST_CASE(partition_find_test)
+{
     usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
 
-    const partition_t *p = partition_find(test_partitions, count, "app");
+    const partition_t* p = partition_find(test_partitions, count, "app");
     TEST_ASSERT_NOT_NULL(p);
     TEST_ASSERT_EQUAL_STRING("app", p->name);
     TEST_ASSERT_EQUAL_UINT(0x08004000, p->start);
@@ -109,24 +120,25 @@ TEST_CASE(partition_find_test) {
     TEST_ASSERT_NULL(p);
 }
 
-TEST_CASE(partition_read_write_basic) {
+TEST_CASE(partition_read_write_basic)
+{
     test_setup_port();
 
     /* 先擦除整个模拟 Flash */
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *app = partition_find(test_partitions, count, "app");
+    usize              count = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* app   = partition_find(test_partitions, count, "app");
     TEST_ASSERT_NOT_NULL(app);
 
     /* 写入数据 */
-    u8 write_data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
-    i32 ret = partition_write(app, 0, write_data, sizeof(write_data));
+    u8  write_data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
+    i32 ret          = partition_write(app, 0, write_data, sizeof(write_data));
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 
     /* 读取验证 */
     u8 read_buf[8] = {0};
-    ret = partition_read(app, 0, read_buf, sizeof(write_data));
+    ret            = partition_read(app, 0, read_buf, sizeof(write_data));
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
     TEST_ASSERT_EQUAL_MEMORY(write_data, read_buf, sizeof(write_data));
 
@@ -139,17 +151,18 @@ TEST_CASE(partition_read_write_basic) {
     TEST_ASSERT_EQUAL_MEMORY(write_data, read_buf, sizeof(write_data));
 }
 
-TEST_CASE(partition_readonly_check) {
+TEST_CASE(partition_readonly_check)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *boot = partition_find(test_partitions, count, "bootloader");
+    usize              count = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* boot  = partition_find(test_partitions, count, "bootloader");
     TEST_ASSERT_NOT_NULL(boot);
 
-    u8 data[] = {0xAA, 0xBB};
-    i32 ret = partition_write(boot, 0, data, sizeof(data));
+    u8  data[] = {0xAA, 0xBB};
+    i32 ret    = partition_write(boot, 0, data, sizeof(data));
     TEST_ASSERT_EQUAL_INT(PARTITION_ERR_READONLY, ret);
 
     ret = partition_erase(boot);
@@ -160,13 +173,14 @@ TEST_CASE(partition_readonly_check) {
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 }
 
-TEST_CASE(partition_out_of_range) {
+TEST_CASE(partition_out_of_range)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *download = partition_find(test_partitions, count, "download");
+    usize              count    = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* download = partition_find(test_partitions, count, "download");
     TEST_ASSERT_NOT_NULL(download);
 
     u8 data[16] = {0};
@@ -182,14 +196,15 @@ TEST_CASE(partition_out_of_range) {
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 }
 
-TEST_CASE(partition_erase_test) {
+TEST_CASE(partition_erase_test)
+{
     test_setup_port();
 
     /* 先写入一些数据 */
     mem_set(g_mock_flash, 0x00, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *params = partition_find(test_partitions, count, "params");
+    usize              count  = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* params = partition_find(test_partitions, count, "params");
     TEST_ASSERT_NOT_NULL(params);
 
     /* 擦除分区 */
@@ -206,18 +221,19 @@ TEST_CASE(partition_erase_test) {
     }
 }
 
-TEST_CASE(partition_stream_basic) {
+TEST_CASE(partition_stream_basic)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *download = partition_find(test_partitions, count, "download");
+    usize              count    = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* download = partition_find(test_partitions, count, "download");
     TEST_ASSERT_NOT_NULL(download);
 
     partition_stream_t stream;
-    u32 total_size = 1024;
-    i32 ret = partition_stream_open(&stream, download, total_size);
+    u32                total_size = 1024;
+    i32                ret        = partition_stream_open(&stream, download, total_size);
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
     TEST_ASSERT_EQUAL_UINT(0, partition_stream_offset(&stream));
     TEST_ASSERT_EQUAL_UINT(total_size, partition_stream_remaining(&stream));
@@ -260,19 +276,20 @@ TEST_CASE(partition_stream_basic) {
     TEST_ASSERT_EQUAL_MEMORY(block3, verify + 512, 512);
 }
 
-TEST_CASE(partition_stream_callback) {
+TEST_CASE(partition_stream_callback)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *download = partition_find(test_partitions, count, "download");
+    usize              count    = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* download = partition_find(test_partitions, count, "download");
     TEST_ASSERT_NOT_NULL(download);
 
     g_callback_count = 0;
 
     partition_stream_t stream;
-    i32 ret = partition_stream_open(&stream, download, 100);
+    i32                ret = partition_stream_open(&stream, download, 100);
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 
     /* 设置回调 */
@@ -300,22 +317,23 @@ TEST_CASE(partition_stream_callback) {
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 }
 
-TEST_CASE(partition_stream_size_mismatch) {
+TEST_CASE(partition_stream_size_mismatch)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *download = partition_find(test_partitions, count, "download");
+    usize              count    = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* download = partition_find(test_partitions, count, "download");
     TEST_ASSERT_NOT_NULL(download);
 
     partition_stream_t stream;
-    i32 ret = partition_stream_open(&stream, download, 100);
+    i32                ret = partition_stream_open(&stream, download, 100);
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 
     /* 只写入 50 字节，但预期 100 字节 */
     u8 data[50] = {0};
-    ret = partition_stream_write(&stream, data, 50);
+    ret         = partition_stream_write(&stream, data, 50);
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 
     /* 关闭时应返回大小不匹配错误 */
@@ -323,17 +341,18 @@ TEST_CASE(partition_stream_size_mismatch) {
     TEST_ASSERT_EQUAL_INT(PARTITION_ERR_SIZE_MISMATCH, ret);
 }
 
-TEST_CASE(partition_stream_exceed_size) {
+TEST_CASE(partition_stream_exceed_size)
+{
     test_setup_port();
 
     mem_set(g_mock_flash, MOCK_ERASE_VALUE, MOCK_FLASH_SIZE);
 
-    usize count = sizeof(test_partitions) / sizeof(test_partitions[0]);
-    const partition_t *download = partition_find(test_partitions, count, "download");
+    usize              count    = sizeof(test_partitions) / sizeof(test_partitions[0]);
+    const partition_t* download = partition_find(test_partitions, count, "download");
     TEST_ASSERT_NOT_NULL(download);
 
     partition_stream_t stream;
-    i32 ret = partition_stream_open(&stream, download, 100);
+    i32                ret = partition_stream_open(&stream, download, 100);
     TEST_ASSERT_EQUAL_INT(PARTITION_OK, ret);
 
     u8 data[200] = {0};
@@ -348,14 +367,14 @@ TEST_CASE(partition_stream_exceed_size) {
     TEST_ASSERT_EQUAL_INT(PARTITION_ERR_OUT_OF_RANGE, ret);
 }
 
-TEST_CASE(partition_stream_not_open) {
+TEST_CASE(partition_stream_not_open)
+{
     partition_stream_t stream = {0};
 
-    u8 data[10] = {0};
-    i32 ret = partition_stream_write(&stream, data, sizeof(data));
+    u8  data[10] = {0};
+    i32 ret      = partition_stream_write(&stream, data, sizeof(data));
     TEST_ASSERT_EQUAL_INT(PARTITION_ERR_NOT_OPEN, ret);
 
     ret = partition_stream_close(&stream);
     TEST_ASSERT_EQUAL_INT(PARTITION_ERR_NOT_OPEN, ret);
 }
-

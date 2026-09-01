@@ -13,4 +13,3 @@ TEST_CASE(ini_basic)
     // Placeholder test for ini
     TEST_ASSERT(1);
 }
-

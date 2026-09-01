@@ -16,19 +16,20 @@
 extern "C" {
 #endif
 
-#define YMODEM_OK                 0
-#define YMODEM_ERR_RB_TOO_SMALL   1
-#define YMODEM_ERR_TIMEOUT        2
-#define YMODEM_ERR_RETRY_EXCEED   3
-#define YMODEM_ERR_CANCELLED      4
-#define YMODEM_ERR_UNSUPPORTED    5
-#define YMODEM_ERR_BAD_PACKET     6
+#define YMODEM_OK 0
+#define YMODEM_ERR_RB_TOO_SMALL 1
+#define YMODEM_ERR_TIMEOUT 2
+#define YMODEM_ERR_RETRY_EXCEED 3
+#define YMODEM_ERR_CANCELLED 4
+#define YMODEM_ERR_UNSUPPORTED 5
+#define YMODEM_ERR_BAD_PACKET 6
 
-typedef struct ymodem_config {
+typedef struct ymodem_config
+{
     // 用户自定义数据
     void* user_data;
     // 接收缓冲区
-    u8* recv_buffer;
+    u8*   recv_buffer;
     usize recv_buffer_size;
 
     // 是否是发送者模式（当前仅实现接收者）
@@ -37,7 +38,8 @@ typedef struct ymodem_config {
     i8 max_retries;
 } ymodem_config_t;
 
-typedef struct ymodem {
+typedef struct ymodem
+{
     // 协议层持有的 transport
     transport_t* io;
 
@@ -48,14 +50,14 @@ typedef struct ymodem {
     ymodem_config_t* config;
 
     // 状态机
-    u8 state;
-    u8 packet_num;
+    u8    state;
+    u8    packet_num;
     usize offset;
     usize received_len;
 
     // 文件信息
     char filename[128];
-    u32 file_size;
+    u32  file_size;
     bool file_info_ready;
 
     // 计时器
@@ -81,7 +83,7 @@ const file_transfer_ops_t* get_ymodem_file_transfer_ops(void);
 /// @param config 指向 YMODEM 配置参数（ymodem_config_t）的指针
 ///
 /// @return 0 表示初始化成功，非 0 表示初始化失败
-i32 ymodem_init(void *self, transport_t *io, const file_transfer_cbs_t *cbs, void* config);
+i32 ymodem_init(void* self, transport_t* io, const file_transfer_cbs_t* cbs, void* config);
 
 /// @brief YMODEM 协议的时钟滴答处理
 ///
@@ -103,24 +105,24 @@ i32 ymodem_process(void* self, const u8* in_buf, usize in_len);
 /// @brief 启动 YMODEM 接收模式
 ///
 /// @param self 指向 ymodem_t 实例的指针
-void ymodem_start_recv(void *self);
+void ymodem_start_recv(void* self);
 
 /// @brief 启动 YMODEM 发送模式（当前未实现）
 ///
 /// @param self 指向 ymodem_t 实例的指针
 /// @param filename 要发送的文件名称
 /// @param file_size 要发送的文件总大小，单位为字节
-void ymodem_start_send(void *self, const char* filename, u32 file_size);
+void ymodem_start_send(void* self, const char* filename, u32 file_size);
 
 /// @brief 获取已传输的数据大小
 ///
 /// @param self 指向 ymodem_t 实例的指针
 ///
 /// @return 已传输的数据大小，单位为字节
-i32 ymodem_get_transferred_size(void *self);
+i32 ymodem_get_transferred_size(void* self);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // !LIBCA_EM_PROTOCOL_YMODEM_H
+#endif   // !LIBCA_EM_PROTOCOL_YMODEM_H

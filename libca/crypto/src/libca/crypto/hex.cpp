@@ -17,7 +17,7 @@ ca::i32 from_hex(char ch) noexcept
     return -1;
 }
 
-}  // namespace
+}   // namespace
 
 std::string hex_encode(ca::core::ByteSlice data)
 {
@@ -41,7 +41,7 @@ ca::Result<ca::core::Bytes, CryptoError> hex_decode(const std::string& text)
     ca::core::BytesMut output = ca::core::BytesMut::with_capacity(text.size() / 2);
     for (ca::usize i = 0; i < text.size(); i += 2) {
         const ca::i32 high = from_hex(text[i]);
-        const ca::i32 low = from_hex(text[i + 1]);
+        const ca::i32 low  = from_hex(text[i + 1]);
         if (high < 0 || low < 0)
             return ca::Err(CryptoError::INVALID_HEX);
         output.put_u8(static_cast<ca::u8>((high << 4) | low));
@@ -50,4 +50,4 @@ ca::Result<ca::core::Bytes, CryptoError> hex_decode(const std::string& text)
     return ca::Ok(output.freeze());
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

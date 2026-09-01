@@ -10,11 +10,12 @@
 namespace ca::ini {
 
 /// @brief 源码位置：1-based 行 + 列（按字节计；UTF-8 多字节字符占多列）。
-struct SourceLocation {
+struct SourceLocation
+{
     /// 行号（1-based）。
     usize line = 1;
     /// 列号（1-based，按字节计）。
     usize column = 1;
 };
 
-}  // namespace ca::ini
+}   // namespace ca::ini

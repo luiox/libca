@@ -13,7 +13,7 @@
 #include <em_base/datatype.h>
 #include <stdbool.h>
 #include <math.h>
-#include <em_base/debug.h>  
+#include <em_base/debug.h>
 
 typedef struct
 {
@@ -69,10 +69,12 @@ CA_INLINE float fast_sinf(float x)
     return y;
 }
 
-CA_INLINE float math_fabs(float x) {
+CA_INLINE float math_fabs(float x)
+{
 #if defined(__IEEE_754__)
-    union {
-        float f;
+    union
+    {
+        float    f;
         uint32_t u;
     } converter = {x};
     converter.u &= 0x7FFFFFFFu;
@@ -119,25 +121,28 @@ int16_t constrain_int16(int16_t amt, int16_t low, int16_t high);
 #if DETECT_MODE
 
 // 检查 float 是否符合 IEEE 754
-static int is_float_ieee754() {
-    float f = -1.0f;
+static int is_float_ieee754()
+{
+    float    f = -1.0f;
     uint32_t u;
     memcpy(&u, &f, sizeof(f));
-    return u == 0xBF800000; // -1.0 的 IEEE 754 单精度表示
+    return u == 0xBF800000;   // -1.0 的 IEEE 754 单精度表示
 }
 
 // 检查 double 是否符合 IEEE 754
-static int is_double_ieee754() {
-    double d = -1.0;
+static int is_double_ieee754()
+{
+    double   d = -1.0;
     uint64_t u;
     memcpy(&u, &d, sizeof(d));
-    return u == 0xBFF0000000000000ULL; // -1.0 的 IEEE 754 双精度表示
+    return u == 0xBFF0000000000000ULL;   // -1.0 的 IEEE 754 双精度表示
 }
 
 // 检查 NaN 和 Inf 的位模式
-static int test_special_values() {
-    float inf = 1.0f / 0.0f;
-    float nan = 0.0f / 0.0f;
+static int test_special_values()
+{
+    float    inf = 1.0f / 0.0f;
+    float    nan = 0.0f / 0.0f;
     uint32_t u_inf, u_nan;
     memcpy(&u_inf, &inf, sizeof(inf));
     memcpy(&u_nan, &nan, sizeof(nan));
@@ -146,9 +151,10 @@ static int test_special_values() {
 
 static void ieee754_check(void)
 {
-   if (is_float_ieee754() && is_double_ieee754() && test_special_values()) {
+    if (is_float_ieee754() && is_double_ieee754() && test_special_values()) {
         debug_print("This platform supports IEEE 754 standard.\n");
-    } else {
+    }
+    else {
         debug_print("This platform does NOT support IEEE 754 standard.\n");
     }
 }
@@ -158,13 +164,13 @@ static void ieee754_check(void)
 
 
 /// @brief 原子操作代码块
-#define SAFE_ATOM_CODE                                 \
-  using(uint32_t SAFE_NAME(temp) = ({                  \
-          uint32_t SAFE_NAME(temp2) = __get_PRIMASK(); \
-          __disable_irq();                             \
-          SAFE_NAME(temp2);                            \
-        }),                                            \
-        __set_PRIMASK(SAFE_NAME(temp)))
+#define SAFE_ATOM_CODE                                     \
+    using(uint32_t SAFE_NAME(temp) = ({                    \
+              uint32_t SAFE_NAME(temp2) = __get_PRIMASK(); \
+              __disable_irq();                             \
+              SAFE_NAME(temp2);                            \
+          }),                                              \
+          __set_PRIMASK(SAFE_NAME(temp)))
 
 
 #define __IRQ_SAFE SAFE_ATOM_CODE
@@ -176,29 +182,25 @@ static void ieee754_check(void)
 /// @param __type 元素类型 (可选)
 #define dimof(...) EVAL(__dim_of_, __VA_ARGS__)(__VA_ARGS__)
 
-#define __foreach_2(__array, __type)                              \
-  USING(__type * _ = __array) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                       dimof(__array, __type);    \
-                                   SAFE_NAME(cnt) > 0; _++, SAFE_NAME(cnt)--)
+#define __foreach_2(__array, __type)                                                \
+    USING(__type* _ = __array)                                                      \
+    for (uint_fast32_t SAFE_NAME(cnt) = dimof(__array, __type); SAFE_NAME(cnt) > 0; \
+         _++, SAFE_NAME(cnt)--)
 
 #define __foreach_1(__array) __foreach_2(__array, typeof(*(__array)))
-#define __foreach_3(__array, __type, __pt)                          \
-  USING(__type * __pt =                                             \
-            __array) for (uint_fast32_t CONNECT2(count, __LINE__) = \
-                              dimof(__array, __type);               \
-                          SAFE_NAME(cnt) > 0; __pt++, SAFE_NAME(cnt)--)
-#define __foreach_reverse_2(__array, __type)                \
-  USING(__type * _ = __array + dimof(__array, __type) -     \
-                     1) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                 dimof(__array, __type);    \
-                             SAFE_NAME(cnt) > 0; _--, SAFE_NAME(cnt)--)
-#define __foreach_reverse_1(__array) \
-  __foreach_reverse_2(__array, typeof(*(__array)))
-#define __foreach_reverse_3(__array, __type, __pt)             \
-  USING(__type * __pt = __array + dimof(__array, __type) -     \
-                        1) for (uint_fast32_t SAFE_NAME(cnt) = \
-                                    dimof(__array, __type);    \
-                                SAFE_NAME(cnt) > 0; __pt--, SAFE_NAME(cnt)--)
+#define __foreach_3(__array, __type, __pt)                                                     \
+    USING(__type* __pt = __array)                                                              \
+    for (uint_fast32_t CONNECT2(count, __LINE__) = dimof(__array, __type); SAFE_NAME(cnt) > 0; \
+         __pt++, SAFE_NAME(cnt)--)
+#define __foreach_reverse_2(__array, __type)                                        \
+    USING(__type* _ = __array + dimof(__array, __type) - 1)                         \
+    for (uint_fast32_t SAFE_NAME(cnt) = dimof(__array, __type); SAFE_NAME(cnt) > 0; \
+         _--, SAFE_NAME(cnt)--)
+#define __foreach_reverse_1(__array) __foreach_reverse_2(__array, typeof(*(__array)))
+#define __foreach_reverse_3(__array, __type, __pt)                                  \
+    USING(__type* __pt = __array + dimof(__array, __type) - 1)                      \
+    for (uint_fast32_t SAFE_NAME(cnt) = dimof(__array, __type); SAFE_NAME(cnt) > 0; \
+         __pt--, SAFE_NAME(cnt)--)
 /// @brief 遍历数组
 /// @param __array 数组
 /// @param __type 元素类型 (可选)
@@ -216,16 +218,14 @@ static void ieee754_check(void)
 
 #define __MIN_2(__a, __b) ((__a) < (__b) ? (__a) : (__b))
 #define __MIN_3(__a, __b, __c) __MIN_2(__MIN_2(__a, __b), __c)
-#define __MIN_4(__a, __b, __c, __d) \
-  __MIN_2(__MIN_2(__a, __b), __MIN_2(__c, __d))
+#define __MIN_4(__a, __b, __c, __d) __MIN_2(__MIN_2(__a, __b), __MIN_2(__c, __d))
 
 /// @brief Get the minimum value of the specified values
 #define CMIN(...) EVAL(__MIN_, __VA_ARGS__)(__VA_ARGS__)
 
 #define __MAX_2(__a, __b) ((__a) > (__b) ? (__a) : (__b))
 #define __MAX_3(__a, __b, __c) __MAX_2(__MAX_2(__a, __b), __c)
-#define __MAX_4(__a, __b, __c, __d) \
-  __MAX_2(__MAX_2(__a, __b), __MAX_2(__c, __d))
+#define __MAX_4(__a, __b, __c, __d) __MAX_2(__MAX_2(__a, __b), __MAX_2(__c, __d))
 
 /// @brief Get the maximum value of the specified values
 #define CMAX(...) EVAL(__MAX_, __VA_ARGS__)(__VA_ARGS__)
@@ -237,9 +237,8 @@ static void ieee754_check(void)
 #define CLAMP(__x, __min, __max) CMIN(CMAX(__x, __min), __max)
 
 /// @brief Linear mapping input to the specified range
-#define MAP(__x, __in_min, __in_max, __out_min, __out_max)              \
-  ((__x - __in_min) * (__out_max - __out_min) / (__in_max - __in_min) + \
-   __out_min)
+#define MAP(__x, __in_min, __in_max, __out_min, __out_max) \
+    ((__x - __in_min) * (__out_max - __out_min) / (__in_max - __in_min) + __out_min)
 
 /// @brief make compiler know the expression is likely to be true
 #define likeyly(x) __builtin_expect(!!(x), 1)

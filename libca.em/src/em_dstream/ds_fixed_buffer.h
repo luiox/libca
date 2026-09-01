@@ -15,4 +15,4 @@
 const dstream_ops_t* fixed_buf_get_dstream_ops(void);
 
 
-#endif // !LIBCA_EM_DSTREAM_DS_FIXED_BUFFER_H
+#endif   // !LIBCA_EM_DSTREAM_DS_FIXED_BUFFER_H

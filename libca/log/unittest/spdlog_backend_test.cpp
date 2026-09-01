@@ -31,7 +31,7 @@ std::shared_ptr<SpdlogBackend> make_backend(std::ostringstream& out)
 {
     auto sink   = std::make_shared<spdlog::sinks::ostream_sink_mt>(out);
     auto logger = std::make_shared<spdlog::logger>("test", sink);
-    logger->set_pattern("%v");          // 只输出消息体，便于断言
+    logger->set_pattern("%v");   // 只输出消息体，便于断言
     logger->set_level(spdlog::level::trace);
     return std::make_shared<SpdlogBackend>(logger);
 }
@@ -67,10 +67,8 @@ TEST(SpdlogBackendTest, AllLevelsMapped)
 TEST(SpdlogBackendTest, NullLoggerIsSafe)
 {
     SpdlogBackend backend(nullptr);
-    EXPECT_NO_THROW({
-        backend.log(Level::Info, "t", "f", 1, LiteralFormat("dropped"));
-    });
+    EXPECT_NO_THROW({ backend.log(Level::Info, "t", "f", 1, LiteralFormat("dropped")); });
 }
 
-}  // namespace
-}  // namespace ca::log::test
+}   // namespace
+}   // namespace ca::log::test

@@ -26,5 +26,5 @@ TEST(LevelTest, ToString)
     EXPECT_EQ(to_string(Level::Off), "Off");
 }
 
-}  // namespace
-}  // namespace ca::log::test
+}   // namespace
+}   // namespace ca::log::test

@@ -14,7 +14,7 @@
 #define YMODEM_CRC 0x43
 
 #define YMODEM_BLOCK0_LEN 128
-#define YMODEM_DATA_LEN   1024
+#define YMODEM_DATA_LEN 1024
 #define YMODEM_PACKET_OVERHEAD 5
 #define YMODEM_MAX_PACKET_LEN (YMODEM_DATA_LEN + YMODEM_PACKET_OVERHEAD)
 
@@ -67,12 +67,12 @@ static void ymodem_reset(ymodem_t* ym)
     acumulate_timer_init(&ym->idle_timer, 0);
     acumulate_timer_reset(&ym->idle_timer, 0);
 
-    ym->packet_num = 0;
-    ym->offset = 0;
-    ym->received_len = 0;
-    ym->file_size = 0;
+    ym->packet_num      = 0;
+    ym->offset          = 0;
+    ym->received_len    = 0;
+    ym->file_size       = 0;
     ym->file_info_ready = false;
-    ym->retry_count = 0;
+    ym->retry_count     = 0;
     mem_zero(ym->filename, sizeof(ym->filename));
 
     if (ym->config->is_transmitter) {
@@ -128,7 +128,7 @@ static bool ymodem_parse_file_info(ymodem_t* ym, const u8* data, usize data_len,
     mem_cpy(ym->filename, data, copy_len);
 
     usize size_pos = i + 1;
-    u32 size = 0;
+    u32   size     = 0;
     while (size_pos < data_len && data[size_pos] != '\0' && data[size_pos] != ' ') {
         char c = (char)data[size_pos];
         if (c < '0' || c > '9') {
@@ -168,9 +168,9 @@ i32 ymodem_init(void* self, transport_t* io, const file_transfer_cbs_t* cbs, voi
     param_check(config != NULL);
 
     ymodem_t* ym = (ymodem_t*)self;
-    ym->io = io;
-    ym->cbs = (file_transfer_cbs_t*)cbs;
-    ym->config = (ymodem_config_t*)config;
+    ym->io       = io;
+    ym->cbs      = (file_transfer_cbs_t*)cbs;
+    ym->config   = (ymodem_config_t*)config;
 
     if (ym->config->recv_buffer == NULL) {
         return YMODEM_ERR_RB_TOO_SMALL;
@@ -233,8 +233,8 @@ static void ymodem_send_ack_and_c(ymodem_t* ym)
 /// @return 无
 static void ymodem_handle_packet(ymodem_t* ym)
 {
-    u8 header = ym->config->recv_buffer[0];
-    usize data_len = (header == YMODEM_SOH) ? YMODEM_BLOCK0_LEN : YMODEM_DATA_LEN;
+    u8    header       = ym->config->recv_buffer[0];
+    usize data_len     = (header == YMODEM_SOH) ? YMODEM_BLOCK0_LEN : YMODEM_DATA_LEN;
     usize packet_total = data_len + YMODEM_PACKET_OVERHEAD;
 
     if (packet_total > ym->config->recv_buffer_size) {
@@ -243,8 +243,8 @@ static void ymodem_handle_packet(ymodem_t* ym)
         return;
     }
 
-    u8 seq = ym->config->recv_buffer[1];
-    u8 nseq = ym->config->recv_buffer[2];
+    u8        seq  = ym->config->recv_buffer[1];
+    u8        nseq = ym->config->recv_buffer[2];
     const u8* data = &ym->config->recv_buffer[3];
 
     u16 crc_recv = (u16)((ym->config->recv_buffer[packet_total - 2] << 8) |
@@ -310,9 +310,9 @@ static void ymodem_handle_packet(ymodem_t* ym)
         }
 
         ym->file_info_ready = true;
-        ym->offset = 0;
-        ym->packet_num = 1;
-        ym->retry_count = 0;
+        ym->offset          = 0;
+        ym->packet_num      = 1;
+        ym->retry_count     = 0;
 
         if (ym->cbs != NULL && ym->cbs->on_start != NULL) {
             ym->cbs->on_start(ym->config->user_data, ym->file_size, ym->filename);
@@ -363,7 +363,6 @@ static void ymodem_handle_packet(ymodem_t* ym)
                 return;
             }
         }
-
     }
 
     ym->offset += actual_len;
@@ -392,65 +391,63 @@ i32 ymodem_process(void* self, const u8* in_buf, usize in_len)
     while (i < in_len) {
         u8 ch = in_buf[i];
         switch (ym->state) {
-            case S_RX_WAIT_START:
-            case S_RX_WAIT_PACKET:
-            case S_RX_WAIT_END_PACKET:
-            {
-                if (ch == YMODEM_SOH || ch == YMODEM_STX) {
-                    ym->config->recv_buffer[0] = ch;
-                    ym->received_len = 1;
-                    ym->state = S_RX_IN_PACKET;
-                }
-                else if (ch == YMODEM_EOT) {
-                    ymodem_send_char(ym, YMODEM_NAK);
-                    ym->state = S_RX_WAIT_EOT;
-                }
-                else if (ch == YMODEM_CAN) {
-                    ymodem_handle_error(ym, YMODEM_ERR_CANCELLED);
-                    return YMODEM_ERR_CANCELLED;
-                }
-                i++;
-            } break;
+        case S_RX_WAIT_START:
+        case S_RX_WAIT_PACKET:
+        case S_RX_WAIT_END_PACKET:
+        {
+            if (ch == YMODEM_SOH || ch == YMODEM_STX) {
+                ym->config->recv_buffer[0] = ch;
+                ym->received_len           = 1;
+                ym->state                  = S_RX_IN_PACKET;
+            }
+            else if (ch == YMODEM_EOT) {
+                ymodem_send_char(ym, YMODEM_NAK);
+                ym->state = S_RX_WAIT_EOT;
+            }
+            else if (ch == YMODEM_CAN) {
+                ymodem_handle_error(ym, YMODEM_ERR_CANCELLED);
+                return YMODEM_ERR_CANCELLED;
+            }
+            i++;
+        } break;
 
-            case S_RX_WAIT_EOT:
-            {
-                if (ch == YMODEM_EOT) {
-                    ymodem_send_char(ym, YMODEM_ACK);
-                    ymodem_send_char(ym, YMODEM_CRC);
-                    ym->packet_num = 0;
-                    ym->state = S_RX_WAIT_END_PACKET;
-                }
-                else if (ch == YMODEM_CAN) {
-                    ymodem_handle_error(ym, YMODEM_ERR_CANCELLED);
-                    return YMODEM_ERR_CANCELLED;
-                }
-                i++;
-            } break;
+        case S_RX_WAIT_EOT:
+        {
+            if (ch == YMODEM_EOT) {
+                ymodem_send_char(ym, YMODEM_ACK);
+                ymodem_send_char(ym, YMODEM_CRC);
+                ym->packet_num = 0;
+                ym->state      = S_RX_WAIT_END_PACKET;
+            }
+            else if (ch == YMODEM_CAN) {
+                ymodem_handle_error(ym, YMODEM_ERR_CANCELLED);
+                return YMODEM_ERR_CANCELLED;
+            }
+            i++;
+        } break;
 
-            case S_RX_IN_PACKET:
-            {
-                u8 header = ym->config->recv_buffer[0];
-                usize data_len = (header == YMODEM_SOH) ? YMODEM_BLOCK0_LEN : YMODEM_DATA_LEN;
-                usize packet_total = data_len + YMODEM_PACKET_OVERHEAD;
+        case S_RX_IN_PACKET:
+        {
+            u8    header       = ym->config->recv_buffer[0];
+            usize data_len     = (header == YMODEM_SOH) ? YMODEM_BLOCK0_LEN : YMODEM_DATA_LEN;
+            usize packet_total = data_len + YMODEM_PACKET_OVERHEAD;
 
-                usize remain_in_packet = packet_total - ym->received_len;
-                usize remain_in_buf = in_len - i;
-                usize copy_len = (remain_in_packet < remain_in_buf) ? remain_in_packet : remain_in_buf;
+            usize remain_in_packet = packet_total - ym->received_len;
+            usize remain_in_buf    = in_len - i;
+            usize copy_len = (remain_in_packet < remain_in_buf) ? remain_in_packet : remain_in_buf;
 
-                mem_cpy(&ym->config->recv_buffer[ym->received_len], &in_buf[i], copy_len);
-                ym->received_len += copy_len;
-                i += copy_len;
+            mem_cpy(&ym->config->recv_buffer[ym->received_len], &in_buf[i], copy_len);
+            ym->received_len += copy_len;
+            i += copy_len;
 
-                if (ym->received_len >= packet_total) {
-                    ymodem_handle_packet(ym);
-                }
-            } break;
+            if (ym->received_len >= packet_total) {
+                ymodem_handle_packet(ym);
+            }
+        } break;
 
-            case S_FINISHED:
-            case S_ERROR:
-            default:
-                i++;
-                break;
+        case S_FINISHED:
+        case S_ERROR:
+        default: i++; break;
         }
     }
 

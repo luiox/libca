@@ -58,4 +58,3 @@ void queue_clear(queue_t* queue)
     }
     queue->size = 0;
 }
-

@@ -4,17 +4,23 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_EXTERN)
-#define EC11_READ_PIN(gpio, pin) port_ec11_read_pin((gpio), (pin))
+#    define EC11_READ_PIN(gpio, pin) port_ec11_read_pin((gpio), (pin))
 #elif (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
 static const ec11_port_t* g_ec11_port = NULL;
-#define EC11_READ_PIN(gpio, pin) g_ec11_port->read_pin((gpio), (pin))
+#    define EC11_READ_PIN(gpio, pin) g_ec11_port->read_pin((gpio), (pin))
 #else
-#error "Invalid EC11 port mode"
+#    error "Invalid EC11 port mode"
 #endif
 
 #if (LIBCA_EC11_PORT_MODE == LIBCA_EC11_PORT_MODE_DYNAMIC)
-void ec11_bind_port(const ec11_port_t* port) { g_ec11_port = port; }
-bool ec11_port_is_registered(void) { return g_ec11_port != NULL; }
+void ec11_bind_port(const ec11_port_t* port)
+{
+    g_ec11_port = port;
+}
+bool ec11_port_is_registered(void)
+{
+    return g_ec11_port != NULL;
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +60,8 @@ ec11_rotation ec11_scan(ec11_t* self)
         if (clk_state != dt_state) {
             result = EC11_ROTATION_RIGHT;
             self->rotation_count++;
-        } else { // 当CLK和DT电平相同时，为反转
+        }
+        else {   // 当CLK和DT电平相同时，为反转
             result = EC11_ROTATION_LEFT;
             self->rotation_count--;
         }

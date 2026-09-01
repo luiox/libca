@@ -31,8 +31,8 @@ TEST(ChannelTest, SingleProducerSingleConsumer)
 // 验收标准：多生产者单消费者（克隆 Sender）。
 TEST(ChannelTest, MultipleProducersOneConsumer)
 {
-    auto [tx, rx] = channel<int>();
-    Sender<int> tx2 = tx;  // 克隆 Sender
+    auto [tx, rx]   = channel<int>();
+    Sender<int> tx2 = tx;   // 克隆 Sender
     Sender<int> tx3 = tx;
 
     EXPECT_TRUE(tx.send(10));
@@ -87,9 +87,7 @@ TEST(ChannelTest, RecvTimeoutReturnsValue)
 {
     auto [tx, rx] = channel<int>();
 
-    auto producer = std::async(std::launch::async, [&]() {
-        tx.send(7);
-    });
+    auto producer = std::async(std::launch::async, [&]() { tx.send(7); });
 
     auto value = rx.recv_timeout(100ms);
     ASSERT_TRUE(value.has_value());
@@ -120,7 +118,7 @@ TEST(ChannelTest, AllSendersDroppedReturnsNullopt)
 // 覆盖与上面 close() 路径不同的分支。
 TEST(ChannelTest, LastSenderDtorWithoutCloseSignalsReceiver)
 {
-    Receiver<int> rx = Receiver<int>{};  // 先占位，下面作用域内绑定
+    Receiver<int> rx = Receiver<int>{};   // 先占位，下面作用域内绑定
     {
         auto [tx, rx_local] = channel<int>();
         tx.send(42);
@@ -138,10 +136,10 @@ TEST(ChannelTest, ExplicitCloseMakesRecvDrainAndReturnNullopt)
 {
     auto [tx, rx] = channel<int>();
     tx.send(10);
-    tx.close();  // 显式关闭，Sender 仍在
+    tx.close();   // 显式关闭，Sender 仍在
 
     EXPECT_EQ(rx.recv(), std::optional<int>(10));
-    EXPECT_EQ(rx.recv(), std::nullopt);  // 关闭后排空 -> nullopt
+    EXPECT_EQ(rx.recv(), std::nullopt);   // 关闭后排空 -> nullopt
 }
 
 // 验收标准：有界通道在满时阻塞 send。
@@ -157,26 +155,26 @@ TEST(ChannelTest, BoundedChannelBlocksSendWhenFull)
         rx.recv();
     });
 
-    EXPECT_TRUE(tx.send(3));  // 阻塞直到消费者取走 1
+    EXPECT_TRUE(tx.send(3));   // 阻塞直到消费者取走 1
     consumer.get();
 }
 
 TEST(ChannelTest, BoundedChannelSendFailsWhenReceiverDropped)
 {
     auto [tx, rx] = channel<int>(1);
-    tx.send(1);  // 填满有界队列
+    tx.send(1);   // 填满有界队列
 
     // 销毁 Receiver：有界 send 不应死锁，应立即返回 false。
-    Receiver<int> rx_moved = std::move(rx);  // rx 置空
+    Receiver<int> rx_moved = std::move(rx);   // rx 置空
     // rx_moved 析构 -> receiver_alive=false，唤醒阻塞的生产者。
-    rx_moved = Receiver<int>{};              // 强制销毁接收端状态
+    rx_moved = Receiver<int>{};   // 强制销毁接收端状态
 
     EXPECT_FALSE(tx.send(2));
 }
 
 TEST(ChannelTest, UnboundedChannelAcceptsMany)
 {
-    auto [tx, rx] = channel<int>(0);  // 无界
+    auto [tx, rx] = channel<int>(0);   // 无界
 
     for (int i = 0; i < 1000; ++i)
         ASSERT_TRUE(tx.send(i));
@@ -187,13 +185,13 @@ TEST(ChannelTest, UnboundedChannelAcceptsMany)
 
 TEST(ChannelTest, EmptySenderSendReturnsFalse)
 {
-    Sender<int> tx;  // 空发送端
+    Sender<int> tx;   // 空发送端
     EXPECT_FALSE(tx.send(1));
 }
 
 TEST(ChannelTest, EmptyReceiverRecvReturnsNullopt)
 {
-    Receiver<int> rx;  // 空接收端
+    Receiver<int> rx;   // 空接收端
     EXPECT_EQ(rx.recv(), std::nullopt);
 }
 
@@ -229,5 +227,5 @@ TEST(ChannelTest, ConcurrentProducersDeliverAll)
     EXPECT_EQ(received, expected);
 }
 
-}  // namespace
-}  // namespace ca::thread::test
+}   // namespace
+}   // namespace ca::thread::test

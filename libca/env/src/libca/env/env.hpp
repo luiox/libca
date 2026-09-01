@@ -47,4 +47,4 @@ std::string os_name();
 /// @brief 操作系统版本字符串（如 "10.0.22631"）。失败返回空串。
 std::string os_version();
 
-}  // namespace ca::env
+}   // namespace ca::env

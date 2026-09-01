@@ -62,26 +62,26 @@ static const u8 RX_ADDR_PIPES[6] = {nRF24_REG_RX_ADDR_P0,
 ////////////////////////////////////////////////////////////////////////////////
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_EXTERN)
-#define NRF24_WRITE_PIN(gpio, pin, value)    port_nrf24_write_pin((gpio), (pin), (value))
-#define NRF24_READ_PIN(gpio, pin)            port_nrf24_read_pin((gpio), (pin))
-#define NRF24_SET_OUTPUT_MODE(gpio, pin)     port_nrf24_set_output_mode((gpio), (pin))
-#define NRF24_SET_INPUT_MODE(gpio, pin)      port_nrf24_set_input_mode((gpio), (pin))
-#define NRF24_DELAY_US(us)                   port_nrf24_delay_us(us)
-#define NRF24_DELAY_MS(ms)                   port_nrf24_delay_ms(ms)
-#define NRF24_SPI_SEND_RECV(hspi, data)      port_nrf24_spi_send_recv((hspi), (data))
+#    define NRF24_WRITE_PIN(gpio, pin, value) port_nrf24_write_pin((gpio), (pin), (value))
+#    define NRF24_READ_PIN(gpio, pin) port_nrf24_read_pin((gpio), (pin))
+#    define NRF24_SET_OUTPUT_MODE(gpio, pin) port_nrf24_set_output_mode((gpio), (pin))
+#    define NRF24_SET_INPUT_MODE(gpio, pin) port_nrf24_set_input_mode((gpio), (pin))
+#    define NRF24_DELAY_US(us) port_nrf24_delay_us(us)
+#    define NRF24_DELAY_MS(ms) port_nrf24_delay_ms(ms)
+#    define NRF24_SPI_SEND_RECV(hspi, data) port_nrf24_spi_send_recv((hspi), (data))
 
 #elif (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)
 static const nrf24_port_t* g_nrf24_port = NULL;
-#define NRF24_WRITE_PIN(gpio, pin, value)    g_nrf24_port->write_pin((gpio), (pin), (value))
-#define NRF24_READ_PIN(gpio, pin)            g_nrf24_port->read_pin((gpio), (pin))
-#define NRF24_SET_OUTPUT_MODE(gpio, pin)     g_nrf24_port->set_output_mode((gpio), (pin))
-#define NRF24_SET_INPUT_MODE(gpio, pin)      g_nrf24_port->set_input_mode((gpio), (pin))
-#define NRF24_DELAY_US(us)                   g_nrf24_port->delay_us(us)
-#define NRF24_DELAY_MS(ms)                   g_nrf24_port->delay_ms(ms)
-#define NRF24_SPI_SEND_RECV(hspi, data)      g_nrf24_port->spi_send_recv((hspi), (data))
+#    define NRF24_WRITE_PIN(gpio, pin, value) g_nrf24_port->write_pin((gpio), (pin), (value))
+#    define NRF24_READ_PIN(gpio, pin) g_nrf24_port->read_pin((gpio), (pin))
+#    define NRF24_SET_OUTPUT_MODE(gpio, pin) g_nrf24_port->set_output_mode((gpio), (pin))
+#    define NRF24_SET_INPUT_MODE(gpio, pin) g_nrf24_port->set_input_mode((gpio), (pin))
+#    define NRF24_DELAY_US(us) g_nrf24_port->delay_us(us)
+#    define NRF24_DELAY_MS(ms) g_nrf24_port->delay_ms(ms)
+#    define NRF24_SPI_SEND_RECV(hspi, data) g_nrf24_port->spi_send_recv((hspi), (data))
 
 #else
-#error "Invalid NRF24 port mode"
+#    error "Invalid NRF24 port mode"
 #endif
 
 #if (LIBCA_NRF24_PORT_MODE == LIBCA_NRF24_PORT_MODE_DYNAMIC)

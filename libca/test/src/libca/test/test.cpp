@@ -41,7 +41,8 @@ void scan_marker_files(const std::filesystem::path& root)
     std::error_code ec;
     auto            iter = std::filesystem::recursive_directory_iterator(
         root, std::filesystem::directory_options::skip_permission_denied, ec);
-    if (ec) return;
+    if (ec)
+        return;
 
     for (auto& entry : iter) {
         if (entry.is_directory()) {
@@ -52,7 +53,8 @@ void scan_marker_files(const std::filesystem::path& root)
             }
             continue;
         }
-        if (entry.path().filename() != ".project_root_file") continue;
+        if (entry.path().filename() != ".project_root_file")
+            continue;
 
         std::ifstream f(entry.path());
         std::string   content;
@@ -73,8 +75,8 @@ std::vector<uint8_t> read_binary_file(const std::filesystem::path& path, const c
     in.seekg(0, std::ios::end);
     const auto tellg_val = in.tellg();
     if (tellg_val < 0) {
-        throw std::runtime_error(std::string("[libca.test] failed to determine size of ") +
-                                 label + ": " + path.string());
+        throw std::runtime_error(std::string("[libca.test] failed to determine size of ") + label +
+                                 ": " + path.string());
     }
     const auto           size = static_cast<size_t>(tellg_val);
     std::vector<uint8_t> data(size);
@@ -87,7 +89,8 @@ std::vector<uint8_t> read_binary_file(const std::filesystem::path& path, const c
 std::filesystem::path out_root()
 {
     if (const char* override_root = std::getenv("LIBCA_TEST_OUT_ROOT")) {
-        if (override_root[0] != '\0') return std::filesystem::path(override_root);
+        if (override_root[0] != '\0')
+            return std::filesystem::path(override_root);
     }
     return top_project() / "test";
 }
@@ -137,7 +140,8 @@ std::filesystem::path current_project_path()
 std::filesystem::path project_path(const std::string& project)
 {
     const auto it = name_to_path().find(project);
-    if (it != name_to_path().end()) return it->second;
+    if (it != name_to_path().end())
+        return it->second;
     // 回落：未命中按顶层同名目录猜（保持与既有布局的兼容性）。
     return top_project() / project;
 }

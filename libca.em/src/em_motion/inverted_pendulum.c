@@ -21,12 +21,13 @@ f32 inverted_pendulum_gravity_comp(f32 angle, f32 mass, f32 length, f32 gravity)
     return mass * gravity * length * sinf(angle);
 }
 
-f32 inverted_pendulum_control(f32 angle, f32 ang_vel, f32 target_angle, const inverted_pendulum_cfg_t* cfg)
+f32 inverted_pendulum_control(f32 angle, f32 ang_vel, f32 target_angle,
+                              const inverted_pendulum_cfg_t* cfg)
 {
     if (!cfg) {
         return 0.0f;
     }
 
-    return inverted_pendulum_pd(angle, ang_vel, target_angle, cfg->kp, cfg->kd)
-           + inverted_pendulum_gravity_comp(angle, cfg->mass, cfg->length, cfg->gravity);
+    return inverted_pendulum_pd(angle, ang_vel, target_angle, cfg->kp, cfg->kd) +
+           inverted_pendulum_gravity_comp(angle, cfg->mass, cfg->length, cfg->gravity);
 }

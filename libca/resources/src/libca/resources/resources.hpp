@@ -29,8 +29,8 @@ namespace ca::resources {
 /// 资源访问错误。
 enum class ResourceError
 {
-    NotFound,     ///< bundle 内无此路径
-    InvalidPath,  ///< 路径非法：未以 '/' 开头或含 '\'
+    NotFound,      ///< bundle 内无此路径
+    InvalidPath,   ///< 路径非法：未以 '/' 开头或含 '\'
 };
 
 /// 错误转可读字符串，便于日志。
@@ -48,8 +48,10 @@ namespace detail {
 /// 路径合法性：非空、以 '/' 开头、不含 '\'（生成期已归一化，查询侧同样拒绝）。
 constexpr bool valid_path(std::string_view path) noexcept
 {
-    if (path.empty() || path.front() != '/') return false;
-    if (path.find('\\') != std::string_view::npos) return false;
+    if (path.empty() || path.front() != '/')
+        return false;
+    if (path.find('\\') != std::string_view::npos)
+        return false;
     return true;
 }
 
@@ -58,9 +60,9 @@ constexpr bool valid_path(std::string_view path) noexcept
 /// 生成头条目：路径 + 字节区间（指向 constexpr 存储）。
 struct RawEntry
 {
-    std::string_view path;  ///< 以 '/' 开头的 UTF-8 相对路径（全表字典序有序）
-    const ca::u8*    data;  ///< 字节起始；空文件为 nullptr
-    ca::usize        size;  ///< 字节数
+    std::string_view path;   ///< 以 '/' 开头的 UTF-8 相对路径（全表字典序有序）
+    const ca::u8*    data;   ///< 字节起始；空文件为 nullptr
+    ca::usize        size;   ///< 字节数
 
     /// 文件字节视图（空文件为空视图）。
     ca::core::ByteSlice bytes() const noexcept { return {data, size}; }
@@ -83,12 +85,15 @@ public:
     {
     public:
         Range() noexcept = default;
-        Range(const RawEntry* first, const RawEntry* last) noexcept : first_(first), last_(last) {}
+        Range(const RawEntry* first, const RawEntry* last) noexcept
+            : first_(first)
+            , last_(last)
+        {}
 
         const RawEntry* begin() const noexcept { return first_; }
         const RawEntry* end() const noexcept { return last_; }
-        ca::usize size() const noexcept { return static_cast<ca::usize>(last_ - first_); }
-        bool empty() const noexcept { return first_ == last_; }
+        ca::usize       size() const noexcept { return static_cast<ca::usize>(last_ - first_); }
+        bool            empty() const noexcept { return first_ == last_; }
 
     private:
         const RawEntry* first_{nullptr};
@@ -99,16 +104,18 @@ public:
 
     /// 由生成头的有序条目数组构造（count 为条目数；空树传 {nullptr, 0}）。
     constexpr Bundle(const RawEntry* entries, ca::usize count) noexcept
-        : entries_(entries), count_(count)
-    {
-    }
+        : entries_(entries)
+        , count_(count)
+    {}
 
     /// 取文件字节；路径非法返回 InvalidPath，未命中返回 NotFound。
     ca::core::Result<ca::core::ByteSlice, ResourceError> get(std::string_view path) const noexcept
     {
-        if (!detail::valid_path(path)) return ca::core::Err(ResourceError::InvalidPath);
+        if (!detail::valid_path(path))
+            return ca::core::Err(ResourceError::InvalidPath);
         const RawEntry* hit = find(path);
-        if (hit == nullptr) return ca::core::Err(ResourceError::NotFound);
+        if (hit == nullptr)
+            return ca::core::Err(ResourceError::NotFound);
         return ca::core::Ok(ca::core::ByteSlice{hit->data, hit->size});
     }
 
@@ -129,14 +136,18 @@ public:
     /// 每次调用做一次小字符串分配（非热路径，换取平凡的正确性）。
     Range under(std::string_view dir) const
     {
-        if (dir.empty()) return all();
-        if (!detail::valid_path(dir)) return Range{};
+        if (dir.empty())
+            return all();
+        if (!detail::valid_path(dir))
+            return Range{};
         std::string prefix(dir);
-        if (prefix.back() != '/') prefix.push_back('/');
+        if (prefix.back() != '/')
+            prefix.push_back('/');
         const RawEntry* end   = entries_ + count_;
         const RawEntry* first = std::lower_bound(
-            entries_, end, std::string_view(prefix),
-            [](const RawEntry& e, std::string_view key) { return e.path < key; });
+            entries_, end, std::string_view(prefix), [](const RawEntry& e, std::string_view key) {
+                return e.path < key;
+            });
         const RawEntry* last = first;
         while (last != end && last->path.size() >= prefix.size() &&
                last->path.compare(0, prefix.size(), prefix) == 0) {
@@ -158,10 +169,12 @@ private:
     const RawEntry* find(std::string_view path) const noexcept
     {
         const RawEntry* end = entries_ + count_;
-        const RawEntry* it  = std::lower_bound(
-            entries_, end, path,
-            [](const RawEntry& e, std::string_view key) { return e.path < key; });
-        if (it != end && it->path == path) return it;
+        const RawEntry* it =
+            std::lower_bound(entries_, end, path, [](const RawEntry& e, std::string_view key) {
+                return e.path < key;
+            });
+        if (it != end && it->path == path)
+            return it;
         return nullptr;
     }
 
@@ -186,7 +199,8 @@ inline bool mount(std::string_view name, const Bundle& bundle)
 {
     auto& registry = detail::bundle_registry();
     for (const auto& item : registry) {
-        if (item.first == name) return false;
+        if (item.first == name)
+            return false;
     }
     registry.emplace_back(name, &bundle);
     return true;
@@ -196,7 +210,8 @@ inline bool mount(std::string_view name, const Bundle& bundle)
 inline const Bundle* bundle(std::string_view name) noexcept
 {
     for (const auto& item : detail::bundle_registry()) {
-        if (item.first == name) return item.second;
+        if (item.first == name)
+            return item.second;
     }
     return nullptr;
 }

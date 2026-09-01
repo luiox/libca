@@ -13,7 +13,8 @@ class ZipEntry;
 /// @brief 顺序流式读取 ZIP（对应 java.util.zip.ZipInputStream 的 LOC 直读语义）。
 ///
 /// 从数据流头部逐条消费本地文件头；支持 data descriptor 条目。
-class ZipInputStream {
+class ZipInputStream
+{
 public:
     /// @brief 接管整段 ZIP 数据。
     explicit ZipInputStream(std::vector<ca::u8> data);

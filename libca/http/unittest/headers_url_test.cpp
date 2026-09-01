@@ -93,8 +93,7 @@ TEST(HttpUrlTest, ParsesBracketedIpv6AndOmitsDefaultPortFromAuthority)
 
 TEST(HttpUrlTest, RejectsAmbiguousOrUnsupportedAuthorities)
 {
-    EXPECT_EQ(HttpUrl::parse("ftp://example.com/").unwrap_err().kind(),
-              HttpErrorKind::InvalidUrl);
+    EXPECT_EQ(HttpUrl::parse("ftp://example.com/").unwrap_err().kind(), HttpErrorKind::InvalidUrl);
     EXPECT_EQ(HttpUrl::parse("http://user@example.com/").unwrap_err().kind(),
               HttpErrorKind::InvalidUrl);
     EXPECT_EQ(HttpUrl::parse("http://::1/").unwrap_err().kind(), HttpErrorKind::InvalidUrl);

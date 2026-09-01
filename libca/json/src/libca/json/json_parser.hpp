@@ -20,7 +20,8 @@
 namespace ca::json {
 
 /// @brief JsonParser 宽松选项（默认全部 false，即严格 RFC 8259）。
-struct JsonParserOptions {
+struct JsonParserOptions
+{
     /// 允许尾随逗号：`[1,2,]` / `{"a":1,}`。
     bool allow_trailing_comma = false;
     /// 允许 `//` 和 `/* */` 注释（非标准扩展）。
@@ -30,13 +31,13 @@ struct JsonParserOptions {
 };
 
 /// @brief 递归下降 JSON 解析器，把输入驱动为 JsonHandler 事件。
-class JsonParser {
+class JsonParser
+{
 public:
     /// @brief 构造解析器。输入视图与 arena 须在使用期内有效。
     /// @details 解析出的字符串经 `arena.intern(...)` 入池，事件回调里的 Utf8StringRef
     ///          指向 arena 内副本（与输入视图生命周期解耦）。
-    JsonParser(ca::str::Utf8StringRef input, JsonHandler& handler,
-               ca::str::Utf8StringArena& arena,
+    JsonParser(ca::str::Utf8StringRef input, JsonHandler& handler, ca::str::Utf8StringArena& arena,
                const JsonParserOptions& options = JsonParserOptions());
 
     /// @brief 解析顶层 JSON 值。
@@ -52,22 +53,22 @@ public:
 
 private:
     // ---- 字节流游标 ----
-    const u8* data_;
-    usize byte_length_;
-    usize pos_;
+    const u8*      data_;
+    usize          byte_length_;
+    usize          pos_;
     SourceLocation loc_;
-    bool failed_;
-    ca::usize depth_;
+    bool           failed_;
+    ca::usize      depth_;
 
-    JsonHandler& handler_;
+    JsonHandler&              handler_;
     ca::str::Utf8StringArena& arena_;
-    JsonParserOptions options_;
-    ParseError error_;  // 首个错误
+    JsonParserOptions         options_;
+    ParseError                error_;   // 首个错误
 
     // ---- 基本字节操作 ----
-    u8  peek() const noexcept;          // 当前字节，EOF 返回 0
-    u8  peek_next() const noexcept;     // 下一个字节，EOF 返回 0
-    void advance() noexcept;            // 前进一个字节，同步更新 loc_
+    u8   peek() const noexcept;        // 当前字节，EOF 返回 0
+    u8   peek_next() const noexcept;   // 下一个字节，EOF 返回 0
+    void advance() noexcept;           // 前进一个字节，同步更新 loc_
     bool at_end() const noexcept;
 
     // ---- 空白 / 注释 ----
@@ -87,4 +88,4 @@ private:
     bool parse_string_into(ca::str::Utf8StringRef& out);
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

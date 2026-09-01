@@ -1,5 +1,6 @@
 /// @file cstring.hpp
-/// @brief 不可变 char 字符串：拥有所有权的 CString、非拥有视图 CStringRef、可变构建器 CStringBuilder。
+/// @brief 不可变 char 字符串：拥有所有权的 CString、非拥有视图 CStringRef、可变构建器
+/// CStringBuilder。
 /// @author Canrad
 /// @date 2026/05/31
 /// @note 命名空间 ca::str，按 char 存储，length() = 字符数（O(1)），不做 UTF-8 码点语义。
@@ -25,7 +26,8 @@ class CString;
 
 /// @brief 非拥有、不可变的 char 字符串视图。
 /// @warning 不拥有数据；来自 CString::ref()/slice() 的视图在原串销毁或移动后失效。
-class CStringRef {
+class CStringRef
+{
 public:
     /// 空视图（data() 为 nullptr）。
     CStringRef() noexcept;
@@ -115,7 +117,8 @@ private:
 
 /// @brief 拥有所有权、不可变、内部以 `\0` 终止的 char 字符串。
 /// @note 禁止隐式拷贝（须显式 clone()），可移动。保证结尾 `\0`，故提供 c_str()。
-class CString {
+class CString
+{
 public:
     /// 默认构造：空字符串（data() 指向合法的 `\0` 终止空串）。
     CString() noexcept;
@@ -231,8 +234,8 @@ public:
     bool operator!=(const CStringRef& other) const noexcept;
 
 private:
-    char*  data_;
-    usize  length_;
+    char* data_;
+    usize length_;
 
     void init(const char* src, usize len);
 };
@@ -240,7 +243,8 @@ private:
 
 /// @brief 构建 CString 的可变构建器（追加写入，build() 产出）。
 /// @note move-only，禁止拷贝。内部缓冲区按需倍增扩容，容量为 char 个数。
-class CStringBuilder {
+class CStringBuilder
+{
 public:
     /// 默认构造：空构建器（预分配默认容量）。
     CStringBuilder() noexcept;
@@ -256,7 +260,7 @@ public:
     CStringBuilder& operator=(CStringBuilder&& other) noexcept;
 
     // 拷贝 = delete
-    CStringBuilder(const CStringBuilder&) = delete;
+    CStringBuilder(const CStringBuilder&)            = delete;
     CStringBuilder& operator=(const CStringBuilder&) = delete;
 
     /// 追加视图内容；返回 *this 支持链式调用。
@@ -295,12 +299,12 @@ public:
     CString build() const;
 
 private:
-    char*  buffer_;
-    usize  length_;
-    usize  capacity_;
+    char* buffer_;
+    usize length_;
+    usize capacity_;
 
     static constexpr usize kDefaultCapacity = 64;
-    void grow(usize minCapacity);
+    void                   grow(usize minCapacity);
 };
 
 
@@ -320,22 +324,24 @@ std::vector<CStringRef> split(const CStringRef& str, const CStringRef& delimiter
 /// 用分隔符连接多个视图，返回新串（空列表返回空串）。
 CString join(const std::vector<CStringRef>& parts, const CStringRef& separator);
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 namespace std {
 
 /// 支持 CString 作为 unordered 容器 key 的 std::hash 特化。
-template <>
-struct hash<ca::str::CString> {
+template<>
+struct hash<ca::str::CString>
+{
     /// 按内容计算 FNV-1a 64 位哈希（逐 unsigned char）。
     size_t operator()(const ca::str::CString& s) const noexcept;
 };
 
 /// 支持 CStringRef 作为 unordered 容器 key 的 std::hash 特化。
-template <>
-struct hash<ca::str::CStringRef> {
+template<>
+struct hash<ca::str::CStringRef>
+{
     /// 按内容计算 FNV-1a 64 位哈希（逐 unsigned char）。
     size_t operator()(const ca::str::CStringRef& s) const noexcept;
 };
 
-}  // namespace std
+}   // namespace std

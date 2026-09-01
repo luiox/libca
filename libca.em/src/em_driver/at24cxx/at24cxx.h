@@ -10,7 +10,7 @@
 ///
 /// @copyright Copyright (c) 2025
 ///
-///  
+///
 #ifndef LIBCA_EM_DRIVER_AT24CXX_H
 #define LIBCA_EM_DRIVER_AT24CXX_H
 
@@ -22,7 +22,7 @@
 #define LIBCA_AT24CXX_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_AT24CXX_PORT_MODE
-#define LIBCA_AT24CXX_PORT_MODE LIBCA_AT24CXX_PORT_MODE_EXTERN
+#    define LIBCA_AT24CXX_PORT_MODE LIBCA_AT24CXX_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -40,8 +40,9 @@ extern "C" {
 /// @param data 数据缓冲区
 /// @param data_size 数据长度
 /// @param timeout 超时（ms）
-///  
-extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+///
+extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size,
+                                   u8* data, u16 data_size, u32 timeout);
 
 /// @brief I2C 读操作
 ///
@@ -52,8 +53,9 @@ extern void port_at24cxx_i2c_write(void* hi2c, u16 dev_addr, u16 mem_addr, u16 m
 /// @param data 数据缓冲区
 /// @param data_size 数据长度
 /// @param timeout 超时（ms）
-///  
-extern void port_at24cxx_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
+///
+extern void port_at24cxx_i2c_read(void* hi2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size,
+                                  u8* data, u16 data_size, u32 timeout);
 
 #elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
 
@@ -71,7 +73,7 @@ void at24cxx_bind_port(const at24cxx_port_t* port);
 bool at24cxx_port_is_registered(void);
 
 #else
-#error "Invalid AT24CXX port mode"
+#    error "Invalid AT24CXX port mode"
 #endif
 
 typedef enum
@@ -110,7 +112,7 @@ typedef struct
 /// @param a1 a1
 /// @param a2 a2
 /// @param hi2c i2c句柄
-///  
+///
 void at24cxx_init(at24cxx_t* self, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, void* hi2c);
 
 /// @brief 写一个字节
@@ -118,7 +120,7 @@ void at24cxx_init(at24cxx_t* self, at24cxx_type_t type, u8 a0, u8 a1, u8 a2, voi
 /// @param self 设备结构体
 /// @param addr 地址
 /// @param data 数据
-///  
+///
 void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data);
 
 /// @brief 读一个字节
@@ -126,7 +128,7 @@ void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data);
 /// @param self 设备结构体
 /// @param addr 地址
 /// @param u8 数据
-///  
+///
 void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data);
 
 #ifdef __cplusplus

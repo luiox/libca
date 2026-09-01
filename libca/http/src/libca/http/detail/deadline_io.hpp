@@ -41,7 +41,7 @@ public:
     /// 读时应同时设 write_timeout、写时应同时设 read_timeout。
     DeadlineReader(io::Reader& reader, net::TcpStream& stream, ca::thread::StopToken stop_token,
                    std::chrono::milliseconds stop_poll_interval,
-                   bool                     bidirectional_io = false) noexcept
+                   bool                      bidirectional_io = false) noexcept
         : reader_(&reader)
         , stream_(&stream)
         , stop_token_(std::move(stop_token))
@@ -159,7 +159,7 @@ public:
     /// @brief 抽象 transport 路径,对称 DeadlineReader 的同名构造。
     DeadlineWriter(io::Writer& writer, net::TcpStream& stream, ca::thread::StopToken stop_token,
                    std::chrono::milliseconds stop_poll_interval,
-                   bool                     bidirectional_io = false) noexcept
+                   bool                      bidirectional_io = false) noexcept
         : writer_(&writer)
         , stream_(&stream)
         , stop_token_(std::move(stop_token))

@@ -3,7 +3,8 @@
 #include <string>
 #include <vector>
 
-namespace ca { namespace fs {
+namespace ca {
+namespace fs {
 
 /// 路径字符串操作工具类
 ///
@@ -26,7 +27,8 @@ public:
     static std::string join(const std::string& base, const std::string& part1);
 
     /// 拼接三个路径段
-    static std::string join(const std::string& base, const std::string& part1, const std::string& part2);
+    static std::string join(const std::string& base, const std::string& part1,
+                            const std::string& part2);
 
     /// 获取文件扩展名（含 '.'，如 ".txt"），无扩展名返回空字符串
     static std::string extension(const std::string& path);
@@ -50,4 +52,5 @@ public:
     static std::vector<std::string> split(const std::string& path);
 };
 
-}}  // namespace ca::fs
+}   // namespace fs
+}   // namespace ca

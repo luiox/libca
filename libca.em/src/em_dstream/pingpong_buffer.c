@@ -1,5 +1,5 @@
 #include "pingpong_buffer.h"
-#include <string.h> // for memset
+#include <string.h>   // for memset
 
 ///
 /// @brief 初始化乒乓缓冲区
@@ -8,8 +8,7 @@
 /// @param buffer1 缓冲区1指针
 /// @param buffer2 缓冲区2指针
 /// @param buffer_size 缓冲区大小
-void pingpong_buf_init(pingpong_buffer_t* pingpong_buf, u8* buffer1, u8* buffer2,
-                           usize buffer_size)
+void pingpong_buf_init(pingpong_buffer_t* pingpong_buf, u8* buffer1, u8* buffer2, usize buffer_size)
 {
     pingpong_buf->read_buffer  = buffer1;
     pingpong_buf->write_buffer = buffer2;
@@ -30,7 +29,7 @@ u8 pingpong_buf_switch(pingpong_buffer_t* pingpong_buf)
         return 0;
     }
 
-    u8* temp                    = pingpong_buf->read_buffer;
+    u8* temp                   = pingpong_buf->read_buffer;
     pingpong_buf->read_buffer  = pingpong_buf->write_buffer;
     pingpong_buf->write_buffer = temp;
 
@@ -104,4 +103,3 @@ u8 pingpong_buf_is_writing(pingpong_buffer_t* pingpong_buf)
 {
     return pingpong_buf->write_flag == PINGPONG_BUF_WRITING;
 }
-

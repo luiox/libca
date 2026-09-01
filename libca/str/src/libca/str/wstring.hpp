@@ -22,7 +22,8 @@ class WString;
 /// @brief 非拥有、不可变的宽字符串（wchar_t）视图。
 /// @warning 不拥有数据；来自 WString::ref()/slice() 的视图在原串销毁或移动后失效。
 /// @note 不保证结尾 `\0`（中段切片不能假设以 `\0` 结尾），故不提供 w_str()。
-class WStringRef {
+class WStringRef
+{
 public:
     /// 空视图（data() 为 nullptr）。
     WStringRef() noexcept;
@@ -114,7 +115,8 @@ private:
 
 /// @brief 拥有所有权、不可变、内部以 `\0` 终止的宽字符串。
 /// @note 禁止隐式拷贝（须显式 clone()），可移动。保证结尾 `\0`，故提供 w_str()。
-class WString {
+class WString
+{
 public:
     /// 默认构造：空字符串（data() 指向合法的 `\0` 终止空串）。
     WString() noexcept;
@@ -232,12 +234,13 @@ public:
 private:
     wchar_t* data_;
     usize    length_;
-    void init(const wchar_t* src, usize len);
+    void     init(const wchar_t* src, usize len);
 };
 
 /// @brief 构建 WString 的可变构建器（追加写入，build() 产出）。
 /// @note move-only，禁止拷贝。内部缓冲区按需倍增扩容，容量为 wchar_t 个数。
-class WStringBuilder {
+class WStringBuilder
+{
 public:
     /// 默认构造：空构建器（预分配默认容量）。
     WStringBuilder() noexcept;
@@ -253,7 +256,7 @@ public:
     WStringBuilder& operator=(WStringBuilder&& other) noexcept;
 
     // 拷贝 = delete
-    WStringBuilder(const WStringBuilder&) = delete;
+    WStringBuilder(const WStringBuilder&)            = delete;
     WStringBuilder& operator=(const WStringBuilder&) = delete;
 
     /// 追加视图内容；返回 *this 支持链式调用。
@@ -292,11 +295,11 @@ public:
     WString build() const;
 
 private:
-    wchar_t* buffer_;
-    usize    length_;
-    usize    capacity_;
+    wchar_t*               buffer_;
+    usize                  length_;
+    usize                  capacity_;
     static constexpr usize kDefaultCapacity = 64;
-    void grow(usize minCapacity);
+    void                   grow(usize minCapacity);
 };
 
 /// 提供 `WStringRef == WString` 的对称相等比较。
@@ -311,22 +314,24 @@ std::vector<WStringRef> split(const WStringRef& str, const WStringRef& delimiter
 /// 用分隔符连接多个视图，返回新串（空列表返回空串）。
 WString join(const std::vector<WStringRef>& parts, const WStringRef& separator);
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 namespace std {
 
 /// 支持 WString 作为 unordered 容器 key 的 std::hash 特化。
-template <>
-struct hash<ca::str::WString> {
+template<>
+struct hash<ca::str::WString>
+{
     /// 按内容计算 FNV-1a 64 位哈希（逐 wchar_t）。
     size_t operator()(const ca::str::WString& s) const noexcept;
 };
 
 /// 支持 WStringRef 作为 unordered 容器 key 的 std::hash 特化。
-template <>
-struct hash<ca::str::WStringRef> {
+template<>
+struct hash<ca::str::WStringRef>
+{
     /// 按内容计算 FNV-1a 64 位哈希（逐 wchar_t）。
     size_t operator()(const ca::str::WStringRef& s) const noexcept;
 };
 
-}  // namespace std
+}   // namespace std

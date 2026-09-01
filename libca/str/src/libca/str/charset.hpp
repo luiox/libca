@@ -19,10 +19,11 @@ namespace ca::str {
 /// @note 仅 Windows 平台实际实现；其它平台返回 `UNIMPLEMENTED`。
 /// @note GBK / GB2312 都通过 CP_936 处理：GBK 是 GB2312 的超集，CP_936 在现代 Windows
 ///       上等价于 GBK，因此使用 GBK 字节序调用方无需区分。
-class CharsetConverter {
+class CharsetConverter
+{
 public:
-    CharsetConverter()  = delete;
-    ~CharsetConverter() = delete;
+    CharsetConverter()                                   = delete;
+    ~CharsetConverter()                                  = delete;
     CharsetConverter(const CharsetConverter&)            = delete;
     CharsetConverter& operator=(const CharsetConverter&) = delete;
 
@@ -56,4 +57,4 @@ public:
     static core::StatusResult<std::string> wide_to_gbk(std::wstring_view wide);
 };
 
-}  // namespace ca::str
+}   // namespace ca::str

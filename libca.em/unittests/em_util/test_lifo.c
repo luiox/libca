@@ -4,8 +4,9 @@
 
 #include <em_test/test.h>
 
-typedef struct lifo_test_item {
-    i32 value;
+typedef struct lifo_test_item
+{
+    i32         value;
     lifo_node_t node;
 } lifo_test_item_t;
 
@@ -36,7 +37,7 @@ TEST_CASE(lifo_push_pop_order)
     TEST_ASSERT_EQUAL_UINT(3U, (u32)lifo_size(&lifo));
     TEST_ASSERT_EQUAL_PTR(&item3.node, lifo_peek(&lifo));
 
-    lifo_node_t *node = lifo_pop(&lifo);
+    lifo_node_t* node = lifo_pop(&lifo);
     TEST_ASSERT_EQUAL_PTR(&item3.node, node);
     TEST_ASSERT_NULL(node->next);
 
@@ -63,12 +64,11 @@ TEST_CASE(lifo_entry_test)
     lifo_push(&lifo, &item1.node);
     lifo_push(&lifo, &item2.node);
 
-    lifo_node_t *node = lifo_pop(&lifo);
-    lifo_test_item_t *item = lifo_entry(node, lifo_test_item_t, node);
+    lifo_node_t*      node = lifo_pop(&lifo);
+    lifo_test_item_t* item = lifo_entry(node, lifo_test_item_t, node);
     TEST_ASSERT_EQUAL_INT(22, item->value);
 
     node = lifo_pop(&lifo);
     item = lifo_entry(node, lifo_test_item_t, node);
     TEST_ASSERT_EQUAL_INT(11, item->value);
 }
-

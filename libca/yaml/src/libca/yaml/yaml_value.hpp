@@ -25,21 +25,23 @@
 namespace ca::yaml {
 
 /// @brief YAML 值的 7 种类型。
-enum class YamlType {
-    Null,      ///< null / ~ / 空值
-    Boolean,   ///< 布尔（true/false）
-    Integer,   ///< 整数（i64 存储）
-    Float,     ///< 浮点（f64 存储）
-    String,    ///< UTF-8 字符串（Utf8StringRef）
-    Sequence,  ///< 序列（元素任意类型，可嵌套）
-    Mapping    ///< 映射（key 为 Utf8StringRef，保序）
+enum class YamlType
+{
+    Null,       ///< null / ~ / 空值
+    Boolean,    ///< 布尔（true/false）
+    Integer,    ///< 整数（i64 存储）
+    Float,      ///< 浮点（f64 存储）
+    String,     ///< UTF-8 字符串（Utf8StringRef）
+    Sequence,   ///< 序列（元素任意类型，可嵌套）
+    Mapping     ///< 映射（key 为 Utf8StringRef，保序）
 };
 
 /// @brief YAML DOM 节点。
 /// @details 节点内不拥有字符串内存：String 与 Mapping key 均为 `Utf8StringRef`，指向所属
 ///          `YamlDocument` 的 `Utf8StringArena`。YamlValue 因此可拷贝（浅拷贝引用）。
 /// @warning 拷贝/移动语义为浅引用：拷贝得到的 YamlValue 的字符串引用仍指向原 arena。
-class YamlValue {
+class YamlValue
+{
 public:
     /// Mapping 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "YamlValue 内含 YamlValue" 的
@@ -53,16 +55,17 @@ private:
     /// Mapping 的内部存储：members 保插入序供遍历，index 提供 key → 下标 的 O(1) 查找。
     /// index 的 string_view 指向 key 的 arena 字节（arena 不搬移，成员 vector 扩容不影响）。
     /// 二者只经 set/find/remove 同步修改，不对外暴露可变引用。
-    struct MappingData {
-        MappingStorage members;
+    struct MappingData
+    {
+        MappingStorage                                  members;
         std::unordered_map<std::string_view, ca::usize> index;
     };
 
 public:
     // ---- 构造 / 析构 / 拷贝 / 移动 ----
 
-    YamlValue() noexcept;                             // 默认构造为 Null
-    YamlValue(const YamlValue&) = default;            // 浅拷贝（Utf8StringRef 可拷贝）
+    YamlValue() noexcept;                               // 默认构造为 Null
+    YamlValue(const YamlValue&)            = default;   // 浅拷贝（Utf8StringRef 可拷贝）
     YamlValue& operator=(const YamlValue&) = default;
     YamlValue(YamlValue&& other) noexcept;
     YamlValue& operator=(YamlValue&& other) noexcept;
@@ -85,13 +88,13 @@ public:
     // ---- 类型查询 ----
 
     YamlType type() const noexcept;
-    bool is_null() const noexcept;
-    bool is_boolean() const noexcept;
-    bool is_integer() const noexcept;
-    bool is_float() const noexcept;
-    bool is_string() const noexcept;
-    bool is_sequence() const noexcept;
-    bool is_mapping() const noexcept;
+    bool     is_null() const noexcept;
+    bool     is_boolean() const noexcept;
+    bool     is_integer() const noexcept;
+    bool     is_float() const noexcept;
+    bool     is_string() const noexcept;
+    bool     is_sequence() const noexcept;
+    bool     is_mapping() const noexcept;
 
     // ---- 严格访问（类型不符触发断言） ----
 
@@ -153,13 +156,14 @@ public:
 
 private:
     YamlType type_;
-    std::variant<std::monostate,                ///< Null
-                 bool,                           ///< Boolean
-                 ca::i64,                        ///< Integer
-                 ca::f64,                        ///< Float
-                 ca::str::Utf8StringRef,         ///< String
-                 SequenceStorage,                ///< Sequence
-                 MappingData> data_;             ///< Mapping
+    std::variant<std::monostate,           ///< Null
+                 bool,                     ///< Boolean
+                 ca::i64,                  ///< Integer
+                 ca::f64,                  ///< Float
+                 ca::str::Utf8StringRef,   ///< String
+                 SequenceStorage,          ///< Sequence
+                 MappingData>
+        data_;   ///< Mapping
 };
 
-}  // namespace ca::yaml
+}   // namespace ca::yaml

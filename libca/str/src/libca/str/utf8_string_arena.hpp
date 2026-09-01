@@ -26,14 +26,15 @@
 namespace ca::str {
 
 /// @brief 追加式去重 UTF-8 字符串池。详见文件头说明。
-class Utf8StringArena {
+class Utf8StringArena
+{
 public:
     /// 构造空池并分配初始 chunk。
     Utf8StringArena() noexcept;
     /// 释放所有 chunk（此后所有返回的 ref 失效）。
     ~Utf8StringArena();
 
-    Utf8StringArena(const Utf8StringArena&) = delete;
+    Utf8StringArena(const Utf8StringArena&)            = delete;
     Utf8StringArena& operator=(const Utf8StringArena&) = delete;
 
     Utf8StringArena(Utf8StringArena&&) noexcept;
@@ -86,14 +87,16 @@ public:
 
 private:
     // 每个固定大小块
-    struct Chunk {
+    struct Chunk
+    {
         u8*   data;
         usize capacity;
         usize used;
     };
 
     // 条目元数据（用于去重查找）
-    struct Entry {
+    struct Entry
+    {
         usize hash;
         usize byte_length;
         usize length;   // 码点个数
@@ -101,18 +104,18 @@ private:
         usize chunk_offset;
     };
 
-    std::vector<Chunk>  chunks_;
-    std::vector<Entry>  entries_;      // 条目元数据
+    std::vector<Chunk> chunks_;
+    std::vector<Entry> entries_;   // 条目元数据
     using HashIndex = std::unordered_map<usize, std::vector<usize>>;
-    HashIndex           hash_index_;    // hash → entry 下标列表
+    HashIndex hash_index_;   // hash → entry 下标列表
 
-    usize next_chunk_idx_;  // 当前可写入的 chunk
+    usize next_chunk_idx_;   // 当前可写入的 chunk
 
-    static constexpr usize DEFAULT_CHUNK_SIZE = 64 * 1024;  // 64KB
+    static constexpr usize DEFAULT_CHUNK_SIZE = 64 * 1024;   // 64KB
 
     void  alloc_chunk(usize min_capacity = DEFAULT_CHUNK_SIZE);
     u8*   alloc_in_chunk(usize size);
     usize compute_hash(const u8* data, usize byte_length) const noexcept;
 };
 
-}  // namespace ca::str
+}   // namespace ca::str

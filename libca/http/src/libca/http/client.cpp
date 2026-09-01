@@ -56,8 +56,8 @@ bool is_informational(u16 status) noexcept
 
 bool is_idempotent_method(std::string_view method) noexcept
 {
-    return method == "GET" || method == "HEAD" || method == "PUT" ||
-           method == "DELETE" || method == "OPTIONS" || method == "TRACE";
+    return method == "GET" || method == "HEAD" || method == "PUT" || method == "DELETE" ||
+           method == "OPTIONS" || method == "TRACE";
 }
 
 bool is_reset_error(const HttpError& error) noexcept
@@ -68,8 +68,7 @@ bool is_reset_error(const HttpError& error) noexcept
     // 向已被服务器整体关闭的 stale 连接写入：Linux 表现为 EPIPE（BrokenPipe），
     // Windows 常见为 WSAECONNRESET（ConnectionReset）；两者都意味着连接已死，
     // 而非请求本身的问题。
-    return kind == io::IoErrorKind::ConnectionReset ||
-           kind == io::IoErrorKind::ConnectionAborted ||
+    return kind == io::IoErrorKind::ConnectionReset || kind == io::IoErrorKind::ConnectionAborted ||
            kind == io::IoErrorKind::BrokenPipe;
 }
 
@@ -181,8 +180,8 @@ public:
 
     HttpResult<HttpResponse> request(const HttpUrl& url, HttpRequest request)
     {
-        const bool reused = same_origin(url);
-        auto connected = connect(url);
+        const bool reused    = same_origin(url);
+        auto       connected = connect(url);
         if (connected.is_err())
             return ca::core::Err(connected.unwrap_err());
 
@@ -232,8 +231,9 @@ public:
                         return fail(finished.unwrap_err());
                     ++informational_count;
                     if (head.status == 101)
-                        return fail(HttpError::from_kind(HttpErrorKind::Unsupported,
-                                                         "HTTP protocol upgrades are not supported"));
+                        return fail(
+                            HttpError::from_kind(HttpErrorKind::Unsupported,
+                                                 "HTTP protocol upgrades are not supported"));
                     if (informational_count > options.max_informational_responses)
                         return fail(HttpError::from_kind(
                             HttpErrorKind::InvalidMessage,

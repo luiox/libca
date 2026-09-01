@@ -7,7 +7,8 @@
 namespace ca::zip {
 
 /// @brief CRC32 校验器（zlib 语义：初值 0，增量更新）。
-class Crc32 {
+class Crc32
+{
 public:
     Crc32();
 
@@ -25,7 +26,8 @@ private:
 };
 
 /// @brief Adler-32 校验器（zlib 语义）。
-class Adler32 {
+class Adler32
+{
 public:
     Adler32();
 

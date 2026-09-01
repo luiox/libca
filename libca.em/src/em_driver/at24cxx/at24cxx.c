@@ -5,22 +5,26 @@
 
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_EXTERN)
 
-#define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    port_at24cxx_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    port_at24cxx_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        port_at24cxx_i2c_write(                                                                  \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        port_at24cxx_i2c_read(                                                                  \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
 
 #elif (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
 
 static const at24cxx_port_t* g_at24cxx_port = NULL;
 
-#define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    g_at24cxx_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    g_at24cxx_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define AT24CXX_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        g_at24cxx_port->i2c_write(                                                               \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define AT24CXX_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        g_at24cxx_port->i2c_read(                                                               \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
 
 #else
-#error "Invalid AT24CXX port mode"
+#    error "Invalid AT24CXX port mode"
 #endif
 
 #if (LIBCA_AT24CXX_PORT_MODE == LIBCA_AT24CXX_PORT_MODE_DYNAMIC)
@@ -50,7 +54,7 @@ bool at24cxx_port_is_registered(void)
 ///
 /// @param type 类型
 /// @return u32 位数
-///  
+///
 static u32 at24cxx_get_mem_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -72,7 +76,7 @@ static u32 at24cxx_get_mem_size(at24cxx_type_t type)
 ///
 /// @param type 类型
 /// @return u8 地址的位数
-///  
+///
 static u8 at24cxx_get_mem_addr_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -94,7 +98,7 @@ static u8 at24cxx_get_mem_addr_size(at24cxx_type_t type)
 ///
 /// @param type
 /// @return u16
-///  
+///
 static u16 at24cxx_get_page_size(at24cxx_type_t type)
 {
     switch (type) {
@@ -115,7 +119,7 @@ static u16 at24cxx_get_page_size(at24cxx_type_t type)
 ///
 /// @param type
 /// @return u8
-///  
+///
 static u8 at24cxx_get_page_bytes(at24cxx_type_t type)
 {
     switch (type) {
@@ -215,8 +219,8 @@ void at24cxx_write_byte(at24cxx_t* self, u16 addr, u8 data)
     case AT24C16:
         // 1010 p2 p1 p0 rw
         AT24CXX_I2C_WRITE(self->hi2c,
-                          self->dev_addr_base | ((addr & 0x0400) >> 7) |
-                              ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_WRITE,
+                          self->dev_addr_base | ((addr & 0x0400) >> 7) | ((addr & 0x0200) >> 7) |
+                              ((addr & 0x0100) >> 7) | I2C_WRITE,
                           addr,
                           I2C_MEM_ADDR_SIZE_8BIT,
                           &data,
@@ -233,12 +237,22 @@ void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data)
     case AT24C02:
     case AT24C32:
     case AT24C64:
-        AT24CXX_I2C_READ(
-            self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_8BIT, data, 1, 1000);
+        AT24CXX_I2C_READ(self->hi2c,
+                         self->dev_addr_base | I2C_READ,
+                         addr,
+                         I2C_MEM_ADDR_SIZE_8BIT,
+                         data,
+                         1,
+                         1000);
         break;
     case AT24C256:
-        AT24CXX_I2C_READ(
-            self->hi2c, self->dev_addr_base | I2C_READ, addr, I2C_MEM_ADDR_SIZE_16BIT, data, 1, 1000);
+        AT24CXX_I2C_READ(self->hi2c,
+                         self->dev_addr_base | I2C_READ,
+                         addr,
+                         I2C_MEM_ADDR_SIZE_16BIT,
+                         data,
+                         1,
+                         1000);
         break;
     case AT24C04:
         // 1010 a2 a1 p0 rw
@@ -265,8 +279,8 @@ void at24cxx_read_byte(at24cxx_t* self, u16 addr, u8* data)
     case AT24C16:
         // 1010 p2 p1 p0 rw
         AT24CXX_I2C_READ(self->hi2c,
-                         self->dev_addr_base | ((addr & 0x0400) >> 7) |
-                             ((addr & 0x0200) >> 7) | ((addr & 0x0100) >> 7) | I2C_READ,
+                         self->dev_addr_base | ((addr & 0x0400) >> 7) | ((addr & 0x0200) >> 7) |
+                             ((addr & 0x0100) >> 7) | I2C_READ,
                          addr,
                          I2C_MEM_ADDR_SIZE_8BIT,
                          data,

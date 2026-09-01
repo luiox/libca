@@ -6,28 +6,33 @@
 
 // 测试 CA_ALIGNED
 CA_ALIGNED(16) static char s_compat_test_aligned_buf[32];
-typedef struct {
+typedef struct
+{
     char a;
-    int b;
+    int  b;
 } CA_ALIGNED(8) compat_test_aligned_t;
 
 // 测试 CA_PACKED
-typedef struct {
+typedef struct
+{
     char a;
-    int b;  // 正常情况下会对齐到 4 字节，所以偏移量是 4。打包后：偏移量应为 1。
+    int b;   // 正常情况下会对齐到 4 字节，所以偏移量是 4。打包后：偏移量应为 1。
 } CA_PACKED compat_test_packed_t;
 
 // 测试 CA_INLINE
-CA_INLINE int compat_test_inline_add(int a, int b) {
+CA_INLINE int compat_test_inline_add(int a, int b)
+{
     return a + b;
 }
 
 // 测试 CA_WEAK
-CA_WEAK int compat_test_weak_func(void) {
+CA_WEAK int compat_test_weak_func(void)
+{
     return 1;
 }
 
-TEST_CASE(test_compiler_compat_macros) {
+TEST_CASE(test_compiler_compat_macros)
+{
     // 1. 检查 CA_ALIGNED
     TEST_ASSERT_EQUAL_INT(0, (i32)s_compat_test_aligned_buf % 16);
     // 注意：sizeof(aligned_struct_t) 应该是 8 的倍数
@@ -46,4 +51,3 @@ TEST_CASE(test_compiler_compat_macros) {
     // 4. 检查 CA_WEAK 执行
     TEST_ASSERT_EQUAL_INT(1, compat_test_weak_func());
 }
-

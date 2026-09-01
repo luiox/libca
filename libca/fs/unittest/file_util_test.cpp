@@ -7,7 +7,9 @@
 
 #include "libca/fs/file_util.hpp"
 
-namespace ca { namespace fs { namespace test {
+namespace ca {
+namespace fs {
+namespace test {
 
 using namespace testing;
 
@@ -18,10 +20,9 @@ using namespace testing;
 {
     if (actual.len() != expected_len) {
         return ::testing::AssertionFailure()
-            << "length mismatch: actual=" << actual.len() << " expected=" << expected_len;
+               << "length mismatch: actual=" << actual.len() << " expected=" << expected_len;
     }
-    if (expected_len > 0 &&
-        std::memcmp(actual.as_ptr(), expected, expected_len) != 0) {
+    if (expected_len > 0 && std::memcmp(actual.as_ptr(), expected, expected_len) != 0) {
         return ::testing::AssertionFailure() << "content mismatch";
     }
     return ::testing::AssertionSuccess();
@@ -47,7 +48,7 @@ public:
     }
 
     const std::string& path() const { return m_path; }
-    bool valid() const { return !m_path.empty(); }
+    bool               valid() const { return !m_path.empty(); }
 
     std::string make_path(const std::string& relative) const
     {
@@ -71,8 +72,8 @@ TEST(FileUtilTest, ReadWriteRoundtrip)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.make_path("test_roundtrip.bin");
-    static const ca::u8 data[] = {0x00, 0xFF, 0xAB, 0xCD, 0x12, 0x34};
+    auto                filePath = tmp.make_path("test_roundtrip.bin");
+    static const ca::u8 data[]   = {0x00, 0xFF, 0xAB, 0xCD, 0x12, 0x34};
     ca::core::ByteSlice slice(data, sizeof(data));
 
     EXPECT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
@@ -87,8 +88,8 @@ TEST(FileUtilTest, ReadAllBytes_ReturnsBytes)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.make_path("bytes_type.bin");
-    static const ca::u8 data[] = {0x01, 0x02, 0x03, 0x04};
+    auto                filePath = tmp.make_path("bytes_type.bin");
+    static const ca::u8 data[]   = {0x01, 0x02, 0x03, 0x04};
     ca::core::ByteSlice slice(data, sizeof(data));
     ASSERT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
 
@@ -256,7 +257,7 @@ TEST(FileUtilTest, GetSize)
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    auto filePath = tmp.make_path("size_test.bin");
+    auto                filePath = tmp.make_path("size_test.bin");
     std::vector<ca::u8> data(4096, 0xAB);
     ca::core::ByteSlice slice(data.data(), data.size());
     EXPECT_TRUE(FileUtil::write_bytes(filePath, slice).is_ok());
@@ -452,7 +453,7 @@ TEST(FileUtilTest, CopyDir_OverwritesBrokenSymlinkTargetWhenSupported)
     ASSERT_TRUE(FileUtil::create_directories(srcDir.generic_string()));
     ASSERT_TRUE(FileUtil::create_directories(dstDir.generic_string()));
 
-    auto srcLink = srcDir / "link.txt";
+    auto            srcLink = srcDir / "link.txt";
     std::error_code ec;
     std::filesystem::create_symlink("target.txt", srcLink, ec);
     if (ec) {
@@ -539,7 +540,7 @@ TEST(FileUtilTest, Move_NoOverwriteKeepsExistingTarget)
 
     EXPECT_FALSE(FileUtil::move(src, dst, false));
     EXPECT_EQ(FileUtil::read_all_text(dst).unwrap(), "old");
-    EXPECT_TRUE(FileUtil::exists(src));  // 源保持原位
+    EXPECT_TRUE(FileUtil::exists(src));   // 源保持原位
 }
 
 // overwrite=true 原子替换已存在的普通文件目标；移动到已存在目录名上应失败
@@ -566,8 +567,8 @@ TEST(FileUtilTest, Move_OverwriteReplacesFileButNeverDeletesDirectory)
         ASSERT_TRUE(FileUtil::write_text(src, "x").is_ok());
         ASSERT_TRUE(FileUtil::write_text(keep, "precious").is_ok());
 
-        EXPECT_FALSE(FileUtil::move(src, dir, true));  // 文件移到目录名上：拒绝
-        EXPECT_TRUE(FileUtil::exists(keep));           // 目录内容原样保留
+        EXPECT_FALSE(FileUtil::move(src, dir, true));   // 文件移到目录名上：拒绝
+        EXPECT_TRUE(FileUtil::exists(keep));            // 目录内容原样保留
         EXPECT_EQ(FileUtil::read_all_text(keep).unwrap(), "precious");
     }
 }
@@ -585,7 +586,7 @@ TEST(FileUtilTest, Glob_BareRelativePatternMatches)
     const auto old_cwd = std::filesystem::current_path();
     std::filesystem::current_path(tmp.path());
     auto flat = FileUtil::glob("*.txt");
-    std::filesystem::current_path(old_cwd);  // 先恢复，避免断言失败影响后续用例
+    std::filesystem::current_path(old_cwd);   // 先恢复，避免断言失败影响后续用例
 
     ASSERT_TRUE(flat.is_ok()) << to_string(flat.unwrap_err());
     ASSERT_EQ(flat.unwrap().size(), 1u);
@@ -735,10 +736,10 @@ TEST(FileUtilTest, UnicodePathRoundTrip)
     ASSERT_TRUE(tmp.valid());
 
     // 含中文目录与文件名。make_path 内部走 PathUtil::join（已 u8path 化）。
-    const std::string relDir = u8"测试目录";
-    const std::string relFile = u8"测试目录/中文文件.txt";
-    auto dirPath = tmp.make_path(relDir);
-    auto filePath = tmp.make_path(relFile);
+    const std::string relDir   = u8"测试目录";
+    const std::string relFile  = u8"测试目录/中文文件.txt";
+    auto              dirPath  = tmp.make_path(relDir);
+    auto              filePath = tmp.make_path(relFile);
 
     // create_directories + write_text + exists + read_all_text + size。
     EXPECT_TRUE(FileUtil::create_directories(dirPath));
@@ -800,10 +801,13 @@ TEST(FileUtilTest, UnicodePathIsReadableWritable)
 // ==================== FsError 映射 ====================
 
 // 新增错误码都有可读字符串，且未回退到 "unknown error"（防止漏加 to_string 分支）。
-TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
+TEST(FsErrorTest, NewCodesHaveDistinctStrings)
+{
     const FsError codes[] = {
-        FsError::IsADirectory, FsError::DirectoryNotEmpty,
-        FsError::NameTooLong,  FsError::TooManyOpenFiles,
+        FsError::IsADirectory,
+        FsError::DirectoryNotEmpty,
+        FsError::NameTooLong,
+        FsError::TooManyOpenFiles,
     };
     for (auto e : codes) {
         auto s = to_string(e);
@@ -816,4 +820,6 @@ TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
     EXPECT_EQ(to_string(FsError::TooManyOpenFiles), "too many open files");
 }
 
-}}}  // namespace ca::fs::test
+}   // namespace test
+}   // namespace fs
+}   // namespace ca

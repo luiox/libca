@@ -231,7 +231,7 @@ Status NamedPipeConnection::write_all(const void* data, usize length)
     usize offset = 0;
     while (offset < length) {
         // POSIX write 长度超过 SSIZE_MAX 是 UB，单次封顶（循环继续写剩余部分）。
-        const usize   capped = std::min<usize>(
+        const usize capped = std::min<usize>(
             length - offset, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
         const ssize_t count =
             ::write(to_fd(native_handle_), static_cast<const char*>(data) + offset, capped);
@@ -472,9 +472,9 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
     if (wide_name.is_err())
         return Err(wide_name.unwrap_err());
     const u64 length = static_cast<u64>(size);
-    // CreateFileMappingW 即使返回成功句柄，若同名对象已存在也会设 GetLastError = ERROR_ALREADY_EXISTS，
-    // 必须用这个标志区分"新建者"与"复用者"——只有新建者才被视为 create 成功。
-    HANDLE    handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
+    // CreateFileMappingW 即使返回成功句柄，若同名对象已存在也会设 GetLastError =
+    // ERROR_ALREADY_EXISTS， 必须用这个标志区分"新建者"与"复用者"——只有新建者才被视为 create 成功。
+    HANDLE handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
                                        nullptr,
                                        PAGE_READWRITE,
                                        static_cast<DWORD>(length >> 32),
@@ -686,9 +686,9 @@ StatusResult<bool> NamedSemaphore::try_acquire_for(std::chrono::milliseconds tim
     // Windows WaitForSingleObject 相对超时即可，超时返回 WAIT_TIMEOUT。
     // DWORD-1 作为上限避开溢出（与 MessageQueue::receive_for 同口径）。
     const auto  milliseconds = std::max<i64>(0, timeout.count());
-    const DWORD wait        = static_cast<DWORD>(std::min<i64>(
-        milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
-    const DWORD result      = WaitForSingleObject(to_handle(native_handle_), wait);
+    const DWORD wait         = static_cast<DWORD>(
+        std::min<i64>(milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
+    const DWORD result = WaitForSingleObject(to_handle(native_handle_), wait);
     if (result == WAIT_OBJECT_0)
         return Ok(true);
     if (result == WAIT_TIMEOUT)
@@ -905,8 +905,8 @@ StatusResult<std::string> MessageQueue::receive()
 #else
     // mq_receive 可能被信号中断（EINTR），需循环重试；缓冲大小必须 >= mq_msgsize，
     // 这里直接用 max_message_size_（由 mq_getattr 获取）。
-    std::string   result(max_message_size_, '\0');
-    ssize_t count = -1;
+    std::string result(max_message_size_, '\0');
+    ssize_t     count = -1;
     do {
         count = mq_receive(static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr);
     } while (count < 0 && errno == EINTR);
@@ -927,9 +927,9 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
     // mailslot 超时通过 SetMailslotInfo 设置整个句柄的读超时（毫秒级，影响后续所有
     // ReadFile）。DWORD-1 作为上限避开溢出，ERROR_SEM_TIMEOUT 是 mailslot 专有的
     // 超时码（不是 WAIT_TIMEOUT，因为这里是同步 ReadFile 而非 wait 函数）。
-    const auto milliseconds = std::max<i64>(0, timeout.count());
-    const DWORD wait = static_cast<DWORD>(std::min<i64>(
-        milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
+    const auto  milliseconds = std::max<i64>(0, timeout.count());
+    const DWORD wait         = static_cast<DWORD>(
+        std::min<i64>(milliseconds, static_cast<i64>(std::numeric_limits<DWORD>::max() - 1)));
     if (!SetMailslotInfo(to_handle(native_handle_), wait))
         return Err(windows_error("SetMailslotInfo"));
     std::string result(max_message_size_, '\0');
@@ -952,11 +952,11 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
     if (clock_gettime(CLOCK_REALTIME, &deadline) != 0)
         return Err(posix_error("clock_gettime"));
     const i64 milliseconds = std::max<i64>(0, timeout.count());
-    const i64 ns = static_cast<i64>(deadline.tv_nsec) + milliseconds * 1000000;
+    const i64 ns           = static_cast<i64>(deadline.tv_nsec) + milliseconds * 1000000;
     deadline.tv_sec += ns / 1000000000;
     deadline.tv_nsec = ns % 1000000000;
-    std::string   result(max_message_size_, '\0');
-    ssize_t count = -1;
+    std::string result(max_message_size_, '\0');
+    ssize_t     count = -1;
     for (;;) {
         count = mq_timedreceive(
             static_cast<mqd_t>(native_handle_), &result[0], result.size(), nullptr, &deadline);
@@ -1010,20 +1010,20 @@ Status posix_unlink(const std::string& name, const char* operation,
 
 Status remove_shared_memory(const std::string& name)
 {
-    return posix_unlink(name, "shm_unlink",
-                        [](const std::string& path) { return shm_unlink(path.c_str()); });
+    return posix_unlink(
+        name, "shm_unlink", [](const std::string& path) { return shm_unlink(path.c_str()); });
 }
 
 Status remove_semaphore(const std::string& name)
 {
-    return posix_unlink(name, "sem_unlink",
-                        [](const std::string& path) { return sem_unlink(path.c_str()); });
+    return posix_unlink(
+        name, "sem_unlink", [](const std::string& path) { return sem_unlink(path.c_str()); });
 }
 
 Status remove_message_queue(const std::string& name)
 {
-    return posix_unlink(name, "mq_unlink",
-                        [](const std::string& path) { return mq_unlink(path.c_str()); });
+    return posix_unlink(
+        name, "mq_unlink", [](const std::string& path) { return mq_unlink(path.c_str()); });
 }
 
 #endif

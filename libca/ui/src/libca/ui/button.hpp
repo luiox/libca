@@ -41,22 +41,41 @@ public:
     Button& operator=(const Button&) = delete;
 
     /// @brief 工厂：返回 `shared_ptr<Button>`，便于 `Window::add_control` 持有。
-    static std::shared_ptr<Button> make(Window* parent) {
-        return std::make_shared<Button>(parent);
-    }
+    static std::shared_ptr<Button> make(Window* parent) { return std::make_shared<Button>(parent); }
 
     /// @brief 设置按钮文本。必须在 `create()` 之前调用。
-    Button& set_text(std::string text) { text_ = std::move(text); return *this; }
+    Button& set_text(std::string text)
+    {
+        text_ = std::move(text);
+        return *this;
+    }
     /// @brief 设置 x 坐标（父窗口客户区相对）。
-    Button& set_x(int x) { x_ = x; return *this; }
+    Button& set_x(int x)
+    {
+        x_ = x;
+        return *this;
+    }
     /// @brief 设置 y 坐标（父窗口客户区相对）。
-    Button& set_y(int y) { y_ = y; return *this; }
+    Button& set_y(int y)
+    {
+        y_ = y;
+        return *this;
+    }
     /// @brief 设置宽度（像素）。
-    Button& set_width(int width) { width_ = width; return *this; }
+    Button& set_width(int width)
+    {
+        width_ = width;
+        return *this;
+    }
     /// @brief 设置高度（像素）。
-    Button& set_height(int height) { height_ = height; return *this; }
+    Button& set_height(int height)
+    {
+        height_ = height;
+        return *this;
+    }
     /// @brief 设置点击回调。
-    Button& set_click_handler(std::function<void(ClickEvent&)> handler) {
+    Button& set_click_handler(std::function<void(ClickEvent&)> handler)
+    {
         click_handler_ = std::move(handler);
         return *this;
     }
@@ -75,13 +94,13 @@ public:
     void dispatch_click();
 
 private:
-    std::string                            text_{"Button"};
-    int                                    x_{0};
-    int                                    y_{0};
-    int                                    width_{80};
-    int                                    height_{24};
-    HWND                                   hwnd_{nullptr};
-    std::function<void(ClickEvent&)>       click_handler_;
+    std::string                      text_{"Button"};
+    int                              x_{0};
+    int                              y_{0};
+    int                              width_{80};
+    int                              height_{24};
+    HWND                             hwnd_{nullptr};
+    std::function<void(ClickEvent&)> click_handler_;
 };
 
-}  // namespace ca::ui
+}   // namespace ca::ui

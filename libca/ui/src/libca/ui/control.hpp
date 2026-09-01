@@ -17,7 +17,9 @@ class Control
 {
 public:
     /// @brief 构造控件，记录父窗口。
-    explicit Control(Window* parent) : parent_(parent) {}
+    explicit Control(Window* parent)
+        : parent_(parent)
+    {}
 
     virtual ~Control() = default;
 
@@ -38,4 +40,4 @@ private:
     Window* parent_;
 };
 
-}  // namespace ca::ui
+}   // namespace ca::ui

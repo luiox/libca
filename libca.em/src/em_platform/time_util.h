@@ -2,7 +2,7 @@
 #ifndef TIMEUTIL_H
 #define TIMEUTIL_H
 
-#include <em_base/datatype.h>   
+#include <em_base/datatype.h>
 
 // // 时间戳类型，单位微秒，开机后，一般来说基于SysTick或其他时基
 // #if HAS_INT64
@@ -45,35 +45,39 @@ void ms_timer_irq_handler(void);
 u32 time_get_current_tick(void);
 
 // 获取当前时间戳（单位：毫秒）
-//uint32_t get_current_timestamp();
+// uint32_t get_current_timestamp();
 
 // 是否过去了特定时间
-//bool passed_ms(uint32_t timestamp);
+// bool passed_ms(uint32_t timestamp);
 
 // 初始化时间戳（通常在系统启动时调用一次）
-//void init_timestamp();
+// void init_timestamp();
 
 // 软件定时器
-typedef struct soft_timer {
-    u32 start; // 计时开始时间
-    u32 interval; // 超时周期
+typedef struct soft_timer
+{
+    u32 start;      // 计时开始时间
+    u32 interval;   // 超时周期
 } soft_timer_t;
 
 // 设置软件定时器的超时时间
-static inline void soft_timer_set(soft_timer_t* t, u32 interval) {
-    t->start = time_get_ms(); // 默认使用 ms
+static inline void soft_timer_set(soft_timer_t* t, u32 interval)
+{
+    t->start    = time_get_ms();   // 默认使用 ms
     t->interval = interval;
 }
 
 // 开启软件定时器
-static inline void soft_timer_start(soft_timer_t* t) {
-    t->start = time_get_ms(); // 默认使用 ms
+static inline void soft_timer_start(soft_timer_t* t)
+{
+    t->start = time_get_ms();   // 默认使用 ms
 }
 
 // 检查软件定时器是否超时
-static inline bool soft_timer_is_timeout(soft_timer_t* t) {
+static inline bool soft_timer_is_timeout(soft_timer_t* t)
+{
     return (time_get_ms() - t->start) >= t->interval;
 }
 
 
-#endif // TIMEUTIL_H
+#endif   // TIMEUTIL_H

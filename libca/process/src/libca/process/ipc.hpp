@@ -26,11 +26,11 @@ public:
     /// @return 成功返回实际字节数（0 表示对端关闭的干净 EOF）；系统错误返回 Status。
     ca::core::StatusResult<usize> read(void* buffer, usize capacity);
     /// @brief 循环写入直到 length 字节全部写出。
-    ca::core::Status              write_all(const void* data, usize length);
+    ca::core::Status write_all(const void* data, usize length);
     /// @brief 写入字符串全部内容。
-    ca::core::Status              write_all(const std::string& data);
-    bool                          is_open() const noexcept;
-    void                          close() noexcept;
+    ca::core::Status write_all(const std::string& data);
+    bool             is_open() const noexcept;
+    void             close() noexcept;
 
 private:
     explicit NamedPipeConnection(std::intptr_t native_handle) noexcept;
@@ -56,9 +56,9 @@ public:
     /// @brief 创建命名管道服务端；名字已存在时返回 ALREADY_EXISTS。
     static ca::core::StatusResult<NamedPipeServer> create(const std::string& name);
     /// @brief 阻塞等待一个客户端连接，返回可用连接。
-    ca::core::StatusResult<NamedPipeConnection>    accept();
+    ca::core::StatusResult<NamedPipeConnection> accept();
     /// @brief 关闭监听句柄；不会移除可能被其它进程仍使用的名字。
-    void                                           close() noexcept;
+    void close() noexcept;
 
 private:
     explicit NamedPipeServer(std::intptr_t native_handle) noexcept;
@@ -91,12 +91,12 @@ public:
     /// @brief 打开已存在的共享内存段；不存在时返回 NOT_FOUND。
     static ca::core::StatusResult<SharedMemory> open(const std::string& name);
     /// @brief 返回映射基地址；未映射返回 nullptr。
-    void*                                       data() noexcept;
-    const void*                                 data() const noexcept;
+    void*       data() noexcept;
+    const void* data() const noexcept;
     /// @brief 返回映射的字节大小。
-    usize                                       size() const noexcept;
-    bool                                        is_open() const noexcept;
-    void                                        close() noexcept;
+    usize size() const noexcept;
+    bool  is_open() const noexcept;
+    void  close() noexcept;
 
 private:
     SharedMemory(std::intptr_t native_handle, void* data, usize size) noexcept;
@@ -123,12 +123,12 @@ public:
     /// @brief 打开已存在的命名信号量；不存在时返回 NOT_FOUND。
     static ca::core::StatusResult<NamedSemaphore> open(const std::string& name);
     /// @brief 计数减一，计数为 0 时阻塞直到有可用计数。
-    ca::core::Status                              acquire();
+    ca::core::Status acquire();
     /// @brief 限时尝试获取；超时返回 false（区分于系统错误）。
     ca::core::StatusResult<bool> try_acquire_for(std::chrono::milliseconds timeout);
     /// @brief 计数加 count（默认 1），唤醒等待者。
-    ca::core::Status             release(u32 count = 1);
-    void                         close() noexcept;
+    ca::core::Status release(u32 count = 1);
+    void             close() noexcept;
 
 private:
     explicit NamedSemaphore(std::intptr_t native_handle) noexcept;
@@ -151,16 +151,16 @@ public:
     MessageQueue& operator=(MessageQueue&& other) noexcept;
 
     /// @brief 创建上限为 max_message_size 的消息队列；名字已存在时返回 ALREADY_EXISTS。
-    static ca::core::StatusResult<MessageQueue>        create(const std::string& name,
-                                                              usize              max_message_size);
+    static ca::core::StatusResult<MessageQueue> create(const std::string& name,
+                                                       usize              max_message_size);
     /// @brief 打开已存在的消息队列；不存在时返回 NOT_FOUND。
-    static ca::core::StatusResult<MessageQueue>        open(const std::string& name);
+    static ca::core::StatusResult<MessageQueue> open(const std::string& name);
     /// @brief 发送一条 length 字节消息。
-    ca::core::Status                                   send(const void* data, usize length);
+    ca::core::Status send(const void* data, usize length);
     /// @brief 发送一条字符串消息。
-    ca::core::Status                                   send(const std::string& data);
+    ca::core::Status send(const std::string& data);
     /// @brief 阻塞接收一条消息。
-    ca::core::StatusResult<std::string>                receive();
+    ca::core::StatusResult<std::string> receive();
     /// @brief 限时接收；超时返回空 optional（区分于系统错误）。
     ca::core::StatusResult<std::optional<std::string>> receive_for(
         std::chrono::milliseconds timeout);

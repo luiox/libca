@@ -25,7 +25,7 @@
 // 环形缓冲区结构体
 typedef struct ring_buffer
 {
-    u8*       buffer;   // 缓冲区，要求是2的幂次方
+    u8*            buffer;   // 缓冲区，要求是2的幂次方
     usize          size;     // 缓冲区大小
     usize          used;     // 已使用的大小
     volatile usize read;     // 读指针的位置

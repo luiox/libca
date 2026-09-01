@@ -92,8 +92,9 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
         if (!detail.empty())
             return io::IoError::from_kind(io::IoErrorKind::InvalidData,
                                           ca::str::format_std("{} failed: {}", operation, detail));
-        return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                      ca::str::format_std("{} reached an unclean TLS EOF", operation));
+        return io::IoError::from_kind(
+            io::IoErrorKind::UnexpectedEof,
+            ca::str::format_std("{} reached an unclean TLS EOF", operation));
     }
 #    if defined(SSL_R_UNEXPECTED_EOF_WHILE_READING)
     if (ssl_error == SSL_ERROR_SSL) {
@@ -101,8 +102,9 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
         if (ERR_GET_LIB(code) == ERR_LIB_SSL &&
             ERR_GET_REASON(code) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
             ERR_clear_error();
-            return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                          ca::str::format_std("{} reached an unclean TLS EOF", operation));
+            return io::IoError::from_kind(
+                io::IoErrorKind::UnexpectedEof,
+                ca::str::format_std("{} reached an unclean TLS EOF", operation));
         }
     }
 #    endif
@@ -119,8 +121,9 @@ HttpError tls_configuration_error(const char* operation)
 {
     const auto detail = openssl_error_message();
     return HttpError::from_kind(HttpErrorKind::InvalidState,
-                                detail.empty() ? ca::str::format_std("{} failed", operation)
-                                               : ca::str::format_std("{} failed: {}", operation, detail));
+                                detail.empty()
+                                    ? ca::str::format_std("{} failed", operation)
+                                    : ca::str::format_std("{} failed: {}", operation, detail));
 }
 
 class OpenSslServerTransport final : public ServerTransport
@@ -260,11 +263,11 @@ HttpResult<void> ServerTlsContext::load(const HttpTlsServerOptions& options)
 
     // 证书链 + 私钥:PEM 格式。SSL_CTX_use_certificate_chain_file 会加载 leaf
     // 及其后的 intermediate,要求证书文件按 leaf-first 顺序排列。
-    if (SSL_CTX_use_certificate_chain_file(context.get(),
-                                            options.certificate_chain_file.c_str()) != 1)
+    if (SSL_CTX_use_certificate_chain_file(context.get(), options.certificate_chain_file.c_str()) !=
+        1)
         return ca::core::Err(tls_configuration_error("load TLS certificate chain"));
-    if (SSL_CTX_use_PrivateKey_file(context.get(), options.private_key_file.c_str(),
-                                     SSL_FILETYPE_PEM) != 1)
+    if (SSL_CTX_use_PrivateKey_file(
+            context.get(), options.private_key_file.c_str(), SSL_FILETYPE_PEM) != 1)
         return ca::core::Err(tls_configuration_error("load TLS private key"));
     if (SSL_CTX_check_private_key(context.get()) != 1)
         return ca::core::Err(tls_configuration_error("verify TLS private key matches certificate"));
@@ -347,9 +350,9 @@ HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
 
 namespace ca::http::detail {
 
-ServerTlsContext::ServerTlsContext() noexcept                      = default;
-ServerTlsContext::~ServerTlsContext()                              = default;
-ServerTlsContext::ServerTlsContext(ServerTlsContext&&) noexcept    = default;
+ServerTlsContext::ServerTlsContext() noexcept                              = default;
+ServerTlsContext::~ServerTlsContext()                                      = default;
+ServerTlsContext::ServerTlsContext(ServerTlsContext&&) noexcept            = default;
 ServerTlsContext& ServerTlsContext::operator=(ServerTlsContext&&) noexcept = default;
 
 HttpResult<void> ServerTlsContext::load(const HttpTlsServerOptions&)
@@ -368,9 +371,11 @@ bool tls_server_available() noexcept
     return false;
 }
 
-HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(
-    net::TcpStream, const ServerTlsContext&, std::chrono::milliseconds, ca::thread::StopToken,
-    std::chrono::milliseconds)
+HttpResult<std::unique_ptr<ServerTransport>> make_tls_server_transport(net::TcpStream,
+                                                                       const ServerTlsContext&,
+                                                                       std::chrono::milliseconds,
+                                                                       ca::thread::StopToken,
+                                                                       std::chrono::milliseconds)
 {
     return ca::core::Err(HttpError::from_kind(HttpErrorKind::Unsupported,
                                               "https requires a build with OpenSSL enabled"));

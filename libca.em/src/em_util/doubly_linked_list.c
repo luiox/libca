@@ -158,4 +158,3 @@ doubly_linked_list_node_t* doubly_linked_list_prev(doubly_linked_list_node_t* no
     param_check(node);
     return node->prev;
 }
-

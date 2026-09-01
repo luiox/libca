@@ -604,16 +604,15 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
     // 第二条连接正常响应。复用到 stale 连接的幂等请求应自动重试一次成功。
     // 线程以非阻塞 accept 轮询运行并受 server_stop 守护，任何失败路径都能安全 join，
     // 不会因 ASSERT 提前返回触发 joinable 线程析构的 std::terminate。
-    auto bound =
-        net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
+    auto bound = net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
     ASSERT_TRUE(bound.is_ok());
     auto listener = std::move(bound).unwrap();
-    auto local = listener.local_address();
+    auto local    = listener.local_address();
     ASSERT_TRUE(local.is_ok());
     const auto address = local.unwrap();
 
     std::atomic<bool> server_stop{false};
-    std::thread server_thread([&listener, &server_stop] {
+    std::thread       server_thread([&listener, &server_stop] {
         const std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
         if (!listener.set_nonblocking(true).is_ok())
             return;
@@ -635,7 +634,7 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
             // 必须显式恢复阻塞，否则请求字节未就绪时 read 返回 WouldBlock 被误判为断连。
             if (!stream->set_nonblocking(false).is_ok())
                 return;
-            std::string received;
+            std::string            received;
             std::array<char, 2048> buffer{};
             while (received.find("\r\n\r\n") == std::string::npos) {
                 auto read = stream->read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
@@ -649,9 +648,10 @@ TEST(HttpClientServerTest, RetriesIdempotentRequestOnStaleKeepAliveConnection)
         }
     });
 
-    struct ServerThreadGuard {
-        std::thread         thread;
-        std::atomic<bool>&  stop;
+    struct ServerThreadGuard
+    {
+        std::thread        thread;
+        std::atomic<bool>& stop;
         ~ServerThreadGuard()
         {
             stop.store(true, std::memory_order_relaxed);
@@ -680,7 +680,7 @@ TEST(HttpClientServerTest, Http10ExpectContinueSkipsInterimResponse)
     // RFC 9110 10.1.1：100-continue 仅定义于 HTTP/1.1。HTTP/1.0 请求携带
     // Expect: 100-continue 时不应收到 interim response，服务器直接读 body
     // 并回最终响应。
-    auto server = bind_server();
+    auto server         = bind_server();
     auto address_result = server.local_address();
     ASSERT_TRUE(address_result.is_ok());
     const auto address = address_result.unwrap();
@@ -705,7 +705,7 @@ TEST(HttpClientServerTest, Http10ExpectContinueSkipsInterimResponse)
     auto written = stream.write(reinterpret_cast<const u8*>(request.data()), request.size());
     ASSERT_TRUE(written.is_ok());
 
-    std::string received;
+    std::string            received;
     std::array<char, 1024> buffer{};
     for (;;) {
         auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
@@ -726,9 +726,9 @@ TEST(HttpClientServerTest, ProtocolErrorIsDeliveredWhileClientStreamsBody)
     // 排水后再关闭，保证客户端能收到 413。
     HttpServerOptions options;
     options.request_limits.max_body_bytes = 16;
-    options.overload_response_timeout = std::chrono::milliseconds(2000);
-    auto server = bind_server(options);
-    auto address_result = server.local_address();
+    options.overload_response_timeout     = std::chrono::milliseconds(2000);
+    auto server                           = bind_server(options);
+    auto address_result                   = server.local_address();
     ASSERT_TRUE(address_result.is_ok());
     const auto address = address_result.unwrap();
     ASSERT_TRUE(server
@@ -763,7 +763,7 @@ TEST(HttpClientServerTest, ProtocolErrorIsDeliveredWhileClientStreamsBody)
     }
     ASSERT_TRUE(stream.shutdown(net::Shutdown::Write).is_ok());
 
-    std::string received;
+    std::string            received;
     std::array<char, 1024> buffer{};
     for (;;) {
         auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());

@@ -19,11 +19,12 @@ bool interactive_enabled()
     return v != nullptr && std::string(v) == "1";
 }
 
-}  // namespace
+}   // namespace
 
 // 默认跳过，避免 ::MessageBoxW 在交互桌面阻塞 CI。
 // 设置 LIBCA_UI_INTERACTIVE=1 时才真正弹窗，验证 StatusResult 形态。
-TEST(MessageDialogTest, InfoReturnsStatusResult) {
+TEST(MessageDialogTest, InfoReturnsStatusResult)
+{
     if (!interactive_enabled()) {
         GTEST_SKIP() << "skip interactive MessageDialog; set LIBCA_UI_INTERACTIVE=1 to enable";
     }
@@ -31,10 +32,11 @@ TEST(MessageDialogTest, InfoReturnsStatusResult) {
     EXPECT_TRUE(result.is_ok());
 }
 
-TEST(MessageDialogTest, RejectsInvalidUtf8WithoutOpeningDialog) {
+TEST(MessageDialogTest, RejectsInvalidUtf8WithoutOpeningDialog)
+{
     auto result = MessageDialog::info("\xFF", "test message");
     ASSERT_TRUE(result.is_err());
     EXPECT_EQ(result.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
 }
 
-}  // namespace ca::ui
+}   // namespace ca::ui

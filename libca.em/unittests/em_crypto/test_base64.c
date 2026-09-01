@@ -156,5 +156,3 @@ TEST_CASE(base64_encode_null_check)
     TEST_ASSERT_EQUAL_UINT(0, base64_encode(NULL, 4, out));
     TEST_ASSERT_EQUAL_UINT(0, base64_encode(in, 4, NULL));
 }
-
-

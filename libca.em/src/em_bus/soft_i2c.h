@@ -16,7 +16,8 @@
 
 #include <em_base/datatype.h>
 
-typedef struct {
+typedef struct
+{
     // 设置gpio模式
     void (*gpio_set_output_mode)(void* port, u16 pin);
     void (*gpio_set_input_mode)(void* port, u16 pin);
@@ -24,28 +25,28 @@ typedef struct {
     u8 (*gpio_read)(void* port, u16 pin);
     void (*gpio_write)(void* port, u16 pin, u8 value);
     void (*delay_us)(u32 us);
-}soft_i2c_port_t;
+} soft_i2c_port_t;
 
 void soft_i2c_bind_port(const soft_i2c_port_t* port);
 bool soft_i2c_port_is_registered(void);
 
 // 写控制bit
 #ifndef I2C_WRITE
-#define I2C_WRITE 0
+#    define I2C_WRITE 0
 #endif
 // 读控制bit
 #ifndef I2C_READ
-#define I2C_READ 1
+#    define I2C_READ 1
 #endif
 
 typedef struct
 {
     // scl的pin信息
     void* scl_port;
-    u16 scl_pin;
+    u16   scl_pin;
     // sda的pin信息
     void* sda_port;
-    u16 sda_pin;
+    u16   sda_pin;
 } soft_i2c_t;
 
 void soft_i2c_init(soft_i2c_t* soft_i2c);
@@ -78,19 +79,14 @@ u8 soft_i2c_read_byte(soft_i2c_t* soft_i2c, u8 ack);
 ///////////////////////////////////////////////////////////////////////////////
 // 高层接口，参考stm32的hal库的硬件i2c的参数含义。
 // 目前只支持7位设备地址，现在的dev_addr要求左移一位，以包含读写位
-i32 soft_i2c_master_write(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size,
-                                        u32 timeout);
-i32 soft_i2c_master_read(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size,
-                                       u32 timeout);
-i32 soft_i2c_slave_write(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size,
-                                       u32 timeout);
-i32 soft_i2c_slave_read(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size,
-                                      u32 timeout);
-i32 soft_i2c_mem_write(soft_i2c_t* soft_i2c, u16 dev_addr, u16 mem_addr,
-                                     u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-i32 soft_i2c_mem_read(soft_i2c_t* soft_i2c, u16 dev_addr, u16 mem_addr,
-                                    u16 mem_addr_size, u8* data, u16 data_size, u32 timeout);
-i32 soft_i2c_is_device_ready(soft_i2c_t* soft_i2c, u16 dev_addr, u32 trials,
-                                           u32 timeout);
+i32 soft_i2c_master_write(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size, u32 timeout);
+i32 soft_i2c_master_read(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size, u32 timeout);
+i32 soft_i2c_slave_write(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size, u32 timeout);
+i32 soft_i2c_slave_read(soft_i2c_t* soft_i2c, u16 dev_addr, u8* data, u16 data_size, u32 timeout);
+i32 soft_i2c_mem_write(soft_i2c_t* soft_i2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size,
+                       u8* data, u16 data_size, u32 timeout);
+i32 soft_i2c_mem_read(soft_i2c_t* soft_i2c, u16 dev_addr, u16 mem_addr, u16 mem_addr_size, u8* data,
+                      u16 data_size, u32 timeout);
+i32 soft_i2c_is_device_ready(soft_i2c_t* soft_i2c, u16 dev_addr, u32 trials, u32 timeout);
 
 #endif   // !LIBCA_EM_BUS_SOFT_I2C_H

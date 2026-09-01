@@ -14,25 +14,25 @@
 #include <em_base/datatype.h>
 
 // 状态定义
-#define SC_STATE_START    0
-#define SC_STATE_FINISHED ((u32)-1)
+#define SC_STATE_START 0
+#define SC_STATE_FINISHED ((u32) - 1)
 
 // 编译器特性检测：GCC/Clang 支持标签作为值 (Labels as Values)
 #if defined(__GNUC__) || defined(__clang__)
-#define SC_HAS_LABEL_SUPPORT 1
-#else 
-#define SC_HAS_LABEL_SUPPORT 0
+#    define SC_HAS_LABEL_SUPPORT 1
+#else
+#    define SC_HAS_LABEL_SUPPORT 0
 #endif
 
 typedef struct scoroutine scoroutine_t;
 
-typedef void (*sc_task_t)(scoroutine_t *ctx);
+typedef void (*sc_task_t)(scoroutine_t* ctx);
 
 struct scoroutine
 {
     sc_task_t cfunc;
 #if SC_HAS_LABEL_SUPPORT
-    void *state;
+    void* state;
 #else
     u32 state;
 #endif
@@ -41,7 +41,7 @@ struct scoroutine
 
 // 辅助宏：用于生成唯一的标签名
 #define SC_CONCAT_IMPL(x, y) x##y
-#define SC_CONCAT(x, y)      SC_CONCAT_IMPL(x, y)
+#define SC_CONCAT(x, y) SC_CONCAT_IMPL(x, y)
 
 // 关闭 clang-format 以保持宏定义的紧凑性
 // clang-format off
@@ -126,12 +126,12 @@ struct scoroutine
 extern scoroutine_t g_scoroutines[SC_MAX_SIZE];
 extern usize        g_scoroutine_count;
 
-#define sc_create_coroutine(cfunc_name)                                        \
-    do {                                                                       \
-        g_scoroutines[g_scoroutine_count].cfunc = (sc_task_t)cfunc_name;       \
-        g_scoroutines[g_scoroutine_count].state = 0;                           \
-        g_scoroutines[g_scoroutine_count].delay_tick = 0;                      \
-        g_scoroutine_count++;                                                  \
+#define sc_create_coroutine(cfunc_name)                                       \
+    do {                                                                      \
+        g_scoroutines[g_scoroutine_count].cfunc      = (sc_task_t)cfunc_name; \
+        g_scoroutines[g_scoroutine_count].state      = 0;                     \
+        g_scoroutines[g_scoroutine_count].delay_tick = 0;                     \
+        g_scoroutine_count++;                                                 \
     } while (0)
 
 static void tim_1ms_handler(void)

@@ -5,7 +5,8 @@ namespace ca::str {
 // UTF-8 编解码工具函数
 // ============================================================================
 
-usize utf8_code_point_bytes(u8 first_byte) noexcept {
+usize utf8_code_point_bytes(u8 first_byte) noexcept
+{
     if ((first_byte & 0x80) == 0)
         return 1;   // 0xxxxxxx
     if ((first_byte & 0xE0) == 0xC0)
@@ -17,30 +18,27 @@ usize utf8_code_point_bytes(u8 first_byte) noexcept {
     return 0;       // 非法首字节
 }
 
-u32 utf8_decode_code_point(const u8* bytes) noexcept {
+u32 utf8_decode_code_point(const u8* bytes) noexcept
+{
     auto b0 = bytes[0];
     if ((b0 & 0x80) == 0) {
         return b0;
     }
     if ((b0 & 0xE0) == 0xC0) {
-        return ((u32)(b0 & 0x1F) << 6) |
-               ((u32)(bytes[1] & 0x3F));
+        return ((u32)(b0 & 0x1F) << 6) | ((u32)(bytes[1] & 0x3F));
     }
     if ((b0 & 0xF0) == 0xE0) {
-        return ((u32)(b0 & 0x0F) << 12) |
-               ((u32)(bytes[1] & 0x3F) << 6) |
-               ((u32)(bytes[2] & 0x3F));
+        return ((u32)(b0 & 0x0F) << 12) | ((u32)(bytes[1] & 0x3F) << 6) | ((u32)(bytes[2] & 0x3F));
     }
     if ((b0 & 0xF8) == 0xF0) {
-        return ((u32)(b0 & 0x07) << 18) |
-               ((u32)(bytes[1] & 0x3F) << 12) |
-               ((u32)(bytes[2] & 0x3F) << 6) |
-               ((u32)(bytes[3] & 0x3F));
+        return ((u32)(b0 & 0x07) << 18) | ((u32)(bytes[1] & 0x3F) << 12) |
+               ((u32)(bytes[2] & 0x3F) << 6) | ((u32)(bytes[3] & 0x3F));
     }
-    return 0;  // 非法
+    return 0;   // 非法
 }
 
-bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept {
+bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept
+{
     for (usize i = 1; i < clen; ++i) {
         if ((bytes[i] & 0xC0) != 0x80)
             return false;
@@ -48,7 +46,8 @@ bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept {
     return true;
 }
 
-usize utf8_encode_code_point(u32 cp, u8* out) noexcept {
+usize utf8_encode_code_point(u32 cp, u8* out) noexcept
+{
     // 排除非法码点：代理项 (U+D800~U+DFFF) 和超出范围的值
     if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
         return 0;
@@ -76,8 +75,8 @@ usize utf8_encode_code_point(u32 cp, u8* out) noexcept {
     return 4;
 }
 
-usize utf8_count_code_points(const u8* data, usize byte_length,
-                             usize* invalid_pos) noexcept {
+usize utf8_count_code_points(const u8* data, usize byte_length, usize* invalid_pos) noexcept
+{
     usize count = 0;
     usize pos   = 0;
 
@@ -104,7 +103,8 @@ usize utf8_count_code_points(const u8* data, usize byte_length,
     return count;
 }
 
-bool utf8_is_valid(const u8* data, usize byte_length) noexcept {
+bool utf8_is_valid(const u8* data, usize byte_length) noexcept
+{
     usize pos = 0;
     while (pos < byte_length) {
         auto len = utf8_code_point_bytes(data[pos]);
@@ -121,4 +121,4 @@ bool utf8_is_valid(const u8* data, usize byte_length) noexcept {
 
 
 
-}
+}   // namespace ca::str

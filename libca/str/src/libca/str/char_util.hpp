@@ -19,13 +19,18 @@ namespace ca::str {
 ///   Utf8Char cp = Utf8Char::from_raw("\xE4\xB8\xAD");  // '中'
 ///   if (cp.is_alpha()) { u8 buf[4]; usize n = cp.encode(buf); }
 /// @endcode
-class Utf8Char {
+class Utf8Char
+{
 public:
     // 默认构造：空码点 (U+0000)
-    constexpr Utf8Char() noexcept : cp_(0) {}
+    constexpr Utf8Char() noexcept
+        : cp_(0)
+    {}
 
     // 从码点值构造
-    constexpr explicit Utf8Char(u32 code_point) noexcept : cp_(code_point) {}
+    constexpr explicit Utf8Char(u32 code_point) noexcept
+        : cp_(code_point)
+    {}
 
     // 从 UTF-8 字节序列解码构造
     // bytes 必须指向合法的 UTF-8 序列首字节
@@ -41,7 +46,7 @@ public:
 
     // ---- 访问 ----
 
-    constexpr u32 code_point() const noexcept { return cp_; }
+    constexpr u32      code_point() const noexcept { return cp_; }
     constexpr explicit operator u32() const noexcept { return cp_; }
 
     // ---- 字符分类 ----
@@ -102,12 +107,17 @@ static_assert(sizeof(Utf8Char) == 4, "Utf8Char must be 4 bytes");
 ///   Utf16Char cu(0xD83D);  // 高位代理
 ///   if (cu.is_lead_surrogate()) { u32 cp = Utf16Char::decode_pair(cu, Utf16Char(0xDE00)); }
 /// @endcode
-class Utf16Char {
+class Utf16Char
+{
 public:
-    constexpr Utf16Char() noexcept : unit_(0) {}
-    constexpr explicit Utf16Char(u16 unit) noexcept : unit_(unit) {}
+    constexpr Utf16Char() noexcept
+        : unit_(0)
+    {}
+    constexpr explicit Utf16Char(u16 unit) noexcept
+        : unit_(unit)
+    {}
 
-    constexpr u16 unit() const noexcept { return unit_; }
+    constexpr u16      unit() const noexcept { return unit_; }
     constexpr explicit operator u16() const noexcept { return unit_; }
 
     // ---- 代理对判定 ----
@@ -136,8 +146,14 @@ public:
     // high/low 分别输出高低代理
     static bool encode_pair(u32 cp, Utf16Char& high, Utf16Char& low) noexcept;
 
-    constexpr bool operator==(const Utf16Char& other) const noexcept { return unit_ == other.unit_; }
-    constexpr bool operator!=(const Utf16Char& other) const noexcept { return unit_ != other.unit_; }
+    constexpr bool operator==(const Utf16Char& other) const noexcept
+    {
+        return unit_ == other.unit_;
+    }
+    constexpr bool operator!=(const Utf16Char& other) const noexcept
+    {
+        return unit_ != other.unit_;
+    }
 
 private:
     u16 unit_;
@@ -148,46 +164,88 @@ private:
 // 字符分类便捷函数（操作解码后的码点值）
 // ============================================================================
 
-inline bool is_alpha(u32 cp) noexcept { return Utf8Char(cp).is_alpha(); }
-inline bool is_digit(u32 cp) noexcept { return Utf8Char(cp).is_digit(); }
-inline bool is_alnum(u32 cp) noexcept { return Utf8Char(cp).is_alnum(); }
-inline bool is_space(u32 cp) noexcept { return Utf8Char(cp).is_space(); }
-inline bool is_lower(u32 cp) noexcept { return Utf8Char(cp).is_lower(); }
-inline bool is_upper(u32 cp) noexcept { return Utf8Char(cp).is_upper(); }
-inline bool is_punct(u32 cp) noexcept { return Utf8Char(cp).is_punct(); }
-inline bool is_print(u32 cp) noexcept { return Utf8Char(cp).is_print(); }
-inline bool is_cntrl(u32 cp) noexcept { return Utf8Char(cp).is_cntrl(); }
-inline bool is_xdigit(u32 cp) noexcept { return Utf8Char(cp).is_xdigit(); }
+inline bool is_alpha(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_alpha();
+}
+inline bool is_digit(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_digit();
+}
+inline bool is_alnum(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_alnum();
+}
+inline bool is_space(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_space();
+}
+inline bool is_lower(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_lower();
+}
+inline bool is_upper(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_upper();
+}
+inline bool is_punct(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_punct();
+}
+inline bool is_print(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_print();
+}
+inline bool is_cntrl(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_cntrl();
+}
+inline bool is_xdigit(u32 cp) noexcept
+{
+    return Utf8Char(cp).is_xdigit();
+}
 
-inline u32 to_lower(u32 cp) noexcept { return Utf8Char(cp).to_lower().code_point(); }
-inline u32 to_upper(u32 cp) noexcept { return Utf8Char(cp).to_upper().code_point(); }
+inline u32 to_lower(u32 cp) noexcept
+{
+    return Utf8Char(cp).to_lower().code_point();
+}
+inline u32 to_upper(u32 cp) noexcept
+{
+    return Utf8Char(cp).to_upper().code_point();
+}
 
 
 // ============================================================================
 // Utf16Char 内联实现
 // ============================================================================
 
-constexpr bool Utf16Char::is_surrogate() const noexcept {
+constexpr bool Utf16Char::is_surrogate() const noexcept
+{
     return unit_ >= 0xD800 && unit_ <= 0xDFFF;
 }
 
-constexpr bool Utf16Char::is_lead_surrogate() const noexcept {
+constexpr bool Utf16Char::is_lead_surrogate() const noexcept
+{
     return unit_ >= 0xD800 && unit_ <= 0xDBFF;
 }
 
-constexpr bool Utf16Char::is_trail_surrogate() const noexcept {
+constexpr bool Utf16Char::is_trail_surrogate() const noexcept
+{
     return unit_ >= 0xDC00 && unit_ <= 0xDFFF;
 }
 
-constexpr bool Utf16Char::is_bmp() const noexcept {
+constexpr bool Utf16Char::is_bmp() const noexcept
+{
     return unit_ <= 0xD7FF || (unit_ >= 0xE000 && unit_ <= 0xFFFF);
 }
 
-inline u32 Utf16Char::decode_pair(Utf16Char high, Utf16Char low) noexcept {
+inline u32 Utf16Char::decode_pair(Utf16Char high, Utf16Char low) noexcept
+{
     return 0x10000 + ((high.unit_ - 0xD800) << 10) + (low.unit_ - 0xDC00);
 }
 
-inline bool Utf16Char::encode_pair(u32 cp, Utf16Char& high, Utf16Char& low) noexcept {
+inline bool Utf16Char::encode_pair(u32 cp, Utf16Char& high, Utf16Char& low) noexcept
+{
     if (cp < 0x10000 || cp > 0x10FFFF)
         return false;
     cp -= 0x10000;
@@ -196,4 +254,4 @@ inline bool Utf16Char::encode_pair(u32 cp, Utf16Char& high, Utf16Char& low) noex
     return true;
 }
 
-}  // namespace ca::str
+}   // namespace ca::str

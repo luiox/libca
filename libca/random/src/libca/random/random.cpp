@@ -11,9 +11,9 @@ namespace ca::random {
 
 namespace {
 
-constexpr char kHexDigits[]      = "0123456789abcdef";
-constexpr char kAlphanumeric[]   = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-constexpr usize kAlphanumericLen = 62;  // 10 数字 + 26 小写 + 26 大写
+constexpr char  kHexDigits[]     = "0123456789abcdef";
+constexpr char  kAlphanumeric[]  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+constexpr usize kAlphanumericLen = 62;   // 10 数字 + 26 小写 + 26 大写
 
 // 从系统 CSPRNG 取一块原始字节。失败抛异常。
 void read_entropy(void* buf, usize len)
@@ -48,9 +48,9 @@ private:
         pos_ = 0;
     }
 
-    static constexpr usize kPoolSize = 32;  // 32 * 8 = 256 字节/次系统调用
-    u64   pool_[kPoolSize];
-    usize pos_{kPoolSize};  // 初始为空，首次 next_u64 触发 refill
+    static constexpr usize kPoolSize = 32;   // 32 * 8 = 256 字节/次系统调用
+    u64                    pool_[kPoolSize];
+    usize                  pos_{kPoolSize};   // 初始为空，首次 next_u64 触发 refill
 };
 
 EntropyPool& thread_pool()
@@ -59,7 +59,7 @@ EntropyPool& thread_pool()
     return pool;
 }
 
-}  // namespace
+}   // namespace
 
 void fill_bytes(void* buf, usize len)
 {
@@ -77,8 +77,8 @@ u64 next(u64 n)
     //   limit = (2^64 - 1) - ((2^64 - 1) - n + 1) % n
     // 当 n 整除 2^64 时，((2^64-n)) % n == 0，limit = UINT64_MAX，全部接受。
     const u64 limit = UINT64_MAX - (UINT64_MAX - n + 1) % n;
-    auto&    pool   = thread_pool();
-    u64      value;
+    auto&     pool  = thread_pool();
+    u64       value;
     do {
         value = pool.next_u64();
     } while (value > limit);
@@ -96,7 +96,7 @@ u64 range(u64 lo, u64 hi)
 double probability()
 {
     // 取 53 位作为 double 尾数，除以 2^53 得到 [0, 1)。
-    constexpr u64 kMask = (static_cast<u64>(1) << 53) - 1;
+    constexpr u64    kMask  = (static_cast<u64>(1) << 53) - 1;
     constexpr double kScale = static_cast<double>(static_cast<u64>(1) << 53);
     return static_cast<double>(thread_pool().next_u64() & kMask) / kScale;
 }
@@ -109,7 +109,7 @@ std::string hex_string(usize len)
     raw.resize(len);
     read_entropy(raw.data(), len);
     for (usize i = 0; i < len; ++i) {
-        auto byte = static_cast<unsigned char>(raw[i]);
+        auto byte      = static_cast<unsigned char>(raw[i]);
         out[i * 2]     = kHexDigits[byte >> 4];
         out[i * 2 + 1] = kHexDigits[byte & 0x0F];
     }
@@ -127,4 +127,4 @@ std::string alphanumeric_string(usize len)
     return out;
 }
 
-}  // namespace ca::random
+}   // namespace ca::random

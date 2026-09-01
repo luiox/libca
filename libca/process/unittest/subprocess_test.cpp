@@ -156,7 +156,7 @@ TEST(ChildTest, WaitReturnsCachedStatusAfterTryWaitReapsChild)
     auto spawned = command.spawn();
     ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
 
-    auto child = std::move(spawned).unwrap();
+    auto                      child = std::move(spawned).unwrap();
     std::optional<ExitStatus> status;
     for (usize index = 0; index < 100 && !status.has_value(); ++index) {
         auto result = child.try_wait();
@@ -259,20 +259,19 @@ TEST(MessageQueueTest, SenderDeliversOneWholeMessage)
 
 TEST(MessageQueueTest, ReceiveBlocksUntilSenderDeliversMessage)
 {
-    const std::string name =
-        "libca_process_mq_blocking_" + std::to_string(current_process_id());
-    auto receiver = ipc::MessageQueue::create(name, 64);
+    const std::string name = "libca_process_mq_blocking_" + std::to_string(current_process_id());
+    auto              receiver = ipc::MessageQueue::create(name, 64);
     ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
     auto sender = ipc::MessageQueue::open(name);
     ASSERT_TRUE(sender.is_ok()) << sender.unwrap_err().to_string();
 
-    auto receiver_value = std::move(receiver).unwrap();
-    auto sender_value   = std::move(sender).unwrap();
+    auto        receiver_value = std::move(receiver).unwrap();
+    auto        sender_value   = std::move(sender).unwrap();
     std::thread worker([sender = std::move(sender_value)]() mutable {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         sender.send("blocking");
     });
-    auto received = receiver_value.receive();
+    auto        received = receiver_value.receive();
     worker.join();
 
     ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
@@ -281,13 +280,12 @@ TEST(MessageQueueTest, ReceiveBlocksUntilSenderDeliversMessage)
 
 TEST(MessageQueueTest, ReceiveForReturnsEmptyOnTimeout)
 {
-    const std::string name =
-        "libca_process_mq_timeout_" + std::to_string(current_process_id());
-    auto receiver = ipc::MessageQueue::create(name, 64);
+    const std::string name     = "libca_process_mq_timeout_" + std::to_string(current_process_id());
+    auto              receiver = ipc::MessageQueue::create(name, 64);
     ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
 
     auto receiver_value = std::move(receiver).unwrap();
-    auto received = receiver_value.receive_for(std::chrono::milliseconds(5));
+    auto received       = receiver_value.receive_for(std::chrono::milliseconds(5));
 
     ASSERT_TRUE(received.is_ok()) << received.unwrap_err().to_string();
     EXPECT_FALSE(received.unwrap().has_value());
@@ -343,7 +341,7 @@ TEST(IpcRemoveTest, RemoveRejectsPathLikeName)
 // Windows ReleaseSemaphore 计数参数是 LONG：超限须报错而非截断。
 TEST(NamedSemaphoreTest, RejectsReleaseCountBeyondLongMax)
 {
-    const std::string name = "libca_process_sem_ovf_" + std::to_string(current_process_id());
+    const std::string name      = "libca_process_sem_ovf_" + std::to_string(current_process_id());
     auto              semaphore = ipc::NamedSemaphore::create(name, 0);
     ASSERT_TRUE(semaphore.is_ok()) << semaphore.unwrap_err().to_string();
     auto value = std::move(semaphore).unwrap();

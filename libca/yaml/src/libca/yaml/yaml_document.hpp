@@ -21,12 +21,13 @@ class YamlWriter;
 class YamlParser;
 
 /// @brief YAML 文档：arena + root。
-class YamlDocument {
+class YamlDocument
+{
 public:
     YamlDocument();
     ~YamlDocument();
 
-    YamlDocument(const YamlDocument&) = delete;
+    YamlDocument(const YamlDocument&)            = delete;
     YamlDocument& operator=(const YamlDocument&) = delete;
     YamlDocument(YamlDocument&& other) noexcept;
     YamlDocument& operator=(YamlDocument&& other) noexcept;
@@ -44,7 +45,7 @@ public:
 
 private:
     ca::str::Utf8StringArena arena_;
-    YamlValue root_;
+    YamlValue                root_;
 };
 
-}  // namespace ca::yaml
+}   // namespace ca::yaml

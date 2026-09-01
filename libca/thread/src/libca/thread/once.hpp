@@ -22,29 +22,20 @@ template<typename T>
 class OnceCell
 {
 public:
-    OnceCell() noexcept = default;
-    OnceCell(const OnceCell&)            = delete;
-    OnceCell& operator=(const OnceCell&) = delete;
-    OnceCell(OnceCell&&) noexcept        = default;
+    OnceCell() noexcept                      = default;
+    OnceCell(const OnceCell&)                = delete;
+    OnceCell& operator=(const OnceCell&)     = delete;
+    OnceCell(OnceCell&&) noexcept            = default;
     OnceCell& operator=(OnceCell&&) noexcept = default;
 
     /// @brief 返回已初始化值的指针，未初始化返回 nullptr。
-    T* get() noexcept
-    {
-        return value_.has_value() ? &(*value_) : nullptr;
-    }
+    T* get() noexcept { return value_.has_value() ? &(*value_) : nullptr; }
 
     /// @brief 返回已初始化值的只读指针，未初始化返回 nullptr。
-    const T* get() const noexcept
-    {
-        return value_.has_value() ? &(*value_) : nullptr;
-    }
+    const T* get() const noexcept { return value_.has_value() ? &(*value_) : nullptr; }
 
     /// @brief 是否已完成初始化。
-    bool is_initialized() const noexcept
-    {
-        return value_.has_value();
-    }
+    bool is_initialized() const noexcept { return value_.has_value(); }
 
     /// @brief 首次调用执行 factory 并缓存；后续调用直接返回缓存引用。
     /// @return 指向缓存值的引用（本次调用是否执行了 factory 由 had_value 区分）。
@@ -81,7 +72,7 @@ template<typename T>
 class OnceLock
 {
 public:
-    OnceLock() noexcept = default;
+    OnceLock() noexcept                  = default;
     OnceLock(const OnceLock&)            = delete;
     OnceLock& operator=(const OnceLock&) = delete;
     OnceLock(OnceLock&&)                 = delete;
@@ -128,4 +119,4 @@ private:
     std::optional<T>   value_;
 };
 
-}  // namespace ca::sync
+}   // namespace ca::sync

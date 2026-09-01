@@ -80,8 +80,7 @@ io::IoResult<void> wait_for_connect(RawSocket                             socket
 #if !defined(_WIN32)
     if (native >= FD_SETSIZE)
         return ca::core::Err(io::IoError::from_kind(
-            io::IoErrorKind::Unsupported,
-            "socket descriptor exceeds FD_SETSIZE limit for select"));
+            io::IoErrorKind::Unsupported, "socket descriptor exceeds FD_SETSIZE limit for select"));
 #endif
     for (;;) {
         const auto now = std::chrono::steady_clock::now();
@@ -157,7 +156,7 @@ io::IoResult<std::chrono::steady_clock::duration> validate_connect_timeout(
     return ca::core::Ok(clock_timeout);
 }
 
-io::IoResult<TcpStream> connect_until(const SocketAddress& address,
+io::IoResult<TcpStream> connect_until(const SocketAddress&                  address,
                                       std::chrono::steady_clock::time_point deadline)
 {
     if (std::chrono::steady_clock::now() >= deadline)
@@ -272,7 +271,7 @@ io::IoResult<TcpStream> TcpStream::connect_timeout(const SocketAddress&      add
     if (validated.is_err())
         return ca::core::Err(validated.unwrap_err());
     const auto clock_timeout = validated.unwrap();
-    const auto now = std::chrono::steady_clock::now();
+    const auto now           = std::chrono::steady_clock::now();
     if (clock_timeout > std::chrono::steady_clock::time_point::max() - now)
         return ca::core::Err(io::IoError::from_kind(
             io::IoErrorKind::InvalidInput, "TCP connect timeout exceeds steady clock range"));
@@ -506,15 +505,16 @@ io::IoResult<TcpListener> TcpListener::from_socket(OwnedSocket socket)
     return ca::core::Ok(TcpListener(std::move(socket)));
 }
 
-io::IoResult<TcpListener> TcpListener::bind(const SocketAddress&       address,
+io::IoResult<TcpListener> TcpListener::bind(const SocketAddress&      address,
                                             const TcpListenerOptions& options)
 {
     if (options.backlog <= 0)
         return ca::core::Err(io::IoError::from_kind(
             io::IoErrorKind::InvalidInput, "TCP listener backlog must be greater than zero"));
     if (options.ipv6_only.has_value() && address.ip().is_ipv4())
-        return ca::core::Err(io::IoError::from_kind(
-            io::IoErrorKind::InvalidInput, "IPV6_V6ONLY cannot be configured for an IPv4 listener"));
+        return ca::core::Err(
+            io::IoError::from_kind(io::IoErrorKind::InvalidInput,
+                                   "IPV6_V6ONLY cannot be configured for an IPv4 listener"));
 
     auto created = detail::create_socket(address.ip().version(), SOCK_STREAM, IPPROTO_TCP);
     if (created.is_err())
@@ -532,11 +532,8 @@ io::IoResult<TcpListener> TcpListener::bind(const SocketAddress&       address,
             return ca::core::Err(reused.unwrap_err());
     }
     if (options.ipv6_only.has_value()) {
-        auto ipv6_only = detail::set_bool_option(socket.get(),
-                                                 IPPROTO_IPV6,
-                                                 IPV6_V6ONLY,
-                                                 *options.ipv6_only,
-                                                 "setsockopt(IPV6_V6ONLY)");
+        auto ipv6_only = detail::set_bool_option(
+            socket.get(), IPPROTO_IPV6, IPV6_V6ONLY, *options.ipv6_only, "setsockopt(IPV6_V6ONLY)");
         if (ipv6_only.is_err())
             return ca::core::Err(ipv6_only.unwrap_err());
     }
@@ -561,16 +558,17 @@ io::IoResult<TcpAcceptResult> TcpListener::accept()
 
     sockaddr_storage            storage{};
     detail::NativeAddressLength length = static_cast<detail::NativeAddressLength>(sizeof(storage));
-    detail::NativeSocket accepted;
-    bool                 needs_inheritance_fix = true;
+    detail::NativeSocket        accepted;
+    bool                        needs_inheritance_fix = true;
 #if defined(__linux__) && defined(SOCK_CLOEXEC)
     accepted = ::accept4(detail::to_native_socket(socket_.get()),
                          reinterpret_cast<sockaddr*>(&storage),
                          &length,
                          SOCK_CLOEXEC);
     if (!detail::native_socket_is_valid(accepted) && (errno == ENOSYS || errno == EINVAL)) {
-        accepted = ::accept(
-            detail::to_native_socket(socket_.get()), reinterpret_cast<sockaddr*>(&storage), &length);
+        accepted = ::accept(detail::to_native_socket(socket_.get()),
+                            reinterpret_cast<sockaddr*>(&storage),
+                            &length);
     }
     else {
         needs_inheritance_fix = false;

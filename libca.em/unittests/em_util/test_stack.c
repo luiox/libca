@@ -54,4 +54,3 @@ TEST_CASE(stack_basic)
     TEST_ASSERT_EQUAL_INT(10, (int)s.size);
     TEST_ASSERT_EQUAL_INT('4', buf[9]);
 }
-

@@ -8,7 +8,8 @@ namespace ca::time {
 ///
 /// `TimeUtil` 提供 runtime intrinsic 常用的两个时钟入口：Unix epoch 毫秒和
 /// 单调纳秒计数。它不保存时区、日历或线程状态。
-class TimeUtil {
+class TimeUtil
+{
 public:
     /// @brief 返回 Unix epoch 毫秒时间戳，语义对齐 Java `System.currentTimeMillis()`。
     /// @return 自 1970-01-01T00:00:00Z 起经过的毫秒数。
@@ -19,4 +20,4 @@ public:
     static ca::i64 nano_time() noexcept;
 };
 
-}  // namespace ca::time
+}   // namespace ca::time

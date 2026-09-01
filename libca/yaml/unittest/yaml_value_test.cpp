@@ -11,21 +11,26 @@ using ca::str::Utf8StringRef;
 
 namespace {
 
-Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
+Utf8StringRef R(const char* s)
+{
+    return Utf8StringRef::from_cstr(s);
+}
 
-}  // namespace
+}   // namespace
 
 // ============================================================================
 // 类型谓词与工厂
 // ============================================================================
 
-TEST(YamlValueTest, DefaultIsNull) {
+TEST(YamlValueTest, DefaultIsNull)
+{
     YamlValue v;
     EXPECT_TRUE(v.is_null());
     EXPECT_EQ(v.type(), YamlType::Null);
 }
 
-TEST(YamlValueTest, FactoriesAndPredicates) {
+TEST(YamlValueTest, FactoriesAndPredicates)
+{
     EXPECT_TRUE(YamlValue::make_null().is_null());
     EXPECT_TRUE(YamlValue::make_boolean(true).is_boolean());
     EXPECT_TRUE(YamlValue::make_integer(42).is_integer());
@@ -35,14 +40,16 @@ TEST(YamlValueTest, FactoriesAndPredicates) {
     EXPECT_TRUE(YamlValue::make_mapping().is_mapping());
 }
 
-TEST(YamlValueTest, ScalarAccessors) {
+TEST(YamlValueTest, ScalarAccessors)
+{
     EXPECT_EQ(YamlValue::make_boolean(true).as_boolean(), true);
     EXPECT_EQ(YamlValue::make_integer(-7).as_integer(), -7);
     EXPECT_DOUBLE_EQ(YamlValue::make_float(2.5).as_float(), 2.5);
     EXPECT_EQ(YamlValue::make_string(R("hello")).as_string(), R("hello"));
 }
 
-TEST(YamlValueTest, NumericCoercion) {
+TEST(YamlValueTest, NumericCoercion)
+{
     EXPECT_DOUBLE_EQ(YamlValue::make_integer(3).as_float_or(0.0), 3.0);
     EXPECT_EQ(YamlValue::make_float(3.9).as_integer_or(0), 3);
     EXPECT_EQ(YamlValue::make_string(R("x")).as_integer_or(-1), -1);
@@ -53,7 +60,8 @@ TEST(YamlValueTest, NumericCoercion) {
 // Sequence
 // ============================================================================
 
-TEST(YamlValueTest, SequenceAppendAtSize) {
+TEST(YamlValueTest, SequenceAppendAtSize)
+{
     auto seq = YamlValue::make_sequence();
     EXPECT_EQ(seq.size(), 0u);
     seq.append(YamlValue::make_integer(1));
@@ -69,7 +77,8 @@ TEST(YamlValueTest, SequenceAppendAtSize) {
 // Mapping
 // ============================================================================
 
-TEST(YamlValueTest, MappingSetFindOrder) {
+TEST(YamlValueTest, MappingSetFindOrder)
+{
     auto map = YamlValue::make_mapping();
     map.set(R("b"), YamlValue::make_integer(2));
     map.set(R("a"), YamlValue::make_integer(1));
@@ -94,7 +103,8 @@ TEST(YamlValueTest, MappingSetFindOrder) {
     EXPECT_EQ(map.as_mapping()[1].second.as_string(), R("new"));
 }
 
-TEST(YamlValueTest, MappingRemoveKeepsIndexConsistent) {
+TEST(YamlValueTest, MappingRemoveKeepsIndexConsistent)
+{
     auto map = YamlValue::make_mapping();
     map.set(R("a"), YamlValue::make_integer(1));
     map.set(R("b"), YamlValue::make_integer(2));
@@ -116,7 +126,8 @@ TEST(YamlValueTest, MappingRemoveKeepsIndexConsistent) {
 // clone / document
 // ============================================================================
 
-TEST(YamlValueTest, CloneIsDeep) {
+TEST(YamlValueTest, CloneIsDeep)
+{
     auto map = YamlValue::make_mapping();
     auto seq = YamlValue::make_sequence();
     seq.append(YamlValue::make_integer(1));
@@ -129,7 +140,8 @@ TEST(YamlValueTest, CloneIsDeep) {
     EXPECT_EQ(map.find(R("list"))->size(), 1u);
 }
 
-TEST(YamlDocumentTest, RootDefaultsToNullAndClear) {
+TEST(YamlDocumentTest, RootDefaultsToNullAndClear)
+{
     YamlDocument doc;
     EXPECT_TRUE(doc.root().is_null());
 
@@ -141,13 +153,14 @@ TEST(YamlDocumentTest, RootDefaultsToNullAndClear) {
     EXPECT_TRUE(doc.root().is_null());
 }
 
-TEST(YamlDocumentTest, MoveTransfersOwnership) {
+TEST(YamlDocumentTest, MoveTransfersOwnership)
+{
     YamlDocument doc;
     doc.root() = YamlValue::make_mapping();
     doc.root().set(doc.arena().intern("k"), YamlValue::make_string(doc.arena().intern("v")));
 
     YamlDocument moved = std::move(doc);
-    const auto* v = moved.root().find(R("k"));
+    const auto*  v     = moved.root().find(R("k"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_string(), R("v"));
 }

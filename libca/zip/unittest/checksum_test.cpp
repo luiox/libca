@@ -28,9 +28,8 @@ TEST(Crc32Test, KnownVectors)
 
 TEST(Crc32Test, IncrementalUpdateMatchesOneShot)
 {
-    const std::string payload =
-        "The quick brown fox jumps over the lazy dog. 0123456789.";
-    Crc32 incremental;
+    const std::string payload = "The quick brown fox jumps over the lazy dog. 0123456789.";
+    Crc32             incremental;
     incremental.update(payload.data(), 10);
     incremental.update(payload.data() + 10, payload.size() - 10);
 

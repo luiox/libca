@@ -29,8 +29,8 @@ core::StatusResult<int> MessageDialog::show() const
     if (result == 0) {
         const DWORD err = GetLastError();
         return core::Err(core::ErrStatus(core::StatusCode::INTERNAL,
-                                          "::MessageBoxW failed with Windows error " +
-                                              std::to_string(static_cast<unsigned long>(err))));
+                                         "::MessageBoxW failed with Windows error " +
+                                             std::to_string(static_cast<unsigned long>(err))));
     }
     return core::Ok(result);
 }
@@ -40,4 +40,4 @@ core::StatusResult<int> MessageDialog::info(const std::string& title, const std:
     return MessageDialog(title, message).show();
 }
 
-}  // namespace ca::ui
+}   // namespace ca::ui

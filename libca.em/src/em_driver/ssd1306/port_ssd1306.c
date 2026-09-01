@@ -7,10 +7,12 @@
 //    HAL_Delay(ms);
 // }
 
-// static void ssd1306_port_i2c_mem_write(void* i2c_extra_data, u16 dev_addr, u8 mem_addr, u16 mem_addr_size,
+// static void ssd1306_port_i2c_mem_write(void* i2c_extra_data, u16 dev_addr, u8 mem_addr, u16
+// mem_addr_size,
 //                                        u8* data, u16 data_size, u32 timeout)
 // {
-//     HAL_I2C_Mem_Write((I2C_HandleTypeDef*)i2c_extra_data, dev_addr, mem_addr, mem_addr_size, data, data_size,
+//     HAL_I2C_Mem_Write((I2C_HandleTypeDef*)i2c_extra_data, dev_addr, mem_addr, mem_addr_size,
+//     data, data_size,
 //                   timeout);
 // }
 
@@ -23,5 +25,5 @@
 // bool ssd1306_port_init(void)
 // {
 //     ssd1306_bind_port(&g_ssd1306_port);
-//     return ssd1306_port_is_registered();  
+//     return ssd1306_port_is_registered();
 // }

@@ -26,7 +26,8 @@ class XmlParser;
 
 /// @brief XML 声明 `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`。
 /// @details `present` 为 false 时文档无声明，writer 也不输出。各字段为空视图表示该属性缺省。
-struct XmlDeclaration {
+struct XmlDeclaration
+{
     /// 文档是否带 XML 声明。
     bool present = false;
     /// version 值（如 "1.0"）。
@@ -38,12 +39,13 @@ struct XmlDeclaration {
 };
 
 /// @brief XML 文档：arena + 声明 + prolog/epilog + root 元素。
-class XmlDocument {
+class XmlDocument
+{
 public:
     XmlDocument();
     ~XmlDocument();
 
-    XmlDocument(const XmlDocument&) = delete;
+    XmlDocument(const XmlDocument&)            = delete;
     XmlDocument& operator=(const XmlDocument&) = delete;
     XmlDocument(XmlDocument&& other) noexcept;
     XmlDocument& operator=(XmlDocument&& other) noexcept;
@@ -54,15 +56,15 @@ public:
     const XmlNode& root() const noexcept;
 
     /// @brief XML 声明（可读写）。
-    XmlDeclaration& declaration() noexcept;
+    XmlDeclaration&       declaration() noexcept;
     const XmlDeclaration& declaration() const noexcept;
 
     /// @brief root 元素之前的顶层节点（注释）。保序。
-    std::vector<XmlNode>& prolog() noexcept;
+    std::vector<XmlNode>&       prolog() noexcept;
     const std::vector<XmlNode>& prolog() const noexcept;
 
     /// @brief root 元素之后的顶层节点（注释）。保序。
-    std::vector<XmlNode>& epilog() noexcept;
+    std::vector<XmlNode>&       epilog() noexcept;
     const std::vector<XmlNode>& epilog() const noexcept;
 
     /// @brief 内部 arena（parser/用户需要 intern 字符串时用）。
@@ -73,10 +75,10 @@ public:
 
 private:
     ca::str::Utf8StringArena arena_;
-    XmlDeclaration declaration_;
-    std::vector<XmlNode> prolog_;
-    std::vector<XmlNode> epilog_;
-    XmlNode root_;
+    XmlDeclaration           declaration_;
+    std::vector<XmlNode>     prolog_;
+    std::vector<XmlNode>     epilog_;
+    XmlNode                  root_;
 };
 
-}  // namespace ca::xml
+}   // namespace ca::xml

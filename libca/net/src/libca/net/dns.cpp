@@ -34,10 +34,10 @@ io::IoError dns_error(int code, const std::string& host)
 #endif
     return io::IoError::from_kind(
         kind,
-        ca::str::format_std("DNS resolution failed for {}: {}",
-                            host,
-                            message == nullptr ? ca::str::format_std("error {}", code)
-                                               : std::string(message)));
+        ca::str::format_std(
+            "DNS resolution failed for {}: {}",
+            host,
+            message == nullptr ? ca::str::format_std("error {}", code) : std::string(message)));
 }
 
 struct AddressInfoDeleter

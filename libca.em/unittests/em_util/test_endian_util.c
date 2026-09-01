@@ -147,4 +147,3 @@ TEST_CASE(test_little_endian_write_s32)
     TEST_ASSERT_EQUAL_INT(bytes[2], 0xFF);
     TEST_ASSERT_EQUAL_INT(bytes[3], 0xFF);
 }
-

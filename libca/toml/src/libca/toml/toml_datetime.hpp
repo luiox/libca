@@ -12,17 +12,19 @@
 namespace ca::toml {
 
 /// @brief TOML datetime 的 4 种变体。
-enum class TomlDatetimeKind {
-    OffsetDatetime,  ///< 日期 + 时间 + 时区。
-    LocalDateTime,   ///< 日期 + 时间，无时区。
-    LocalDate,       ///< 仅日期。
-    LocalTime        ///< 仅时间。
+enum class TomlDatetimeKind
+{
+    OffsetDatetime,   ///< 日期 + 时间 + 时区。
+    LocalDateTime,    ///< 日期 + 时间，无时区。
+    LocalDate,        ///< 仅日期。
+    LocalTime         ///< 仅时间。
 };
 
 /// @brief TOML datetime 数据。
 /// @note 哪些字段有效取决于 `kind`：LocalDate 用年月日；LocalTime 用时分秒+纳秒；
 ///       LocalDateTime 用上述全部；OffsetDatetime 再加时区。
-struct TomlDatetime {
+struct TomlDatetime
+{
     /// 变体类型。
     TomlDatetimeKind kind = TomlDatetimeKind::LocalDate;
 
@@ -51,4 +53,4 @@ struct TomlDatetime {
     ca::i16 tz_minutes = 0;
 };
 
-}  // namespace ca::toml
+}   // namespace ca::toml

@@ -6,13 +6,13 @@
 #include <string>
 
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
 #endif
 
 namespace ca::str {
@@ -31,9 +31,9 @@ usize OsStr::size() const noexcept
 // ============================ OsString ============================
 
 OsString::OsString() noexcept = default;
-OsString::~OsString() = default;
+OsString::~OsString()         = default;
 
-OsString::OsString(OsString&& other) noexcept = default;
+OsString::OsString(OsString&& other) noexcept            = default;
 OsString& OsString::operator=(OsString&& other) noexcept = default;
 
 #if defined(_WIN32)
@@ -72,7 +72,7 @@ Utf8String OsString::to_utf8_lossy() const
                                   nullptr,
                                   nullptr);
     if (len <= 0)
-        return Utf8String();  // 极端失败（如 CP_UTF8 不可用）退化为空串，不抛异常
+        return Utf8String();   // 极端失败（如 CP_UTF8 不可用）退化为空串，不抛异常
     std::string buffer(static_cast<size_t>(len), '\0');
     WideCharToMultiByte(CP_UTF8,
                         0,
@@ -90,13 +90,17 @@ OsString OsString::from_utf8(std::string_view utf8)
 {
     if (utf8.empty())
         return OsString();
-    int len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(),
-                                  static_cast<int>(utf8.size()), nullptr, 0);
+    int len = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
     if (len <= 0)
         throw std::runtime_error("ca::str::OsString::from_utf8: invalid UTF-8 sequence");
     std::wstring wide(static_cast<size_t>(len), L'\0');
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(),
-                        static_cast<int>(utf8.size()), wide.data(), len);
+    MultiByteToWideChar(CP_UTF8,
+                        MB_ERR_INVALID_CHARS,
+                        utf8.data(),
+                        static_cast<int>(utf8.size()),
+                        wide.data(),
+                        len);
     return OsString(std::move(wide));
 }
 
@@ -105,13 +109,12 @@ OsString OsString::from_utf8_lossy(std::string_view utf8)
     // 不用 MB_ERR_INVALID_CHARS：遇到非法字节时 MultiByteToWideChar 把它替换成 U+FFFD。
     if (utf8.empty())
         return OsString();
-    int len = MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
-                                  static_cast<int>(utf8.size()), nullptr, 0);
+    int len =
+        MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
     if (len <= 0)
         return OsString();
     std::wstring wide(static_cast<size_t>(len), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, utf8.data(),
-                        static_cast<int>(utf8.size()), wide.data(), len);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), wide.data(), len);
     return OsString(std::move(wide));
 }
 
@@ -125,7 +128,7 @@ OsStr OsString::as_view() const noexcept
     return OsStr(storage_);
 }
 
-#else  // POSIX
+#else   // POSIX
 
 OsString::OsString(Utf8String utf8) noexcept
     : storage_(std::move(utf8))
@@ -133,7 +136,7 @@ OsString::OsString(Utf8String utf8) noexcept
 
 std::string_view OsString::as_utf8() const noexcept
 {
-    return static_cast<std::string_view>(storage_);  // 到 string_view 为显式转换
+    return static_cast<std::string_view>(storage_);   // 到 string_view 为显式转换
 }
 
 Utf8String OsString::into_utf8_string() noexcept
@@ -154,8 +157,7 @@ Utf8String OsString::to_utf8_lossy() const
 
 OsString OsString::from_utf8(std::string_view utf8)
 {
-    return OsString(Utf8String::from_data(reinterpret_cast<const u8*>(utf8.data()),
-                                          utf8.size()));
+    return OsString(Utf8String::from_data(reinterpret_cast<const u8*>(utf8.data()), utf8.size()));
 }
 
 OsString OsString::from_utf8_lossy(std::string_view utf8)
@@ -173,7 +175,7 @@ OsString OsString::from_utf8_lossy(std::string_view utf8)
     usize pos = 0;
     while (pos < utf8.size()) {
         auto len = utf8_code_point_bytes(bytes[pos]);
-        bool ok = len > 0 && pos + len <= utf8.size();
+        bool ok  = len > 0 && pos + len <= utf8.size();
         if (ok) {
             for (usize i = 1; i < len; ++i) {
                 if ((bytes[pos + i] & 0xC0) != 0x80) {
@@ -187,12 +189,11 @@ OsString OsString::from_utf8_lossy(std::string_view utf8)
             pos += len;
         }
         else {
-            out.append("\xEF\xBF\xBD", 3);  // U+FFFD
+            out.append("\xEF\xBF\xBD", 3);   // U+FFFD
             pos += 1;
         }
     }
-    return OsString(Utf8String::from_data(reinterpret_cast<const u8*>(out.data()),
-                                          out.size()));
+    return OsString(Utf8String::from_data(reinterpret_cast<const u8*>(out.data()), out.size()));
 }
 
 bool OsString::is_empty() const noexcept
@@ -205,6 +206,6 @@ OsStr OsString::as_view() const noexcept
     return OsStr(static_cast<std::string_view>(storage_));
 }
 
-#endif  // _WIN32
+#endif   // _WIN32
 
-}  // namespace ca::str
+}   // namespace ca::str

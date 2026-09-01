@@ -21,7 +21,8 @@
 namespace ca::json {
 
 /// @brief SAX 事件接收接口。
-class JsonHandler {
+class JsonHandler
+{
 public:
     virtual ~JsonHandler() = default;
 
@@ -52,4 +53,4 @@ public:
     virtual void on_error(const ParseError& err) = 0;
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

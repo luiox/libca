@@ -66,7 +66,10 @@ TEST(ResourcesGet, BinaryBytesExact)
     const auto result = ca::resources::bundle("crt")->get("/a/b/deep.bin");
     ASSERT_TRUE(result.is_ok());
     // 含 NUL 与高位字节，验证二进制透明。
-    EXPECT_EQ(as_string(result.unwrap()), (std::string{"\x00\x01\xFF\xFE\x00""A", 6}));
+    EXPECT_EQ(as_string(result.unwrap()),
+              (std::string{"\x00\x01\xFF\xFE\x00"
+                           "A",
+                           6}));
 }
 
 TEST(ResourcesGet, ZeroByteFile)
@@ -117,7 +120,7 @@ TEST(ResourcesIterate, FullRangeOrderedAndComplete)
         "/my dir/nested.txt",
         "/top.txt",
         "/with space.txt",
-        "/\xE4\xB8\xAD\xE6\x96\x87\xE6\x96\x87\xE4\xBB\xB6.txt",  // UTF-8 字节序在 ASCII 之后
+        "/\xE4\xB8\xAD\xE6\x96\x87\xE6\x96\x87\xE4\xBB\xB6.txt",   // UTF-8 字节序在 ASCII 之后
     };
     std::vector<std::string> actual;
     for (const auto& item : *ca::resources::bundle("crt")) {
@@ -163,8 +166,7 @@ TEST(ResourcesIterate, UnderRootIsAllAndEmptyDirInvisible)
 {
     EXPECT_EQ(ca::resources::bundle("crt")->under("/").size(),
               ca::resources::bundle("crt")->size());
-    EXPECT_EQ(ca::resources::bundle("crt")->under("").size(),
-              ca::resources::bundle("crt")->size());
+    EXPECT_EQ(ca::resources::bundle("crt")->under("").size(), ca::resources::bundle("crt")->size());
     for (const auto& item : *ca::resources::bundle("crt")) {
         EXPECT_EQ(item.path.find("/empty_dir/"), std::string_view::npos) << "empty dir leaked";
     }
@@ -187,10 +189,10 @@ TEST(ResourcesRegistry, DuplicateMountKeepsFirst)
     static const ca::resources::RawEntry kEntries[] = {{"/x.txt", nullptr, 0}};
     static const ca::resources::Bundle   kOther{kEntries, 1};
 
-    EXPECT_FALSE(ca::resources::mount("extra", kOther));  // 撞名：拒绝
+    EXPECT_FALSE(ca::resources::mount("extra", kOther));   // 撞名：拒绝
     const auto* kept = ca::resources::bundle("extra");
     ASSERT_NE(kept, nullptr);
-    EXPECT_EQ(kept->size(), 2U);  // 仍是原 fixture 包
+    EXPECT_EQ(kept->size(), 2U);   // 仍是原 fixture 包
 
     // 未占用名可注册。
     EXPECT_TRUE(ca::resources::mount("fresh", kOther));

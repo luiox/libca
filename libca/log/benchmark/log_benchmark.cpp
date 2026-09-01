@@ -36,7 +36,7 @@ double ms_since(Clock::time_point t0)
 template<typename F>
 double best_ms(int iters, F&& f)
 {
-    f();  // 预热
+    f();   // 预热
     double best = 1e18;
     for (int i = 0; i < iters; ++i) {
         auto t0 = Clock::now();
@@ -48,8 +48,7 @@ double best_ms(int iters, F&& f)
 
 void line(const char* name, double ms, double items, const char* unit)
 {
-    std::printf("%-48s | best=%9.3f ms | %12.1f %s/s\n",
-                name, ms, items / (ms / 1000.0), unit);
+    std::printf("%-48s | best=%9.3f ms | %12.1f %s/s\n", name, ms, items / (ms / 1000.0), unit);
 }
 
 // 黑洞后端：丢弃所有输出，用于纯测门面 + 格式化开销（消除 I/O 噪声）。
@@ -61,7 +60,7 @@ public:
         // 仍调 render_to，保证格式化路径被执行（测的是格式化开销，不是 I/O）。
         std::string buf;
         message.render_to(buf);
-        sink_.assign(buf);  // 防止优化器整段删除
+        sink_.assign(buf);   // 防止优化器整段删除
     }
 
 private:
@@ -148,13 +147,13 @@ void bench_facade_format()
 void bench_backend_throughput()
 {
     std::printf("-- concurrent facade throughput (NullBackend, no I/O) --\n");
-    RegistryScope guard;  // NullBackend
+    RegistryScope guard;   // NullBackend
     LoggerRegistry::get("default")->set_level(Level::Trace);
 
     constexpr int N = 200000;
     for (int threads : {1, 2, 4, 8}) {
         std::atomic<long long> counter{0};
-        auto worker = [&]() {
+        auto                   worker = [&]() {
             for (int i = 0; i < N; ++i) {
                 CA_LOG_INFO("thread log iter={} tag=bench", counter.fetch_add(1));
             }
@@ -163,7 +162,7 @@ void bench_backend_throughput()
         // best of 3
         double best = 1e18;
         for (int run = 0; run < 3; ++run) {
-            auto t0 = Clock::now();
+            auto                     t0 = Clock::now();
             std::vector<std::thread> pool;
             pool.reserve(threads);
             for (int t = 0; t < threads; ++t)
@@ -179,7 +178,7 @@ void bench_backend_throughput()
     std::printf("\n");
 }
 
-}  // namespace
+}   // namespace
 
 int main()
 {

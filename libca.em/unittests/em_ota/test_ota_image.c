@@ -15,7 +15,7 @@
 
 static u8 g_mock_flash[MOCK_FLASH_SIZE];
 
-static i32 mock_read(u32 addr, u8 *buf, u32 len)
+static i32 mock_read(u32 addr, u8* buf, u32 len)
 {
     u32 offset = addr - MOCK_FLASH_BASE;
     if (offset + len > MOCK_FLASH_SIZE) {
@@ -25,7 +25,7 @@ static i32 mock_read(u32 addr, u8 *buf, u32 len)
     return 0;
 }
 
-static i32 mock_write(u32 addr, const u8 *data, u32 len)
+static i32 mock_write(u32 addr, const u8* data, u32 len)
 {
     u32 offset = addr - MOCK_FLASH_BASE;
     if (offset + len > MOCK_FLASH_SIZE) {
@@ -46,15 +46,21 @@ static i32 mock_erase(u32 addr, u32 len)
 }
 
 static const partition_port_t g_mock_port = {
-    .read = mock_read,
+    .read  = mock_read,
     .write = mock_write,
     .erase = mock_erase,
 };
 
 static const partition_t g_test_partitions[] = {
     {"bootloader", 0x08000000, 0x00004000, PARTITION_FLAG_READONLY},
-    {"app",        0x08004000, 0x00020000, PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},
-    {"download",   0x08024000, 0x00010000, PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},
+    {"app",
+     0x08004000,
+     0x00020000,
+     PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},
+    {"download",
+     0x08024000,
+     0x00010000,
+     PARTITION_FLAG_READABLE | PARTITION_FLAG_WRITABLE | PARTITION_FLAG_ERASEABLE},
 };
 
 static const partition_t* find_download(void)
@@ -113,12 +119,14 @@ static void stream_write_in_chunks(const partition_t* part, const u8* blob, usiz
         if (written + len > blob_len) {
             len = blob_len - written;
         }
-        TEST_ASSERT_EQUAL_INT(PARTITION_OK, partition_stream_write(&stream, blob + written, (u32)len));
+        TEST_ASSERT_EQUAL_INT(PARTITION_OK,
+                              partition_stream_write(&stream, blob + written, (u32)len));
         written += len;
     }
     if (written < blob_len) {
-        TEST_ASSERT_EQUAL_INT(PARTITION_OK,
-                              partition_stream_write(&stream, blob + written, (u32)(blob_len - written)));
+        TEST_ASSERT_EQUAL_INT(
+            PARTITION_OK,
+            partition_stream_write(&stream, blob + written, (u32)(blob_len - written)));
     }
 
     TEST_ASSERT_EQUAL_UINT(blob_len, partition_stream_offset(&stream));
@@ -140,7 +148,7 @@ TEST_CASE(ota_image_header_check)
     TEST_ASSERT_FALSE(ota_image_header_is_valid(&hdr));
 
     // 大小为 0 非法
-    hdr = make_header();
+    hdr            = make_header();
     hdr.image_size = 0;
     TEST_ASSERT_FALSE(ota_image_header_is_valid(&hdr));
 
@@ -158,7 +166,7 @@ TEST_CASE(ota_image_verify_ok)
 {
     setup_flash();
 
-    u8 blob[2048];
+    u8    blob[2048];
     usize blob_len = make_image_blob(blob, sizeof(blob));
 
     // 整段一次写入后校验通过
@@ -173,13 +181,13 @@ TEST_CASE(ota_image_verify_chunked_arrival)
 {
     setup_flash();
 
-    u8 blob[2048];
+    u8    blob[2048];
     usize blob_len = make_image_blob(blob, sizeof(blob));
 
     // 不规则分块到达（对齐真实传输中帧边界与镜像布局无关的事实），
     // 覆盖：跨界写、跨校验分块边界、末尾零碎块
     static const usize chunks[] = {1U, 33U, 1024U, 5U, 256U, 100U};
-    const partition_t* dl = find_download();
+    const partition_t* dl       = find_download();
     partition_erase(dl);
     stream_write_in_chunks(dl, blob, blob_len, chunks, 6);
 
@@ -195,7 +203,7 @@ TEST_CASE(ota_image_verify_bad_magic)
 {
     setup_flash();
 
-    u8 blob[2048];
+    u8    blob[2048];
     usize blob_len = make_image_blob(blob, sizeof(blob));
 
     const partition_t* dl = find_download();
@@ -212,7 +220,7 @@ TEST_CASE(ota_image_verify_bad_crc)
 {
     setup_flash();
 
-    u8 blob[2048];
+    u8    blob[2048];
     usize blob_len = make_image_blob(blob, sizeof(blob));
 
     const partition_t* dl = find_download();

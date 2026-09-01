@@ -40,9 +40,9 @@ void trace_flush(void);
 
 // Helper to get current function address or name
 #if defined(__GNUC__) || defined(__clang__)
-#define TRACE_GET_FUNC() __builtin_return_address(0)
+#    define TRACE_GET_FUNC() __builtin_return_address(0)
 #else
-#define TRACE_GET_FUNC() __FUNCTION__
+#    define TRACE_GET_FUNC() __FUNCTION__
 #endif
 
 #define TRACE(id, val) trace_write(id, (uint64_t)(val), TRACE_GET_FUNC(), __LINE__)
@@ -51,4 +51,4 @@ void trace_flush(void);
 }
 #endif
 
-#endif // !LIBCA_EM_LOG_TRACE_H
+#endif   // !LIBCA_EM_LOG_TRACE_H

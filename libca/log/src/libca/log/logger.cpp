@@ -24,7 +24,7 @@ bool iequals(std::string_view a, std::string_view b) noexcept
     return true;
 }
 
-}  // namespace
+}   // namespace
 
 Level from_string(std::string_view name) noexcept
 {
@@ -69,4 +69,4 @@ ILogBackend* Logger::backend() const noexcept
     return backend_.get();
 }
 
-}  // namespace ca::log
+}   // namespace ca::log

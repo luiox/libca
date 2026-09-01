@@ -97,4 +97,4 @@ TEST(MathUtilTest, FloatingPointNaNPropagatesThroughStdMath)
     EXPECT_TRUE(std::isnan(MathUtil::round(nan)));
 }
 
-}  // namespace ca::core::test
+}   // namespace ca::core::test

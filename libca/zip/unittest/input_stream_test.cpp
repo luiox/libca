@@ -26,8 +26,8 @@ TEST(ZipInputStreamTest, ReadStoredEntry)
         zos.close_entry();
     }
 
-    auto            fileData = read_file_bytes(outPath);
-    ZipInputStream  zis(std::move(fileData));
+    auto           fileData = read_file_bytes(outPath);
+    ZipInputStream zis(std::move(fileData));
 
     auto entry = zis.get_next_entry();
     ASSERT_NE(entry, nullptr);
@@ -46,7 +46,8 @@ TEST(ZipInputStreamTest, ReadDeflatedEntry)
         ZipOutputStream zos(outPath.string());
         zos.put_next_entry(ZipEntry("data.bin", 0, 1000, 8, 0, 0));
         std::vector<ca::u8> data(1000);
-        for (int i = 0; i < 1000; i++) data[i] = static_cast<ca::u8>(i % 256);
+        for (int i = 0; i < 1000; i++)
+            data[i] = static_cast<ca::u8>(i % 256);
         zos.write(data);
         zos.close_entry();
     }
@@ -73,11 +74,11 @@ TEST(ZipInputStreamTest, MultipleEntries)
         ZipOutputStream zos(outPath.string());
 
         zos.put_next_entry(ZipEntry("a.txt", 0, 3, 0, 0, 0));
-        zos.write(std::vector<ca::u8> {'a', 'b', 'c'});
+        zos.write(std::vector<ca::u8>{'a', 'b', 'c'});
         zos.close_entry();
 
         zos.put_next_entry(ZipEntry("b.txt", 0, 3, 8, 0, 0));
-        zos.write(std::vector<ca::u8> {'d', 'e', 'f'});
+        zos.write(std::vector<ca::u8>{'d', 'e', 'f'});
         zos.close_entry();
     }
 

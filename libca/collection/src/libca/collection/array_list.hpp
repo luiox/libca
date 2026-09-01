@@ -20,19 +20,22 @@ namespace ca::collection {
 /// Java `ArrayList`，方法名保持 snake_case。越界访问类 API 会抛出
 /// `std::out_of_range`，`try_get()` / `first()` / `last()` 使用空指针表示不存在。
 template<typename T>
-class ArrayList {
+class ArrayList
+{
 public:
     /// @brief 未找到元素时返回的哨兵值。
     static constexpr ca::usize npos = static_cast<ca::usize>(-1);
 
-    using value_type = T;
-    using iterator = typename std::vector<T>::iterator;
+    using value_type     = T;
+    using iterator       = typename std::vector<T>::iterator;
     using const_iterator = typename std::vector<T>::const_iterator;
 
     ArrayList() = default;
 
     /// @brief 用初始化列表构造列表，保留输入顺序。
-    ArrayList(std::initializer_list<T> values) : data_(values) {}
+    ArrayList(std::initializer_list<T> values)
+        : data_(values)
+    {}
 
     /// @brief 创建并预留 capacity 容量的空列表。
     static ArrayList with_capacity(ca::usize capacity)
@@ -64,7 +67,7 @@ public:
 
     /// @brief 返回底层连续存储指针；空列表时遵循 `std::vector::data()` 语义。
     const T* data() const noexcept { return data_.data(); }
-    T* data() noexcept { return data_.data(); }
+    T*       data() noexcept { return data_.data(); }
 
     /// @brief 返回第一个元素指针；列表为空时返回 nullptr。
     const T* first() const noexcept
@@ -143,7 +146,10 @@ public:
     }
 
     /// @brief 追加另一个列表的快照内容。
-    void add_all(const ArrayList& other) { data_.insert(data_.end(), other.data_.begin(), other.data_.end()); }
+    void add_all(const ArrayList& other)
+    {
+        data_.insert(data_.end(), other.data_.begin(), other.data_.end());
+    }
 
     /// @brief 在末尾原地构造元素并返回引用。
     template<typename... Args>
@@ -193,7 +199,7 @@ public:
     }
 
     const T& operator[](ca::usize index) const { return get(index); }
-    T& operator[](ca::usize index) { return get(index); }
+    T&       operator[](ca::usize index) { return get(index); }
 
     /// @brief 设置 index 位置元素。
     /// @throws std::out_of_range 当 index 越界。
@@ -238,8 +244,8 @@ public:
     T remove_at(ca::usize index)
     {
         check_index(index);
-        auto it = data_.begin() + static_cast<std::ptrdiff_t>(index);
-        T value = std::move(*it);
+        auto it    = data_.begin() + static_cast<std::ptrdiff_t>(index);
+        T    value = std::move(*it);
         data_.erase(it);
         return value;
     }
@@ -296,9 +302,7 @@ public:
     template<typename Pred>
     void retain(Pred&& keep)
     {
-        remove_if([&keep](const T& value) {
-            return !keep(value);
-        });
+        remove_if([&keep](const T& value) { return !keep(value); });
     }
 
     /// @brief 移除谓词返回 true 的元素。
@@ -307,13 +311,13 @@ public:
     ca::usize remove_if(Pred&& remove)
     {
         const auto old_size = data_.size();
-        auto it = std::remove_if(data_.begin(), data_.end(), std::forward<Pred>(remove));
+        auto       it = std::remove_if(data_.begin(), data_.end(), std::forward<Pred>(remove));
         data_.erase(it, data_.end());
         return static_cast<ca::usize>(old_size - data_.size());
     }
 
-    iterator begin() noexcept { return data_.begin(); }
-    iterator end() noexcept { return data_.end(); }
+    iterator       begin() noexcept { return data_.begin(); }
+    iterator       end() noexcept { return data_.end(); }
     const_iterator begin() const noexcept { return data_.begin(); }
     const_iterator end() const noexcept { return data_.end(); }
     const_iterator cbegin() const noexcept { return data_.cbegin(); }
@@ -335,4 +339,4 @@ private:
     std::vector<T> data_;
 };
 
-}  // namespace ca::collection
+}   // namespace ca::collection

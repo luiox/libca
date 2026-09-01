@@ -42,10 +42,6 @@ CA_WEAK u32 port_hc_sr04_tim_get_counter(void* tim)
     return 0;
 }
 
-CA_WEAK void port_hc_sr04_mutex_pend(void)
-{
-}
+CA_WEAK void port_hc_sr04_mutex_pend(void) {}
 
-CA_WEAK void port_hc_sr04_mutex_post(void)
-{
-}
+CA_WEAK void port_hc_sr04_mutex_post(void) {}

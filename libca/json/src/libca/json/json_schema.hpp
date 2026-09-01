@@ -19,7 +19,8 @@ namespace ca::json {
 
 /// @brief 单条校验失败记录。
 /// @note 字段为 owning（Utf8String），可走出 document 生命周期持久化到上层报告。
-struct ValidationError {
+struct ValidationError
+{
     /// 文档内定位（JSON Pointer 风格，如 "/before/classes"）。根文档为 ""。
     ca::str::Utf8String instance_path;
     /// schema 内定位（JSON Pointer 风格，如 "/properties/classes/type"）。根 schema 为 ""。
@@ -30,7 +31,8 @@ struct ValidationError {
 
 /// @brief schema 自身不合法（如 type 值非已知字符串、properties 非对象）。
 /// @note 与文档校验失败区分：SchemaError 表示 schema 写错了，而非文档不匹配。
-struct SchemaError {
+struct SchemaError
+{
     /// schema 内出错位置（JSON Pointer 风格）。
     ca::str::Utf8String schema_path;
     /// 人读的原因，如 "unknown type value: integre"。
@@ -46,4 +48,4 @@ struct SchemaError {
 Result<std::vector<ValidationError>, SchemaError> validate(const JsonValue& document,
                                                            const JsonValue& schema);
 
-}  // namespace ca::json
+}   // namespace ca::json

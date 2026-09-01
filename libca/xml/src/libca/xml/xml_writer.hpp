@@ -17,16 +17,18 @@
 namespace ca::xml {
 
 /// @brief XML 序列化选项。
-struct XmlWriterOptions {
+struct XmlWriterOptions
+{
     /// 每层缩进空格数。
     ca::usize indent = 2;
 };
 
 /// @brief XML 序列化器。
-class XmlWriter {
+class XmlWriter
+{
 public:
     /// @brief 把 XmlDocument 序列化为 Utf8String。
-    static ca::str::Utf8String write(const XmlDocument& document,
+    static ca::str::Utf8String write(const XmlDocument&      document,
                                      const XmlWriterOptions& options = XmlWriterOptions());
 
     /// @brief 把 XmlDocument 写入文件。
@@ -36,4 +38,4 @@ public:
         const XmlWriterOptions& options = XmlWriterOptions());
 };
 
-}  // namespace ca::xml
+}   // namespace ca::xml

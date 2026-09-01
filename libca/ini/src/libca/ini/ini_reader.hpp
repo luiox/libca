@@ -13,13 +13,15 @@
 namespace ca::ini {
 
 /// @brief 遇到重复 section / key 时的处理策略。
-enum class DuplicatePolicy {
-    KeepLast,  ///< 保留最后出现的（向后兼容默认行为）。
-    Error      ///< 报错。
+enum class DuplicatePolicy
+{
+    KeepLast,   ///< 保留最后出现的（向后兼容默认行为）。
+    Error       ///< 报错。
 };
 
 /// @brief INI 解析选项。
-struct IniReaderOptions {
+struct IniReaderOptions
+{
     /// 是否允许 section 前出现全局 key/value。
     bool allow_global_keys = true;
 
@@ -41,22 +43,21 @@ struct IniReaderOptions {
 };
 
 /// @brief INI Reader。
-class IniReader {
+class IniReader
+{
 public:
     /// @brief 从字符串解析 INI。
     /// @param input INI 文本（须在使用期内有效）。
     /// @param options 解析选项。
     /// @return 成功返回 IniDocument；格式错误返回 ParseError。
     static ca::Result<IniDocument, ParseError> read(
-        const ca::str::Utf8StringRef& input,
-        const IniReaderOptions& options = IniReaderOptions());
+        const ca::str::Utf8StringRef& input, const IniReaderOptions& options = IniReaderOptions());
 
     /// @brief 从文件解析 INI。
     /// @param path 文件路径。
     /// @return 成功返回 IniDocument；打开失败或格式错误返回 ParseError。
     static ca::Result<IniDocument, ParseError> read_file(
-        const ca::str::Utf8StringRef& path,
-        const IniReaderOptions& options = IniReaderOptions());
+        const ca::str::Utf8StringRef& path, const IniReaderOptions& options = IniReaderOptions());
 };
 
-}  // namespace ca::ini
+}   // namespace ca::ini

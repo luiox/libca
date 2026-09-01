@@ -73,8 +73,8 @@ inline std::string format_std(fmt::format_string<Args...> fmt_str, Args&&... arg
 /// @param args    被格式化的参数。
 /// @return out 的引用（支持链式）。
 template<typename... Args>
-inline Utf8StringBuilder& format_to(Utf8StringBuilder& out,
-                                    fmt::format_string<Args...> fmt_str, Args&&... args)
+inline Utf8StringBuilder& format_to(Utf8StringBuilder& out, fmt::format_string<Args...> fmt_str,
+                                    Args&&... args)
 {
     std::string tmp;
     fmt::vformat_to(std::back_inserter(tmp), fmt_str, fmt::make_format_args(args...));
@@ -90,8 +90,7 @@ inline Utf8StringBuilder& format_to(Utf8StringBuilder& out,
 /// @note 此重载不校验 UTF-8，因为 std::string 在 libca 之外不强制 UTF-8 语义；
 ///       需 UTF-8 保证请用返回 Utf8String 的 format() 或 format_to(Utf8StringBuilder)。
 template<typename... Args>
-inline std::string& format_to(std::string& out,
-                              fmt::format_string<Args...> fmt_str, Args&&... args)
+inline std::string& format_to(std::string& out, fmt::format_string<Args...> fmt_str, Args&&... args)
 {
     fmt::vformat_to(std::back_inserter(out), fmt_str, fmt::make_format_args(args...));
     return out;
@@ -111,7 +110,7 @@ inline std::string& format_to(std::string& out,
 ///       经 ADL 产生二义。format_runtime 避开此冲突。实现在 format.cpp。
 Utf8String format_runtime(fmt::string_view fmt_str, fmt::format_args args);
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 // ============================================================================
 // fmt::formatter 特化：让 Utf8String / Utf8StringRef 可作为 fmt 参数。
@@ -121,26 +120,24 @@ Utf8String format_runtime(fmt::string_view fmt_str, fmt::format_args args);
 // ============================================================================
 namespace fmt {
 
-template <>
-struct formatter<ca::str::Utf8String> : formatter<std::string_view> {
-    template <typename FormatContext>
-    auto format(const ca::str::Utf8String& s, FormatContext& ctx) const
-        -> decltype(ctx.out())
+template<>
+struct formatter<ca::str::Utf8String> : formatter<std::string_view>
+{
+    template<typename FormatContext>
+    auto format(const ca::str::Utf8String& s, FormatContext& ctx) const -> decltype(ctx.out())
     {
-        return formatter<std::string_view>::format(
-            static_cast<std::string_view>(s), ctx);
+        return formatter<std::string_view>::format(static_cast<std::string_view>(s), ctx);
     }
 };
 
-template <>
-struct formatter<ca::str::Utf8StringRef> : formatter<std::string_view> {
-    template <typename FormatContext>
-    auto format(const ca::str::Utf8StringRef& s, FormatContext& ctx) const
-        -> decltype(ctx.out())
+template<>
+struct formatter<ca::str::Utf8StringRef> : formatter<std::string_view>
+{
+    template<typename FormatContext>
+    auto format(const ca::str::Utf8StringRef& s, FormatContext& ctx) const -> decltype(ctx.out())
     {
-        return formatter<std::string_view>::format(
-            static_cast<std::string_view>(s), ctx);
+        return formatter<std::string_view>::format(static_cast<std::string_view>(s), ctx);
     }
 };
 
-}  // namespace fmt
+}   // namespace fmt

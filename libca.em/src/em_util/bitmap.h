@@ -1,16 +1,16 @@
 #ifndef BITMAP_H
-#define BITMAP_H 
+#define BITMAP_H
 
 #include <em_base/datatype.h>
 
-#define BITS_PER_BYTE  8
+#define BITS_PER_BYTE 8
 #define bitmap_size(n) (((n) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
 // 设置某一位为1（标记为空闲）
 static inline void bitmap_set(uint8_t* bitmap, size_t index)
 {
     size_t byte_idx = index / 8;
-    size_t bit_idx = index % 8;
+    size_t bit_idx  = index % 8;
     bitmap[byte_idx] |= (1u << bit_idx);
 }
 
@@ -18,7 +18,7 @@ static inline void bitmap_set(uint8_t* bitmap, size_t index)
 static inline void bitmap_clear(uint8_t* bitmap, size_t index)
 {
     size_t byte_idx = index / 8;
-    size_t bit_idx = index % 8;
+    size_t bit_idx  = index % 8;
     bitmap[byte_idx] &= ~(1u << bit_idx);
 }
 
@@ -26,7 +26,7 @@ static inline void bitmap_clear(uint8_t* bitmap, size_t index)
 static inline int bitmap_test(const uint8_t* bitmap, size_t index)
 {
     size_t byte_idx = index / 8;
-    size_t bit_idx = index % 8;
+    size_t bit_idx  = index % 8;
     return (bitmap[byte_idx] & (1u << bit_idx)) != 0;
 }
 
@@ -49,7 +49,7 @@ static int bitmap_find_first_set(const uint8_t* bitmap, size_t total_bits)
             }
         }
     }
-    return-1;  // 没有找到空闲块
+    return -1;   // 没有找到空闲块
 }
 
-#endif // !BITMAP_H
+#endif   // !BITMAP_H

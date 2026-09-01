@@ -11,23 +11,29 @@
  * "对于每个模块的单元测试，应该写在对应的源文件的最下面")
  */
 
-typedef struct {
-    u8 buf[64];
+typedef struct
+{
+    u8    buf[64];
     usize len;
 } capture_ctx_t;
 
-static i32 capture_write(transport_t* t, const u8* buf, usize len) {
+static i32 capture_write(transport_t* t, const u8* buf, usize len)
+{
     capture_ctx_t* c = (capture_ctx_t*)t->ctx;
-    if (!c || !buf) return -1;
-    if (len + c->len > sizeof(c->buf)) len = sizeof(c->buf) - c->len;
+    if (!c || !buf)
+        return -1;
+    if (len + c->len > sizeof(c->buf))
+        len = sizeof(c->buf) - c->len;
     memcpy(&c->buf[c->len], buf, len);
     c->len += len;
-    debug_print("transport_write: len=%d, data=0x%02X", (int)len, c->buf[c->len-1]);
+    debug_print("transport_write: len=%d, data=0x%02X", (int)len, c->buf[c->len - 1]);
     return (i32)len;
 }
 
-static void hw_puts_output(const char* s) {
-    (void)s; fputs(s, stdout);
+static void hw_puts_output(const char* s)
+{
+    (void)s;
+    fputs(s, stdout);
 }
 
 TEST_CASE(dummy_echo)
@@ -38,17 +44,17 @@ TEST_CASE(dummy_echo)
     memset(&ctx, 0, sizeof(ctx));
 
     transport_t tr = {0};
-    tr.write = capture_write;
-    tr.read = NULL;
-    tr.flush = NULL;
-    tr.ctx = &ctx;
+    tr.write       = capture_write;
+    tr.read        = NULL;
+    tr.flush       = NULL;
+    tr.ctx         = &ctx;
 
     dummy_t d;
     dummy_proto_init(&d);
 
     file_transfer_t ft;
-    ft.proto = TP_XMODEM; // arbitrary
-    ft.ops = &g_dummy_ops;
+    ft.proto     = TP_XMODEM;   // arbitrary
+    ft.ops       = &g_dummy_ops;
     ft.proto_ins = &d;
 
     // init should print "Dummy Inited"
@@ -62,4 +68,3 @@ TEST_CASE(dummy_echo)
     TEST_ASSERT_EQUAL_INT(1, (int)ctx.len);
     TEST_ASSERT_EQUAL_INT(0xAA, (int)ctx.buf[0]);
 }
-

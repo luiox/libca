@@ -200,32 +200,60 @@ i32 skv_get_item(skv_t* skv, skv_kv_item_t* item)
 
 void skv_reset_storage(skv_t* skv)
 {
-    if (!skv) return;
-    skv->num        = 0;
-    skv->next_addr  = skv->start_addr + 32;   // header区32字节
+    if (!skv)
+        return;
+    skv->num       = 0;
+    skv->next_addr = skv->start_addr + 32;   // header区32字节
     skv_write_header(skv);
 }
 
 // --- little-endian helpers ---
-static void write_le_u16(u8* buf, u16 v) { buf[0] = (u8)(v & 0xFF); buf[1] = (u8)((v >> 8) & 0xFF); }
-static void write_le_u32(u8* buf, u32 v) { buf[0] = (u8)(v & 0xFF); buf[1] = (u8)((v >> 8) & 0xFF); buf[2] = (u8)((v >> 16) & 0xFF); buf[3] = (u8)((v >> 24) & 0xFF); }
+static void write_le_u16(u8* buf, u16 v)
+{
+    buf[0] = (u8)(v & 0xFF);
+    buf[1] = (u8)((v >> 8) & 0xFF);
+}
+static void write_le_u32(u8* buf, u32 v)
+{
+    buf[0] = (u8)(v & 0xFF);
+    buf[1] = (u8)((v >> 8) & 0xFF);
+    buf[2] = (u8)((v >> 16) & 0xFF);
+    buf[3] = (u8)((v >> 24) & 0xFF);
+}
 #ifdef HAS_INT64
-static void write_le_u64(u8* buf, u64 v) { for (int i = 0; i < 8; ++i) buf[i] = (u8)((v >> (8 * i)) & 0xFF); }
-static u64 read_le_u64(const u8* buf) { u64 v = 0; for (int i = 0; i < 8; ++i) v |= ((u64)buf[i]) << (8 * i); return v; }
+static void write_le_u64(u8* buf, u64 v)
+{
+    for (int i = 0; i < 8; ++i)
+        buf[i] = (u8)((v >> (8 * i)) & 0xFF);
+}
+static u64 read_le_u64(const u8* buf)
+{
+    u64 v = 0;
+    for (int i = 0; i < 8; ++i)
+        v |= ((u64)buf[i]) << (8 * i);
+    return v;
+}
 #endif
-static u16 read_le_u16(const u8* buf) { return (u16)buf[0] | ((u16)buf[1] << 8); }
-static u32 read_le_u32(const u8* buf) { return (u32)buf[0] | ((u32)buf[1] << 8) | ((u32)buf[2] << 16) | ((u32)buf[3] << 24); }
+static u16 read_le_u16(const u8* buf)
+{
+    return (u16)buf[0] | ((u16)buf[1] << 8);
+}
+static u32 read_le_u32(const u8* buf)
+{
+    return (u32)buf[0] | ((u32)buf[1] << 8) | ((u32)buf[2] << 16) | ((u32)buf[3] << 24);
+}
 
 // typed put helpers
 static i32 skv_put_raw(skv_t* skv, const char* key, u8 value_type, const u8* data, u8 len)
 {
-    if (!key) return -1;
+    if (!key)
+        return -1;
     skv_kv_item_t item;
-    item.key_length = (u8)strlen(key);
-    item.key = (char*)key;
-    item.value_type = value_type;
+    item.key_length   = (u8)strlen(key);
+    item.key          = (char*)key;
+    item.value_type   = value_type;
     item.value_length = len;
-    item.value = (void*)data;
+    item.value        = (void*)data;
     return skv_put_item(skv, &item);
 }
 
@@ -237,41 +265,59 @@ i32 skv_put_u8(skv_t* skv, const char* key, u8 value)
 
 i32 skv_get_u8(skv_t* skv, const char* key, u8* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN];
+    u8            buf[SKV_MAX_VALUE_LEN];
     skv_kv_item_t item;
-    item.key = (char*)key;
+    item.key        = (char*)key;
     item.key_length = (u8)strlen(key);
-    item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_U8 || item.value_length != 1) return -1;
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_U8 || item.value_length != 1)
+        return -1;
     *value = buf[0];
     return 0;
 }
 
 i32 skv_put_u16(skv_t* skv, const char* key, u16 value)
 {
-    u8 buf[2]; write_le_u16(buf, value); return skv_put_raw(skv, key, SKV_TYPE_U16, buf, 2);
+    u8 buf[2];
+    write_le_u16(buf, value);
+    return skv_put_raw(skv, key, SKV_TYPE_U16, buf, 2);
 }
 
 i32 skv_get_u16(skv_t* skv, const char* key, u16* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_U16 || item.value_length != 2) return -1;
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_U16 || item.value_length != 2)
+        return -1;
     *value = read_le_u16(buf);
     return 0;
 }
 
 i32 skv_put_u32(skv_t* skv, const char* key, u32 value)
 {
-    u8 buf[4]; write_le_u32(buf, value); return skv_put_raw(skv, key, SKV_TYPE_U32, buf, 4);
+    u8 buf[4];
+    write_le_u32(buf, value);
+    return skv_put_raw(skv, key, SKV_TYPE_U32, buf, 4);
 }
 
 i32 skv_get_u32(skv_t* skv, const char* key, u32* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_U32 || item.value_length != 4) return -1;
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_U32 || item.value_length != 4)
+        return -1;
     *value = read_le_u32(buf);
     return 0;
 }
@@ -279,14 +325,22 @@ i32 skv_get_u32(skv_t* skv, const char* key, u32* value)
 #ifdef HAS_INT64
 i32 skv_put_u64(skv_t* skv, const char* key, u64 value)
 {
-    u8 buf[8]; write_le_u64(buf, value); return skv_put_raw(skv, key, SKV_TYPE_U64, buf, 8);
+    u8 buf[8];
+    write_le_u64(buf, value);
+    return skv_put_raw(skv, key, SKV_TYPE_U64, buf, 8);
 }
 
 i32 skv_get_u64(skv_t* skv, const char* key, u64* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_U64 || item.value_length != 8) return -1;
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_U64 || item.value_length != 8)
+        return -1;
     *value = read_le_u64(buf);
     return 0;
 }
@@ -295,27 +349,92 @@ i32 skv_get_u64(skv_t* skv, const char* key, u64* value)
 #endif
 
 // signed variants
-i32 skv_put_i8(skv_t* skv, const char* key, i8 value) { u8 buf[1] = {(u8)value}; return skv_put_raw(skv, key, SKV_TYPE_I8, buf, 1); }
-i32 skv_get_i8(skv_t* skv, const char* key, i8* value) { u8 buf[1]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf; if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND; if (item.value_type != SKV_TYPE_I8 || item.value_length != 1) return -1; *value = (i8)buf[0]; return 0; }
+i32 skv_put_i8(skv_t* skv, const char* key, i8 value)
+{
+    u8 buf[1] = {(u8)value};
+    return skv_put_raw(skv, key, SKV_TYPE_I8, buf, 1);
+}
+i32 skv_get_i8(skv_t* skv, const char* key, i8* value)
+{
+    u8            buf[1];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_I8 || item.value_length != 1)
+        return -1;
+    *value = (i8)buf[0];
+    return 0;
+}
 
-i32 skv_put_i16(skv_t* skv, const char* key, i16 value) { u8 buf[2]; write_le_u16(buf, (u16)value); return skv_put_raw(skv, key, SKV_TYPE_I16, buf, 2); }
-i32 skv_get_i16(skv_t* skv, const char* key, i16* value) { u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf; if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND; if (item.value_type != SKV_TYPE_I16 || item.value_length != 2) return -1; *value = (i16)read_le_u16(buf); return 0; }
+i32 skv_put_i16(skv_t* skv, const char* key, i16 value)
+{
+    u8 buf[2];
+    write_le_u16(buf, (u16)value);
+    return skv_put_raw(skv, key, SKV_TYPE_I16, buf, 2);
+}
+i32 skv_get_i16(skv_t* skv, const char* key, i16* value)
+{
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_I16 || item.value_length != 2)
+        return -1;
+    *value = (i16)read_le_u16(buf);
+    return 0;
+}
 
-i32 skv_put_i32(skv_t* skv, const char* key, i32 value) { u8 buf[4]; write_le_u32(buf, (u32)value); return skv_put_raw(skv, key, SKV_TYPE_I32, buf, 4); }
-i32 skv_get_i32(skv_t* skv, const char* key, i32* value) { u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf; if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND; if (item.value_type != SKV_TYPE_I32 || item.value_length != 4) return -1; *value = (i32)read_le_u32(buf); return 0; }
+i32 skv_put_i32(skv_t* skv, const char* key, i32 value)
+{
+    u8 buf[4];
+    write_le_u32(buf, (u32)value);
+    return skv_put_raw(skv, key, SKV_TYPE_I32, buf, 4);
+}
+i32 skv_get_i32(skv_t* skv, const char* key, i32* value)
+{
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_I32 || item.value_length != 4)
+        return -1;
+    *value = (i32)read_le_u32(buf);
+    return 0;
+}
 
 // floats
 i32 skv_put_f32(skv_t* skv, const char* key, f32 value)
 {
-    u8 buf[4]; u32 v; memcpy(&v, &value, 4); write_le_u32(buf, v); return skv_put_raw(skv, key, SKV_TYPE_F32, buf, 4);
+    u8  buf[4];
+    u32 v;
+    memcpy(&v, &value, 4);
+    write_le_u32(buf, v);
+    return skv_put_raw(skv, key, SKV_TYPE_F32, buf, 4);
 }
 
 i32 skv_get_f32(skv_t* skv, const char* key, f32* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_F32 || item.value_length != 4) return -1;
-    u32 v = read_le_u32(buf); memcpy(value, &v, 4); return 0;
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_F32 || item.value_length != 4)
+        return -1;
+    u32 v = read_le_u32(buf);
+    memcpy(value, &v, 4);
+    return 0;
 }
 
 i32 skv_put_f64(skv_t* skv, const char* key, f64 value)
@@ -323,22 +442,35 @@ i32 skv_put_f64(skv_t* skv, const char* key, f64 value)
     u8 buf[8];
     if (is_little_endian()) {
         memcpy(buf, &value, 8);
-    } else {
-        u8 tmp[8]; memcpy(tmp, &value, 8);
-        for (int i = 0; i < 8; ++i) buf[i] = tmp[7 - i];
+    }
+    else {
+        u8 tmp[8];
+        memcpy(tmp, &value, 8);
+        for (int i = 0; i < 8; ++i)
+            buf[i] = tmp[7 - i];
     }
     return skv_put_raw(skv, key, SKV_TYPE_F64, buf, 8);
 }
 
 i32 skv_get_f64(skv_t* skv, const char* key, f64* value)
 {
-    u8 buf[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = buf;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_type != SKV_TYPE_F64 || item.value_length != 8) return -1;
+    u8            buf[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = buf;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_type != SKV_TYPE_F64 || item.value_length != 8)
+        return -1;
     if (is_little_endian()) {
         memcpy(value, buf, 8);
-    } else {
-        u8 tmp[8]; for (int i = 0; i < 8; ++i) tmp[i] = buf[7 - i]; memcpy(value, tmp, 8);
+    }
+    else {
+        u8 tmp[8];
+        for (int i = 0; i < 8; ++i)
+            tmp[i] = buf[7 - i];
+        memcpy(value, tmp, 8);
     }
     return 0;
 }
@@ -346,15 +478,21 @@ i32 skv_get_f64(skv_t* skv, const char* key, f64* value)
 // string/blob
 i32 skv_put_string(skv_t* skv, const char* key, const char* str)
 {
-    if (!str) return -1;
+    if (!str)
+        return -1;
     u8 len = (u8)strlen(str);
     return skv_put_raw(skv, key, SKV_TYPE_STRING, (const u8*)str, len);
 }
 
 i32 skv_get_string(skv_t* skv, const char* key, char* buf, u8 buf_len)
 {
-    u8 tmp[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = tmp;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
+    u8            tmp[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = tmp;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
     u8 copy_len = item.value_length < (u8)(buf_len - 1) ? item.value_length : (u8)(buf_len - 1);
     memcpy(buf, tmp, copy_len);
     buf[copy_len] = '\0';
@@ -363,145 +501,217 @@ i32 skv_get_string(skv_t* skv, const char* key, char* buf, u8 buf_len)
 
 i32 skv_put_blob(skv_t* skv, const char* key, const u8* data, u8 len)
 {
-    if (!data) return -1;
+    if (!data)
+        return -1;
     return skv_put_raw(skv, key, SKV_TYPE_BLOB, data, len);
 }
 
 i32 skv_get_blob(skv_t* skv, const char* key, u8* buf, u8 buf_len, u8* out_len)
 {
-    u8 tmp[SKV_MAX_VALUE_LEN]; skv_kv_item_t item; item.key = (char*)key; item.key_length = (u8)strlen(key); item.value = tmp;
-    if (skv_get_item(skv, &item) != 0) return SKV_ERR_NOT_FOUND;
-    if (item.value_length > buf_len) return -1;
+    u8            tmp[SKV_MAX_VALUE_LEN];
+    skv_kv_item_t item;
+    item.key        = (char*)key;
+    item.key_length = (u8)strlen(key);
+    item.value      = tmp;
+    if (skv_get_item(skv, &item) != 0)
+        return SKV_ERR_NOT_FOUND;
+    if (item.value_length > buf_len)
+        return -1;
     memcpy(buf, tmp, item.value_length);
-    if (out_len) *out_len = item.value_length;
+    if (out_len)
+        *out_len = item.value_length;
     return 0;
 }
 
 // --- or_default helpers ---
 i32 skv_get_u8_or_default(skv_t* skv, const char* key, u8* value, u8 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_u8(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_u8(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_u16_or_default(skv_t* skv, const char* key, u16* value, u16 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_u16(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_u16(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_u32_or_default(skv_t* skv, const char* key, u32* value, u32 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_u32(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_u32(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 #ifdef HAS_INT64
 i32 skv_get_u64_or_default(skv_t* skv, const char* key, u64* value, u64 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_u64(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_u64(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 #endif
 
 i32 skv_get_i8_or_default(skv_t* skv, const char* key, i8* value, i8 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_i8(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_i8(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_i16_or_default(skv_t* skv, const char* key, i16* value, i16 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_i16(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_i16(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_i32_or_default(skv_t* skv, const char* key, i32* value, i32 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_i32(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_i32(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_f32_or_default(skv_t* skv, const char* key, f32* value, f32 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_f32(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_f32(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
 i32 skv_get_f64_or_default(skv_t* skv, const char* key, f64* value, f64 default_value)
 {
-    if (!key || !value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_f64(skv, key, value);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_f64(skv, key, default_value);
-    if (pr == 0) { *value = default_value; return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED; }
+    if (pr == 0) {
+        *value = default_value;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+    }
     return SKV_ERR_WRITE_FAILED;
 }
 
-i32 skv_get_string_or_default(skv_t* skv, const char* key, char* buf, u8 buf_len, const char* default_value)
+i32 skv_get_string_or_default(skv_t* skv, const char* key, char* buf, u8 buf_len,
+                              const char* default_value)
 {
-    if (!key || !buf || !default_value) return SKV_ERR_INVALID_PARAM;
+    if (!key || !buf || !default_value)
+        return SKV_ERR_INVALID_PARAM;
     i32 r = skv_get_string(skv, key, buf, buf_len);
-    if (r == 0) return SKV_OK;
+    if (r == 0)
+        return SKV_OK;
     i32 pr = skv_put_string(skv, key, default_value);
-    if (pr == 0) { // copy default into buf
+    if (pr == 0) {   // copy default into buf
         u8 copy_len = (u8)strlen(default_value);
-        if (copy_len >= buf_len) copy_len = buf_len - 1;
+        if (copy_len >= buf_len)
+            copy_len = buf_len - 1;
         memcpy(buf, default_value, copy_len);
         buf[copy_len] = '\0';
-        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
     }
     return SKV_ERR_WRITE_FAILED;
 }
 
-i32 skv_get_blob_or_default(skv_t* skv, const char* key, u8* buf, u8 buf_len, const u8* default_data, u8 default_len)
+i32 skv_get_blob_or_default(skv_t* skv, const char* key, u8* buf, u8 buf_len,
+                            const u8* default_data, u8 default_len)
 {
-    if (!key || !buf || (!default_data && default_len != 0)) return SKV_ERR_INVALID_PARAM;
-    u8 out_len = 0;
-    i32 r = skv_get_blob(skv, key, buf, buf_len, &out_len);
-    if (r == 0) return SKV_OK;
-    if (default_len > buf_len) return SKV_ERR_INVALID_PARAM;
+    if (!key || !buf || (!default_data && default_len != 0))
+        return SKV_ERR_INVALID_PARAM;
+    u8  out_len = 0;
+    i32 r       = skv_get_blob(skv, key, buf, buf_len, &out_len);
+    if (r == 0)
+        return SKV_OK;
+    if (default_len > buf_len)
+        return SKV_ERR_INVALID_PARAM;
     i32 pr = skv_put_blob(skv, key, default_data, default_len);
     if (pr == 0) {
-        if (default_len) memcpy(buf, default_data, default_len);
-        if (default_len < buf_len) buf[default_len] = 0;
-        if (out_len) *(&out_len) = default_len; // not used by caller here
-        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
+        if (default_len)
+            memcpy(buf, default_data, default_len);
+        if (default_len < buf_len)
+            buf[default_len] = 0;
+        if (out_len)
+            *(&out_len) = default_len;   // not used by caller here
+        return (r == SKV_ERR_NOT_FOUND) ? SKV_RET_DEFAULT_WRITTEN_NOT_FOUND
+                                        : SKV_RET_DEFAULT_WRITTEN_READ_FAILED;
     }
     return SKV_ERR_WRITE_FAILED;
 }
-
-
-

@@ -9,7 +9,7 @@
 /// @copyright Copyright (c) 2026
 ///
 #ifndef LIBCA_EM_BASE_MACRO_UTIL_H
-#define LIBCA_EM_BASE_MACRO_UTIL_H 
+#define LIBCA_EM_BASE_MACRO_UTIL_H
 
 // clang-format off
 
@@ -100,4 +100,4 @@
 
 // clang-format on
 
-#endif // !LIBCA_EM_BASE_MACRO_UTIL_H
+#endif   // !LIBCA_EM_BASE_MACRO_UTIL_H

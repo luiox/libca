@@ -11,25 +11,25 @@
 ///
 /// @version 0.1
 /// @date 2024-08-12
-/// 
+///
 /// @copyright Copyright (c) 2024
-/// 
+///
 
 #ifndef MYLIB_UTILITY_PID_H
 #define MYLIB_UTILITY_PID_H
 
 
 /// @brief 位置式pid对象
-/// 
+///
 typedef struct
 {
-    float target;       // 设定目标值 
-    float kp;           // 比例系数 
-    float ki;           // 积分系数 
-    float kd;           // 微分系数 
-    float last_error;   // 最后一次的误差 
-    float prev_error;   // 上一次误差 
-    float sum_error;    // 误差和 
+    float target;       // 设定目标值
+    float kp;           // 比例系数
+    float ki;           // 积分系数
+    float kd;           // 微分系数
+    float last_error;   // 最后一次的误差
+    float prev_error;   // 上一次误差
+    float sum_error;    // 误差和
 } pid_position_t;
 
 /// @brief 位置式pid结构体初始化
@@ -55,17 +55,17 @@ inline static void pid_position_set_target(pid_position_t* pid, float target)
 float pid_position_calculate(pid_position_t* pid, float current_value);
 
 /// @brief 增量式pid对象
-/// 
+///
 typedef struct
 {
     float target;       // 设定目标值
-    float kp;           // 比例系数 
+    float kp;           // 比例系数
     float ki;           // 积分系数 ki=kp*T/Ti
     float kd;           // 微分系数 kd=kp*Td/T
-    float last_error;   // 最后一次的误差 
+    float last_error;   // 最后一次的误差
     float prev_error;   // 上一次误差
 } pid_incremental_t;
- 
+
 /// @brief 增量式pid结构体初始化
 /// @param pid pid对象
 /// @param kp 比例系数

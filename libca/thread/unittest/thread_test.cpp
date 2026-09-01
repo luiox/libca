@@ -15,7 +15,7 @@ using namespace std::chrono_literals;
 TEST(ThreadTest, RunsCallableWithoutStopTokenAndJoinsIdempotently)
 {
     std::promise<void> completed;
-    auto started = Thread::start([&]() { completed.set_value(); });
+    auto               started = Thread::start([&]() { completed.set_value(); });
     ASSERT_TRUE(started.is_ok()) << started.unwrap_err().to_string();
 
     auto thread = std::move(started).unwrap();
@@ -30,7 +30,7 @@ TEST(ThreadTest, StopTokenWakesThreadAndJoinWaitsForCompletion)
 {
     std::promise<void> entered;
     std::atomic<bool>  observed_stop{false};
-    auto started = Thread::start([&](StopToken token) {
+    auto               started = Thread::start([&](StopToken token) {
         entered.set_value();
         token.wait();
         observed_stop.store(token.stop_requested(), std::memory_order_release);
@@ -79,7 +79,7 @@ TEST(ThreadTest, JoinReportsThreadExceptionWithoutTerminating)
 TEST(ThreadTest, MoveTransfersOwnership)
 {
     std::promise<void> entered;
-    auto started = Thread::start([&](StopToken token) {
+    auto               started = Thread::start([&](StopToken token) {
         entered.set_value();
         token.wait();
     });

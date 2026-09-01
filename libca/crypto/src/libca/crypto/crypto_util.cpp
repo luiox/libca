@@ -23,4 +23,4 @@ void secure_zero(void* data, ca::usize size) noexcept
         p[i] = 0;
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

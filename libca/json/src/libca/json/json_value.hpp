@@ -7,7 +7,8 @@
 ///          number 区分 int(i64) 与 float(f64)：字面量不含 `.`/`e`/`E` 时按 int 解析，
 ///          超过 i64 范围自动降级为 float。String 用 Utf8StringRef（指向所属 JsonDocument
 ///          内的 Utf8StringArena），Array 用 vector<JsonValue>，
-///          Object 用 vector<pair<Utf8StringRef, JsonValue>>（保序、允许重复 key，set() 覆盖同名 key）。
+///          Object 用 vector<pair<Utf8StringRef, JsonValue>>（保序、允许重复 key，set() 覆盖同名
+///          key）。
 /// @note 由于 Utf8StringRef 可拷贝，JsonValue 整体可拷贝（不再 move-only），
 ///       builder/push_back 都更简单。
 ///       Object 的 key 也是 Utf8StringRef，intern 入池天然去重。
@@ -25,21 +26,23 @@
 namespace ca::json {
 
 /// @brief JSON 值的七种类型。
-enum class JsonType {
-    Null,    ///< null
-    Bool,    ///< true / false
-    Int,     ///< 整数（i64 存储）
-    Float,   ///< 浮点（f64 存储）
-    String,  ///< UTF-8 字符串（Utf8StringRef）
-    Array,   ///< 数组
-    Object   ///< 对象（键值对，键为 Utf8StringRef）
+enum class JsonType
+{
+    Null,     ///< null
+    Bool,     ///< true / false
+    Int,      ///< 整数（i64 存储）
+    Float,    ///< 浮点（f64 存储）
+    String,   ///< UTF-8 字符串（Utf8StringRef）
+    Array,    ///< 数组
+    Object    ///< 对象（键值对，键为 Utf8StringRef）
 };
 
 /// @brief JSON DOM 节点。
 /// @details 节点内不拥有字符串内存：String 与 Object key 均为 `Utf8StringRef`，指向所属
 ///          `JsonDocument` 的 `Utf8StringArena`。JsonValue 因此可拷贝（浅拷贝引用）。
 /// @warning 拷贝/移动语义为浅引用：拷贝得到的 JsonValue 的字符串引用仍指向原 arena。
-class JsonValue {
+class JsonValue
+{
 public:
     /// Object 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "JsonValue 内含 JsonValue" 的
@@ -47,12 +50,12 @@ public:
     using ObjectMember  = std::pair<ca::str::Utf8StringRef, JsonValue>;
     using ObjectStorage = std::vector<ObjectMember>;
     /// Array 元素的存储类型。
-    using ArrayStorage  = std::vector<JsonValue>;
+    using ArrayStorage = std::vector<JsonValue>;
 
     // ---- 构造 / 析构 / 拷贝 / 移动 ----
 
-    JsonValue() noexcept;                             // 默认构造为 null
-    JsonValue(const JsonValue&) = default;            // 浅拷贝（Utf8StringRef 可拷贝）
+    JsonValue() noexcept;                               // 默认构造为 null
+    JsonValue(const JsonValue&)            = default;   // 浅拷贝（Utf8StringRef 可拷贝）
     JsonValue& operator=(const JsonValue&) = default;
     JsonValue(JsonValue&& other) noexcept;
     JsonValue& operator=(JsonValue&& other) noexcept;
@@ -84,14 +87,14 @@ public:
     // ---- 类型查询 ----
 
     JsonType type() const noexcept;
-    bool is_null() const noexcept;
-    bool is_bool() const noexcept;
-    bool is_int() const noexcept;
-    bool is_float() const noexcept;
-    bool is_number() const noexcept;   // Int 或 Float
-    bool is_string() const noexcept;
-    bool is_array() const noexcept;
-    bool is_object() const noexcept;
+    bool     is_null() const noexcept;
+    bool     is_bool() const noexcept;
+    bool     is_int() const noexcept;
+    bool     is_float() const noexcept;
+    bool     is_number() const noexcept;   // Int 或 Float
+    bool     is_string() const noexcept;
+    bool     is_array() const noexcept;
+    bool     is_object() const noexcept;
 
     // ---- 严格访问（类型不符触发断言） ----
 
@@ -152,13 +155,9 @@ public:
 
 private:
     JsonType type_;
-    std::variant<std::monostate,
-                 bool,
-                 ca::i64,
-                 ca::f64,
-                 ca::str::Utf8StringRef,
-                 ArrayStorage,
-                 ObjectStorage> data_;
+    std::variant<std::monostate, bool, ca::i64, ca::f64, ca::str::Utf8StringRef, ArrayStorage,
+                 ObjectStorage>
+        data_;
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

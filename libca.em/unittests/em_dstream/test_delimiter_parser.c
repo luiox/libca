@@ -5,8 +5,9 @@
 #include <em_test/test.h>
 
 /* 测试用的内存流实现 */
-typedef struct {
-    u8* buffer;
+typedef struct
+{
+    u8*   buffer;
     usize capacity;
     usize used;
     usize cursor;
@@ -29,7 +30,8 @@ static void mem_stream_skip(dstream_t* self, usize len)
     mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
     if (ms->cursor + len > ms->used) {
         ms->cursor = ms->used;
-    } else {
+    }
+    else {
         ms->cursor += len;
     }
 }
@@ -39,7 +41,8 @@ static void mem_stream_rewind(dstream_t* self, usize len)
     mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
     if (ms->cursor < len) {
         ms->cursor = 0;
-    } else {
+    }
+    else {
         ms->cursor -= len;
     }
 }
@@ -47,7 +50,7 @@ static void mem_stream_rewind(dstream_t* self, usize len)
 static usize mem_stream_offset(dstream_t* self)
 {
     mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
-    return 0; // 简化：offset 相对于当前 cursor
+    return 0;   // 简化：offset 相对于当前 cursor
 }
 
 static bool mem_stream_reset(dstream_t* self, usize pos)
@@ -62,9 +65,9 @@ static bool mem_stream_reset(dstream_t* self, usize pos)
 
 static i32 mem_stream_read(dstream_t* self, void* dest, usize len)
 {
-    mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
-    usize available = ms->used - ms->cursor;
-    usize actual = (len < available) ? len : available;
+    mem_stream_t* ms        = (mem_stream_t*)self->buf_obj;
+    usize         available = ms->used - ms->cursor;
+    usize         actual    = (len < available) ? len : available;
     memcpy(dest, ms->buffer + ms->cursor, actual);
     ms->cursor += actual;
     return (i32)actual;
@@ -72,8 +75,8 @@ static i32 mem_stream_read(dstream_t* self, void* dest, usize len)
 
 static i32 mem_stream_peek(dstream_t* self, usize offset, void* dest, usize len)
 {
-    mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
-    usize available = ms->used - ms->cursor;
+    mem_stream_t* ms        = (mem_stream_t*)self->buf_obj;
+    usize         available = ms->used - ms->cursor;
     if (offset >= available) {
         return 0;
     }
@@ -84,9 +87,9 @@ static i32 mem_stream_peek(dstream_t* self, usize offset, void* dest, usize len)
 
 static i32 mem_stream_write(dstream_t* self, const void* src, usize len)
 {
-    mem_stream_t* ms = (mem_stream_t*)self->buf_obj;
-    usize available = ms->capacity - ms->used;
-    usize actual = (len < available) ? len : available;
+    mem_stream_t* ms        = (mem_stream_t*)self->buf_obj;
+    usize         available = ms->capacity - ms->used;
+    usize         actual    = (len < available) ? len : available;
     memcpy(ms->buffer + ms->used, src, actual);
     ms->used += actual;
     return (i32)actual;
@@ -94,30 +97,30 @@ static i32 mem_stream_write(dstream_t* self, const void* src, usize len)
 
 static dstream_ops_t mem_stream_ops = {
     .capacity = mem_stream_capacity,
-    .used = mem_stream_used,
-    .skip = mem_stream_skip,
-    .rewind = mem_stream_rewind,
-    .offset = mem_stream_offset,
-    .reset = mem_stream_reset,
-    .read = mem_stream_read,
-    .peek = mem_stream_peek,
-    .write = mem_stream_write,
+    .used     = mem_stream_used,
+    .skip     = mem_stream_skip,
+    .rewind   = mem_stream_rewind,
+    .offset   = mem_stream_offset,
+    .reset    = mem_stream_reset,
+    .read     = mem_stream_read,
+    .peek     = mem_stream_peek,
+    .write    = mem_stream_write,
 };
 
 static void mem_stream_init(mem_stream_t* ms, dstream_t* ds, u8* buffer, usize capacity)
 {
-    ms->buffer = buffer;
+    ms->buffer   = buffer;
     ms->capacity = capacity;
-    ms->used = 0;
-    ms->cursor = 0;
-    ds->buf_obj = ms;
-    ds->ops = &mem_stream_ops;
+    ms->used     = 0;
+    ms->cursor   = 0;
+    ds->buf_obj  = ms;
+    ds->ops      = &mem_stream_ops;
 }
 
 static void mem_stream_write_data(mem_stream_t* ms, const u8* data, usize len)
 {
     usize available = ms->capacity - ms->used;
-    usize actual = (len < available) ? len : available;
+    usize actual    = (len < available) ? len : available;
     memcpy(ms->buffer + ms->used, data, actual);
     ms->used += actual;
 }
@@ -126,13 +129,13 @@ static void mem_stream_write_data(mem_stream_t* ms, const u8* data, usize len)
 
 TEST_CASE(delimiter_parser_trailer_only)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 trailer[] = "\r\n";
+    u8                 trailer[] = "\r\n";
     delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 32);
 
     // 写入数据：AT指令
@@ -153,13 +156,13 @@ TEST_CASE(delimiter_parser_header_only)
     // 注意：只有头部没有尾部时，帧无法自动结束
     // 解析器会持续等待更多数据，直到上层决定处理
     // 这种场景需要配合超时或上层协议处理
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 header[] = {0x55, 0xAA};
+    u8                 header[] = {0x55, 0xAA};
     delimiter_parser_init(&parser, &ds, header, 2, NULL, 0, 32);
 
     // 写入数据：0x55 0xAA + 4字节数据
@@ -172,14 +175,14 @@ TEST_CASE(delimiter_parser_header_only)
 
 TEST_CASE(delimiter_parser_header_and_trailer)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 header[] = {0x7E};
-    u8 trailer[] = {0x7E};
+    u8                 header[]  = {0x7E};
+    u8                 trailer[] = {0x7E};
     delimiter_parser_init(&parser, &ds, header, 1, trailer, 1, 32);
 
     // 写入数据：0x7E + 数据 + 0x7E + 额外字节（触发尾部匹配完成）
@@ -188,7 +191,7 @@ TEST_CASE(delimiter_parser_header_and_trailer)
 
     usize len;
     TEST_ASSERT_EQUAL_INT(DELIMITER_PARSER_OK, delimiter_parser_get_frame(&parser, &len));
-    TEST_ASSERT_EQUAL_UINT(5, len); // \x7E\x01\x02\x03\x7E
+    TEST_ASSERT_EQUAL_UINT(5, len);   // \x7E\x01\x02\x03\x7E
 
     delimiter_parser_consume(&parser);
 
@@ -198,13 +201,13 @@ TEST_CASE(delimiter_parser_header_and_trailer)
 
 TEST_CASE(delimiter_parser_partial_data)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 trailer[] = "\r\n";
+    u8                 trailer[] = "\r\n";
     delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 32);
 
     // 分多次写入数据
@@ -225,19 +228,19 @@ TEST_CASE(delimiter_parser_partial_data)
 
 TEST_CASE(delimiter_parser_frame_too_long)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 trailer[] = "\r\n";
-    delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 8); // max_frame_len = 8
+    u8                 trailer[] = "\r\n";
+    delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 8);   // max_frame_len = 8
 
     // 写入超过最大长度的数据（无尾部）
     mem_stream_write_data(&ms, (u8*)"1234567890ABCDEF", 16);
 
-    usize len;
+    usize                     len;
     delimiter_parser_result_t result = delimiter_parser_get_frame(&parser, &len);
     // 应该返回超长错误
     TEST_ASSERT_EQUAL_INT(DELIMITER_PARSER_ERR_FRAME_TOO_LONG, result);
@@ -246,13 +249,13 @@ TEST_CASE(delimiter_parser_frame_too_long)
 TEST_CASE(delimiter_parser_trailer_backtrack)
 {
     // 测试尾部匹配回溯：\r\r\n 应该正确匹配
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 trailer[] = "\r\n";
+    u8                 trailer[] = "\r\n";
     delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 32);
 
     // 写入数据：包含 \r\r\n
@@ -260,27 +263,27 @@ TEST_CASE(delimiter_parser_trailer_backtrack)
 
     usize len;
     TEST_ASSERT_EQUAL_INT(DELIMITER_PARSER_OK, delimiter_parser_get_frame(&parser, &len));
-    TEST_ASSERT_EQUAL_UINT(7, len); // "DATA\r\r\n" 总长度
+    TEST_ASSERT_EQUAL_UINT(7, len);   // "DATA\r\r\n" 总长度
 
     delimiter_parser_consume(&parser);
 }
 
 TEST_CASE(delimiter_parser_multiple_frames)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 trailer[] = "\r\n";
+    u8                 trailer[] = "\r\n";
     delimiter_parser_init(&parser, &ds, NULL, 0, trailer, 2, 32);
 
     // 写入多个帧
     mem_stream_write_data(&ms, (u8*)"AT\r\nOK\r\n", 8);
 
     usize len;
-    u8 frame_buf[16];
+    u8    frame_buf[16];
 
     // 第一帧
     TEST_ASSERT_EQUAL_INT(DELIMITER_PARSER_OK, delimiter_parser_get_frame(&parser, &len));
@@ -299,14 +302,14 @@ TEST_CASE(delimiter_parser_multiple_frames)
 
 TEST_CASE(delimiter_parser_header_skip_garbage)
 {
-    u8 buffer[64];
+    u8           buffer[64];
     mem_stream_t ms;
-    dstream_t ds;
+    dstream_t    ds;
     mem_stream_init(&ms, &ds, buffer, sizeof(buffer));
 
     delimiter_parser_t parser;
-    u8 header[] = {0x55, 0xAA};
-    u8 trailer[] = {0x0D, 0x0A};
+    u8                 header[]  = {0x55, 0xAA};
+    u8                 trailer[] = {0x0D, 0x0A};
     delimiter_parser_init(&parser, &ds, header, 2, trailer, 2, 32);
 
     // 写入垃圾数据 + 有效帧
@@ -314,8 +317,7 @@ TEST_CASE(delimiter_parser_header_skip_garbage)
 
     usize len;
     TEST_ASSERT_EQUAL_INT(DELIMITER_PARSER_OK, delimiter_parser_get_frame(&parser, &len));
-    TEST_ASSERT_EQUAL_UINT(6, len); // \x55\xAA\x01\x02\x0D\x0A
+    TEST_ASSERT_EQUAL_UINT(6, len);   // \x55\xAA\x01\x02\x0D\x0A
 
     delimiter_parser_consume(&parser);
 }
-

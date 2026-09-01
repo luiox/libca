@@ -14,7 +14,8 @@
 namespace ca::json {
 
 /// @brief JSON 序列化选项。
-struct JsonWriterOptions {
+struct JsonWriterOptions
+{
     /// 是否启用美化输出（换行 + 缩进）。
     bool pretty = false;
     /// pretty 模式每级缩进的空格数。
@@ -24,18 +25,18 @@ struct JsonWriterOptions {
 };
 
 /// @brief JSON 序列化器。
-class JsonWriter {
+class JsonWriter
+{
 public:
     /// @brief 把 JsonDocument 的 root 序列化为 Utf8String。
-    static ca::str::Utf8String write(const JsonDocument& document,
+    static ca::str::Utf8String write(const JsonDocument&      document,
                                      const JsonWriterOptions& options = JsonWriterOptions());
 
     /// @brief 把 JsonDocument 的 root 写入文件。
     /// @return 成功返回 Ok；写失败返回错误说明 Utf8String。
     static ca::Result<void, ca::str::Utf8String> write_file(
-        const ca::str::Utf8StringRef& path,
-        const JsonDocument& document,
+        const ca::str::Utf8StringRef& path, const JsonDocument& document,
         const JsonWriterOptions& options = JsonWriterOptions());
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

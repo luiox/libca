@@ -12,179 +12,204 @@ using ca::str::Utf8String;
 
 namespace {
 
-Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
+Utf8StringRef R(const char* s)
+{
+    return Utf8StringRef::from_cstr(s);
+}
 
 // 解析并断言成功；返回 document（移动取出）。
-TomlDocument read_ok(const char* text, TomlReaderOptions opts = {}) {
+TomlDocument read_ok(const char* text, TomlReaderOptions opts = {})
+{
     auto result = TomlReader::read(R(text), opts);
-    EXPECT_TRUE(result.is_ok()) << "expected parse success for: " << text
-                                << "; message: "
-                                << (result.is_err() ? std::move(result).unwrap_err().message.c_str() : "");
+    EXPECT_TRUE(result.is_ok()) << "expected parse success for: " << text << "; message: "
+                                << (result.is_err() ? std::move(result).unwrap_err().message.c_str()
+                                                    : "");
     return std::move(result).unwrap();
 }
 
 // 解析并断言失败；返回错误（移动取出 message 避免拷贝警告）。
-bool read_fails(const char* text) {
+bool read_fails(const char* text)
+{
     auto result = TomlReader::read(R(text));
     return result.is_err();
 }
 
-}  // namespace
+}   // namespace
 
 // ============================================================================
 // 标量字面量
 // ============================================================================
 
-TEST(TomlReaderTest, RejectsInvalidUtf8) {
+TEST(TomlReaderTest, RejectsInvalidUtf8)
+{
     // 基本字符串里的非法序列（0xC3 0x28）：此前经 arena intern 静默变空串。
-    const u8 bad[] = "key = \"\xC3\x28\"";
-    auto result = TomlReader::read(Utf8StringRef::from_data(bad, sizeof(bad) - 1));
+    const u8 bad[]  = "key = \"\xC3\x28\"";
+    auto     result = TomlReader::read(Utf8StringRef::from_data(bad, sizeof(bad) - 1));
     EXPECT_TRUE(result.is_err());
     // 注释里的非法序列同样拒绝（入口整体校验）。
     const u8 bad_comment[] = "# \xFF comment\nkey = 1\n";
-    EXPECT_TRUE(TomlReader::read(
-        Utf8StringRef::from_data(bad_comment, sizeof(bad_comment) - 1)).is_err());
+    EXPECT_TRUE(
+        TomlReader::read(Utf8StringRef::from_data(bad_comment, sizeof(bad_comment) - 1)).is_err());
     // 对照：合法多字节内容不受影响。
-    auto doc = read_ok("key = \"中文\"");
-    auto* v = doc.root().find(R("key"));
+    auto  doc = read_ok("key = \"中文\"");
+    auto* v   = doc.root().find(R("key"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_string(), R("中文"));
 }
 
-TEST(TomlReaderTest, ParsesStringBasic) {
-    auto doc = read_ok("key = \"value\"");
-    auto* v = doc.root().find(R("key"));
+TEST(TomlReaderTest, ParsesStringBasic)
+{
+    auto  doc = read_ok("key = \"value\"");
+    auto* v   = doc.root().find(R("key"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_string());
     EXPECT_EQ(v->as_string(), R("value"));
 }
 
-TEST(TomlReaderTest, ParsesStringLiteral) {
-    auto doc = read_ok("path = 'C:\\\\raw'");
-    auto* v = doc.root().find(R("path"));
+TEST(TomlReaderTest, ParsesStringLiteral)
+{
+    auto  doc = read_ok("path = 'C:\\\\raw'");
+    auto* v   = doc.root().find(R("path"));
     ASSERT_NE(v, nullptr);
     // literal string 无转义：原样 4 个反斜杠
     EXPECT_EQ(v->as_string(), R("C:\\\\raw"));
 }
 
-TEST(TomlReaderTest, ParsesStringBasicEscapes) {
-    auto doc = read_ok("s = \"a\\tb\\nc\"");
-    auto* v = doc.root().find(R("s"));
+TEST(TomlReaderTest, ParsesStringBasicEscapes)
+{
+    auto  doc = read_ok("s = \"a\\tb\\nc\"");
+    auto* v   = doc.root().find(R("s"));
     ASSERT_NE(v, nullptr);
     // a<TAB>b<LF>c
     EXPECT_EQ(v->as_string().byte_length(), 5u);
 }
 
-TEST(TomlReaderTest, ParsesStringUnicodeEscape) {
-    auto doc = read_ok("s = \"\\u00e9\"");  // é
-    auto* v = doc.root().find(R("s"));
+TEST(TomlReaderTest, ParsesStringUnicodeEscape)
+{
+    auto  doc = read_ok("s = \"\\u00e9\"");   // é
+    auto* v   = doc.root().find(R("s"));
     ASSERT_NE(v, nullptr);
     // é 是 2 字节 UTF-8 (0xC3 0xA9)
     EXPECT_EQ(v->as_string().byte_length(), 2u);
 }
 
-TEST(TomlReaderTest, ParsesStringMultilineBasic) {
-    auto doc = read_ok("s = \"\"\"\nline1\nline2\"\"\"");
-    auto* v = doc.root().find(R("s"));
+TEST(TomlReaderTest, ParsesStringMultilineBasic)
+{
+    auto  doc = read_ok("s = \"\"\"\nline1\nline2\"\"\"");
+    auto* v   = doc.root().find(R("s"));
     ASSERT_NE(v, nullptr);
     // 开头紧跟换行被吃掉；剩 "line1\nline2"
     EXPECT_EQ(v->as_string(), R("line1\nline2"));
 }
 
-TEST(TomlReaderTest, ParsesStringMultilineLineContinuation) {
+TEST(TomlReaderTest, ParsesStringMultilineLineContinuation)
+{
     // 行尾反斜杠：吃掉反斜杠到下一个非空白字符之间的所有空白（含换行）。
     // 这里第二行末尾的反斜杠吃掉 "\n   "，剩下 "kept"。
-    auto doc = read_ok("s = \"\"\"\nline1   \\\n   kept\"\"\"");
-    auto* v = doc.root().find(R("s"));
+    auto  doc = read_ok("s = \"\"\"\nline1   \\\n   kept\"\"\"");
+    auto* v   = doc.root().find(R("s"));
     ASSERT_NE(v, nullptr);
     // 结果：line1 紧接 kept（反斜杠续行吃掉了换行和前导空白）
     EXPECT_EQ(v->as_string(), R("line1   kept"));
 }
 
-TEST(TomlReaderTest, ParsesStringMultilineLiteral) {
-    auto doc = read_ok("s = '''\nfirst\nsecond'''");
-    auto* v = doc.root().find(R("s"));
+TEST(TomlReaderTest, ParsesStringMultilineLiteral)
+{
+    auto  doc = read_ok("s = '''\nfirst\nsecond'''");
+    auto* v   = doc.root().find(R("s"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_string(), R("first\nsecond"));
 }
 
-TEST(TomlReaderTest, ParsesInteger) {
-    auto doc = read_ok("x = 42");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesInteger)
+{
+    auto  doc = read_ok("x = 42");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_integer());
     EXPECT_EQ(v->as_integer(), 42);
 }
 
-TEST(TomlReaderTest, ParsesNegativeInteger) {
-    auto doc = read_ok("x = -17");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesNegativeInteger)
+{
+    auto  doc = read_ok("x = -17");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), -17);
 }
 
-TEST(TomlReaderTest, ParsesIntegerUnderscore) {
-    auto doc = read_ok("x = 1_000_000");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesIntegerUnderscore)
+{
+    auto  doc = read_ok("x = 1_000_000");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 1000000);
 }
 
-TEST(TomlReaderTest, ParsesIntegerHex) {
-    auto doc = read_ok("x = 0xDEAD");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesIntegerHex)
+{
+    auto  doc = read_ok("x = 0xDEAD");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 0xDEAD);
     auto doc2 = read_ok("y = 0xdead");
     EXPECT_EQ(doc2.root().find(R("y"))->as_integer(), 0xdead);
 }
 
-TEST(TomlReaderTest, ParsesIntegerOct) {
-    auto doc = read_ok("x = 0o17");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesIntegerOct)
+{
+    auto  doc = read_ok("x = 0o17");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 017);
 }
 
-TEST(TomlReaderTest, ParsesIntegerBin) {
-    auto doc = read_ok("x = 0b1011");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesIntegerBin)
+{
+    auto  doc = read_ok("x = 0b1011");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 11);
 }
 
-TEST(TomlReaderTest, ParsesIntegerOverflowFails) {
+TEST(TomlReaderTest, ParsesIntegerOverflowFails)
+{
     EXPECT_TRUE(read_fails("x = 99999999999999999999999"));
 }
 
-TEST(TomlReaderTest, ParsesFloat) {
-    auto doc = read_ok("x = 3.14");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesFloat)
+{
+    auto  doc = read_ok("x = 3.14");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_float());
     EXPECT_DOUBLE_EQ(v->as_float(), 3.14);
 }
 
-TEST(TomlReaderTest, ParsesFloatExponent) {
+TEST(TomlReaderTest, ParsesFloatExponent)
+{
     auto doc = read_ok("x = 6.626e-34");
     EXPECT_DOUBLE_EQ(doc.root().find(R("x"))->as_float(), 6.626e-34);
 }
 
-TEST(TomlReaderTest, ParsesFloatInf) {
+TEST(TomlReaderTest, ParsesFloatInf)
+{
     auto doc = read_ok("a = inf\nb = -inf\nc = +inf");
     EXPECT_EQ(doc.root().find(R("a"))->as_float(), std::numeric_limits<double>::infinity());
     EXPECT_EQ(doc.root().find(R("b"))->as_float(), -std::numeric_limits<double>::infinity());
     EXPECT_EQ(doc.root().find(R("c"))->as_float(), std::numeric_limits<double>::infinity());
 }
 
-TEST(TomlReaderTest, ParsesFloatNan) {
+TEST(TomlReaderTest, ParsesFloatNan)
+{
     auto doc = read_ok("a = nan\nb = -nan");
     ASSERT_TRUE(doc.root().find(R("a"))->is_float());
     EXPECT_TRUE(std::isnan(doc.root().find(R("a"))->as_float()));
     EXPECT_TRUE(std::isnan(doc.root().find(R("b"))->as_float()));
 }
 
-TEST(TomlReaderTest, ParsesBoolean) {
+TEST(TomlReaderTest, ParsesBoolean)
+{
     auto doc = read_ok("a = true\nb = false");
     EXPECT_TRUE(doc.root().find(R("a"))->as_boolean());
     EXPECT_FALSE(doc.root().find(R("b"))->as_boolean());
@@ -194,9 +219,10 @@ TEST(TomlReaderTest, ParsesBoolean) {
 // datetime 4 变体
 // ============================================================================
 
-TEST(TomlReaderTest, ParsesLocalDate) {
-    auto doc = read_ok("d = 1912-07-28");
-    auto* v = doc.root().find(R("d"));
+TEST(TomlReaderTest, ParsesLocalDate)
+{
+    auto  doc = read_ok("d = 1912-07-28");
+    auto* v   = doc.root().find(R("d"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_local_date());
     const auto& dt = v->as_local_date();
@@ -205,9 +231,10 @@ TEST(TomlReaderTest, ParsesLocalDate) {
     EXPECT_EQ(dt.day, 28);
 }
 
-TEST(TomlReaderTest, ParsesLocalTime) {
-    auto doc = read_ok("t = 07:32:00");
-    auto* v = doc.root().find(R("t"));
+TEST(TomlReaderTest, ParsesLocalTime)
+{
+    auto  doc = read_ok("t = 07:32:00");
+    auto* v   = doc.root().find(R("t"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_local_time());
     const auto& dt = v->as_local_time();
@@ -216,17 +243,19 @@ TEST(TomlReaderTest, ParsesLocalTime) {
     EXPECT_EQ(dt.second, 0);
 }
 
-TEST(TomlReaderTest, ParsesLocalTimeFractional) {
-    auto doc = read_ok("t = 00:30:00.001");
-    auto* v = doc.root().find(R("t"));
+TEST(TomlReaderTest, ParsesLocalTimeFractional)
+{
+    auto  doc = read_ok("t = 00:30:00.001");
+    auto* v   = doc.root().find(R("t"));
     ASSERT_NE(v, nullptr);
     const auto& dt = v->as_local_time();
-    EXPECT_EQ(dt.nanos, 1000000u);  // 0.001s = 1ms = 1_000_000 ns
+    EXPECT_EQ(dt.nanos, 1000000u);   // 0.001s = 1ms = 1_000_000 ns
 }
 
-TEST(TomlReaderTest, ParsesLocalDateTime) {
-    auto doc = read_ok("dt = 1979-05-27T07:32:00");
-    auto* v = doc.root().find(R("dt"));
+TEST(TomlReaderTest, ParsesLocalDateTime)
+{
+    auto  doc = read_ok("dt = 1979-05-27T07:32:00");
+    auto* v   = doc.root().find(R("dt"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_local_datetime());
     const auto& dt = v->as_local_datetime();
@@ -238,17 +267,19 @@ TEST(TomlReaderTest, ParsesLocalDateTime) {
     EXPECT_EQ(dt.second, 0);
 }
 
-TEST(TomlReaderTest, ParsesLocalDateTimeSpaceSeparator) {
-    auto doc = read_ok("dt = 1979-05-27 07:32:00");
-    auto* v = doc.root().find(R("dt"));
+TEST(TomlReaderTest, ParsesLocalDateTimeSpaceSeparator)
+{
+    auto  doc = read_ok("dt = 1979-05-27 07:32:00");
+    auto* v   = doc.root().find(R("dt"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_local_datetime());
     EXPECT_EQ(v->as_local_datetime().hour, 7);
 }
 
-TEST(TomlReaderTest, ParsesOffsetDatetimeZ) {
-    auto doc = read_ok("dt = 1979-05-27T07:32:00Z");
-    auto* v = doc.root().find(R("dt"));
+TEST(TomlReaderTest, ParsesOffsetDatetimeZ)
+{
+    auto  doc = read_ok("dt = 1979-05-27T07:32:00Z");
+    auto* v   = doc.root().find(R("dt"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_offset_datetime());
     const auto& dt = v->as_offset_datetime();
@@ -256,9 +287,10 @@ TEST(TomlReaderTest, ParsesOffsetDatetimeZ) {
     EXPECT_EQ(dt.tz_minutes, 0);
 }
 
-TEST(TomlReaderTest, ParsesOffsetDatetimeOffset) {
-    auto doc = read_ok("dt = 1979-05-27T07:32:00-07:00");
-    auto* v = doc.root().find(R("dt"));
+TEST(TomlReaderTest, ParsesOffsetDatetimeOffset)
+{
+    auto  doc = read_ok("dt = 1979-05-27T07:32:00-07:00");
+    auto* v   = doc.root().find(R("dt"));
     ASSERT_NE(v, nullptr);
     const auto& dt = v->as_offset_datetime();
     EXPECT_TRUE(dt.has_tz);
@@ -269,9 +301,10 @@ TEST(TomlReaderTest, ParsesOffsetDatetimeOffset) {
 // Array
 // ============================================================================
 
-TEST(TomlReaderTest, ParsesArray) {
-    auto doc = read_ok("arr = [1, 2, 3]");
-    auto* v = doc.root().find(R("arr"));
+TEST(TomlReaderTest, ParsesArray)
+{
+    auto  doc = read_ok("arr = [1, 2, 3]");
+    auto* v   = doc.root().find(R("arr"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_array());
     EXPECT_EQ(v->size(), 3u);
@@ -280,16 +313,18 @@ TEST(TomlReaderTest, ParsesArray) {
     EXPECT_EQ(v->at(2).as_integer(), 3);
 }
 
-TEST(TomlReaderTest, ParsesArrayMultiline) {
-    auto doc = read_ok("arr = [\n  1,\n  2,\n  3,\n]");
-    auto* v = doc.root().find(R("arr"));
+TEST(TomlReaderTest, ParsesArrayMultiline)
+{
+    auto  doc = read_ok("arr = [\n  1,\n  2,\n  3,\n]");
+    auto* v   = doc.root().find(R("arr"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->size(), 3u);
 }
 
-TEST(TomlReaderTest, ParsesArrayMixedTypes) {
-    auto doc = read_ok("arr = [1, \"two\", true, 3.14]");
-    auto* v = doc.root().find(R("arr"));
+TEST(TomlReaderTest, ParsesArrayMixedTypes)
+{
+    auto  doc = read_ok("arr = [1, \"two\", true, 3.14]");
+    auto* v   = doc.root().find(R("arr"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->size(), 4u);
     EXPECT_TRUE(v->at(0).is_integer());
@@ -298,9 +333,10 @@ TEST(TomlReaderTest, ParsesArrayMixedTypes) {
     EXPECT_TRUE(v->at(3).is_float());
 }
 
-TEST(TomlReaderTest, ParsesNestedArray) {
-    auto doc = read_ok("arr = [[1, 2], [3, 4]]");
-    auto* v = doc.root().find(R("arr"));
+TEST(TomlReaderTest, ParsesNestedArray)
+{
+    auto  doc = read_ok("arr = [[1, 2], [3, 4]]");
+    auto* v   = doc.root().find(R("arr"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->at(0).at(0).as_integer(), 1);
     EXPECT_EQ(v->at(1).at(1).as_integer(), 4);
@@ -310,8 +346,9 @@ TEST(TomlReaderTest, ParsesNestedArray) {
 // Table
 // ============================================================================
 
-TEST(TomlReaderTest, ParsesStandardTable) {
-    auto doc = read_ok("[server]\nhost = \"localhost\"\nport = 8080");
+TEST(TomlReaderTest, ParsesStandardTable)
+{
+    auto  doc    = read_ok("[server]\nhost = \"localhost\"\nport = 8080");
     auto* server = doc.root().find(R("server"));
     ASSERT_NE(server, nullptr);
     ASSERT_TRUE(server->is_table());
@@ -319,9 +356,10 @@ TEST(TomlReaderTest, ParsesStandardTable) {
     EXPECT_EQ(server->find(R("port"))->as_integer(), 8080);
 }
 
-TEST(TomlReaderTest, ParsesDottedKey) {
-    auto doc = read_ok("a.b.c = 1");
-    auto* a = doc.root().find(R("a"));
+TEST(TomlReaderTest, ParsesDottedKey)
+{
+    auto  doc = read_ok("a.b.c = 1");
+    auto* a   = doc.root().find(R("a"));
     ASSERT_NE(a, nullptr);
     auto* b = a->find(R("b"));
     ASSERT_NE(b, nullptr);
@@ -330,25 +368,28 @@ TEST(TomlReaderTest, ParsesDottedKey) {
     EXPECT_EQ(c->as_integer(), 1);
 }
 
-TEST(TomlReaderTest, ParsesNestedTableHeader) {
-    auto doc = read_ok("[a.b.c]\nx = 1");
-    auto* c = doc.root().find(R("a"))->find(R("b"))->find(R("c"));
+TEST(TomlReaderTest, ParsesNestedTableHeader)
+{
+    auto  doc = read_ok("[a.b.c]\nx = 1");
+    auto* c   = doc.root().find(R("a"))->find(R("b"))->find(R("c"));
     ASSERT_NE(c, nullptr);
     EXPECT_EQ(c->find(R("x"))->as_integer(), 1);
 }
 
-TEST(TomlReaderTest, ParsesInlineTable) {
-    auto doc = read_ok("point = { x = 1, y = 2 }");
-    auto* p = doc.root().find(R("point"));
+TEST(TomlReaderTest, ParsesInlineTable)
+{
+    auto  doc = read_ok("point = { x = 1, y = 2 }");
+    auto* p   = doc.root().find(R("point"));
     ASSERT_NE(p, nullptr);
     ASSERT_TRUE(p->is_table());
     EXPECT_EQ(p->find(R("x"))->as_integer(), 1);
     EXPECT_EQ(p->find(R("y"))->as_integer(), 2);
 }
 
-TEST(TomlReaderTest, ParsesInlineTableDottedKey) {
-    auto doc = read_ok("a = { b.c = 1 }");
-    auto* a = doc.root().find(R("a"));
+TEST(TomlReaderTest, ParsesInlineTableDottedKey)
+{
+    auto  doc = read_ok("a = { b.c = 1 }");
+    auto* a   = doc.root().find(R("a"));
     ASSERT_NE(a, nullptr);
     EXPECT_EQ(a->find(R("b"))->find(R("c"))->as_integer(), 1);
 }
@@ -357,12 +398,12 @@ TEST(TomlReaderTest, ParsesInlineTableDottedKey) {
 // Array of Tables
 // ============================================================================
 
-TEST(TomlReaderTest, ParsesArrayOfTables) {
-    auto doc = read_ok(
-        "[[products]]\n"
-        "name = \"A\"\n"
-        "[[products]]\n"
-        "name = \"B\"\n");
+TEST(TomlReaderTest, ParsesArrayOfTables)
+{
+    auto  doc      = read_ok("[[products]]\n"
+                             "name = \"A\"\n"
+                             "[[products]]\n"
+                             "name = \"B\"\n");
     auto* products = doc.root().find(R("products"));
     ASSERT_NE(products, nullptr);
     ASSERT_TRUE(products->is_array());
@@ -371,14 +412,14 @@ TEST(TomlReaderTest, ParsesArrayOfTables) {
     EXPECT_EQ(products->at(1).find(R("name"))->as_string(), R("B"));
 }
 
-TEST(TomlReaderTest, ParsesArrayOfTablesWithSubtable) {
-    auto doc = read_ok(
-        "[[fruits]]\n"
-        "name = \"apple\"\n"
-        "[fruits.physical]\n"
-        "color = \"red\"\n"
-        "[[fruits]]\n"
-        "name = \"banana\"\n");
+TEST(TomlReaderTest, ParsesArrayOfTablesWithSubtable)
+{
+    auto  doc    = read_ok("[[fruits]]\n"
+                           "name = \"apple\"\n"
+                           "[fruits.physical]\n"
+                           "color = \"red\"\n"
+                           "[[fruits]]\n"
+                           "name = \"banana\"\n");
     auto* fruits = doc.root().find(R("fruits"));
     ASSERT_NE(fruits, nullptr);
     EXPECT_EQ(fruits->size(), 2u);
@@ -392,17 +433,20 @@ TEST(TomlReaderTest, ParsesArrayOfTablesWithSubtable) {
 // 错误处理 / 重复检测
 // ============================================================================
 
-TEST(TomlReaderTest, RejectsDuplicateKey) {
+TEST(TomlReaderTest, RejectsDuplicateKey)
+{
     EXPECT_TRUE(read_fails("a = 1\na = 2"));
 }
 
-TEST(TomlReaderTest, RejectsDuplicateTableHeader) {
+TEST(TomlReaderTest, RejectsDuplicateTableHeader)
+{
     EXPECT_TRUE(read_fails("[a]\n[a]"));
 }
 
 // TOML 1.0 允许后置定义超表（spec: defining a super-table afterward is ok）；
 // 旧实现把 header 的全部严格前缀登记为不可再命名而拒绝此合法输入。
-TEST(TomlReaderTest, SuperTableDefinedAfterSubTableIsAccepted) {
+TEST(TomlReaderTest, SuperTableDefinedAfterSubTableIsAccepted)
+{
     auto doc = read_ok("[a.b]\nx = 1\n\n[a]\ny = 2\n");
     // a.b.x 与 a.y 并存（a 的显式定义不清空隐式子表）
     const auto* a = doc.root().find(R("a"));
@@ -417,24 +461,27 @@ TEST(TomlReaderTest, SuperTableDefinedAfterSubTableIsAccepted) {
     EXPECT_EQ(y->as_integer(), 2);
 }
 
-TEST(TomlReaderTest, RejectsRedefinedTable) {
+TEST(TomlReaderTest, RejectsRedefinedTable)
+{
     EXPECT_TRUE(read_fails("[a]\n[a]"));
     EXPECT_TRUE(read_fails("[a.b]\n[a.b]"));
 }
 
 // 进制整数不允许符号（ABNF：hex/oct/bin-int 无 sign；strtoll 曾连符号消费 0x-5）。
-TEST(TomlReaderTest, RejectsSignInRadixInteger) {
+TEST(TomlReaderTest, RejectsSignInRadixInteger)
+{
     EXPECT_TRUE(read_fails("x = 0x-5"));
     EXPECT_TRUE(read_fails("x = 0o+7"));
     EXPECT_TRUE(read_fails("x = 0b-1"));
-    EXPECT_TRUE(read_fails("x = 0x 5"));  // 前导空白同样拒绝
+    EXPECT_TRUE(read_fails("x = 0x 5"));   // 前导空白同样拒绝
     EXPECT_TRUE(read_fails("x = 0x+5"));
     // 合法形态不受影响
     EXPECT_FALSE(read_fails("x = 0xFF"));
 }
 
 // 下划线必须夹在两个数字之间：1e_2 曾因 prev=='e' 被外层条件放行。
-TEST(TomlReaderTest, RejectsUnderscoreAfterExponentMark) {
+TEST(TomlReaderTest, RejectsUnderscoreAfterExponentMark)
+{
     EXPECT_TRUE(read_fails("x = 1e_2"));
     EXPECT_TRUE(read_fails("x = 1_E2"));
     EXPECT_TRUE(read_fails("x = _1"));
@@ -442,28 +489,33 @@ TEST(TomlReaderTest, RejectsUnderscoreAfterExponentMark) {
     EXPECT_FALSE(read_fails("x = 1_0.5_2e1_0"));
 }
 
-TEST(TomlReaderTest, RejectsCommentOnlyMissingValue) {
+TEST(TomlReaderTest, RejectsCommentOnlyMissingValue)
+{
     EXPECT_TRUE(read_fails("key = "));
 }
 
-TEST(TomlReaderTest, RejectsBareKeyStartingWithDot) {
+TEST(TomlReaderTest, RejectsBareKeyStartingWithDot)
+{
     EXPECT_TRUE(read_fails(".x = 1"));
 }
 
-TEST(TomlReaderTest, AllowsComments) {
-    auto doc = read_ok("# comment\nx = 1  # trailing\n");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, AllowsComments)
+{
+    auto  doc = read_ok("# comment\nx = 1  # trailing\n");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 1);
 }
 
-TEST(TomlReaderTest, AllowsBom) {
+TEST(TomlReaderTest, AllowsBom)
+{
     const char bom_text[] = "\xEF\xBB\xBFx = 1";
-    auto result = TomlReader::read(R(bom_text));
+    auto       result     = TomlReader::read(R(bom_text));
     EXPECT_TRUE(result.is_ok());
 }
 
-TEST(TomlReaderTest, EmptyDocumentIsValid) {
+TEST(TomlReaderTest, EmptyDocumentIsValid)
+{
     auto doc = read_ok("");
     EXPECT_TRUE(doc.root().is_table());
     EXPECT_EQ(doc.root().as_table().size(), 0u);
@@ -473,38 +525,44 @@ TEST(TomlReaderTest, EmptyDocumentIsValid) {
 // 更多边界 / corner case
 // ============================================================================
 
-TEST(TomlReaderTest, RejectsArrayOfTablesRedefinesAsTable) {
+TEST(TomlReaderTest, RejectsArrayOfTablesRedefinesAsTable)
+{
     // [[fruits]] 后再用 [fruits] 普通表头定义同名 → 报错
     EXPECT_TRUE(read_fails("[[fruits]]\nname = \"a\"\n[fruits]\nx = 1"));
 }
 
-TEST(TomlReaderTest, RejectsTableRedefinesAsArrayOfTables) {
+TEST(TomlReaderTest, RejectsTableRedefinesAsArrayOfTables)
+{
     // [fruits] 后再 [[fruits]] → 报错（普通表不能再定义为数组）
     EXPECT_TRUE(read_fails("[fruits]\nx = 1\n[[fruits]]\nname = \"a\""));
 }
 
-TEST(TomlReaderTest, RejectsDottedKeyRedefinesTable) {
+TEST(TomlReaderTest, RejectsDottedKeyRedefinesTable)
+{
     // 由 dotted key 隐式创建的表，再用 [header] 命名其自身 → 报错
     EXPECT_TRUE(read_fails("a.b = 1\n[a.b]"));
 }
 
 // TOML 1.0：dotted-key 创建的中间表同样不能被 [header] 定向重开。
 // 此前 a.b.c = 1 + [a.b] 被误接受（叶子是标量的 a.b = 1 + [a.b] 靠标量检查碰巧报错）。
-TEST(TomlReaderTest, RejectsHeaderReopensDottedKeyIntermediateTable) {
+TEST(TomlReaderTest, RejectsHeaderReopensDottedKeyIntermediateTable)
+{
     EXPECT_TRUE(read_fails("a.b.c = 1\n[a.b]"));
     // 直接父级（a 也是 dotted-key 创建的）同样不可重开。
     EXPECT_TRUE(read_fails("a.b.c = 1\n[a]"));
 }
 
 // 反向：[header] 显式定义的表不能用 dotted-key 重开。
-TEST(TomlReaderTest, RejectsDottedKeyExtendsHeaderDefinedTable) {
+TEST(TomlReaderTest, RejectsDottedKeyExtendsHeaderDefinedTable)
+{
     EXPECT_TRUE(read_fails("[a.b]\nx = 1\n[a]\nb.y = 2"));
     EXPECT_TRUE(read_fails("[a.b]\nx = 1\n[c]\nd = 3\n\n"
-                           "[a]\nb.y = 2"));  // 跨段后置同样报错
+                           "[a]\nb.y = 2"));   // 跨段后置同样报错
 }
 
 // inline table 封闭不可变：不能被 [header] 定向/下钻，也不能被 dotted-key 追加。
-TEST(TomlReaderTest, RejectsHeaderAndDottedKeyOnInlineTable) {
+TEST(TomlReaderTest, RejectsHeaderAndDottedKeyOnInlineTable)
+{
     EXPECT_TRUE(read_fails("a = { x = 1 }\n[a]"));
     EXPECT_TRUE(read_fails("a = { x = 1 }\n[a.y]"));
     EXPECT_TRUE(read_fails("a = { x = 1 }\na.y = 2"));
@@ -514,13 +572,13 @@ TEST(TomlReaderTest, RejectsHeaderAndDottedKeyOnInlineTable) {
 }
 
 // 合法组合回归：dotted-key 创建的表可作为 [header] 的中间路径与同表 dotted 追加。
-TEST(TomlReaderTest, AllowsDottedKeyTableAsHeaderPathAndAppend) {
-    auto doc = read_ok(
-        "[fruit]\n"
-        "apple.color = \"red\"\n"
-        "apple.taste = \"sweet\"\n"     // 同表内 dotted 追加：合法
-        "[fruit.apple.texture]\n"       // 经 dotted 表下钻定义子表：合法
-        "smooth = true\n");
+TEST(TomlReaderTest, AllowsDottedKeyTableAsHeaderPathAndAppend)
+{
+    auto  doc   = read_ok("[fruit]\n"
+                          "apple.color = \"red\"\n"
+                          "apple.taste = \"sweet\"\n"   // 同表内 dotted 追加：合法
+                       "[fruit.apple.texture]\n"     // 经 dotted 表下钻定义子表：合法
+                       "smooth = true\n");
     auto* apple = doc.root().find(R("fruit"))->find(R("apple"));
     ASSERT_NE(apple, nullptr);
     EXPECT_EQ(apple->find(R("color"))->as_string(), R("red"));
@@ -528,111 +586,124 @@ TEST(TomlReaderTest, AllowsDottedKeyTableAsHeaderPathAndAppend) {
     EXPECT_TRUE(apple->find(R("texture"))->find(R("smooth"))->as_boolean());
 }
 
-TEST(TomlReaderTest, AllowsHeaderOnDottedKeyParent) {
+TEST(TomlReaderTest, AllowsHeaderOnDottedKeyParent)
+{
     // dotted key 隐式创建 fruit.apple，[fruit.apple.texture] 是子表，合法。
-    auto doc = read_ok(
-        "[fruit]\n"
-        "apple.color = \"red\"\n"
-        "[fruit.apple.texture]\n"
-        "smooth = true\n");
-    auto* tx = doc.root().find(R("fruit"))->find(R("apple"))->find(R("texture"));
+    auto  doc = read_ok("[fruit]\n"
+                        "apple.color = \"red\"\n"
+                        "[fruit.apple.texture]\n"
+                        "smooth = true\n");
+    auto* tx  = doc.root().find(R("fruit"))->find(R("apple"))->find(R("texture"));
     ASSERT_NE(tx, nullptr);
     EXPECT_TRUE(tx->find(R("smooth"))->as_boolean());
 }
 
-TEST(TomlReaderTest, ParsesQuotedKey) {
-    auto doc = read_ok("\"my key\" = 1");
-    auto* v = doc.root().find(R("my key"));
+TEST(TomlReaderTest, ParsesQuotedKey)
+{
+    auto  doc = read_ok("\"my key\" = 1");
+    auto* v   = doc.root().find(R("my key"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_integer(), 1);
 }
 
-TEST(TomlReaderTest, ParsesQuotedKeyWithSpecialChars) {
-    auto doc = read_ok("\"127.0.0.1\" = \"localhost\"");
-    auto* v = doc.root().find(R("127.0.0.1"));
+TEST(TomlReaderTest, ParsesQuotedKeyWithSpecialChars)
+{
+    auto  doc = read_ok("\"127.0.0.1\" = \"localhost\"");
+    auto* v   = doc.root().find(R("127.0.0.1"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_string(), R("localhost"));
 }
 
-TEST(TomlReaderTest, RejectsIntLeadingZeros) {
+TEST(TomlReaderTest, RejectsIntLeadingZeros)
+{
     EXPECT_TRUE(read_fails("x = 01"));
 }
 
-TEST(TomlReaderTest, RejectsFloatLeadingZeros) {
+TEST(TomlReaderTest, RejectsFloatLeadingZeros)
+{
     EXPECT_TRUE(read_fails("x = 00.1"));
 }
 
 // read_ok 的 bool 版本：只关心成功与否。
-static bool read_ok_ret(const char* text) {
+static bool read_ok_ret(const char* text)
+{
     return TomlReader::read(R(text)).is_ok();
 }
 
 // TOML ABNF：decfloat = dec-int frac，小数点两侧必须有数字。
 // strtod 宽容接受这些形式，解析器须提前拒绝。
-TEST(TomlReaderTest, RejectsFloatMissingDigitsAroundDot) {
-    EXPECT_TRUE(read_fails("x = 1."));    // 点后无数字
-    EXPECT_TRUE(read_fails("x = +1."));   // 带符号同理
-    EXPECT_TRUE(read_fails("x = 1.e2"));  // 点后直接进指数
-    EXPECT_TRUE(read_fails("x = -.5"));   // 点前是符号而非数字
+TEST(TomlReaderTest, RejectsFloatMissingDigitsAroundDot)
+{
+    EXPECT_TRUE(read_fails("x = 1."));     // 点后无数字
+    EXPECT_TRUE(read_fails("x = +1."));    // 带符号同理
+    EXPECT_TRUE(read_fails("x = 1.e2"));   // 点后直接进指数
+    EXPECT_TRUE(read_fails("x = -.5"));    // 点前是符号而非数字
     EXPECT_TRUE(read_fails("x = 0."));
     // 对照：合法形态不受影响。
     EXPECT_TRUE(read_ok_ret("x = 1.5\ny = 0.25\nz = 1e2"));
 }
 
-TEST(TomlReaderTest, ParsesFloatUnderscore) {
+TEST(TomlReaderTest, ParsesFloatUnderscore)
+{
     auto doc = read_ok("x = 1_000.5");
     EXPECT_DOUBLE_EQ(doc.root().find(R("x"))->as_float(), 1000.5);
 }
 
-TEST(TomlReaderTest, ParsesEmptyArray) {
-    auto doc = read_ok("x = []");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesEmptyArray)
+{
+    auto  doc = read_ok("x = []");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_array());
     EXPECT_EQ(v->size(), 0u);
 }
 
-TEST(TomlReaderTest, ParsesEmptyInlineTable) {
-    auto doc = read_ok("x = {}");
-    auto* v = doc.root().find(R("x"));
+TEST(TomlReaderTest, ParsesEmptyInlineTable)
+{
+    auto  doc = read_ok("x = {}");
+    auto* v   = doc.root().find(R("x"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_table());
     EXPECT_EQ(v->as_table().size(), 0u);
 }
 
-TEST(TomlReaderTest, RejectsTrailingCommaInInlineTable) {
+TEST(TomlReaderTest, RejectsTrailingCommaInInlineTable)
+{
     EXPECT_TRUE(read_fails("x = { a = 1, }"));
 }
 
-TEST(TomlReaderTest, RejectsInlineTableMultiline) {
+TEST(TomlReaderTest, RejectsInlineTableMultiline)
+{
     // TOML 1.0 不允许 inline table 跨行
     EXPECT_TRUE(read_fails("x = { a = 1,\n b = 2 }"));
 }
 
-TEST(TomlReaderTest, ParsesInlineTableInArray) {
-    auto doc = read_ok("points = [ { x = 1, y = 2 }, { x = 3, y = 4 } ]");
-    auto* v = doc.root().find(R("points"));
+TEST(TomlReaderTest, ParsesInlineTableInArray)
+{
+    auto  doc = read_ok("points = [ { x = 1, y = 2 }, { x = 3, y = 4 } ]");
+    auto* v   = doc.root().find(R("points"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->size(), 2u);
     EXPECT_EQ(v->at(0).find(R("x"))->as_integer(), 1);
     EXPECT_EQ(v->at(1).find(R("y"))->as_integer(), 4);
 }
 
-TEST(TomlReaderTest, ParsesCrlfLineEndings) {
+TEST(TomlReaderTest, ParsesCrlfLineEndings)
+{
     const char* text = "a = 1\r\nb = 2\r\n";
-    auto doc = read_ok(text);
+    auto        doc  = read_ok(text);
     EXPECT_EQ(doc.root().find(R("a"))->as_integer(), 1);
     EXPECT_EQ(doc.root().find(R("b"))->as_integer(), 2);
 }
 
-TEST(TomlReaderTest, ParsesNestedArrayOfTables) {
-    auto doc = read_ok(
-        "[[fruits]]\n"
-        "name = \"apple\"\n"
-        "[[fruits.varieties]]\n"
-        "name = \"red delicious\"\n"
-        "[[fruits.varieties]]\n"
-        "name = \"granny smith\"\n");
+TEST(TomlReaderTest, ParsesNestedArrayOfTables)
+{
+    auto  doc    = read_ok("[[fruits]]\n"
+                           "name = \"apple\"\n"
+                           "[[fruits.varieties]]\n"
+                           "name = \"red delicious\"\n"
+                           "[[fruits.varieties]]\n"
+                           "name = \"granny smith\"\n");
     auto* fruits = doc.root().find(R("fruits"));
     ASSERT_NE(fruits, nullptr);
     auto* varieties = fruits->at(0).find(R("varieties"));
@@ -642,31 +713,38 @@ TEST(TomlReaderTest, ParsesNestedArrayOfTables) {
     EXPECT_EQ(varieties->at(1).find(R("name"))->as_string(), R("granny smith"));
 }
 
-TEST(TomlReaderTest, DatetimeNanosPrecision) {
-    auto doc = read_ok("t = 1979-05-27T00:00:00.123456789");
-    auto* v = doc.root().find(R("t"));
+TEST(TomlReaderTest, DatetimeNanosPrecision)
+{
+    auto  doc = read_ok("t = 1979-05-27T00:00:00.123456789");
+    auto* v   = doc.root().find(R("t"));
     ASSERT_NE(v, nullptr);
     ASSERT_TRUE(v->is_local_datetime());
     EXPECT_EQ(v->as_local_datetime().nanos, 123456789u);
 }
 
-TEST(TomlReaderTest, DatetimeTruncatesExtraFractionDigits) {
+TEST(TomlReaderTest, DatetimeTruncatesExtraFractionDigits)
+{
     // 超过 9 位小数 → 截断到纳秒精度（不四舍五入）
-    auto doc = read_ok("t = 1979-05-27T00:00:00.1234567899");
-    auto* v = doc.root().find(R("t"));
+    auto  doc = read_ok("t = 1979-05-27T00:00:00.1234567899");
+    auto* v   = doc.root().find(R("t"));
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->as_local_datetime().nanos, 123456789u);
 }
 
 // 深度守卫：默认 max_depth=1000，嵌套数组超限须报错而非栈溢出。
-TEST(TomlReaderTest, RejectsExcessiveNesting) {
+TEST(TomlReaderTest, RejectsExcessiveNesting)
+{
     std::string deep = "x = ";
-    for (int i = 0; i < 1200; ++i) deep += "[";
-    for (int i = 0; i < 1200; ++i) deep += "]";
+    for (int i = 0; i < 1200; ++i)
+        deep += "[";
+    for (int i = 0; i < 1200; ++i)
+        deep += "]";
     EXPECT_TRUE(TomlReader::read(Utf8StringRef::from_string_view(deep)).is_err());
 
     std::string moderate = "x = ";
-    for (int i = 0; i < 50; ++i) moderate += "[";
-    for (int i = 0; i < 50; ++i) moderate += "]";
+    for (int i = 0; i < 50; ++i)
+        moderate += "[";
+    for (int i = 0; i < 50; ++i)
+        moderate += "]";
     EXPECT_TRUE(TomlReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
 }

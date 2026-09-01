@@ -17,16 +17,12 @@ enum class CryptoError
 inline const char* to_string(CryptoError error) noexcept
 {
     switch (error) {
-    case CryptoError::INVALID_ARGUMENT:
-        return "invalid argument";
-    case CryptoError::INVALID_HEX:
-        return "invalid hex input";
-    case CryptoError::INVALID_BASE64:
-        return "invalid base64 input";
-    case CryptoError::RANDOM_FAILED:
-        return "secure random generation failed";
+    case CryptoError::INVALID_ARGUMENT: return "invalid argument";
+    case CryptoError::INVALID_HEX: return "invalid hex input";
+    case CryptoError::INVALID_BASE64: return "invalid base64 input";
+    case CryptoError::RANDOM_FAILED: return "secure random generation failed";
     }
     return "unknown crypto error";
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

@@ -21,12 +21,13 @@ class JsonParser;
 class JsonDomBuilder;
 
 /// @brief JSON 文档：arena + root。
-class JsonDocument {
+class JsonDocument
+{
 public:
     JsonDocument();
     ~JsonDocument();
 
-    JsonDocument(const JsonDocument&) = delete;
+    JsonDocument(const JsonDocument&)            = delete;
     JsonDocument& operator=(const JsonDocument&) = delete;
     JsonDocument(JsonDocument&& other) noexcept;
     JsonDocument& operator=(JsonDocument&& other) noexcept;
@@ -44,7 +45,7 @@ public:
 
 private:
     ca::str::Utf8StringArena arena_;
-    JsonValue root_;
+    JsonValue                root_;
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

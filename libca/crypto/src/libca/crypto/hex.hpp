@@ -36,4 +36,4 @@ inline std::string hex_encode(const std::string& text)
     return hex_encode(text.data(), text.size());
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

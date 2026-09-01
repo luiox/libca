@@ -109,7 +109,7 @@ TEST(HashMapTest, KeysAndValuesReturnSnapshots)
 {
     HashMap<std::string, ca::i32> map = {{"one", 1}, {"two", 2}, {"three", 3}};
 
-    auto keys = map.keys();
+    auto keys   = map.keys();
     auto values = map.values();
     map.put("four", 4);
 
@@ -134,8 +134,8 @@ TEST(HashMapTest, EntriesReturnSnapshots)
 {
     HashMap<std::string, ca::i32> map = {{"one", 1}, {"two", 2}, {"three", 3}};
 
-    auto entries = map.entries();
-    auto entry_list = map.entry_list();
+    auto entries          = map.entries();
+    auto entry_list       = map.entry_list();
     auto snake_entry_list = map.entry_list();
     map.put("four", 4);
 
@@ -175,24 +175,18 @@ TEST(HashMapTest, RetainAndRemoveIf)
         {"four", 4},
     };
 
-    EXPECT_EQ(map.remove_if([](const std::string&, ca::i32 value) {
-        return value % 2 == 0;
-    }), 2u);
+    EXPECT_EQ(map.remove_if([](const std::string&, ca::i32 value) { return value % 2 == 0; }), 2u);
     EXPECT_EQ(map.len(), 2u);
     EXPECT_TRUE(map.contains_key("one"));
     EXPECT_TRUE(map.contains_key("three"));
     EXPECT_FALSE(map.contains_key("two"));
 
-    map.retain([](const std::string& key, ca::i32) {
-        return key.size() > 3;
-    });
+    map.retain([](const std::string& key, ca::i32) { return key.size() > 3; });
     EXPECT_EQ(map.len(), 1u);
     EXPECT_FALSE(map.contains_key("one"));
     EXPECT_TRUE(map.contains_key("three"));
 
-    EXPECT_EQ(map.remove_if([](const std::string&, ca::i32 value) {
-        return value > 10;
-    }), 0u);
+    EXPECT_EQ(map.remove_if([](const std::string&, ca::i32 value) { return value > 10; }), 0u);
     EXPECT_EQ(map.len(), 1u);
 }
 
@@ -228,7 +222,8 @@ TEST(HashMapTest, RemoveIfSupportsMoveOnlyValues)
 
     EXPECT_EQ(map.remove_if([](const std::string&, const std::unique_ptr<ca::i32>& value) {
         return value != nullptr && *value == 2;
-    }), 1u);
+    }),
+              1u);
 
     EXPECT_EQ(map.len(), 2u);
     EXPECT_TRUE(map.contains_key("one"));
@@ -266,14 +261,14 @@ TEST(HashMapTest, GetOrInsertAddsMissingValue)
 
 TEST(HashMapTest, GetOrInsertWithBuildsOnlyWhenMissing)
 {
-    HashMap<std::string, ca::i32> map = {{"one", 1}};
-    ca::i32 calls = 0;
+    HashMap<std::string, ca::i32> map   = {{"one", 1}};
+    ca::i32                       calls = 0;
 
     ca::i32& existing = map.get_or_insert_with("one", [&calls]() {
         ++calls;
         return 11;
     });
-    ca::i32& missing = map.get_or_insert_with(std::string("two"), [&calls]() {
+    ca::i32& missing  = map.get_or_insert_with(std::string("two"), [&calls]() {
         ++calls;
         return 2;
     });
@@ -292,17 +287,15 @@ TEST(HashMapTest, GetOrInsertSupportsMoveOnlyValues)
     ASSERT_NE(inserted, nullptr);
     EXPECT_EQ(*inserted, 1);
 
-    auto& existing = map.get_or_insert_with(std::string("one"), []() {
-        return std::make_unique<ca::i32>(11);
-    });
+    auto& existing =
+        map.get_or_insert_with(std::string("one"), []() { return std::make_unique<ca::i32>(11); });
     ASSERT_NE(existing, nullptr);
     EXPECT_EQ(*existing, 1);
 
-    auto& built = map.get_or_insert_with(std::string("two"), []() {
-        return std::make_unique<ca::i32>(2);
-    });
+    auto& built =
+        map.get_or_insert_with(std::string("two"), []() { return std::make_unique<ca::i32>(2); });
     ASSERT_NE(built, nullptr);
     EXPECT_EQ(*built, 2);
 }
 
-}  // namespace ca::collection
+}   // namespace ca::collection

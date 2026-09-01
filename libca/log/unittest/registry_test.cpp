@@ -43,8 +43,8 @@ TEST(RegistryTest, UnknownTargetReturnsNull)
 TEST(RegistryTest, RegisterReplacesExisting)
 {
     RegistryGuard guard;
-    auto first  = make_logger();
-    auto second = make_logger();
+    auto          first  = make_logger();
+    auto          second = make_logger();
 
     LoggerRegistry::register_logger("fs", first);
     EXPECT_EQ(LoggerRegistry::get("fs"), first.get());
@@ -81,7 +81,7 @@ TEST(RegistryTest, RetiredLoggerStaysAliveWhenRegistryIsSoleOwner)
         EXPECT_TRUE(raw->should_log(Level::Info));
 
         LoggerRegistry::unregister_logger("sole");
-        EXPECT_TRUE(raw->should_log(Level::Info));  // 退休列表保活，未析构
+        EXPECT_TRUE(raw->should_log(Level::Info));   // 退休列表保活，未析构
     }
     {
         RegistryGuard guard;
@@ -89,7 +89,7 @@ TEST(RegistryTest, RetiredLoggerStaysAliveWhenRegistryIsSoleOwner)
         Logger* raw = LoggerRegistry::get("sole");
         ASSERT_NE(raw, nullptr);
 
-        LoggerRegistry::register_logger("sole", make_logger());  // 替换
+        LoggerRegistry::register_logger("sole", make_logger());   // 替换
         EXPECT_TRUE(raw->should_log(Level::Info));
 
         LoggerRegistry::clear();
@@ -101,7 +101,7 @@ TEST(RegistryTest, RetiredLoggerStaysAliveWhenRegistryIsSoleOwner)
         Logger* raw = LoggerRegistry::get("sole");
         ASSERT_NE(raw, nullptr);
 
-        LoggerRegistry::register_logger("sole", nullptr);  // null 注销路径
+        LoggerRegistry::register_logger("sole", nullptr);   // null 注销路径
         EXPECT_EQ(LoggerRegistry::get("sole"), nullptr);
         EXPECT_TRUE(raw->should_log(Level::Info));
     }
@@ -121,8 +121,8 @@ TEST(RegistryTest, RegisterNullUnregisters)
 TEST(RegistryTest, DifferentTargetsIndependent)
 {
     RegistryGuard guard;
-    auto a = make_logger();
-    auto b = make_logger();
+    auto          a = make_logger();
+    auto          b = make_logger();
     LoggerRegistry::register_logger("a", a);
     LoggerRegistry::register_logger("b", b);
 
@@ -140,11 +140,11 @@ TEST(RegistryTest, DifferentTargetsIndependent)
 TEST(RegistryTest, ConcurrentAccessIsSafe)
 {
     RegistryGuard guard;
-    constexpr int thread_count    = 8;
-    constexpr int ops_per_thread  = 500;
+    constexpr int thread_count   = 8;
+    constexpr int ops_per_thread = 500;
 
-    std::atomic<int> read_count{0};
-    std::atomic<int> write_count{0};
+    std::atomic<int>  read_count{0};
+    std::atomic<int>  write_count{0};
     std::atomic<bool> stop{false};
 
     auto worker = [&](int tid) {
@@ -155,7 +155,7 @@ TEST(RegistryTest, ConcurrentAccessIsSafe)
             // 读各种 target
             if (LoggerRegistry::get(target) != nullptr)
                 ++read_count;
-            LoggerRegistry::get("t0");  // 可能不存在，无所谓
+            LoggerRegistry::get("t0");   // 可能不存在，无所谓
             // 注销
             LoggerRegistry::unregister_logger(target);
             ++write_count;
@@ -180,14 +180,14 @@ TEST(RegistryTest, LoggerSurvivesConcurrentReplacement)
     auto          original = make_logger();
     LoggerRegistry::register_logger("hot", original);
 
-    constexpr int iterations = 200;
+    constexpr int    iterations = 200;
     std::atomic<int> safe_uses{0};
 
     auto reader = [&]() {
         for (int i = 0; i < iterations; ++i) {
             Logger* p = LoggerRegistry::get("hot");
             if (p != nullptr) {
-                p->should_log(Level::Info);  // 使用返回的指针
+                p->should_log(Level::Info);   // 使用返回的指针
                 ++safe_uses;
             }
         }
@@ -202,8 +202,8 @@ TEST(RegistryTest, LoggerSurvivesConcurrentReplacement)
     r.join();
     w.join();
 
-    EXPECT_GT(safe_uses.load(), 0);  // 未崩溃即证明引用计数保活生效
+    EXPECT_GT(safe_uses.load(), 0);   // 未崩溃即证明引用计数保活生效
 }
 
-}  // namespace
-}  // namespace ca::log::test
+}   // namespace
+}   // namespace ca::log::test

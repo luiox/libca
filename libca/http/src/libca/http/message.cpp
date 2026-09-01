@@ -25,13 +25,13 @@ bool contains_connection_token(const HttpHeaders& headers, std::string_view expe
     for (const auto& header : headers.entries()) {
         if (!ascii_equals(header.name, "Connection"))
             continue;
-        const std::string_view value = header.value;
-        usize position = 0;
+        const std::string_view value    = header.value;
+        usize                  position = 0;
         while (position <= value.size()) {
             const auto comma = value.find(',', position);
-            auto token = value.substr(position,
-                                      comma == std::string_view::npos ? value.size() - position
-                                                                      : comma - position);
+            auto       token = value.substr(
+                position,
+                comma == std::string_view::npos ? value.size() - position : comma - position);
             while (!token.empty() && (token.front() == ' ' || token.front() == '\t'))
                 token.remove_prefix(1);
             while (!token.empty() && (token.back() == ' ' || token.back() == '\t'))

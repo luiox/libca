@@ -35,11 +35,11 @@ std::shared_mutex& registry_mutex()
     return mtx;
 }
 
-}  // namespace
+}   // namespace
 
 void LoggerRegistry::register_logger(std::string_view target, std::shared_ptr<Logger> logger)
 {
-    std::string key(target);
+    std::string                         key(target);
     std::unique_lock<std::shared_mutex> lock(registry_mutex());
     if (logger == nullptr) {
         auto& map = registry_map();
@@ -60,8 +60,8 @@ void LoggerRegistry::register_logger(std::string_view target, std::shared_ptr<Lo
 Logger* LoggerRegistry::get(std::string_view target) noexcept
 {
     std::shared_lock<std::shared_mutex> lock(registry_mutex());
-    auto& map = registry_map();
-    auto  it  = map.find(std::string(target));
+    auto&                               map = registry_map();
+    auto                                it  = map.find(std::string(target));
     if (it == map.end())
         return nullptr;
     return it->second.get();
@@ -70,8 +70,8 @@ Logger* LoggerRegistry::get(std::string_view target) noexcept
 bool LoggerRegistry::unregister_logger(std::string_view target) noexcept
 {
     std::unique_lock<std::shared_mutex> lock(registry_mutex());
-    auto& map = registry_map();
-    auto  it  = map.find(std::string(target));
+    auto&                               map = registry_map();
+    auto                                it  = map.find(std::string(target));
     if (it == map.end())
         return false;
     retired_loggers().push_back(std::move(it->second));
@@ -82,10 +82,10 @@ bool LoggerRegistry::unregister_logger(std::string_view target) noexcept
 void LoggerRegistry::clear() noexcept
 {
     std::unique_lock<std::shared_mutex> lock(registry_mutex());
-    auto& retired = retired_loggers();
+    auto&                               retired = retired_loggers();
     for (auto& entry : registry_map())
         retired.push_back(std::move(entry.second));
     registry_map().clear();
 }
 
-}  // namespace ca::log
+}   // namespace ca::log

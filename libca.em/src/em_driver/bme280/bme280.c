@@ -5,24 +5,28 @@
 
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_EXTERN)
 
-#define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    port_bme280_i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    port_bme280_i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define BME280_DELAY_MS(ms) port_bme280_delay_ms((ms))
+#    define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        port_bme280_i2c_write(                                                                  \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        port_bme280_i2c_read(                                                                  \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define BME280_DELAY_MS(ms) port_bme280_delay_ms((ms))
 
 #elif (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
 
 static const bme280_port_t* g_bme280_port = NULL;
 
-#define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    g_bme280_port->i2c_write((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
-    g_bme280_port->i2c_read((hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
-#define BME280_DELAY_MS(ms) g_bme280_port->delay_ms((ms))
+#    define BME280_I2C_WRITE(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        g_bme280_port->i2c_write(                                                               \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define BME280_I2C_READ(hi2c, dev_addr, mem_addr, mem_addr_size, data, data_size, timeout) \
+        g_bme280_port->i2c_read(                                                               \
+            (hi2c), (dev_addr), (mem_addr), (mem_addr_size), (data), (data_size), (timeout))
+#    define BME280_DELAY_MS(ms) g_bme280_port->delay_ms((ms))
 
 #else
-#error "Invalid BME280 port mode"
+#    error "Invalid BME280 port mode"
 #endif
 
 #if (LIBCA_BME280_PORT_MODE == LIBCA_BME280_PORT_MODE_DYNAMIC)
@@ -487,7 +491,7 @@ f32 bme280_pa_to_alt(f32 pa)
     /// @details 在 101325Pa (海平面) 附近展开:
     /// h = -0.0832546 * (P-101325) + 3.32651e-7 * (P-101325)^2
     /// 该近似在 +/- 2km 范围内非常精确。
-    ///      
+    ///
     f32 p1 = pa - 101325.0f;
     f32 p2 = p1 * p1;
     return ((-0.0832546f * p1) + (3.32651E-7f * p2));

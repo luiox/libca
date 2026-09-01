@@ -24,24 +24,24 @@
  * - str_starts_with, str_ends_with 系列：标准库无对应函数
  */
 #ifndef USE_CUSTOM_STRING_UTIL_IMPL
-#define USE_CUSTOM_STRING_UTIL_IMPL 0
+#    define USE_CUSTOM_STRING_UTIL_IMPL 0
 #endif
 
 #if !USE_CUSTOM_STRING_UTIL_IMPL
-#include <string.h>
+#    include <string.h>
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define STR_OK              (0)
+#define STR_OK (0)
 // 空指针错误
-#define STR_ERR_NULL        (-1)
+#define STR_ERR_NULL (-1)
 // 缓冲区大小不足
-#define STR_ERR_SIZE        (-2)
+#define STR_ERR_SIZE (-2)
 // 非法大小
-#define STR_ERR_INVALID     (-3)
+#define STR_ERR_INVALID (-3)
 
 /* ==================== 字符操作函数（始终使用自定义实现） ==================== */
 
@@ -203,7 +203,7 @@ i32 str_cat(char* dest, const char* src, usize dest_max_size);
 bool str_is_equal(const char* s1, const char* s2);
 
 /// @brief 去除字符串首尾的空白字符（原地实现）
-/// 
+///
 /// @param str 字符串
 /// @return i32 去除后的字符串长度
 i32 str_trim(char* str);
@@ -221,43 +221,43 @@ i32 str_ltrim(char* str);
 i32 str_rtrim(char* str);
 
 /// @brief 字符串转大写
-/// 
+///
 /// @param str 字符串
 void str_to_upper(char* str);
 
 /// @brief 字符串转小写
-/// 
+///
 /// @param str 字符串
 void str_to_lower(char* str);
 
 /// @brief 翻转字符串
-/// 
+///
 /// @param str 字符串
 void str_reverse(char* str);
 
 /// @brief 判断字符串是否以特定前缀开始
-/// 
+///
 /// @param str 字符串
 /// @param prefix 前缀
 /// @return bool 是返回 true
 bool str_starts_with(const char* str, const char* prefix);
 
 /// @brief 判断字符串是否以特定前缀开始（忽略大小写）
-/// 
+///
 /// @param str 字符串
 /// @param prefix 前缀
 /// @return bool 是返回 true
 bool str_starts_with_i(const char* str, const char* prefix);
 
 /// @brief 判断字符串是否以特定后缀结尾
-/// 
+///
 /// @param str 字符串
 /// @param suffix 后缀
 /// @return bool 是返回 true
 bool str_ends_with(const char* str, const char* suffix);
 
 /// @brief 判断字符串是否以特定后缀结尾（忽略大小写）
-/// 
+///
 /// @param str 字符串
 /// @param suffix 后缀
 /// @return bool 是返回 true

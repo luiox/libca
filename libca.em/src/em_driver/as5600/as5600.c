@@ -14,22 +14,22 @@
 
 #if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_EXTERN)
 
-#define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
-    port_as5600_i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
-#define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
-    port_as5600_i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
+#    define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
+        port_as5600_i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
+#    define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
+        port_as5600_i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
 
 #elif (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
 
 static const as5600_port_t* g_as5600_port = NULL;
 
-#define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
-    g_as5600_port->i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
-#define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
-    g_as5600_port->i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
+#    define AS5600_I2C_WRITE(hi2c, dev_addr, reg_addr, data, len) \
+        g_as5600_port->i2c_write((hi2c), (dev_addr), (reg_addr), (data), (len))
+#    define AS5600_I2C_READ(hi2c, dev_addr, reg_addr, data, len) \
+        g_as5600_port->i2c_read((hi2c), (dev_addr), (reg_addr), (data), (len))
 
 #else
-#error "Invalid AS5600 port mode"
+#    error "Invalid AS5600 port mode"
 #endif
 
 #if (LIBCA_AS5600_PORT_MODE == LIBCA_AS5600_PORT_MODE_DYNAMIC)
@@ -67,7 +67,7 @@ u16 as5600_read_raw_angle(as5600_t* self)
 f32 as5600_read_angle(as5600_t* self)
 {
     param_check(self != NULL);
-    
+
     u16 raw = as5600_read_raw_angle(self);
     return as5600_raw_to_degree(raw);
 }

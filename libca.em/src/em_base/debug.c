@@ -36,4 +36,3 @@ void debug_printf(const char* fmt, ...)
 
     debug_puts((const char*)g_print_buffer);
 }
-

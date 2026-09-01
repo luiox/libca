@@ -20,4 +20,4 @@ Utf8String format_runtime(fmt::string_view fmt_str, fmt::format_args args)
     return Utf8String(reinterpret_cast<const u8*>(tmp.data()), tmp.size());
 }
 
-}  // namespace ca::str
+}   // namespace ca::str

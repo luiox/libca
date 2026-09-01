@@ -94,4 +94,3 @@ bool stack_full(stack_t* s)
 
     return s->size == s->capacity;
 }
-

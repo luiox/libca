@@ -30,7 +30,7 @@ Bytes decode_hex_or_empty(const std::string& text)
     return decoded.unwrap();
 }
 
-}  // namespace
+}   // namespace
 
 TEST(RC4Test, KnownVector)
 {
@@ -39,7 +39,7 @@ TEST(RC4Test, KnownVector)
     EXPECT_EQ(hex_encode(bytes(encrypted.unwrap())), "bbf316e8d940af0ad3");
 
     auto ciphertext = decode_hex_or_empty("bbf316e8d940af0ad3");
-    auto decrypted = rc4_crypt(bytes("Key"), bytes(ciphertext));
+    auto decrypted  = rc4_crypt(bytes("Key"), bytes(ciphertext));
     ASSERT_TRUE(decrypted.is_ok());
     EXPECT_TRUE(constant_time_eq(bytes("Plaintext"), bytes(decrypted.unwrap())));
 }
@@ -64,15 +64,22 @@ TEST(ChaCha20Test, Rfc8439BlockFunction)
         key_data[i] = static_cast<ca::u8>(i);
 
     ca::u8 nonce_data[CHACHA20_NONCE_SIZE] = {
-        0x00, 0x00, 0x00, 0x09,
-        0x00, 0x00, 0x00, 0x4a,
-        0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x09,
+        0x00,
+        0x00,
+        0x00,
+        0x4a,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
     };
 
     auto block = chacha20_block(
-        ByteSlice(key_data, CHACHA20_KEY_SIZE),
-        1,
-        ByteSlice(nonce_data, CHACHA20_NONCE_SIZE));
+        ByteSlice(key_data, CHACHA20_KEY_SIZE), 1, ByteSlice(nonce_data, CHACHA20_NONCE_SIZE));
 
     ASSERT_TRUE(block.is_ok());
     EXPECT_EQ(hex_encode(bytes(block.unwrap())),
@@ -89,19 +96,27 @@ TEST(ChaCha20Test, Rfc8439Encryption)
         key_data[i] = static_cast<ca::u8>(i);
 
     ca::u8 nonce_data[CHACHA20_NONCE_SIZE] = {
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x4a,
-        0x00, 0x00, 0x00, 0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x4a,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
     };
 
-    const std::string plaintext =
-        "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+    const std::string plaintext = "Ladies and Gentlemen of the class of '99: If I could offer you "
+                                  "only one tip for the future, sunscreen would be it.";
 
-    auto encrypted = chacha20_xor(
-        ByteSlice(key_data, CHACHA20_KEY_SIZE),
-        1,
-        ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
-        bytes(plaintext));
+    auto encrypted = chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE),
+                                  1,
+                                  ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
+                                  bytes(plaintext));
 
     ASSERT_TRUE(encrypted.is_ok());
     EXPECT_EQ(hex_encode(bytes(encrypted.unwrap())),
@@ -114,11 +129,10 @@ TEST(ChaCha20Test, Rfc8439Encryption)
               "5af90bbf74a35be6b40b8eedf2785e42"
               "874d");
 
-    auto decrypted = chacha20_xor(
-        ByteSlice(key_data, CHACHA20_KEY_SIZE),
-        1,
-        ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
-        bytes(encrypted.unwrap()));
+    auto decrypted = chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE),
+                                  1,
+                                  ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
+                                  bytes(encrypted.unwrap()));
 
     ASSERT_TRUE(decrypted.is_ok());
     EXPECT_TRUE(constant_time_eq(bytes(plaintext), bytes(decrypted.unwrap())));
@@ -127,19 +141,27 @@ TEST(ChaCha20Test, Rfc8439Encryption)
 // key/nonce 长度不符返回 INVALID_ARGUMENT（block 与 xor 两个入口对称校验）。
 TEST(ChaCha20Test, RejectsInvalidKeyOrNonceLength)
 {
-    ca::u8 key_data[CHACHA20_KEY_SIZE] = {};
+    ca::u8 key_data[CHACHA20_KEY_SIZE]     = {};
     ca::u8 nonce_data[CHACHA20_NONCE_SIZE] = {};
 
     // 短 key。
-    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1), 1,
-                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE)).is_err());
-    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1), 1,
+    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1),
+                               1,
+                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE))
+                    .is_err());
+    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE - 1),
+                             1,
                              ByteSlice(nonce_data, CHACHA20_NONCE_SIZE),
-                             bytes("data")).is_err());
+                             bytes("data"))
+                    .is_err());
     // 短 nonce。
-    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE), 1,
-                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE - 1)).is_err());
-    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE), 1,
+    EXPECT_TRUE(chacha20_block(ByteSlice(key_data, CHACHA20_KEY_SIZE),
+                               1,
+                               ByteSlice(nonce_data, CHACHA20_NONCE_SIZE - 1))
+                    .is_err());
+    EXPECT_TRUE(chacha20_xor(ByteSlice(key_data, CHACHA20_KEY_SIZE),
+                             1,
                              ByteSlice(nonce_data, CHACHA20_NONCE_SIZE - 1),
-                             bytes("data")).is_err());
+                             bytes("data"))
+                    .is_err());
 }

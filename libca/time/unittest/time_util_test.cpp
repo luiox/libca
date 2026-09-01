@@ -12,17 +12,16 @@ namespace {
 ca::i64 std_current_time_millis()
 {
     const auto now = std::chrono::system_clock::now().time_since_epoch();
-    return static_cast<ca::i64>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+    return static_cast<ca::i64>(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
 }
 
-}  // namespace
+}   // namespace
 
 TEST(TimeUtilTest, current_time_millisMatchesSystemClock)
 {
     const ca::i64 before = std_current_time_millis();
     const ca::i64 actual = TimeUtil::current_time_millis();
-    const ca::i64 after = std_current_time_millis();
+    const ca::i64 after  = std_current_time_millis();
 
     EXPECT_GE(actual, before - 1);
     EXPECT_LE(actual, after + 1);

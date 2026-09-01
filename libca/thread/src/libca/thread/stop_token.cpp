@@ -42,8 +42,8 @@ void StopToken::wait() const
     std::unique_lock<std::mutex> lock(state_->mutex);
     // 谓词内用 acquire 重读 requested：与 request_stop() 的 acq_rel 配对，
     // 防止虚假唤醒或漏醒（notify 在锁外，见 request_stop() 注释）。
-    state_->condition.wait(
-        lock, [&]() { return state_->requested.load(std::memory_order_acquire); });
+    state_->condition.wait(lock,
+                           [&]() { return state_->requested.load(std::memory_order_acquire); });
 }
 
 bool StopToken::wait_for(std::chrono::milliseconds timeout) const
@@ -51,7 +51,7 @@ bool StopToken::wait_for(std::chrono::milliseconds timeout) const
     if (state_ == nullptr)
         return false;
 
-    const auto duration = (std::max)(timeout, std::chrono::milliseconds::zero());
+    const auto                   duration = (std::max)(timeout, std::chrono::milliseconds::zero());
     std::unique_lock<std::mutex> lock(state_->mutex);
     return state_->condition.wait_for(
         lock, duration, [&]() { return state_->requested.load(std::memory_order_acquire); });

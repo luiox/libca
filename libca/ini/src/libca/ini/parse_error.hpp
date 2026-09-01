@@ -9,11 +9,12 @@
 namespace ca::ini {
 
 /// @brief 解析错误：发生位置 + 描述。
-struct ParseError {
+struct ParseError
+{
     /// 错误发生位置。
     SourceLocation location;
     /// 人读的错误描述。
     ca::str::Utf8String message;
 };
 
-}  // namespace ca::ini
+}   // namespace ca::ini

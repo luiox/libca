@@ -18,27 +18,27 @@ bool ssd1306_port_is_registered(void)
 
 void* g_hi2c = NULL;
 
- /// @function: void ssd1306_write_command(u8 cmd)
- /// @description: 向设备写控制命令
- /// @param {u8} cmd 芯片手册规定的命令
- /// @return {*}
+/// @function: void ssd1306_write_command(u8 cmd)
+/// @description: 向设备写控制命令
+/// @param {u8} cmd 芯片手册规定的命令
+/// @return {*}
 void ssd1306_write_command(u8 cmd)
 {
     g_ssd1306_port->i2c_mem_write(g_hi2c, OLED_I2C_ADDRESS, 0x00, 1, &cmd, 1, OLED_I2C_TIMEOUT);
 }
 
- /// @function: void ssd1306_write_data(u8 data)
- /// @description: 向设备写控制数据
- /// @param {u8} data 数据
- /// @return {*}
+/// @function: void ssd1306_write_data(u8 data)
+/// @description: 向设备写控制数据
+/// @param {u8} data 数据
+/// @return {*}
 void ssd1306_write_data(u8 data)
 {
     g_ssd1306_port->i2c_mem_write(g_hi2c, OLED_I2C_ADDRESS, 0x40, 1, &data, 1, OLED_I2C_TIMEOUT);
 }
 
- /// 初始化命令,根据芯片手册书写，详细步骤见上图以及注意事项
+/// 初始化命令,根据芯片手册书写，详细步骤见上图以及注意事项
 u8 g_init_cmds[] = {0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40, 0xA1, 0xC8, 0xDA, 0x12,
-                         0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0x8D, 0x14, 0xAF};
+                    0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0x8D, 0x14, 0xAF};
 
 void ssd1306_init(void* i2c_handle)
 {
@@ -187,12 +187,12 @@ void ssd1306_show_num(u8 x, u8 y, u32 num, u8 len, u8 font_size, u8 color_turn)
 
 void ssd1306_show_decimal(u8 x, u8 y, float num, u8 z_len, u8 f_len, u8 font_size, u8 color_turn)
 {
-    u8 t, temp, i = 0;   // i为负数标志位
-    u8 enshow;
+    u8  t, temp, i = 0;   // i为负数标志位
+    u8  enshow;
     int z_temp, f_temp;
     if (num < 0) {
         z_len += 1;
-        i = 1;
+        i   = 1;
         num = -num;
     }
     z_temp = (int)num;
@@ -216,7 +216,8 @@ void ssd1306_show_decimal(u8 x, u8 y, float num, u8 z_len, u8 f_len, u8 font_siz
     // 小数部分
     for (t = 0; t < f_len; t++) {
         temp = (f_temp / ssd1306_pow(10, f_len - t - 1)) % 10;
-        ssd1306_show_char(x + (font_size / 2) * (t + z_len) + 5, y, temp + '0', font_size, color_turn);
+        ssd1306_show_char(
+            x + (font_size / 2) * (t + z_len) + 5, y, temp + '0', font_size, color_turn);
     }
     if (i == 1)   // 如果为负，就将最前的一位赋值‘-’
     {
@@ -228,7 +229,7 @@ void ssd1306_show_decimal(u8 x, u8 y, float num, u8 z_len, u8 f_len, u8 font_siz
 void ssd1306_draw_bmp(u8 x0, u8 y0, u8 x1, u8 y1, u8* bmp, u8 color_turn)
 {
     u32 j = 0;
-    u8 x = 0, y = 0;
+    u8  x = 0, y = 0;
 
     if (y1 % 8 == 0)
         y = y1 / 8;
@@ -249,12 +250,13 @@ void ssd1306_draw_bmp(u8 x0, u8 y0, u8 x1, u8 y1, u8* bmp, u8 color_turn)
 
 void ssd1306_horizontal_shift(u8 dir)
 {
-    ssd1306_write_command(0x2e);        // 停止滚动
-    ssd1306_write_command(dir);   // 设置滚动方向
-    ssd1306_write_command(0x00);        // 虚拟字节设置，默认为0x00
-    ssd1306_write_command(0x00);        // 设置开始页地址
-    ssd1306_write_command(0x07);        // 设置每个滚动步骤之间的时间间隔的帧频
-    //  0x00-5帧， 0x01-64帧， 0x02-128帧， 0x03-256帧， 0x04-3帧， 0x05-4帧， 0x06-25帧， 0x07-2帧，
+    ssd1306_write_command(0x2e);   // 停止滚动
+    ssd1306_write_command(dir);    // 设置滚动方向
+    ssd1306_write_command(0x00);   // 虚拟字节设置，默认为0x00
+    ssd1306_write_command(0x00);   // 设置开始页地址
+    ssd1306_write_command(0x07);   // 设置每个滚动步骤之间的时间间隔的帧频
+    //  0x00-5帧， 0x01-64帧， 0x02-128帧， 0x03-256帧， 0x04-3帧， 0x05-4帧， 0x06-25帧，
+    //  0x07-2帧，
     ssd1306_write_command(0x07);   // 设置结束页地址
     ssd1306_write_command(0x00);   // 虚拟字节设置，默认为0x00
     ssd1306_write_command(0xff);   // 虚拟字节设置，默认为0xff
@@ -264,30 +266,30 @@ void ssd1306_horizontal_shift(u8 dir)
 
 void ssd1306_some_horizontal_shift(u8 dir, u8 start_page, u8 end_page)
 {
-    ssd1306_write_command(0x2e);        // 停止滚动
-    ssd1306_write_command(dir);   // 设置滚动方向
-    ssd1306_write_command(0x00);        // 虚拟字节设置，默认为0x00
-    ssd1306_write_command(start_page);       // 设置开始页地址
-    ssd1306_write_command(0x07);        // 设置每个滚动步骤之间的时间间隔的帧频,0x07即滚动速度2帧
-    ssd1306_write_command(end_page);         // 设置结束页地址
-    ssd1306_write_command(0x00);        // 虚拟字节设置，默认为0x00
-    ssd1306_write_command(0xff);        // 虚拟字节设置，默认为0xff
-    ssd1306_write_command(0x2f);        // 开启滚动-0x2f，禁用滚动-0x2e，禁用需要重写数据
+    ssd1306_write_command(0x2e);         // 停止滚动
+    ssd1306_write_command(dir);          // 设置滚动方向
+    ssd1306_write_command(0x00);         // 虚拟字节设置，默认为0x00
+    ssd1306_write_command(start_page);   // 设置开始页地址
+    ssd1306_write_command(0x07);   // 设置每个滚动步骤之间的时间间隔的帧频,0x07即滚动速度2帧
+    ssd1306_write_command(end_page);   // 设置结束页地址
+    ssd1306_write_command(0x00);       // 虚拟字节设置，默认为0x00
+    ssd1306_write_command(0xff);       // 虚拟字节设置，默认为0xff
+    ssd1306_write_command(0x2f);   // 开启滚动-0x2f，禁用滚动-0x2e，禁用需要重写数据
 }
 
 
 void ssd1306_vertical_and_horizontal_shift(u8 dir)
 {
-    ssd1306_write_command(0x2e);        // 停止滚动
-    ssd1306_write_command(dir);   // 设置滚动方向
-    ssd1306_write_command(0x01);        // 虚拟字节设置
-    ssd1306_write_command(0x00);        // 设置开始页地址
-    ssd1306_write_command(0x07);        // 设置每个滚动步骤之间的时间间隔的帧频，即滚动速度
-    ssd1306_write_command(0x07);        // 设置结束页地址
-    ssd1306_write_command(0x01);        // 垂直滚动偏移量
-    ssd1306_write_command(0x00);        // 虚拟字节设置，默认为0x00
-    ssd1306_write_command(0xff);        // 虚拟字节设置，默认为0xff
-    ssd1306_write_command(0x2f);        // 开启滚动-0x2f，禁用滚动-0x2e，禁用需要重写数据
+    ssd1306_write_command(0x2e);   // 停止滚动
+    ssd1306_write_command(dir);    // 设置滚动方向
+    ssd1306_write_command(0x01);   // 虚拟字节设置
+    ssd1306_write_command(0x00);   // 设置开始页地址
+    ssd1306_write_command(0x07);   // 设置每个滚动步骤之间的时间间隔的帧频，即滚动速度
+    ssd1306_write_command(0x07);   // 设置结束页地址
+    ssd1306_write_command(0x01);   // 垂直滚动偏移量
+    ssd1306_write_command(0x00);   // 虚拟字节设置，默认为0x00
+    ssd1306_write_command(0xff);   // 虚拟字节设置，默认为0xff
+    ssd1306_write_command(0x2f);   // 开启滚动-0x2f，禁用滚动-0x2e，禁用需要重写数据
 }
 
 void ssd1306_display_mode(u8 mode)

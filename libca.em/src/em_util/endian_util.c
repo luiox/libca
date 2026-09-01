@@ -26,4 +26,3 @@ bool is_big_endian(void)
 {
     return !is_little_endian();
 }
-

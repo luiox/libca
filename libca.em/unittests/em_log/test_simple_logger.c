@@ -2,18 +2,18 @@
 #include "simple_logger.h"
 #include <em_format/format.h>
 #include <stdarg.h>
-#include <stdio.h> // 仅用于 vsnprintf
+#include <stdio.h>   // 仅用于 vsnprintf
 
 #include <string.h>
 #include <em_test/test.h>
 
-static char g_test_buf[256];
+static char  g_test_buf[256];
 static usize g_test_len = 0;
 
 /**
  * @brief 测试输出回调，捕获日志输出内容
  */
-static void test_slog_output(const u8 *buf, usize len)
+static void test_slog_output(const u8* buf, usize len)
 {
     g_test_len = len;
     if (g_test_len > sizeof(g_test_buf) - 1U) {
@@ -30,7 +30,7 @@ static void test_slog_output(const u8 *buf, usize len)
  */
 static void test_slog_reset(void)
 {
-    g_test_len = 0U;
+    g_test_len    = 0U;
     g_test_buf[0] = '\0';
     slog_init(test_slog_output);
 }
@@ -80,7 +80,7 @@ TEST_CASE(simple_logger_format_zero_pad_u)
 
 TEST_CASE(simple_logger_long_message_truncate)
 {
-    char long_str[320];
+    char  long_str[320];
     usize i;
 
     for (i = 0; i < sizeof(long_str) - 1U; i++) {
@@ -110,4 +110,3 @@ TEST_CASE(simple_logger_runtime_filter)
     slog_set_runtime_level(LOG_LEVEL_DEBUG);
 }
 #endif
-

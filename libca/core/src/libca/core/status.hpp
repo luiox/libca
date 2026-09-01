@@ -12,7 +12,8 @@
 namespace ca::core {
 
 /// @brief 通用状态码集合，命名参考常见系统/API 错误分类。
-enum class StatusCode : i32 {
+enum class StatusCode : i32
+{
     OK = 0,
     CANCELLED,
     UNKNOWN,
@@ -32,7 +33,8 @@ enum class StatusCode : i32 {
 };
 
 /// @brief 返回状态码的稳定文本名称。
-inline const char* status_code_name(StatusCode code) noexcept {
+inline const char* status_code_name(StatusCode code) noexcept
+{
     switch (code) {
     case StatusCode::OK: return "OK";
     case StatusCode::CANCELLED: return "CANCELLED";
@@ -55,24 +57,25 @@ inline const char* status_code_name(StatusCode code) noexcept {
 }
 
 /// @brief 返回状态码的 std::string 文本。
-inline std::string to_string(StatusCode code) {
+inline std::string to_string(StatusCode code)
+{
     return status_code_name(code);
 }
 
 /// @brief 轻量错误状态，OK 表示成功，其它状态码表示失败。
 /// @note 需要返回值时使用 `StatusResult<T>`；只需成败时可直接返回 `Status`。
-class Status {
+class Status
+{
 public:
     /// @brief 默认构造为 OK。
     Status() = default;
 
     /// @brief 构造 OK 状态。
-    static Status ok() {
-        return Status();
-    }
+    static Status ok() { return Status(); }
 
     /// @brief 构造错误状态。若传入 OK，会归一化为 UNKNOWN。
-    static Status error(StatusCode code, std::string message = {}) {
+    static Status error(StatusCode code, std::string message = {})
+    {
         if (code == StatusCode::OK) {
             code = StatusCode::UNKNOWN;
         }
@@ -80,27 +83,20 @@ public:
     }
 
     /// @brief 是否为成功状态。
-    bool is_ok() const noexcept {
-        return code_ == StatusCode::OK;
-    }
+    bool is_ok() const noexcept { return code_ == StatusCode::OK; }
 
     /// @brief 是否为错误状态。
-    bool is_err() const noexcept {
-        return !is_ok();
-    }
+    bool is_err() const noexcept { return !is_ok(); }
 
     /// @brief 返回状态码。
-    StatusCode code() const noexcept {
-        return code_;
-    }
+    StatusCode code() const noexcept { return code_; }
 
     /// @brief 返回错误消息；OK 状态消息为空。
-    const std::string& message() const noexcept {
-        return message_;
-    }
+    const std::string& message() const noexcept { return message_; }
 
     /// @brief 转为可读文本。无消息时只返回状态码名称。
-    std::string to_string() const {
+    std::string to_string() const
+    {
         if (is_ok() || message_.empty()) {
             return status_code_name(code_);
         }
@@ -109,34 +105,41 @@ public:
 
 private:
     Status(StatusCode code, std::string message)
-        : code_(code), message_(std::move(message)) {}
+        : code_(code)
+        , message_(std::move(message))
+    {}
 
-    StatusCode code_{StatusCode::OK};
+    StatusCode  code_{StatusCode::OK};
     std::string message_;
 };
 
 /// @brief 比较两个状态是否完全相同。
-inline bool operator==(const Status& lhs, const Status& rhs) {
+inline bool operator==(const Status& lhs, const Status& rhs)
+{
     return lhs.code() == rhs.code() && lhs.message() == rhs.message();
 }
 
 /// @brief 比较两个状态是否不同。
-inline bool operator!=(const Status& lhs, const Status& rhs) {
+inline bool operator!=(const Status& lhs, const Status& rhs)
+{
     return !(lhs == rhs);
 }
 
 /// @brief 返回 Status 的可读文本。
-inline std::string to_string(const Status& status) {
+inline std::string to_string(const Status& status)
+{
     return status.to_string();
 }
 
 /// @brief 构造 OK 状态的便捷函数。
-inline Status OkStatus() {
+inline Status OkStatus()
+{
     return Status::ok();
 }
 
 /// @brief 构造错误状态的便捷函数。
-inline Status ErrStatus(StatusCode code, std::string message = {}) {
+inline Status ErrStatus(StatusCode code, std::string message = {})
+{
     return Status::error(code, std::move(message));
 }
 
@@ -148,17 +151,17 @@ using StatusResult = Result<T, Status>;
 template<typename T>
 using StatusOr = StatusResult<T>;
 
-} // namespace ca::core
+}   // namespace ca::core
 
 namespace ca {
-    using core::ErrStatus;
-    using core::OkStatus;
-    using core::Status;
-    using core::StatusCode;
+using core::ErrStatus;
+using core::OkStatus;
+using core::Status;
+using core::StatusCode;
 
-    template<typename T>
-    using StatusResult = core::StatusResult<T>;
+template<typename T>
+using StatusResult = core::StatusResult<T>;
 
-    template<typename T>
-    using StatusOr = core::StatusOr<T>;
-}
+template<typename T>
+using StatusOr = core::StatusOr<T>;
+}   // namespace ca

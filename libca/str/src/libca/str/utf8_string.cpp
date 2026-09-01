@@ -24,77 +24,90 @@ namespace ca::str {
 Utf8StringRef::Utf8StringRef() noexcept
     : data_(nullptr)
     , byte_length_(0)
-    , length_(0) {}
+    , length_(0)
+{}
 
 Utf8StringRef::Utf8StringRef(const u8* data, usize byte_length, usize length) noexcept
     : data_(data)
     , byte_length_(byte_length)
-    , length_(length) {}
+    , length_(length)
+{}
 
 Utf8StringRef::Utf8StringRef(const Utf8String& str) noexcept
     : data_(str.data())
     , byte_length_(str.byte_length())
-    , length_(str.length()) {}
+    , length_(str.length())
+{}
 
-Utf8StringRef Utf8StringRef::from_cstr(const char* cstr) noexcept {
-    if (cstr == nullptr) return Utf8StringRef();
+Utf8StringRef Utf8StringRef::from_cstr(const char* cstr) noexcept
+{
+    if (cstr == nullptr)
+        return Utf8StringRef();
     auto len  = std::strlen(cstr);
     auto data = reinterpret_cast<const u8*>(cstr);
     return Utf8StringRef(data, len, utf8_count_code_points(data, len));
 }
 
-Utf8StringRef Utf8StringRef::from_data(const u8* data, usize byte_len, usize cp_len) {
+Utf8StringRef Utf8StringRef::from_data(const u8* data, usize byte_len, usize cp_len)
+{
     if (data == nullptr || byte_len == 0)
         return Utf8StringRef();
-    usize cp = (cp_len == usize(-1))
-        ? utf8_count_code_points(data, byte_len)
-        : cp_len;
+    usize cp = (cp_len == usize(-1)) ? utf8_count_code_points(data, byte_len) : cp_len;
     return Utf8StringRef(data, byte_len, cp);
 }
 
-Utf8StringRef Utf8StringRef::from_string_view(std::string_view sv) noexcept {
+Utf8StringRef Utf8StringRef::from_string_view(std::string_view sv) noexcept
+{
     if (sv.empty())
         return Utf8StringRef();
-    auto data = reinterpret_cast<const u8*>(sv.data());
+    auto data     = reinterpret_cast<const u8*>(sv.data());
     auto byte_len = static_cast<usize>(sv.size());
     return Utf8StringRef(data, byte_len, utf8_count_code_points(data, byte_len));
 }
 
-usize Utf8StringRef::length() const noexcept {
+usize Utf8StringRef::length() const noexcept
+{
     return length_;
 }
 
-usize Utf8StringRef::byte_length() const noexcept {
+usize Utf8StringRef::byte_length() const noexcept
+{
     return byte_length_;
 }
 
-bool Utf8StringRef::is_empty() const noexcept {
+bool Utf8StringRef::is_empty() const noexcept
+{
     return byte_length_ == 0;
 }
 
-const u8* Utf8StringRef::data() const noexcept {
+const u8* Utf8StringRef::data() const noexcept
+{
     return data_;
 }
 
-Utf8StringRef::operator std::string_view() const noexcept {
+Utf8StringRef::operator std::string_view() const noexcept
+{
     // nullptr 传给 string_view(const CharT*, n) 是 UB（即便 n==0），空视图须回落默认构造。
     return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
                                     static_cast<std::string_view::size_type>(byte_length_))
                  : std::string_view{};
 }
 
-std::string Utf8StringRef::to_std_string() const {
+std::string Utf8StringRef::to_std_string() const
+{
     if (data_ == nullptr || byte_length_ == 0)
         return std::string();
     return std::string(reinterpret_cast<const char*>(data_), byte_length_);
 }
 
-u8 Utf8StringRef::byte_at(usize index) const {
+u8 Utf8StringRef::byte_at(usize index) const
+{
     return data_[index];
 }
 
-u32 Utf8StringRef::code_point_at(usize index) const {
-    usize pos   = 0;
+u32 Utf8StringRef::code_point_at(usize index) const
+{
+    usize pos    = 0;
     usize cp_idx = 0;
     while (cp_idx < index && pos < byte_length_) {
         pos += utf8_code_point_bytes_safe(data_[pos]);
@@ -105,7 +118,8 @@ u32 Utf8StringRef::code_point_at(usize index) const {
     return utf8_decode_code_point(data_ + pos);
 }
 
-Utf8StringRef Utf8StringRef::slice(usize byte_start, usize byte_end) const {
+Utf8StringRef Utf8StringRef::slice(usize byte_start, usize byte_end) const
+{
     if (byte_start >= byte_end || byte_start >= byte_length_)
         return Utf8StringRef();
 
@@ -123,7 +137,8 @@ Utf8StringRef Utf8StringRef::slice(usize byte_start, usize byte_end) const {
     return Utf8StringRef(data_ + byte_start, byte_end - byte_start, cp_cnt);
 }
 
-Utf8StringRef Utf8StringRef::slice_by_cp(usize cp_start, usize cp_count) const {
+Utf8StringRef Utf8StringRef::slice_by_cp(usize cp_start, usize cp_count) const
+{
     if (cp_start >= length_ || cp_count == 0)
         return Utf8StringRef();
 
@@ -145,15 +160,15 @@ Utf8StringRef Utf8StringRef::slice_by_cp(usize cp_start, usize cp_count) const {
     return Utf8StringRef(data_ + start_pos, pos - start_pos, actual_count);
 }
 
-Utf8String Utf8StringRef::substr(usize cp_start, usize cp_count) const {
+Utf8String Utf8StringRef::substr(usize cp_start, usize cp_count) const
+{
     auto ref = slice_by_cp(cp_start, cp_count);
     return Utf8String(ref.data(), ref.byte_length());
 }
 
-int Utf8StringRef::compare(const Utf8StringRef& other) const noexcept {
-    auto cmp_len = byte_length_ < other.byte_length_
-                      ? byte_length_
-                      : other.byte_length_;
+int Utf8StringRef::compare(const Utf8StringRef& other) const noexcept
+{
+    auto cmp_len = byte_length_ < other.byte_length_ ? byte_length_ : other.byte_length_;
 
     if (cmp_len > 0) {
         auto result = std::memcmp(data_, other.data_, cmp_len);
@@ -169,10 +184,11 @@ int Utf8StringRef::compare(const Utf8StringRef& other) const noexcept {
     return 0;
 }
 
-int Utf8StringRef::compare(const char* cstr) const noexcept {
-    auto other_len = cstr ? static_cast<usize>(std::strlen(cstr)) : 0;
+int Utf8StringRef::compare(const char* cstr) const noexcept
+{
+    auto other_len  = cstr ? static_cast<usize>(std::strlen(cstr)) : 0;
     auto other_data = reinterpret_cast<const u8*>(cstr);
-    auto cmp_len = byte_length_ < other_len ? byte_length_ : other_len;
+    auto cmp_len    = byte_length_ < other_len ? byte_length_ : other_len;
 
     if (cmp_len > 0) {
         auto result = std::memcmp(data_, other_data, cmp_len);
@@ -187,32 +203,36 @@ int Utf8StringRef::compare(const char* cstr) const noexcept {
     return 0;
 }
 
-bool Utf8StringRef::equals(const Utf8StringRef& other) const noexcept {
+bool Utf8StringRef::equals(const Utf8StringRef& other) const noexcept
+{
     return byte_length_ == other.byte_length_ &&
-           (byte_length_ == 0 ||
-            std::memcmp(data_, other.data_, byte_length_) == 0);
+           (byte_length_ == 0 || std::memcmp(data_, other.data_, byte_length_) == 0);
 }
 
-bool Utf8StringRef::equals(const char* cstr) const noexcept {
+bool Utf8StringRef::equals(const char* cstr) const noexcept
+{
     auto other_len = cstr ? static_cast<usize>(std::strlen(cstr)) : 0;
     return byte_length_ == other_len &&
-           (byte_length_ == 0 ||
-            std::memcmp(data_, cstr, byte_length_) == 0);
+           (byte_length_ == 0 || std::memcmp(data_, cstr, byte_length_) == 0);
 }
 
-bool Utf8StringRef::operator==(const Utf8StringRef& other) const noexcept {
+bool Utf8StringRef::operator==(const Utf8StringRef& other) const noexcept
+{
     return equals(other);
 }
 
-bool Utf8StringRef::operator==(const char* cstr) const noexcept {
+bool Utf8StringRef::operator==(const char* cstr) const noexcept
+{
     return equals(cstr);
 }
 
-bool Utf8StringRef::operator!=(const Utf8StringRef& other) const noexcept {
+bool Utf8StringRef::operator!=(const Utf8StringRef& other) const noexcept
+{
     return !equals(other);
 }
 
-bool Utf8StringRef::operator!=(const char* cstr) const noexcept {
+bool Utf8StringRef::operator!=(const char* cstr) const noexcept
+{
     return !equals(cstr);
 }
 
@@ -220,7 +240,8 @@ bool Utf8StringRef::operator!=(const char* cstr) const noexcept {
 // Utf8String
 // ============================================================================
 
-void Utf8String::init(const u8* src, usize byte_len) {
+void Utf8String::init(const u8* src, usize byte_len)
+{
     if (src == nullptr || byte_len == 0) {
         data_        = new u8[1]{0};
         byte_length_ = 0;
@@ -232,9 +253,8 @@ void Utf8String::init(const u8* src, usize byte_len) {
     usize invalid_pos = 0;
     auto  cp_count    = utf8_count_code_points(src, byte_len, &invalid_pos);
     if (cp_count == 0) {
-        throw std::runtime_error(
-            "Utf8String: invalid UTF-8 sequence at byte position "
-            + std::to_string(invalid_pos));
+        throw std::runtime_error("Utf8String: invalid UTF-8 sequence at byte position " +
+                                 std::to_string(invalid_pos));
     }
 
     data_ = new u8[byte_len + 1];
@@ -248,19 +268,22 @@ void Utf8String::init(const u8* src, usize byte_len) {
 Utf8String::Utf8String() noexcept
     : data_(new u8[1]{0})
     , byte_length_(0)
-    , length_(0) {}
+    , length_(0)
+{}
 
 Utf8String::Utf8String(const u8* data, usize byte_length)
     : data_(nullptr)
     , byte_length_(0)
-    , length_(0) {
+    , length_(0)
+{
     init(data, byte_length);
 }
 
 Utf8String::Utf8String(const char* cstr)
     : data_(nullptr)
     , byte_length_(0)
-    , length_(0) {
+    , length_(0)
+{
     if (cstr == nullptr) {
         data_ = new u8[1]{0};
         return;
@@ -272,23 +295,26 @@ Utf8String::Utf8String(const char* cstr)
 Utf8String::Utf8String(Utf8String&& other) noexcept
     : data_(other.data_)
     , byte_length_(other.byte_length_)
-    , length_(other.length_) {
+    , length_(other.length_)
+{
     other.data_        = nullptr;
     other.byte_length_ = 0;
     other.length_      = 0;
 }
 
-Utf8String::~Utf8String() {
+Utf8String::~Utf8String()
+{
     delete[] data_;
     data_ = nullptr;
 }
 
-Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
+Utf8String& Utf8String::operator=(Utf8String&& other) noexcept
+{
     if (this != &other) {
         delete[] data_;
-        data_        = other.data_;
-        byte_length_ = other.byte_length_;
-        length_      = other.length_;
+        data_              = other.data_;
+        byte_length_       = other.byte_length_;
+        length_            = other.length_;
         other.data_        = nullptr;
         other.byte_length_ = 0;
         other.length_      = 0;
@@ -296,7 +322,8 @@ Utf8String& Utf8String::operator=(Utf8String&& other) noexcept {
     return *this;
 }
 
-Utf8String Utf8String::clone() const {
+Utf8String Utf8String::clone() const
+{
     if (data_ == nullptr || byte_length_ == 0)
         return Utf8String();
 
@@ -309,53 +336,58 @@ Utf8String Utf8String::clone() const {
     return s;
 }
 
-Utf8String Utf8String::from_code_point(u32 cp) {
-    u8 buf[4];
+Utf8String Utf8String::from_code_point(u32 cp)
+{
+    u8   buf[4];
     auto len = utf8_encode_code_point(cp, buf);
     if (len == 0) {
-        throw std::runtime_error(
-            "Utf8String::from_code_point: invalid code point U+"
-            + std::to_string(cp));
+        throw std::runtime_error("Utf8String::from_code_point: invalid code point U+" +
+                                 std::to_string(cp));
     }
     return Utf8String(buf, len);
 }
 
-Utf8String Utf8String::from_cstr(const char* cstr) noexcept {
+Utf8String Utf8String::from_cstr(const char* cstr) noexcept
+{
     try {
         return Utf8String(cstr);
-    } catch (...) {
+    }
+    catch (...) {
         return Utf8String();
     }
 }
 
-ca::core::StatusResult<Utf8String> Utf8String::try_from_cstr(const char* cstr) noexcept {
+ca::core::StatusResult<Utf8String> Utf8String::try_from_cstr(const char* cstr) noexcept
+{
     if (cstr == nullptr)
         return ca::core::Ok(Utf8String());
-    return try_from_data(reinterpret_cast<const u8*>(cstr),
-                         std::strlen(cstr));
+    return try_from_data(reinterpret_cast<const u8*>(cstr), std::strlen(cstr));
 }
 
 ca::core::StatusResult<Utf8String> Utf8String::try_from_data(const u8* data,
-                                                            usize byte_len) noexcept {
+                                                             usize     byte_len) noexcept
+{
     if (data == nullptr || byte_len == 0)
         return ca::core::Ok(Utf8String());
     if (!utf8_is_valid(data, byte_len)) {
-        return ca::core::Err(ca::core::ErrStatus(
-            ca::core::StatusCode::INVALID_ARGUMENT,
-            "invalid UTF-8 sequence in Utf8String::try_from_data"));
+        return ca::core::Err(
+            ca::core::ErrStatus(ca::core::StatusCode::INVALID_ARGUMENT,
+                                "invalid UTF-8 sequence in Utf8String::try_from_data"));
     }
     // 合法路径复用标准构造（校验幂等，重复扫描换取不复制私有 init 逻辑）。
     try {
         return ca::core::Ok(Utf8String(data, byte_len));
-    } catch (...) {
+    }
+    catch (...) {
         // 理论不可达（已通过 utf8_is_valid）；防御性兜底避免 noexcept 边界逃逸异常。
-        return ca::core::Err(ca::core::ErrStatus(
-            ca::core::StatusCode::INTERNAL,
-            "Utf8String::try_from_data: unexpected construction failure"));
+        return ca::core::Err(
+            ca::core::ErrStatus(ca::core::StatusCode::INTERNAL,
+                                "Utf8String::try_from_data: unexpected construction failure"));
     }
 }
 
-Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
+Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len)
+{
     if (data == nullptr || byte_len == 0)
         return Utf8String();
 
@@ -366,8 +398,7 @@ Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
 
     // 传入了码点数：仅校验合法性，复用 cp_len 避免重复计数
     if (!utf8_is_valid(data, byte_len)) {
-        throw std::runtime_error(
-            "Utf8String::from_data: invalid UTF-8 sequence");
+        throw std::runtime_error("Utf8String::from_data: invalid UTF-8 sequence");
     }
 
     Utf8String s;
@@ -380,7 +411,8 @@ Utf8String Utf8String::from_data(const u8* data, usize byte_len, usize cp_len) {
     return s;
 }
 
-Utf8String Utf8String::from_data_unchecked(const u8* data, usize byte_len) noexcept {
+Utf8String Utf8String::from_data_unchecked(const u8* data, usize byte_len) noexcept
+{
     if (data == nullptr || byte_len == 0)
         return Utf8String();
 
@@ -392,11 +424,12 @@ Utf8String Utf8String::from_data_unchecked(const u8* data, usize byte_len) noexc
     s.byte_length_    = byte_len;
     // 码点数取保守值 byte_length（与 Utf8StringArena::intern_raw 一致）。
     // 调用方按码点迭代/查 length 的行为可能不准。
-    s.length_         = byte_len;
+    s.length_ = byte_len;
     return s;
 }
 
-Utf8String Utf8String::from_validated(const u8* data, usize byte_len, usize cp_count) {
+Utf8String Utf8String::from_validated(const u8* data, usize byte_len, usize cp_count)
+{
     if (data == nullptr || byte_len == 0)
         return Utf8String();
 
@@ -416,87 +449,135 @@ Utf8String Utf8String::from_validated(const u8* data, usize byte_len, usize cp_c
 // ============================================================================
 
 Utf8StringBuilder::Utf8StringBuilder() noexcept
-    : buffer_(new u8[DEFAULT_CAPACITY]), byte_length_(0), capacity_(DEFAULT_CAPACITY) {}
+    : buffer_(new u8[DEFAULT_CAPACITY])
+    , byte_length_(0)
+    , capacity_(DEFAULT_CAPACITY)
+{}
 
 Utf8StringBuilder::Utf8StringBuilder(Utf8StringBuilder&& other) noexcept
-    : buffer_(other.buffer_), byte_length_(other.byte_length_), capacity_(other.capacity_) {
-    other.buffer_ = nullptr; other.byte_length_ = 0; other.capacity_ = 0;
+    : buffer_(other.buffer_)
+    , byte_length_(other.byte_length_)
+    , capacity_(other.capacity_)
+{
+    other.buffer_      = nullptr;
+    other.byte_length_ = 0;
+    other.capacity_    = 0;
 }
 
-Utf8StringBuilder::~Utf8StringBuilder() { delete[] buffer_; }
+Utf8StringBuilder::~Utf8StringBuilder()
+{
+    delete[] buffer_;
+}
 
-Utf8StringBuilder& Utf8StringBuilder::operator=(Utf8StringBuilder&& other) noexcept {
+Utf8StringBuilder& Utf8StringBuilder::operator=(Utf8StringBuilder&& other) noexcept
+{
     if (this != &other) {
         delete[] buffer_;
-        buffer_ = other.buffer_; byte_length_ = other.byte_length_; capacity_ = other.capacity_;
-        other.buffer_ = nullptr; other.byte_length_ = 0; other.capacity_ = 0;
+        buffer_            = other.buffer_;
+        byte_length_       = other.byte_length_;
+        capacity_          = other.capacity_;
+        other.buffer_      = nullptr;
+        other.byte_length_ = 0;
+        other.capacity_    = 0;
     }
     return *this;
 }
 
-void Utf8StringBuilder::grow(usize min_capacity) {
+void Utf8StringBuilder::grow(usize min_capacity)
+{
     usize new_cap = capacity_ * 2;
-    if (new_cap < min_capacity) new_cap = min_capacity;
-    if (new_cap < DEFAULT_CAPACITY) new_cap = DEFAULT_CAPACITY;
+    if (new_cap < min_capacity)
+        new_cap = min_capacity;
+    if (new_cap < DEFAULT_CAPACITY)
+        new_cap = DEFAULT_CAPACITY;
     auto new_buf = new u8[new_cap];
-    if (byte_length_ > 0) std::memcpy(new_buf, buffer_, byte_length_);
+    if (byte_length_ > 0)
+        std::memcpy(new_buf, buffer_, byte_length_);
     delete[] buffer_;
-    buffer_ = new_buf; capacity_ = new_cap;
+    buffer_   = new_buf;
+    capacity_ = new_cap;
 }
 
-Utf8StringBuilder& Utf8StringBuilder::append(const Utf8StringRef& str) {
+Utf8StringBuilder& Utf8StringBuilder::append(const Utf8StringRef& str)
+{
     return append(str.data(), str.byte_length());
 }
 
-Utf8StringBuilder& Utf8StringBuilder::append(const Utf8String& str) {
+Utf8StringBuilder& Utf8StringBuilder::append(const Utf8String& str)
+{
     return append(str.data(), str.byte_length());
 }
 
-Utf8StringBuilder& Utf8StringBuilder::append(const char* cstr) {
-    if (cstr == nullptr) return *this;
+Utf8StringBuilder& Utf8StringBuilder::append(const char* cstr)
+{
+    if (cstr == nullptr)
+        return *this;
     return append(reinterpret_cast<const u8*>(cstr), std::strlen(cstr));
 }
 
-Utf8StringBuilder& Utf8StringBuilder::append(const char* data, usize byte_len) {
+Utf8StringBuilder& Utf8StringBuilder::append(const char* data, usize byte_len)
+{
     return append(reinterpret_cast<const u8*>(data), byte_len);
 }
 
-Utf8StringBuilder& Utf8StringBuilder::append(const u8* data, usize byte_len) {
-    if (byte_len == 0) return *this;
+Utf8StringBuilder& Utf8StringBuilder::append(const u8* data, usize byte_len)
+{
+    if (byte_len == 0)
+        return *this;
     auto needed = byte_length_ + byte_len;
-    if (needed > capacity_) grow(needed);
+    if (needed > capacity_)
+        grow(needed);
     std::memcpy(buffer_ + byte_length_, data, byte_len);
     byte_length_ = needed;
     return *this;
 }
 
-bool Utf8StringBuilder::append_code_point(u32 cp) {
-    u8 buf[4];
+bool Utf8StringBuilder::append_code_point(u32 cp)
+{
+    u8   buf[4];
     auto len = utf8_encode_code_point(cp, buf);
-    if (len == 0) return false;
+    if (len == 0)
+        return false;
     append(buf, len);
     return true;
 }
 
-void Utf8StringBuilder::reserve(usize byte_capacity) {
+void Utf8StringBuilder::reserve(usize byte_capacity)
+{
     if (byte_capacity > capacity_) {
         auto new_buf = new u8[byte_capacity];
-        if (byte_length_ > 0) std::memcpy(new_buf, buffer_, byte_length_);
+        if (byte_length_ > 0)
+            std::memcpy(new_buf, buffer_, byte_length_);
         delete[] buffer_;
-        buffer_ = new_buf; capacity_ = byte_capacity;
+        buffer_   = new_buf;
+        capacity_ = byte_capacity;
     }
 }
 
-usize Utf8StringBuilder::capacity() const noexcept { return capacity_; }
-usize Utf8StringBuilder::byte_length() const noexcept { return byte_length_; }
-bool Utf8StringBuilder::is_empty() const noexcept { return byte_length_ == 0; }
-void Utf8StringBuilder::clear() noexcept { byte_length_ = 0; }
+usize Utf8StringBuilder::capacity() const noexcept
+{
+    return capacity_;
+}
+usize Utf8StringBuilder::byte_length() const noexcept
+{
+    return byte_length_;
+}
+bool Utf8StringBuilder::is_empty() const noexcept
+{
+    return byte_length_ == 0;
+}
+void Utf8StringBuilder::clear() noexcept
+{
+    byte_length_ = 0;
+}
 
-Utf8String Utf8StringBuilder::build() const {
+Utf8String Utf8StringBuilder::build() const
+{
     return Utf8String(buffer_, byte_length_);
 }
 
-Utf8String Utf8StringBuilder::build_or_empty() const noexcept {
+Utf8String Utf8StringBuilder::build_or_empty() const noexcept
+{
     if (byte_length_ == 0)
         return Utf8String();
     // 单趟校验+计数：utf8_count_code_points 合法返回码点数、非法返回 0，
@@ -508,27 +589,33 @@ Utf8String Utf8StringBuilder::build_or_empty() const noexcept {
 }
 
 
-usize Utf8String::length() const noexcept {
+usize Utf8String::length() const noexcept
+{
     return length_;
 }
 
-usize Utf8String::byte_length() const noexcept {
+usize Utf8String::byte_length() const noexcept
+{
     return byte_length_;
 }
 
-bool Utf8String::is_empty() const noexcept {
+bool Utf8String::is_empty() const noexcept
+{
     return byte_length_ == 0;
 }
 
-const u8* Utf8String::data() const noexcept {
+const u8* Utf8String::data() const noexcept
+{
     return data_;
 }
 
-const char* Utf8String::c_str() const noexcept {
+const char* Utf8String::c_str() const noexcept
+{
     return reinterpret_cast<const char*>(data_);
 }
 
-Utf8String::operator std::string_view() const noexcept {
+Utf8String::operator std::string_view() const noexcept
+{
     // moved-from 对象 data_ 为 nullptr：nullptr 传 string_view(const CharT*, n) 是 UB
     // （即便 n==0），空视图须回落默认构造——与 Utf8StringRef/ZUtf8StringRef 同一口径。
     return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
@@ -536,18 +623,21 @@ Utf8String::operator std::string_view() const noexcept {
                  : std::string_view{};
 }
 
-std::string Utf8String::to_std_string() const {
+std::string Utf8String::to_std_string() const
+{
     if (data_ == nullptr || byte_length_ == 0)
         return std::string();
     return std::string(reinterpret_cast<const char*>(data_), byte_length_);
 }
 
-u8 Utf8String::byte_at(usize index) const {
+u8 Utf8String::byte_at(usize index) const
+{
     return data_[index];
 }
 
-u32 Utf8String::code_point_at(usize index) const {
-    usize pos   = 0;
+u32 Utf8String::code_point_at(usize index) const
+{
+    usize pos    = 0;
     usize cp_idx = 0;
     while (cp_idx < index && pos < byte_length_) {
         pos += utf8_code_point_bytes_safe(data_[pos]);
@@ -558,63 +648,78 @@ u32 Utf8String::code_point_at(usize index) const {
     return utf8_decode_code_point(data_ + pos);
 }
 
-Utf8StringRef Utf8String::ref() const noexcept {
+Utf8StringRef Utf8String::ref() const noexcept
+{
     return Utf8StringRef(data_, byte_length_, length_);
 }
 
-Utf8StringRef Utf8String::slice(usize byte_start, usize byte_end) const {
+Utf8StringRef Utf8String::slice(usize byte_start, usize byte_end) const
+{
     return ref().slice(byte_start, byte_end);
 }
 
-Utf8StringRef Utf8String::slice_by_cp(usize cp_start, usize cp_count) const {
+Utf8StringRef Utf8String::slice_by_cp(usize cp_start, usize cp_count) const
+{
     return ref().slice_by_cp(cp_start, cp_count);
 }
 
-Utf8String Utf8String::substr(usize cp_start, usize cp_count) const {
+Utf8String Utf8String::substr(usize cp_start, usize cp_count) const
+{
     return ref().substr(cp_start, cp_count);
 }
 
-int Utf8String::compare(const Utf8StringRef& other) const noexcept {
+int Utf8String::compare(const Utf8StringRef& other) const noexcept
+{
     return ref().compare(other);
 }
 
-int Utf8String::compare(const Utf8String& other) const noexcept {
+int Utf8String::compare(const Utf8String& other) const noexcept
+{
     return ref().compare(other.ref());
 }
 
-int Utf8String::compare(const char* cstr) const noexcept {
+int Utf8String::compare(const char* cstr) const noexcept
+{
     return ref().compare(cstr);
 }
 
-bool Utf8String::equals(const Utf8StringRef& other) const noexcept {
+bool Utf8String::equals(const Utf8StringRef& other) const noexcept
+{
     return ref().equals(other);
 }
 
-bool Utf8String::equals(const char* cstr) const noexcept {
+bool Utf8String::equals(const char* cstr) const noexcept
+{
     return ref().equals(cstr);
 }
 
-bool Utf8String::operator==(const Utf8String& other) const noexcept {
+bool Utf8String::operator==(const Utf8String& other) const noexcept
+{
     return ref().equals(other.ref());
 }
 
-bool Utf8String::operator==(const Utf8StringRef& other) const noexcept {
+bool Utf8String::operator==(const Utf8StringRef& other) const noexcept
+{
     return ref().equals(other);
 }
 
-bool Utf8String::operator==(const char* cstr) const noexcept {
+bool Utf8String::operator==(const char* cstr) const noexcept
+{
     return ref().equals(cstr);
 }
 
-bool Utf8String::operator!=(const Utf8String& other) const noexcept {
+bool Utf8String::operator!=(const Utf8String& other) const noexcept
+{
     return !ref().equals(other.ref());
 }
 
-bool Utf8String::operator!=(const Utf8StringRef& other) const noexcept {
+bool Utf8String::operator!=(const Utf8StringRef& other) const noexcept
+{
     return !ref().equals(other);
 }
 
-bool Utf8String::operator!=(const char* cstr) const noexcept {
+bool Utf8String::operator!=(const char* cstr) const noexcept
+{
     return !ref().equals(cstr);
 }
 
@@ -622,58 +727,71 @@ bool Utf8String::operator!=(const char* cstr) const noexcept {
 // Utf8StringRef — 新增操作
 // ============================================================================
 
-bool Utf8StringRef::starts_with(const Utf8StringRef& prefix) const noexcept {
-    if (prefix.byte_length_ > byte_length_) return false;
-    return prefix.byte_length_ == 0 ||
-           std::memcmp(data_, prefix.data_, prefix.byte_length_) == 0;
+bool Utf8StringRef::starts_with(const Utf8StringRef& prefix) const noexcept
+{
+    if (prefix.byte_length_ > byte_length_)
+        return false;
+    return prefix.byte_length_ == 0 || std::memcmp(data_, prefix.data_, prefix.byte_length_) == 0;
 }
 
-bool Utf8StringRef::ends_with(const Utf8StringRef& suffix) const noexcept {
-    if (suffix.byte_length_ > byte_length_) return false;
+bool Utf8StringRef::ends_with(const Utf8StringRef& suffix) const noexcept
+{
+    if (suffix.byte_length_ > byte_length_)
+        return false;
     return suffix.byte_length_ == 0 ||
-           std::memcmp(data_ + byte_length_ - suffix.byte_length_,
-                       suffix.data_, suffix.byte_length_) == 0;
+           std::memcmp(
+               data_ + byte_length_ - suffix.byte_length_, suffix.data_, suffix.byte_length_) == 0;
 }
 
-Utf8StringRef Utf8StringRef::trim_start() const noexcept {
+Utf8StringRef Utf8StringRef::trim_start() const noexcept
+{
     usize pos = 0;
     while (pos < byte_length_) {
         auto ch = Utf8Char::from_raw(data_ + pos);
-        if (!ch.is_space()) break;
+        if (!ch.is_space())
+            break;
         pos += utf8_code_point_bytes_safe(data_[pos]);
     }
     return slice(pos, byte_length_);
 }
 
-Utf8StringRef Utf8StringRef::trim_end() const noexcept {
+Utf8StringRef Utf8StringRef::trim_end() const noexcept
+{
     usize pos = byte_length_;
     while (pos > 0) {
         usize prev = pos - 1;
         while (prev > 0 && (data_[prev] & 0xC0) == 0x80)
             --prev;
         auto ch = Utf8Char::from_raw(data_ + prev);
-        if (!ch.is_space()) break;
+        if (!ch.is_space())
+            break;
         pos = prev;
     }
     return slice(0, pos);
 }
 
-Utf8StringRef Utf8StringRef::trim() const noexcept {
+Utf8StringRef Utf8StringRef::trim() const noexcept
+{
     auto r = trim_start();
     return r.trim_end();
 }
 
-std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) const {
+std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) const
+{
     std::vector<Utf8StringRef> result;
-    if (is_empty()) return result;
-    if (delimiter.is_empty()) { result.push_back(*this); return result; }
+    if (is_empty())
+        return result;
+    if (delimiter.is_empty()) {
+        result.push_back(*this);
+        return result;
+    }
 
     usize start = 0;
     while (start <= byte_length_) {
         usize remain = byte_length_ - start;
-        usize found = usize(-1);
+        usize found  = usize(-1);
         // 查找分隔符
-        for (usize i = start; i + delimiter.byte_length_ <= byte_length_; ) {
+        for (usize i = start; i + delimiter.byte_length_ <= byte_length_;) {
             if (std::memcmp(data_ + i, delimiter.data_, delimiter.byte_length_) == 0) {
                 found = i;
                 break;
@@ -693,9 +811,10 @@ std::vector<Utf8StringRef> Utf8StringRef::split(const Utf8StringRef& delimiter) 
     return result;
 }
 
-Utf8String Utf8StringRef::to_lower() const {
+Utf8String Utf8StringRef::to_lower() const
+{
     Utf8StringBuilder b;
-    b.reserve(byte_length_);  // 大小写转换后长度多数不变，预留原字节数免多次 grow。
+    b.reserve(byte_length_);   // 大小写转换后长度多数不变，预留原字节数免多次 grow。
     usize pos = 0;
     while (pos < byte_length_) {
         const u8 c = data_[pos];
@@ -703,15 +822,20 @@ Utf8String Utf8StringRef::to_lower() const {
             // ASCII 快路径：成段扫描连续 ASCII，位运算换算(A-Z→a-z)后整段追加，
             // 绕过逐码点 decode/encode 与 towlower 的 locale 库调用。
             // 注：固定按 C locale 处理 A-Z；非 ASCII 才落回下方 locale 感知路径。
-            u8 buf[256];
+            u8    buf[256];
             usize n = 0;
             while (pos < byte_length_ && data_[pos] < 0x80) {
                 const u8 ch = data_[pos++];
-                buf[n++] = (ch >= 'A' && ch <= 'Z') ? static_cast<u8>(ch + 32) : ch;
-                if (n == sizeof(buf)) { b.append(buf, n); n = 0; }
+                buf[n++]    = (ch >= 'A' && ch <= 'Z') ? static_cast<u8>(ch + 32) : ch;
+                if (n == sizeof(buf)) {
+                    b.append(buf, n);
+                    n = 0;
+                }
             }
-            if (n) b.append(buf, n);
-        } else {
+            if (n)
+                b.append(buf, n);
+        }
+        else {
             auto ch = Utf8Char::from_raw(data_ + pos);
             b.append_code_point(ch.to_lower().code_point());
             pos += utf8_code_point_bytes_safe(data_[pos]);
@@ -720,7 +844,8 @@ Utf8String Utf8StringRef::to_lower() const {
     return b.build();
 }
 
-Utf8String Utf8StringRef::to_upper() const {
+Utf8String Utf8StringRef::to_upper() const
+{
     Utf8StringBuilder b;
     b.reserve(byte_length_);
     usize pos = 0;
@@ -728,15 +853,20 @@ Utf8String Utf8StringRef::to_upper() const {
         const u8 c = data_[pos];
         if (c < 0x80) {
             // ASCII 快路径：位运算换算(a-z→A-Z)后成段追加。见 to_lower 说明。
-            u8 buf[256];
+            u8    buf[256];
             usize n = 0;
             while (pos < byte_length_ && data_[pos] < 0x80) {
                 const u8 ch = data_[pos++];
-                buf[n++] = (ch >= 'a' && ch <= 'z') ? static_cast<u8>(ch - 32) : ch;
-                if (n == sizeof(buf)) { b.append(buf, n); n = 0; }
+                buf[n++]    = (ch >= 'a' && ch <= 'z') ? static_cast<u8>(ch - 32) : ch;
+                if (n == sizeof(buf)) {
+                    b.append(buf, n);
+                    n = 0;
+                }
             }
-            if (n) b.append(buf, n);
-        } else {
+            if (n)
+                b.append(buf, n);
+        }
+        else {
             auto ch = Utf8Char::from_raw(data_ + pos);
             b.append_code_point(ch.to_upper().code_point());
             pos += utf8_code_point_bytes_safe(data_[pos]);
@@ -745,20 +875,26 @@ Utf8String Utf8StringRef::to_upper() const {
     return b.build();
 }
 
-Utf8String Utf8StringRef::replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const {
-    if (from.is_empty()) return Utf8String(data_, byte_length_);
+Utf8String Utf8StringRef::replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const
+{
+    if (from.is_empty())
+        return Utf8String(data_, byte_length_);
     auto parts = split(from);
     // 用 to 连接各部分。预估结果长度：原文 + 每处替换的长度差（可能为负，用带饱和的估算）。
     Utf8StringBuilder b;
     if (parts.size() > 1) {
         usize seps = parts.size() - 1;
-        usize base = byte_length_ >= seps * from.byte_length() ? byte_length_ - seps * from.byte_length() : 0;
+        usize base = byte_length_ >= seps * from.byte_length()
+                         ? byte_length_ - seps * from.byte_length()
+                         : 0;
         b.reserve(base + seps * to.byte_length());
-    } else {
+    }
+    else {
         b.reserve(byte_length_);
     }
     for (usize i = 0; i < parts.size(); ++i) {
-        if (i > 0) b.append(to);
+        if (i > 0)
+            b.append(to);
         b.append(parts[i]);
     }
     return b.build();
@@ -769,11 +905,13 @@ Utf8String Utf8StringRef::replace_all(const Utf8StringRef& from, const Utf8Strin
 // Utf8StringRef — 查找
 // ============================================================================
 
-usize Utf8StringRef::index_of(const Utf8StringRef& needle) const noexcept {
+usize Utf8StringRef::index_of(const Utf8StringRef& needle) const noexcept
+{
     return index_of(needle, 0);
 }
 
-usize Utf8StringRef::index_of(const Utf8StringRef& needle, usize start_cp) const noexcept {
+usize Utf8StringRef::index_of(const Utf8StringRef& needle, usize start_cp) const noexcept
+{
     if (needle.is_empty() || needle.byte_length_ > byte_length_)
         return npos;
 
@@ -792,11 +930,13 @@ usize Utf8StringRef::index_of(const Utf8StringRef& needle, usize start_cp) const
     return npos;
 }
 
-usize Utf8StringRef::index_of(u32 code_point) const noexcept {
+usize Utf8StringRef::index_of(u32 code_point) const noexcept
+{
     return index_of(code_point, 0);
 }
 
-usize Utf8StringRef::index_of(u32 code_point, usize start_cp) const noexcept {
+usize Utf8StringRef::index_of(u32 code_point, usize start_cp) const noexcept
+{
     usize pos = 0;
     for (usize i = 0; i < start_cp && pos < byte_length_; ++i) {
         pos += utf8_code_point_bytes_safe(data_[pos]);
@@ -811,7 +951,8 @@ usize Utf8StringRef::index_of(u32 code_point, usize start_cp) const noexcept {
     return npos;
 }
 
-bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept {
+bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept
+{
     return index_of(needle) != npos;
 }
 
@@ -820,11 +961,13 @@ bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept {
 // Utf8StringRef — 迭代器
 // ============================================================================
 
-Utf8Iterator Utf8StringRef::begin() const noexcept {
+Utf8Iterator Utf8StringRef::begin() const noexcept
+{
     return Utf8Iterator(data_, data_ ? data_ + byte_length_ : nullptr);
 }
 
-Utf8Iterator Utf8StringRef::end() const noexcept {
+Utf8Iterator Utf8StringRef::end() const noexcept
+{
     const u8* end = data_ ? data_ + byte_length_ : nullptr;
     return Utf8Iterator(end, end);
 }
@@ -834,43 +977,75 @@ Utf8Iterator Utf8StringRef::end() const noexcept {
 // Utf8String — 新增操作（委托给 ref）
 // ============================================================================
 
-bool Utf8String::starts_with(const Utf8StringRef& prefix) const noexcept { return ref().starts_with(prefix); }
-bool Utf8String::ends_with(const Utf8StringRef& suffix) const noexcept   { return ref().ends_with(suffix); }
-Utf8StringRef Utf8String::trim() const noexcept        { return ref().trim(); }
-Utf8StringRef Utf8String::trim_start() const noexcept  { return ref().trim_start(); }
-Utf8StringRef Utf8String::trim_end() const noexcept    { return ref().trim_end(); }
-std::vector<Utf8StringRef> Utf8String::split(const Utf8StringRef& d) const { return ref().split(d); }
-Utf8String Utf8String::to_lower() const    { return ref().to_lower(); }
-Utf8String Utf8String::to_upper() const    { return ref().to_upper(); }
-Utf8String Utf8String::replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const {
+bool Utf8String::starts_with(const Utf8StringRef& prefix) const noexcept
+{
+    return ref().starts_with(prefix);
+}
+bool Utf8String::ends_with(const Utf8StringRef& suffix) const noexcept
+{
+    return ref().ends_with(suffix);
+}
+Utf8StringRef Utf8String::trim() const noexcept
+{
+    return ref().trim();
+}
+Utf8StringRef Utf8String::trim_start() const noexcept
+{
+    return ref().trim_start();
+}
+Utf8StringRef Utf8String::trim_end() const noexcept
+{
+    return ref().trim_end();
+}
+std::vector<Utf8StringRef> Utf8String::split(const Utf8StringRef& d) const
+{
+    return ref().split(d);
+}
+Utf8String Utf8String::to_lower() const
+{
+    return ref().to_lower();
+}
+Utf8String Utf8String::to_upper() const
+{
+    return ref().to_upper();
+}
+Utf8String Utf8String::replace_all(const Utf8StringRef& from, const Utf8StringRef& to) const
+{
     return ref().replace_all(from, to);
 }
 
-usize Utf8String::index_of(const Utf8StringRef& needle) const noexcept {
+usize Utf8String::index_of(const Utf8StringRef& needle) const noexcept
+{
     return ref().index_of(needle);
 }
 
-usize Utf8String::index_of(const Utf8StringRef& needle, usize start_cp) const noexcept {
+usize Utf8String::index_of(const Utf8StringRef& needle, usize start_cp) const noexcept
+{
     return ref().index_of(needle, start_cp);
 }
 
-usize Utf8String::index_of(u32 code_point) const noexcept {
+usize Utf8String::index_of(u32 code_point) const noexcept
+{
     return ref().index_of(code_point);
 }
 
-usize Utf8String::index_of(u32 code_point, usize start_cp) const noexcept {
+usize Utf8String::index_of(u32 code_point, usize start_cp) const noexcept
+{
     return ref().index_of(code_point, start_cp);
 }
 
-bool Utf8String::contains(const Utf8StringRef& needle) const noexcept {
+bool Utf8String::contains(const Utf8StringRef& needle) const noexcept
+{
     return ref().contains(needle);
 }
 
-Utf8Iterator Utf8String::begin() const noexcept {
+Utf8Iterator Utf8String::begin() const noexcept
+{
     return ref().begin();
 }
 
-Utf8Iterator Utf8String::end() const noexcept {
+Utf8Iterator Utf8String::end() const noexcept
+{
     return ref().end();
 }
 
@@ -879,148 +1054,183 @@ Utf8Iterator Utf8String::end() const noexcept {
 // 非成员比较运算符
 // ============================================================================
 
-bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+bool operator==(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept
+{
     return lhs.equals(rhs.ref());
 }
 
-bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept {
+bool operator!=(const Utf8StringRef& lhs, const Utf8String& rhs) noexcept
+{
     return !lhs.equals(rhs.ref());
 }
 
 // string_view 比较走逐字节路径：不经 from_string_view（O(n) 算码点 + 要求合法
 // UTF-8），边界侧的 std::string 数据无需该前提。
-bool operator==(const Utf8StringRef& lhs, std::string_view rhs) noexcept {
+bool operator==(const Utf8StringRef& lhs, std::string_view rhs) noexcept
+{
     const usize rhs_len = rhs.size();
-    if (lhs.byte_length() != rhs_len) return false;
+    if (lhs.byte_length() != rhs_len)
+        return false;
     return rhs_len == 0 || std::memcmp(lhs.data(), rhs.data(), rhs_len) == 0;
 }
 
-bool operator!=(const Utf8StringRef& lhs, std::string_view rhs) noexcept {
+bool operator!=(const Utf8StringRef& lhs, std::string_view rhs) noexcept
+{
     return !(lhs == rhs);
 }
 
-bool operator==(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
+bool operator==(std::string_view lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs == lhs;
 }
 
-bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept {
+bool operator!=(std::string_view lhs, const Utf8StringRef& rhs) noexcept
+{
     return !(rhs == lhs);
 }
 
 // ZUtf8StringRef 到 Utf8StringRef 的隐式转换与 string_view 比较路径并存，
 // 这里用直接重载固定比较语义，避免调用点依赖转换排序。
-bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator==(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return lhs.equals(static_cast<Utf8StringRef>(rhs));
 }
 
-bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator!=(const Utf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return !lhs.equals(static_cast<Utf8StringRef>(rhs));
 }
 
-bool operator==(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator==(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return lhs.ref().equals(static_cast<Utf8StringRef>(rhs));
 }
 
-bool operator!=(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator!=(const Utf8String& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return !lhs.ref().equals(static_cast<Utf8StringRef>(rhs));
 }
 
-bool operator==(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept {
+bool operator==(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept
+{
     return static_cast<Utf8StringRef>(lhs).equals(rhs.ref());
 }
 
-bool operator!=(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept {
+bool operator!=(const ZUtf8StringRef& lhs, const Utf8String& rhs) noexcept
+{
     return !static_cast<Utf8StringRef>(lhs).equals(rhs.ref());
 }
 
-bool operator==(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept {
+bool operator==(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept
+{
     return lhs.ref() == rhs;
 }
 
-bool operator!=(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept {
+bool operator!=(const ZUtf8StringRef& lhs, std::string_view rhs) noexcept
+{
     return !(lhs == rhs);
 }
 
-bool operator==(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator==(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return rhs == lhs;
 }
 
-bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return !(rhs == lhs);
 }
 
 // 成员 operator==(const Utf8StringRef&) 与非成员 (Utf8StringRef, ZUtf8StringRef)
 // 对 Z==Z 各胜一个实参互不相让（C2593），直接重载解歧。见头文件同名声明。
-bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return static_cast<Utf8StringRef>(lhs).equals(static_cast<Utf8StringRef>(rhs));
 }
 
-bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return !(lhs == rhs);
 }
 
 // 排序统一落在非成员 Utf8StringRef 重载上；Utf8String 通过隐式视图构造复用这里。
-bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+bool operator<(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept
+{
     return lhs.compare(rhs) < 0;
 }
 
-bool operator>(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+bool operator>(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept
+{
     return lhs.compare(rhs) > 0;
 }
 
-bool operator<=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+bool operator<=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept
+{
     return lhs.compare(rhs) <= 0;
 }
 
-bool operator>=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept {
+bool operator>=(const Utf8StringRef& lhs, const Utf8StringRef& rhs) noexcept
+{
     return lhs.compare(rhs) >= 0;
 }
 
-bool operator<(const Utf8StringRef& lhs, const char* rhs) noexcept {
+bool operator<(const Utf8StringRef& lhs, const char* rhs) noexcept
+{
     return lhs.compare(rhs) < 0;
 }
 
-bool operator>(const Utf8StringRef& lhs, const char* rhs) noexcept {
+bool operator>(const Utf8StringRef& lhs, const char* rhs) noexcept
+{
     return lhs.compare(rhs) > 0;
 }
 
-bool operator<=(const Utf8StringRef& lhs, const char* rhs) noexcept {
+bool operator<=(const Utf8StringRef& lhs, const char* rhs) noexcept
+{
     return lhs.compare(rhs) <= 0;
 }
 
-bool operator>=(const Utf8StringRef& lhs, const char* rhs) noexcept {
+bool operator>=(const Utf8StringRef& lhs, const char* rhs) noexcept
+{
     return lhs.compare(rhs) >= 0;
 }
 
-bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator==(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs.equals(lhs);
 }
 
-bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator!=(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return !rhs.equals(lhs);
 }
 
-bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator<(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs.compare(lhs) > 0;
 }
 
-bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator>(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs.compare(lhs) < 0;
 }
 
-bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator<=(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs.compare(lhs) >= 0;
 }
 
-bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept {
+bool operator>=(const char* lhs, const Utf8StringRef& rhs) noexcept
+{
     return rhs.compare(lhs) <= 0;
 }
 
-bool operator==(const char* lhs, const Utf8String& rhs) noexcept {
+bool operator==(const char* lhs, const Utf8String& rhs) noexcept
+{
     return rhs.equals(lhs);
 }
 
-bool operator!=(const char* lhs, const Utf8String& rhs) noexcept {
+bool operator!=(const char* lhs, const Utf8String& rhs) noexcept
+{
     return !rhs.equals(lhs);
 }
 
@@ -1029,16 +1239,17 @@ bool operator!=(const char* lhs, const Utf8String& rhs) noexcept {
 // 自由函数
 // ============================================================================
 
-std::vector<Utf8StringRef> split(const Utf8StringRef& str,
-                                 const Utf8StringRef& delimiter) {
+std::vector<Utf8StringRef> split(const Utf8StringRef& str, const Utf8StringRef& delimiter)
+{
     return str.split(delimiter);
 }
 
-Utf8String join(const std::vector<Utf8StringRef>& parts,
-                const Utf8StringRef& separator) {
+Utf8String join(const std::vector<Utf8StringRef>& parts, const Utf8StringRef& separator)
+{
     Utf8StringBuilder b;
     for (usize i = 0; i < parts.size(); ++i) {
-        if (i > 0) b.append(separator);
+        if (i > 0)
+            b.append(separator);
         b.append(parts[i]);
     }
     return b.build();
@@ -1049,7 +1260,8 @@ Utf8String join(const std::vector<Utf8StringRef>& parts,
 // 流输出
 // ============================================================================
 
-std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s) {
+std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s)
+{
     if (s.data()) {
         os.write(reinterpret_cast<const char*>(s.data()),
                  static_cast<std::streamsize>(s.byte_length()));
@@ -1057,103 +1269,120 @@ std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Utf8String& s) {
+std::ostream& operator<<(std::ostream& os, const Utf8String& s)
+{
     os << s.ref();
     return os;
 }
 
-struct CacheData {
+struct CacheData
+{
     std::mutex mutex;
     // key: 字符串的内存地址（字面量地址全局唯一且不变）
     std::unordered_map<const char*, ZUtf8StringRef> map;
 };
 
-static CacheData& get_cache() {
+static CacheData& get_cache()
+{
     static CacheData cache;
     return cache;
 }
 
 ZUtf8StringRef ZUtf8StringRef::from_static(const char* cstr)
 {
-    if (!cstr) return ZUtf8StringRef(nullptr, 0, 0);
+    if (!cstr)
+        return ZUtf8StringRef(nullptr, 0, 0);
 
-    auto& inst = get_cache();
+    auto&                       inst = get_cache();
     std::lock_guard<std::mutex> lock(inst.mutex);
 
     auto it = inst.map.find(cstr);
     if (it != inst.map.end()) {
-        return it->second; // 命中缓存
+        return it->second;   // 命中缓存
     }
 
     // 未命中，计算并加入缓存
-    usize len = std::strlen(cstr);
-    usize cp = utf8_count_code_points(reinterpret_cast<const u8*>(cstr), len);
+    usize          len = std::strlen(cstr);
+    usize          cp  = utf8_count_code_points(reinterpret_cast<const u8*>(cstr), len);
     ZUtf8StringRef ref(reinterpret_cast<const u8*>(cstr), len, cp);
     inst.map.emplace(cstr, ref);
     return ref;
 }
 
-ZUtf8StringRef ZUtf8StringRef::from_utf8_string(const Utf8String& s) {
+ZUtf8StringRef ZUtf8StringRef::from_utf8_string(const Utf8String& s)
+{
     return ZUtf8StringRef(s.data(), s.byte_length(), s.length());
 }
 
 ZUtf8StringRef ZUtf8StringRef::from_std_string(const std::string& s)
 {
-    auto data = reinterpret_cast<const u8*>(s.data());
+    auto data        = reinterpret_cast<const u8*>(s.data());
     auto byte_length = static_cast<usize>(s.size());
-    auto cp_length = utf8_count_code_points(data, byte_length);
+    auto cp_length   = utf8_count_code_points(data, byte_length);
     return ZUtf8StringRef(data, byte_length, cp_length);
 }
 
-Utf8StringRef ZUtf8StringRef::ref() const noexcept {
+Utf8StringRef ZUtf8StringRef::ref() const noexcept
+{
     return Utf8StringRef(data_, byte_length_, cp_length_);
 }
 
-ZUtf8StringRef::operator Utf8StringRef() const noexcept {
+ZUtf8StringRef::operator Utf8StringRef() const noexcept
+{
     return ref();
 }
 
-int ZUtf8StringRef::compare(const Utf8StringRef& other) const noexcept {
+int ZUtf8StringRef::compare(const Utf8StringRef& other) const noexcept
+{
     return ref().compare(other);
 }
 
-int ZUtf8StringRef::compare(const char* cstr) const noexcept {
+int ZUtf8StringRef::compare(const char* cstr) const noexcept
+{
     return ref().compare(cstr);
 }
 
-bool ZUtf8StringRef::equals(const Utf8StringRef& other) const noexcept {
+bool ZUtf8StringRef::equals(const Utf8StringRef& other) const noexcept
+{
     return ref().equals(other);
 }
 
-bool ZUtf8StringRef::equals(const char* cstr) const noexcept {
+bool ZUtf8StringRef::equals(const char* cstr) const noexcept
+{
     return ref().equals(cstr);
 }
 
-bool ZUtf8StringRef::operator==(const Utf8StringRef& other) const noexcept {
+bool ZUtf8StringRef::operator==(const Utf8StringRef& other) const noexcept
+{
     return equals(other);
 }
 
-bool ZUtf8StringRef::operator==(const char* cstr) const noexcept {
+bool ZUtf8StringRef::operator==(const char* cstr) const noexcept
+{
     return equals(cstr);
 }
 
-bool ZUtf8StringRef::operator!=(const Utf8StringRef& other) const noexcept {
+bool ZUtf8StringRef::operator!=(const Utf8StringRef& other) const noexcept
+{
     return !equals(other);
 }
 
-bool ZUtf8StringRef::operator!=(const char* cstr) const noexcept {
+bool ZUtf8StringRef::operator!=(const char* cstr) const noexcept
+{
     return !equals(cstr);
 }
 
-bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return rhs.equals(lhs);
 }
 
-bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept {
+bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept
+{
     return !rhs.equals(lhs);
 }
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 
 // ============================================================================
@@ -1162,8 +1391,8 @@ bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept {
 
 namespace std {
 
-size_t hash<ca::str::Utf8String>::operator()(
-    const ca::str::Utf8String& s) const noexcept {
+size_t hash<ca::str::Utf8String>::operator()(const ca::str::Utf8String& s) const noexcept
+{
     auto data = s.data();
     auto len  = s.byte_length();
     // FNV-1a hash
@@ -1175,11 +1404,11 @@ size_t hash<ca::str::Utf8String>::operator()(
     return h;
 }
 
-size_t hash<ca::str::Utf8StringRef>::operator()(
-    const ca::str::Utf8StringRef& s) const noexcept {
-    auto data = s.data();
-    auto len  = s.byte_length();
-    size_t h  = 14695981039346656037ULL;
+size_t hash<ca::str::Utf8StringRef>::operator()(const ca::str::Utf8StringRef& s) const noexcept
+{
+    auto   data = s.data();
+    auto   len  = s.byte_length();
+    size_t h    = 14695981039346656037ULL;
     for (size_t i = 0; i < len; ++i) {
         h ^= static_cast<size_t>(data[i]);
         h *= 1099511628211ULL;
@@ -1187,4 +1416,4 @@ size_t hash<ca::str::Utf8StringRef>::operator()(
     return h;
 }
 
-}  // namespace std
+}   // namespace std

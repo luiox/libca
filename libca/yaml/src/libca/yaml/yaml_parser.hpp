@@ -25,13 +25,15 @@
 namespace ca::yaml {
 
 /// @brief YAML 解析选项。
-struct YamlParserOptions {
+struct YamlParserOptions
+{
     /// 最大嵌套深度（块/flow 合计），超出报错以防栈溢出。
     ca::usize max_depth = 1000;
 };
 
 /// @brief YAML 配置子集解析器，把输入构建为 YamlDocument。
-class YamlParser {
+class YamlParser
+{
 public:
     /// @brief 构造解析器。document 持有 arena + root；解析期间所有字符串入 arena。
     ///        输入视图须在使用期内有效（零拷贝）。
@@ -47,28 +49,29 @@ public:
 
 private:
     /// 预扫描出的一行：不含行尾换行符，text 含前导空格。
-    struct Line {
-        usize offset = 0;      ///< 行首字节偏移（相对整个输入）
-        usize line_no = 1;     ///< 1-based 行号
-        usize indent = 0;      ///< 前导空白宽度（非空白行保证全为空格）
-        const u8* text = nullptr;
-        usize length = 0;
-        bool blank = false;        ///< 整行只有空白
-        bool comment_only = false; ///< 首个非空白字符是 '#'
+    struct Line
+    {
+        usize     offset       = 0;   ///< 行首字节偏移（相对整个输入）
+        usize     line_no      = 1;   ///< 1-based 行号
+        usize     indent       = 0;   ///< 前导空白宽度（非空白行保证全为空格）
+        const u8* text         = nullptr;
+        usize     length       = 0;
+        bool      blank        = false;   ///< 整行只有空白
+        bool      comment_only = false;   ///< 首个非空白字符是 '#'
     };
 
     // ---- 输入与状态 ----
-    const u8* data_;
-    usize byte_length_;
-    YamlDocument& document_;
+    const u8*         data_;
+    usize             byte_length_;
+    YamlDocument&     document_;
     YamlParserOptions options_;
-    ParseError error_;
-    bool failed_ = false;
-    usize depth_ = 0;
+    ParseError        error_;
+    bool              failed_ = false;
+    usize             depth_  = 0;
 
     std::vector<Line> lines_;
-    usize li_ = 0;   ///< 当前行下标
-    usize col_ = 0;  ///< 行内字节列（兼作"虚拟行"缩进）
+    usize             li_  = 0;   ///< 当前行下标
+    usize             col_ = 0;   ///< 行内字节列（兼作"虚拟行"缩进）
 
     // ---- 行预扫描 ----
     void split_lines();
@@ -132,4 +135,4 @@ private:
     static bool parse_hex8(const u8* p, u32& out);
 };
 
-}  // namespace ca::yaml
+}   // namespace ca::yaml

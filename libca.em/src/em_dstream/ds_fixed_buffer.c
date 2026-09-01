@@ -1,7 +1,7 @@
 #include "ds_fixed_buffer.h"
 #include "dstream.h"
 #include "fixed_buffer.h"
-#include <string.h> // for memcpy
+#include <string.h>   // for memcpy
 
 
 static inline usize fixed_buf_dstream_capacity(dstream_t* self)
@@ -52,13 +52,13 @@ static inline i32 fixed_buf_dstream_read(dstream_t* self, void* dest, usize len)
 
 static inline i32 fixed_buf_dstream_peek(dstream_t* self, usize offset, void* dest, usize len)
 {
-    fixed_buffer_t* buf = (fixed_buffer_t*)self->buf_obj;
-    usize remaining = fixed_buf_remaining_to_read(buf);
+    fixed_buffer_t* buf       = (fixed_buffer_t*)self->buf_obj;
+    usize           remaining = fixed_buf_remaining_to_read(buf);
     if (offset >= remaining || len == 0) {
         return 0;
     }
     usize available = remaining - offset;
-    usize to_read = (len > available) ? available : len;
+    usize to_read   = (len > available) ? available : len;
     memcpy(dest, buf->raw + buf->cursor + offset, to_read);
     return (i32)to_read;
 }
@@ -69,21 +69,17 @@ static inline i32 fixed_buf_dstream_write(dstream_t* self, const void* src, usiz
     return fixed_buf_write(buf, src, len);
 }
 
-dstream_ops_t g_fixed_buf_dstream_ops = {
-    .capacity = fixed_buf_dstream_capacity,
-    .used     = fixed_buf_dstream_used,
-    .skip     = fixed_buf_dstream_skip,
-    .rewind   = fixed_buf_dstream_rewind,
-    .offset   = fixed_buf_dstream_offset,
-    .reset    = fixed_buf_dstream_reset,
-    .read     = fixed_buf_dstream_read,
-    .peek     = fixed_buf_dstream_peek,
-    .write    = fixed_buf_dstream_write
-};
+dstream_ops_t g_fixed_buf_dstream_ops = {.capacity = fixed_buf_dstream_capacity,
+                                         .used     = fixed_buf_dstream_used,
+                                         .skip     = fixed_buf_dstream_skip,
+                                         .rewind   = fixed_buf_dstream_rewind,
+                                         .offset   = fixed_buf_dstream_offset,
+                                         .reset    = fixed_buf_dstream_reset,
+                                         .read     = fixed_buf_dstream_read,
+                                         .peek     = fixed_buf_dstream_peek,
+                                         .write    = fixed_buf_dstream_write};
 
 const dstream_ops_t* fixed_buf_get_dstream_ops(void)
 {
     return &g_fixed_buf_dstream_ops;
 }
-
-

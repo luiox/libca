@@ -11,12 +11,13 @@
 #ifndef SKV_H
 #define SKV_H
 
-#include <em_base/datatype.h> 
+#include <em_base/datatype.h>
 
-typedef struct skv_port{
+typedef struct skv_port
+{
     bool (*read)(u32 addr, u8* buf, u32 len);
     bool (*write)(u32 addr, u8* buf, u32 len);
-}skv_port_t;
+} skv_port_t;
 
 void skv_bind_port(skv_port_t* port);
 bool skv_port_is_registered();
@@ -24,10 +25,10 @@ bool skv_port_is_registered();
 /*
   存储设计：分为header区和kv区
   header区(32字节)：
-  4bytes magic number + 4bytes number + 4bytes 总的eeprom大小 + 4bytes kv的数量 + 4bytes 下一个kv写入位置 + 12bytes 保留
-  kv区：
-  1byte item magic number(0x66) + 1byte key长度 + n bytes key + 1byte value类型 + 1byte value长度 + n bytes value + 2byte crc16
- 
+  4bytes magic number + 4bytes number + 4bytes 总的eeprom大小 + 4bytes kv的数量 + 4bytes
+  下一个kv写入位置 + 12bytes 保留 kv区： 1byte item magic number(0x66) + 1byte key长度 + n bytes key
+  + 1byte value类型 + 1byte value长度 + n bytes value + 2byte crc16
+
   key最大是255字节的字符串
   value最大是255字节的二进制数据
   */
@@ -46,15 +47,16 @@ bool skv_port_is_registered();
 #define SKV_TYPE_STRING 0x0A
 #define SKV_TYPE_BLOB 0x0B
 
-typedef struct skv_kv_item {
-    u8 key_length;
+typedef struct skv_kv_item
+{
+    u8    key_length;
     char* key;
-    u8 value_type;
-    u8 value_length;
+    u8    value_type;
+    u8    value_length;
     void* value;
-}skv_kv_item_t;
+} skv_kv_item_t;
 
-#define SKV_MAGIC_NUMBER 0x534B5631 // "SKV1"
+#define SKV_MAGIC_NUMBER 0x534B5631   // "SKV1"
 #define SKV_ITEM_MAGIC 0x66
 
 #define SKV_ERR_NOT_FOUND -1
@@ -67,12 +69,13 @@ typedef struct skv_kv_item {
 #define SKV_RET_DEFAULT_WRITTEN_NOT_FOUND 1
 #define SKV_RET_DEFAULT_WRITTEN_READ_FAILED 2
 
-typedef struct skv {
+typedef struct skv
+{
     u32 num;
     u32 next_addr;
     u32 total_size;
     u32 start_addr;
-}skv_t;
+} skv_t;
 
 // 初始化skv结构体
 void skv_init(skv_t* skv, u32 start_addr);
@@ -131,9 +134,11 @@ i32 skv_get_i16_or_default(skv_t* skv, const char* key, i16* value, i16 default_
 i32 skv_get_i32_or_default(skv_t* skv, const char* key, i32* value, i32 default_value);
 i32 skv_get_f32_or_default(skv_t* skv, const char* key, f32* value, f32 default_value);
 i32 skv_get_f64_or_default(skv_t* skv, const char* key, f64* value, f64 default_value);
-i32 skv_get_string_or_default(skv_t* skv, const char* key, char* buf, u8 buf_len, const char* default_value);
-i32 skv_get_blob_or_default(skv_t* skv, const char* key, u8* buf, u8 buf_len, const u8* default_data, u8 default_len);
+i32 skv_get_string_or_default(skv_t* skv, const char* key, char* buf, u8 buf_len,
+                              const char* default_value);
+i32 skv_get_blob_or_default(skv_t* skv, const char* key, u8* buf, u8 buf_len,
+                            const u8* default_data, u8 default_len);
 
 
 
-#endif // !SKV_H
+#endif   // !SKV_H

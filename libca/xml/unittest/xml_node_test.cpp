@@ -12,21 +12,26 @@ using ca::str::Utf8StringRef;
 
 namespace {
 
-Utf8StringRef R(const char* s) { return Utf8StringRef::from_cstr(s); }
+Utf8StringRef R(const char* s)
+{
+    return Utf8StringRef::from_cstr(s);
+}
 
-std::string S(const Utf8String& s) {
+std::string S(const Utf8String& s)
+{
     return std::string(reinterpret_cast<const char*>(s.data()), s.byte_length());
 }
 
-}  // namespace
+}   // namespace
 
 // ============================================================================
 // 工厂 + 类型谓词
 // ============================================================================
 
-TEST(XmlNodeTest, FactoriesAndPredicates) {
+TEST(XmlNodeTest, FactoriesAndPredicates)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
+    auto&       a = doc.arena();
 
     XmlNode el = XmlNode::make_element(a.intern("root"));
     EXPECT_TRUE(el.is_element());
@@ -50,10 +55,11 @@ TEST(XmlNodeTest, FactoriesAndPredicates) {
 // 属性：保序 + 索引 + 覆盖 + 删除
 // ============================================================================
 
-TEST(XmlNodeTest, AttributesOrderAndIndex) {
+TEST(XmlNodeTest, AttributesOrderAndIndex)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
-    XmlNode el = XmlNode::make_element(a.intern("server"));
+    auto&       a  = doc.arena();
+    XmlNode     el = XmlNode::make_element(a.intern("server"));
 
     el.set_attribute(a.intern("host"), a.intern("localhost"));
     el.set_attribute(a.intern("port"), a.intern("8080"));
@@ -79,16 +85,17 @@ TEST(XmlNodeTest, AttributesOrderAndIndex) {
     EXPECT_EQ(el.attributes()[1].first, R("port"));
 }
 
-TEST(XmlNodeTest, RemoveAttributeKeepsIndexConsistent) {
+TEST(XmlNodeTest, RemoveAttributeKeepsIndexConsistent)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
-    XmlNode el = XmlNode::make_element(a.intern("e"));
+    auto&       a  = doc.arena();
+    XmlNode     el = XmlNode::make_element(a.intern("e"));
     el.set_attribute(a.intern("a"), a.intern("1"));
     el.set_attribute(a.intern("b"), a.intern("2"));
     el.set_attribute(a.intern("c"), a.intern("3"));
 
     EXPECT_TRUE(el.remove_attribute(R("b")));
-    EXPECT_FALSE(el.remove_attribute(R("b")));  // 已删
+    EXPECT_FALSE(el.remove_attribute(R("b")));   // 已删
     ASSERT_EQ(el.attributes().size(), 2u);
     // 删除后剩余属性仍可经索引正确定位（前移后索引同步）
     EXPECT_EQ(*el.attribute(R("a")), R("1"));
@@ -101,9 +108,10 @@ TEST(XmlNodeTest, RemoveAttributeKeepsIndexConsistent) {
 // 子节点：混合内容 + 导航 + text()
 // ============================================================================
 
-TEST(XmlNodeTest, MixedChildrenAndNavigation) {
+TEST(XmlNodeTest, MixedChildrenAndNavigation)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
+    auto&       a = doc.arena();
     // <p>Hello <b>world</b>!</p>
     XmlNode p = XmlNode::make_element(a.intern("p"));
     p.append_child(XmlNode::make_text(a.intern("Hello ")));
@@ -131,10 +139,11 @@ TEST(XmlNodeTest, MixedChildrenAndNavigation) {
 // clone 深拷贝
 // ============================================================================
 
-TEST(XmlNodeTest, CloneIsDeep) {
+TEST(XmlNodeTest, CloneIsDeep)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
-    XmlNode root = XmlNode::make_element(a.intern("root"));
+    auto&       a    = doc.arena();
+    XmlNode     root = XmlNode::make_element(a.intern("root"));
     root.set_attribute(a.intern("k"), a.intern("v"));
     XmlNode child = XmlNode::make_element(a.intern("child"));
     child.append_child(XmlNode::make_text(a.intern("txt")));
@@ -152,7 +161,8 @@ TEST(XmlNodeTest, CloneIsDeep) {
 // Document：默认态 / 声明 / prolog / clear / move
 // ============================================================================
 
-TEST(XmlNodeTest, DocumentDefaults) {
+TEST(XmlNodeTest, DocumentDefaults)
+{
     XmlDocument doc;
     // root 默认空 Text
     EXPECT_TRUE(doc.root().is_text());
@@ -161,9 +171,10 @@ TEST(XmlNodeTest, DocumentDefaults) {
     EXPECT_TRUE(doc.epilog().empty());
 }
 
-TEST(XmlNodeTest, DocumentBuildAndClear) {
+TEST(XmlNodeTest, DocumentBuildAndClear)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
+    auto&       a             = doc.arena();
     doc.declaration().present = true;
     doc.declaration().version = a.intern("1.0");
     doc.prolog().push_back(XmlNode::make_comment(a.intern(" header ")));
@@ -180,10 +191,11 @@ TEST(XmlNodeTest, DocumentBuildAndClear) {
     EXPECT_TRUE(doc.prolog().empty());
 }
 
-TEST(XmlNodeTest, DocumentMove) {
+TEST(XmlNodeTest, DocumentMove)
+{
     XmlDocument doc;
-    auto& a = doc.arena();
-    doc.root() = XmlNode::make_element(a.intern("r"));
+    auto&       a = doc.arena();
+    doc.root()    = XmlNode::make_element(a.intern("r"));
     doc.root().append_child(XmlNode::make_text(a.intern("body")));
 
     XmlDocument moved = std::move(doc);

@@ -27,7 +27,7 @@ typedef struct
 } log_tag_filter_t;
 
 static u8               g_log_rb_mem[LOG_RB_SIZE];
-static ring_buffer_t     g_log_rb;
+static ring_buffer_t    g_log_rb;
 static log_backend_t*   g_backend_list = NULL;
 static log_level_t      g_log_level    = LOG_LEVEL_DEFAULT;
 static log_tag_filter_t g_tag_filters[LOG_MAX_TAG_FILTERS];
@@ -176,14 +176,18 @@ static void log_process_task(void* arg)
         }
 
 #if ENABLE_DEBUG_OUTPUT
-        printf("[log_debug] used=%u total_len=%u\n", (unsigned)ring_buf_used(&g_log_rb), (unsigned)h.total_len);
+        printf("[log_debug] used=%u total_len=%u\n",
+               (unsigned)ring_buf_used(&g_log_rb),
+               (unsigned)h.total_len);
 #endif
 
         ring_buf_read(&g_log_rb, (u8*)&h, sizeof(h));
         u16 pl_len = (u16)(h.total_len - sizeof(h));
 
 #if ENABLE_DEBUG_OUTPUT
-        printf("[log_debug] after read header total_len=%u pl_len=%u\n", (unsigned)h.total_len, (unsigned)pl_len);
+        printf("[log_debug] after read header total_len=%u pl_len=%u\n",
+               (unsigned)h.total_len,
+               (unsigned)pl_len);
 #endif
 
         if (pl_len > sizeof(payload)) {
@@ -195,7 +199,9 @@ static void log_process_task(void* arg)
         CPU_EXIT_CRITICAL();
 
 #if ENABLE_DEBUG_OUTPUT
-        printf("[log_debug] payload_len=%u tag=%p\n", (unsigned)(pl_len>0 ? (pl_len-1) : 0), (void*)h.tag);
+        printf("[log_debug] payload_len=%u tag=%p\n",
+               (unsigned)(pl_len > 0 ? (pl_len - 1) : 0),
+               (void*)h.tag);
 #endif
 
         log_record_t rec;
@@ -227,28 +233,19 @@ void log_output_all_backends_handler(void)
 const char* log_level_to_string(log_level_t level)
 {
     switch (level) {
-    case LOG_LEVEL_INFO:
-        return "INFO";
-    case LOG_LEVEL_WARN:
-        return "WARN";
-    case LOG_LEVEL_ERROR:
-        return "ERROR";
-    default:
-        return "UNKNOWN";
+    case LOG_LEVEL_INFO: return "INFO";
+    case LOG_LEVEL_WARN: return "WARN";
+    case LOG_LEVEL_ERROR: return "ERROR";
+    default: return "UNKNOWN";
     }
 }
 
 const char* log_level_to_ansi_color(log_level_t level)
 {
     switch (level) {
-    case LOG_LEVEL_INFO:
-        return "\x1b[32m"; // 绿色
-    case LOG_LEVEL_WARN:
-        return "\x1b[33m"; // 黄色
-    case LOG_LEVEL_ERROR:
-        return "\x1b[31m"; // 红色
-    default:
-        return "\x1b[0m";  // 重置
+    case LOG_LEVEL_INFO: return "\x1b[32m";    // 绿色
+    case LOG_LEVEL_WARN: return "\x1b[33m";    // 黄色
+    case LOG_LEVEL_ERROR: return "\x1b[31m";   // 红色
+    default: return "\x1b[0m";                 // 重置
     }
 }
-

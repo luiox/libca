@@ -72,8 +72,8 @@ TEST(EnvRemoveTest, MissingVariableIsNotError)
 TEST(EnvChineseRoundtripTest, NonAsciiValuePreserved)
 {
     // 验收标准：Windows 上含中文的环境变量正确往返。
-    std::string name = unique_name("CN");
-    std::string value = "你好世界";  // NOLINT: 故意使用 UTF-8 字面量
+    std::string name  = unique_name("CN");
+    std::string value = "你好世界";   // NOLINT: 故意使用 UTF-8 字面量
     ASSERT_TRUE(set(name, value));
 
     auto got = get(name);
@@ -94,16 +94,17 @@ TEST(EnvAllTest, ContainsPathVariable)
             return false;
         for (std::size_t i = 0; i < a.size(); ++i) {
             char ca = a[i], cb = b[i];
-            if (ca >= 'A' && ca <= 'Z') ca = static_cast<char>(ca - 'A' + 'a');
-            if (cb >= 'A' && cb <= 'Z') cb = static_cast<char>(cb - 'A' + 'a');
+            if (ca >= 'A' && ca <= 'Z')
+                ca = static_cast<char>(ca - 'A' + 'a');
+            if (cb >= 'A' && cb <= 'Z')
+                cb = static_cast<char>(cb - 'A' + 'a');
             if (ca != cb)
                 return false;
         }
         return true;
     };
-    bool has_path = std::any_of(entries.begin(), entries.end(), [&](const auto& kv) {
-        return iequals(kv.first, "path");
-    });
+    bool has_path = std::any_of(
+        entries.begin(), entries.end(), [&](const auto& kv) { return iequals(kv.first, "path"); });
     EXPECT_TRUE(has_path);
 }
 
@@ -114,9 +115,8 @@ TEST(EnvAllTest, ReflectsNewlySetVariable)
     ASSERT_TRUE(set(name, value));
 
     auto entries = all();
-    auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& kv) {
-        return kv.first == name;
-    });
+    auto it      = std::find_if(
+        entries.begin(), entries.end(), [&](const auto& kv) { return kv.first == name; });
     ASSERT_NE(it, entries.end());
     EXPECT_EQ(it->second, value);
 
@@ -195,7 +195,7 @@ TEST(EnvOsVersionTest, ReturnsNonEmptyOnWindows)
 {
     std::string version = os_version();
 #if defined(_WIN32)
-    EXPECT_FALSE(version.empty());  // RtlGetVersion 应总能拿到
+    EXPECT_FALSE(version.empty());   // RtlGetVersion 应总能拿到
 #else
     // POSIX 上取决于 /etc/os-release 是否存在：可能为空；非空时应是不含换行的版本串。
     if (!version.empty()) {
@@ -206,5 +206,5 @@ TEST(EnvOsVersionTest, ReturnsNonEmptyOnWindows)
     (void)version;
 }
 
-}  // namespace
-}  // namespace ca::env::test
+}   // namespace
+}   // namespace ca::env::test

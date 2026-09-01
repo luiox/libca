@@ -13,7 +13,8 @@
 namespace ca::json {
 
 /// @brief 把 SAX 事件装配为 JsonValue DOM 树的 handler。
-class JsonDomBuilder : public JsonHandler {
+class JsonDomBuilder : public JsonHandler
+{
 public:
     JsonDomBuilder();
     ~JsonDomBuilder() override;
@@ -34,27 +35,28 @@ public:
     JsonValue take_root() noexcept;
 
     /// @brief 解析中遇到的错误（仅 on_error 被调用后有效）。
-    bool has_error() const noexcept;
+    bool              has_error() const noexcept;
     const ParseError& error() const noexcept;
 
 private:
     // 容器栈帧：array 或 object 的半成品
-    struct Frame {
-        bool is_array;
-        JsonValue::ArrayStorage array_items;
+    struct Frame
+    {
+        bool                     is_array;
+        JsonValue::ArrayStorage  array_items;
         JsonValue::ObjectStorage object_items;
-        ca::str::Utf8StringRef pending_key;  // object 收到 key 后、value 前暂存
-        bool has_pending_key;
+        ca::str::Utf8StringRef   pending_key;   // object 收到 key 后、value 前暂存
+        bool                     has_pending_key;
     };
 
     std::vector<Frame> stack_;
-    JsonValue root_;
-    bool has_root_;
-    bool has_error_;
-    ParseError error_;
+    JsonValue          root_;
+    bool               has_root_;
+    bool               has_error_;
+    ParseError         error_;
 
     // 把一个完成的 value 喂给当前栈顶（容器）或成为根。
     void emit_value(JsonValue v);
 };
 
-}  // namespace ca::json
+}   // namespace ca::json

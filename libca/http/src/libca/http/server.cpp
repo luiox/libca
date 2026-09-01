@@ -553,7 +553,7 @@ private:
             return;
 
         // Windows 上直接关闭带未读入站数据的 socket 可能用 RST 覆盖已发送的错误响应
-        //（如 413 时客户端仍在推送 body）。shutdown 写半侧后排水读侧直到 EOF 或期限，
+        // （如 413 时客户端仍在推送 body）。shutdown 写半侧后排水读侧直到 EOF 或期限，
         // 与 send_overloaded 的关闭序列一致；排水预算复用过载路径的"响应后关闭"期限，
         // 避免慢客户端长时间占用 worker。
         const auto deadline = std::chrono::steady_clock::now() + options_.overload_response_timeout;
@@ -614,8 +614,8 @@ private:
             if (request_result.is_err()) {
                 const auto& error = request_result.unwrap_err();
                 if (error.kind() != HttpErrorKind::InvalidState)
-                    send_protocol_error(error, *transport, deadline_reader, writer,
-                                        deadline_writer);
+                    send_protocol_error(
+                        error, *transport, deadline_reader, writer, deadline_writer);
                 break;
             }
             auto       request            = std::move(request_result).unwrap();

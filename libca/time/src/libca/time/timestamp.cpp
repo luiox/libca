@@ -19,4 +19,4 @@ bool Timestamp::is_future() const noexcept
 
 // Timestamp arithmetic is defined inline to keep pure value operations constexpr.
 
-}  // namespace ca::time
+}   // namespace ca::time

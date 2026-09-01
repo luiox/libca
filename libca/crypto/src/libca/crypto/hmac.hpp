@@ -18,4 +18,4 @@ ca::core::Bytes hmac_sha256(ca::core::ByteSlice key, ca::core::ByteSlice data);
 /// @return 64 字符小写十六进制 digest。
 std::string hmac_sha256_hex(ca::core::ByteSlice key, ca::core::ByteSlice data);
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

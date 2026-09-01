@@ -23,7 +23,8 @@ void set_env(const char* name, const char* value)
 #else
     if (value && value[0]) {
         setenv(name, value, 1);
-    } else {
+    }
+    else {
         unsetenv(name);
     }
 #endif
@@ -106,8 +107,7 @@ TEST_F(I18nTest, TrfKeepsMissingPlaceholdersLiteral)
 {
     ca::i18n::set_lang("en_US");
     // 缺参：{1} 原样保留
-    EXPECT_STREQ(ca::i18n::trf("test.missing_arg", {"only"}).c_str(),
-                 "value: only and {1}");
+    EXPECT_STREQ(ca::i18n::trf("test.missing_arg", {"only"}).c_str(), "value: only and {1}");
     // 多余 args 忽略
     EXPECT_STREQ(ca::i18n::trf("test.hello", {"a", "b"}).c_str(), "Hello, world");
 }
@@ -116,32 +116,32 @@ TEST_F(I18nTest, ApplyLangFromArgv)
 {
     ca::i18n::set_lang("zh_CN");
     {
-        char arg0[] = "prog";
-        char arg1[] = "--lang";
-        char arg2[] = "en_US";
+        char  arg0[] = "prog";
+        char  arg1[] = "--lang";
+        char  arg2[] = "en_US";
         char* argv[] = {arg0, arg1, arg2};
         EXPECT_TRUE(ca::i18n::apply_lang_from_argv(3, argv));
         EXPECT_STREQ(ca::i18n::lang(), "en_US");
     }
     {
-        char arg0[] = "prog";
-        char arg1[] = "--lang=zh_CN";
+        char  arg0[] = "prog";
+        char  arg1[] = "--lang=zh_CN";
         char* argv[] = {arg0, arg1};
         EXPECT_TRUE(ca::i18n::apply_lang_from_argv(2, argv));
         EXPECT_STREQ(ca::i18n::lang(), "zh_CN");
     }
     {
-        char arg0[] = "prog";
-        char arg1[] = "--lang";
-        char arg2[] = "fr_FR";   // 未注册：忽略且不改语言
+        char  arg0[] = "prog";
+        char  arg1[] = "--lang";
+        char  arg2[] = "fr_FR";   // 未注册：忽略且不改语言
         char* argv[] = {arg0, arg1, arg2};
         EXPECT_FALSE(ca::i18n::apply_lang_from_argv(3, argv));
         EXPECT_STREQ(ca::i18n::lang(), "zh_CN");
     }
     {
-        char arg0[] = "prog";
-        char arg1[] = "-i";
-        char arg2[] = "--lang=en_US";
+        char  arg0[] = "prog";
+        char  arg1[] = "-i";
+        char  arg2[] = "--lang=en_US";
         char* argv[] = {arg0, arg1, arg2};
         EXPECT_TRUE(ca::i18n::apply_lang_from_argv(3, argv));
         EXPECT_STREQ(ca::i18n::lang(), "en_US");
@@ -165,11 +165,13 @@ TEST_F(I18nTest, LaterRegistrationOverridesSameKey)
 TEST_F(I18nTest, RegisteredLangsContainsFixture)
 {
     const auto langs = ca::i18n::registered_langs();
-    bool hasZh = false;
-    bool hasEn = false;
+    bool       hasZh = false;
+    bool       hasEn = false;
     for (const char* l : langs) {
-        if (std::strcmp(l, "zh_CN") == 0) hasZh = true;
-        if (std::strcmp(l, "en_US") == 0) hasEn = true;
+        if (std::strcmp(l, "zh_CN") == 0)
+            hasZh = true;
+        if (std::strcmp(l, "en_US") == 0)
+            hasEn = true;
     }
     EXPECT_TRUE(hasZh);
     EXPECT_TRUE(hasEn);

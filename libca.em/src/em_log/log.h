@@ -20,7 +20,8 @@ extern "C" {
 
 /// @brief Log levels
 // 枚举值越大表示越严重（例如 INFO=1 < WARN=2 < ERROR=3）
-typedef enum {
+typedef enum
+{
     LOG_LEVEL_NONE = 0,
     LOG_LEVEL_INFO,
     LOG_LEVEL_WARN,
@@ -28,11 +29,12 @@ typedef enum {
 } log_level_t;
 
 /// @brief Log record structure passed to backends
-typedef struct {
+typedef struct
+{
     log_level_t level;
-    u32 time_sec;
-    u16 time_ms;
-    u16 time_us;
+    u32         time_sec;
+    u16         time_ms;
+    u16         time_us;
     // tag，必须是静态字符串
     const char* tag;
     // payload，格式化后的日志消息
@@ -44,7 +46,8 @@ typedef struct {
 typedef struct log_backend log_backend_t;
 
 /// @brief Log backend interface
-struct log_backend {
+struct log_backend
+{
     const char* name;
     // 该backend的最低日志级别（消息级别 >= min_level 将被输出；枚举值越大表示越严重）
     log_level_t min_level;
@@ -55,17 +58,17 @@ struct log_backend {
 
     // 初始化
     void (*init)(log_backend_t* backend);
-    
+
     // 输出日志
     void (*output)(log_backend_t* backend, const log_record_t* record);
-    
+
     // 指向下一个backend，形成链表，如果没有则为NULL
     log_backend_t* next;
 };
 
 // 全局默认日志级别，在此之前定义可以覆盖
 #ifndef LOG_LEVEL_DEFAULT
-#define LOG_LEVEL_DEFAULT LOG_LEVEL_INFO
+#    define LOG_LEVEL_DEFAULT LOG_LEVEL_INFO
 #endif
 
 // 日志缓冲区大小定义
@@ -114,4 +117,4 @@ const char* log_level_to_ansi_color(log_level_t level);
 }
 #endif
 
-#endif // !LIBCA_EM_LOG_LOG_H
+#endif   // !LIBCA_EM_LOG_LOG_H

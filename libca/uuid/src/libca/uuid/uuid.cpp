@@ -44,7 +44,7 @@ std::string format_uuid(const unsigned char* bytes)
     return out;
 }
 
-}  // namespace
+}   // namespace
 
 std::string v4()
 {
@@ -92,10 +92,10 @@ bool is_valid(std::string_view s, bool check_variant_version) noexcept
     }
 
     if (check_variant_version) {
-        char c = s[14];  // 第 3 段首位 -> version
+        char c = s[14];   // 第 3 段首位 -> version
         if (c != '4')
             return false;
-        char v = s[19];  // 第 4 段首位 -> variant
+        char v = s[19];   // 第 4 段首位 -> variant
         if (v != '8' && v != '9' && v != 'a' && v != 'A' && v != 'b' && v != 'B')
             return false;
     }
@@ -103,4 +103,4 @@ bool is_valid(std::string_view s, bool check_variant_version) noexcept
     return true;
 }
 
-}  // namespace ca::uuid
+}   // namespace ca::uuid

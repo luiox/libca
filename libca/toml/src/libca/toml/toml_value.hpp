@@ -26,7 +26,8 @@
 namespace ca::toml {
 
 /// @brief TOML 值的 10 种类型。
-enum class TomlType {
+enum class TomlType
+{
     String,           ///< UTF-8 字符串（Utf8StringRef）
     Integer,          ///< 整数（i64 存储）
     Float,            ///< 浮点（f64 存储）
@@ -43,7 +44,8 @@ enum class TomlType {
 /// @details 节点内不拥有字符串内存：String 与 Table key 均为 `Utf8StringRef`，指向所属
 ///          `TomlDocument` 的 `Utf8StringArena`。TomlValue 因此可拷贝（浅拷贝引用）。
 /// @warning 拷贝/移动语义为浅引用：拷贝得到的 TomlValue 的字符串引用仍指向原 arena。
-class TomlValue {
+class TomlValue
+{
 public:
     /// Table 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "TomlValue 内含 TomlValue" 的
@@ -57,17 +59,17 @@ private:
     /// Table 的内部存储：members 保插入序供遍历，index 提供 key → 下标 的 O(1) 查找。
     /// index 的 string_view 指向 key 的 arena 字节（arena 不搬移，成员 vector 扩容不影响）。
     /// 二者只经 set/find/remove 同步修改，不对外暴露可变引用。
-    struct TableData {
-        TableStorage members;
+    struct TableData
+    {
+        TableStorage                                    members;
         std::unordered_map<std::string_view, ca::usize> index;
     };
 
 public:
-
     // ---- 构造 / 析构 / 拷贝 / 移动 ----
 
-    TomlValue() noexcept;                             // 默认构造为 Table（TOML 根）
-    TomlValue(const TomlValue&) = default;            // 浅拷贝（Utf8StringRef 可拷贝）
+    TomlValue() noexcept;                               // 默认构造为 Table（TOML 根）
+    TomlValue(const TomlValue&)            = default;   // 浅拷贝（Utf8StringRef 可拷贝）
     TomlValue& operator=(const TomlValue&) = default;
     TomlValue(TomlValue&& other) noexcept;
     TomlValue& operator=(TomlValue&& other) noexcept;
@@ -93,17 +95,17 @@ public:
     // ---- 类型查询 ----
 
     TomlType type() const noexcept;
-    bool is_string() const noexcept;
-    bool is_integer() const noexcept;
-    bool is_float() const noexcept;
-    bool is_boolean() const noexcept;
-    bool is_offset_datetime() const noexcept;
-    bool is_local_datetime() const noexcept;
-    bool is_local_date() const noexcept;
-    bool is_local_time() const noexcept;
-    bool is_datetime() const noexcept;   // 任一 datetime 变体
-    bool is_array() const noexcept;
-    bool is_table() const noexcept;
+    bool     is_string() const noexcept;
+    bool     is_integer() const noexcept;
+    bool     is_float() const noexcept;
+    bool     is_boolean() const noexcept;
+    bool     is_offset_datetime() const noexcept;
+    bool     is_local_datetime() const noexcept;
+    bool     is_local_date() const noexcept;
+    bool     is_local_time() const noexcept;
+    bool     is_datetime() const noexcept;   // 任一 datetime 变体
+    bool     is_array() const noexcept;
+    bool     is_table() const noexcept;
 
     // ---- 严格访问（类型不符触发断言） ----
 
@@ -175,14 +177,15 @@ public:
 
 private:
     TomlType type_;
-    std::variant<std::monostate,                ///< Null（内部用，TOML 无 null）
-                 ca::str::Utf8StringRef,         ///< String
-                 ca::i64,                        ///< Integer
-                 ca::f64,                        ///< Float
-                 bool,                           ///< Boolean
-                 TomlDatetime,                   ///< 4 种 datetime 变体（Kind 区分）
-                 ArrayStorage,                   ///< Array
-                 TableData> data_;               ///< Table
+    std::variant<std::monostate,           ///< Null（内部用，TOML 无 null）
+                 ca::str::Utf8StringRef,   ///< String
+                 ca::i64,                  ///< Integer
+                 ca::f64,                  ///< Float
+                 bool,                     ///< Boolean
+                 TomlDatetime,             ///< 4 种 datetime 变体（Kind 区分）
+                 ArrayStorage,             ///< Array
+                 TableData>
+        data_;   ///< Table
 };
 
-}  // namespace ca::toml
+}   // namespace ca::toml

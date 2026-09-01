@@ -8,7 +8,10 @@
 namespace ca::uuid::test {
 namespace {
 
-bool is_lower_hex(char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }
+bool is_lower_hex(char c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+}
 
 void expect_well_formed_v4(const std::string& id)
 {
@@ -46,7 +49,7 @@ TEST(UuidV4Test, TwoCallsDiffer)
 
 TEST(UuidV4Test, ManyCallsAreUnique)
 {
-    constexpr int count = 1000;
+    constexpr int         count = 1000;
     std::set<std::string> seen;
 
     for (int i = 0; i < count; ++i) {
@@ -114,5 +117,5 @@ TEST(UuidIsValidTest, LenientModeIgnoresVersionVariant)
     EXPECT_TRUE(is_valid("550e8400-e29b-31d4-1716-446655440000", false));
 }
 
-}  // namespace
-}  // namespace ca::uuid::test
+}   // namespace
+}   // namespace ca::uuid::test

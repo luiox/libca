@@ -237,8 +237,8 @@ io::IoResult<void> set_socket_not_inheritable(RawSocket socket)
 #if defined(_WIN32)
     const auto handle = reinterpret_cast<HANDLE>(to_native_socket(socket));
     if (SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) == 0)
-        return ca::core::Err(io::IoError::from_native_error(
-            static_cast<i64>(GetLastError()), "SetHandleInformation(socket)"));
+        return ca::core::Err(io::IoError::from_native_error(static_cast<i64>(GetLastError()),
+                                                            "SetHandleInformation(socket)"));
 #else
     const int native = to_native_socket(socket);
     const int flags  = fcntl(native, F_GETFD, 0);
@@ -417,12 +417,8 @@ io::IoResult<OwnedSocket> OwnedSocket::duplicate() const
 #    if defined(WSA_FLAG_NO_HANDLE_INHERIT)
     socket_flags |= WSA_FLAG_NO_HANDLE_INHERIT;
 #    endif
-    const auto duplicate = WSASocketW(FROM_PROTOCOL_INFO,
-                                      FROM_PROTOCOL_INFO,
-                                      FROM_PROTOCOL_INFO,
-                                      &information,
-                                      0,
-                                      socket_flags);
+    const auto duplicate = WSASocketW(
+        FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &information, 0, socket_flags);
     if (!detail::native_socket_is_valid(duplicate))
         return ca::core::Err(detail::last_socket_error("WSASocket(duplicate)"));
     auto inheritance = detail::set_socket_not_inheritable(detail::from_native_socket(duplicate));

@@ -49,11 +49,8 @@ ca::u32 checked_cast_u32(ca::u64 value, const char* what)
 // 解析 ZIP64 extra field（tag 0x0001）中第 fieldIndex 个出现的字段。
 // 哪些字段在场由 has* 标志决定，顺序固定：uncompressed → compressed → offset。
 bool read_zip64_extra_field_value(const std::vector<ca::u8>& extra_field,
-                                  bool                       has_uncompressed_size,
-                                  bool                       has_compressed_size,
-                                  bool                       has_local_header_offset,
-                                  int                        field_index,
-                                  ca::u64&                   out_value)
+                                  bool has_uncompressed_size, bool has_compressed_size,
+                                  bool has_local_header_offset, int field_index, ca::u64& out_value)
 {
     ca::usize offset = 0;
     while (offset + 4 <= extra_field.size()) {
@@ -68,10 +65,9 @@ bool read_zip64_extra_field_value(const std::vector<ca::u8>& extra_field,
         if (tag == 0x0001u) {
             ca::usize cursor = dataStart;
             for (int currentField = 0; currentField <= field_index; ++currentField) {
-                const bool present =
-                    (currentField == 0 && has_uncompressed_size) ||
-                    (currentField == 1 && has_compressed_size) ||
-                    (currentField == 2 && has_local_header_offset);
+                const bool present = (currentField == 0 && has_uncompressed_size) ||
+                                     (currentField == 1 && has_compressed_size) ||
+                                     (currentField == 2 && has_local_header_offset);
                 if (!present) {
                     if (currentField == field_index) {
                         return false;
@@ -172,18 +168,19 @@ ca::usize resolve_zip64_end_offset(const std::vector<ca::u8>& data, ca::usize lo
     throw std::runtime_error("ZIP64 EOCD signature not found");
 }
 
-struct ResolvedEnd {
-    ca::u64 entry_count             = 0;
-    ca::u64 central_directory_size  = 0;
+struct ResolvedEnd
+{
+    ca::u64 entry_count              = 0;
+    ca::u64 central_directory_size   = 0;
     ca::u64 central_directory_offset = 0;
     // CEN 结束锚点：传统 ZIP 为 EOCD 位置，ZIP64 归档为 ZIP64 EOCD 位置。
-    ca::u64 central_directory_end   = 0;
+    ca::u64 central_directory_end = 0;
 };
 
 ResolvedEnd resolve_end_record(const std::vector<ca::u8>& data, ca::usize eocd_pos)
 {
-    const ca::u8* eocd      = data.data() + eocd_pos;
-    ResolvedEnd   resolved {};
+    const ca::u8* eocd = data.data() + eocd_pos;
+    ResolvedEnd   resolved{};
     resolved.entry_count              = read_u16(eocd + 10);
     resolved.central_directory_size   = read_u32(eocd + 12);
     resolved.central_directory_offset = read_u32(eocd + 16);
@@ -232,16 +229,17 @@ ResolvedEnd resolve_end_record(const std::vector<ca::u8>& data, ca::usize eocd_p
         throw std::runtime_error("Split or multi-disk ZIP not supported");
     }
 
-    resolved.entry_count               = read_u64(zip64End + 32);
-    resolved.central_directory_size    = read_u64(zip64End + 40);
-    resolved.central_directory_offset  = read_u64(zip64End + 48);
-    resolved.central_directory_end     = zip64EndOffset;
+    resolved.entry_count              = read_u64(zip64End + 32);
+    resolved.central_directory_size   = read_u64(zip64End + 40);
+    resolved.central_directory_offset = read_u64(zip64End + 48);
+    resolved.central_directory_end    = zip64EndOffset;
     return resolved;
 }
 
 }   // anonymous namespace
 
-struct ZipFile::Impl {
+struct ZipFile::Impl
+{
     std::vector<ca::u8>                     data;
     std::vector<ZipEntry>                   entries;
     std::unordered_map<std::string, size_t> index;
@@ -261,18 +259,15 @@ struct ZipFile::Impl {
         }
         const auto cenSizeBytes = static_cast<ca::usize>(cenSize);
 
-        const bool cenStartInRange     = cenOffset <= data.size();
-        ca::usize  cenStart            = cenStartInRange ? static_cast<ca::usize>(cenOffset)
-                                                          : data.size();
+        const bool cenStartInRange = cenOffset <= data.size();
+        ca::usize  cenStart = cenStartInRange ? static_cast<ca::usize>(cenOffset) : data.size();
         const bool cenEndAnchorInRange = cenEndAnchor <= data.size();
         const bool originalCenValid =
-            cenSize == 0 ||
-            (cenStartInRange && data.size() - cenStart >= 4 &&
-             read_u32(&data[cenStart]) == kCenSig);
+            cenSize == 0 || (cenStartInRange && data.size() - cenStart >= 4 &&
+                             read_u32(&data[cenStart]) == kCenSig);
         const bool cenExceedsData   = !cenStartInRange || cenSizeBytes > data.size() - cenStart;
         const bool cenExceedsAnchor = cenEndAnchorInRange && cenStart <= cenEndAnchor &&
-                                      cenSize <= cenEndAnchor &&
-                                      cenSize > cenEndAnchor - cenStart;
+                                      cenSize <= cenEndAnchor && cenSize > cenEndAnchor - cenStart;
         const bool shouldRecoverBase = cenExceedsData || cenExceedsAnchor || !originalCenValid;
         if (entryCount == 0 && cenSize > 0 && !originalCenValid) {
             throw std::runtime_error("Invalid CEN signature");
@@ -289,8 +284,7 @@ struct ZipFile::Impl {
             throw std::runtime_error("Central directory exceeds file bounds");
         }
 
-        if (cenSize > 0 &&
-            (data.size() - cenStart < 4 || read_u32(&data[cenStart]) != kCenSig)) {
+        if (cenSize > 0 && (data.size() - cenStart < 4 || read_u32(&data[cenStart]) != kCenSig)) {
             throw std::runtime_error("Invalid CEN signature");
         }
 
@@ -322,10 +316,8 @@ struct ZipFile::Impl {
             ca::u16 extraLen   = read_u16(cen + 30);
             ca::u16 commentLen = read_u16(cen + 32);
 
-            if (remaining <
-                46 + static_cast<size_t>(nameLen) + extraLen + commentLen) {
-                throw std::runtime_error(
-                    "CEN entry variable fields exceed central directory");
+            if (remaining < 46 + static_cast<size_t>(nameLen) + extraLen + commentLen) {
+                throw std::runtime_error("CEN entry variable fields exceed central directory");
             }
 
             ca::u16    method                       = read_u16(cen + 10);
@@ -343,8 +335,7 @@ struct ZipFile::Impl {
             }
 
             std::string         name(reinterpret_cast<const char*>(cen + 46), nameLen);
-            std::vector<ca::u8> extraField(cen + 46 + nameLen,
-                                           cen + 46 + nameLen + extraLen);
+            std::vector<ca::u8> extraField(cen + 46 + nameLen, cen + 46 + nameLen + extraLen);
 
             if (rawHasZip64UncompressedSize) {
                 ca::u64 resolvedValue = 0;
@@ -354,8 +345,7 @@ struct ZipFile::Impl {
                                                   rawHasZip64LocalHeaderOffset,
                                                   0,
                                                   resolvedValue)) {
-                    throw std::runtime_error(
-                        "Invalid ZIP64 extra field for uncompressed size");
+                    throw std::runtime_error("Invalid ZIP64 extra field for uncompressed size");
                 }
                 usize = resolvedValue;
             }
@@ -367,8 +357,7 @@ struct ZipFile::Impl {
                                                   rawHasZip64LocalHeaderOffset,
                                                   1,
                                                   resolvedValue)) {
-                    throw std::runtime_error(
-                        "Invalid ZIP64 extra field for compressed size");
+                    throw std::runtime_error("Invalid ZIP64 extra field for compressed size");
                 }
                 csize = resolvedValue;
             }
@@ -380,8 +369,7 @@ struct ZipFile::Impl {
                                                   rawHasZip64LocalHeaderOffset,
                                                   2,
                                                   resolvedValue)) {
-                    throw std::runtime_error(
-                        "Invalid ZIP64 extra field for local header offset");
+                    throw std::runtime_error("Invalid ZIP64 extra field for local header offset");
                 }
                 relOffset      = resolvedValue;
                 absoluteOffset = static_cast<std::ptrdiff_t>(relOffset) + baseOffset;
@@ -391,14 +379,14 @@ struct ZipFile::Impl {
             }
 
             index[name] = entries.size();
-            entries.emplace_back(std::move(name),
-                                 checked_cast_u32(csize, "compressed size"),
-                                 checked_cast_u32(usize, "uncompressed size"),
-                                 method,
-                                 crc,
-                                 checked_cast_u32(static_cast<ca::u64>(absoluteOffset),
-                                                  "local header offset"),
-                                 std::move(extraField));
+            entries.emplace_back(
+                std::move(name),
+                checked_cast_u32(csize, "compressed size"),
+                checked_cast_u32(usize, "uncompressed size"),
+                method,
+                crc,
+                checked_cast_u32(static_cast<ca::u64>(absoluteOffset), "local header offset"),
+                std::move(extraField));
 
             cen += 46 + nameLen + extraLen + commentLen;
             ++parsedEntries;
@@ -444,9 +432,7 @@ struct ZipFile::Impl {
         }
 
         if (entry.is_deflated()) {
-            auto result = inflate_raw(compressedData,
-                                      compressedSize,
-                                      entry.uncompressed_size());
+            auto result = inflate_raw(compressedData, compressedSize, entry.uncompressed_size());
 
             Crc32 crcCalc;
             crcCalc.update(result.data(), result.size());
@@ -484,7 +470,8 @@ void ZipFile::open(const std::string& path)
 {
     FILE* fp = nullptr;
 #ifdef _MSC_VER
-    if (::fopen_s(&fp, path.c_str(), "rb") != 0) fp = nullptr;
+    if (::fopen_s(&fp, path.c_str(), "rb") != 0)
+        fp = nullptr;
 #else
     fp = std::fopen(path.c_str(), "rb");
 #endif
@@ -506,9 +493,8 @@ void ZipFile::open(const std::string& path)
     ::rewind(fp);
 
     impl_->data.resize(static_cast<size_t>(fileSize));
-    if (fileSize > 0 &&
-        ::fread(impl_->data.data(), 1, static_cast<size_t>(fileSize), fp) !=
-            static_cast<size_t>(fileSize)) {
+    if (fileSize > 0 && ::fread(impl_->data.data(), 1, static_cast<size_t>(fileSize), fp) !=
+                            static_cast<size_t>(fileSize)) {
         ::fclose(fp);
         throw std::runtime_error("fread failed");
     }

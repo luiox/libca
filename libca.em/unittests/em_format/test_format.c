@@ -79,23 +79,23 @@ TEST_CASE(test_float_converters)
 {
     char buf[64];
 
-#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
     (void)f32_to_str(buf, 1.2367f, 1U);
     TEST_EXPECT_EQ_STR("1.236", buf);
-#    elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+#elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
     (void)f32_to_str(buf, 1.2367f, 2U);
     TEST_EXPECT_EQ_STR("1.24", buf);
-#    else
+#else
     (void)f32_to_str(buf, 1.2367f, 2U);
     TEST_EXPECT_EQ_STR("1.23", buf);
-#    endif
+#endif
 
     (void)f64_to_str_safe(buf, sizeof(buf), -0.125, 3U);
-#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+#if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
     TEST_EXPECT_EQ_STR("-0.125", buf);
-#    else
+#else
     TEST_EXPECT_EQ_STR("-0.125", buf);
-#    endif
+#endif
 
     TEST_EXPECT_EQ_U32(0U, (u32)f32_to_str(NULL, 1.0f, 2U));
     TEST_EXPECT_EQ_U32(0U, (u32)f64_to_str_safe(NULL, 8U, 1.0, 2U));
@@ -120,11 +120,11 @@ TEST_CASE(test_fmt_hex_feature)
     char buf[32];
 
     (void)fmt_snprintf(buf, sizeof(buf), "%x %X", 0x2aU, 0x2aU);
-#    if FMT_ENABLE_HEX
+#if FMT_ENABLE_HEX
     TEST_EXPECT_EQ_STR("2a 2A", buf);
-#    else
+#else
     TEST_EXPECT_EQ_STR("%x %X", buf);
-#    endif
+#endif
 }
 
 TEST_CASE(test_fmt_width_precision_feature)
@@ -132,18 +132,18 @@ TEST_CASE(test_fmt_width_precision_feature)
     char buf[32];
 
     (void)fmt_snprintf(buf, sizeof(buf), "%02d", 7);
-#    if FMT_ENABLE_WIDTH_PRECISION
+#if FMT_ENABLE_WIDTH_PRECISION
     TEST_EXPECT_EQ_STR("07", buf);
-#    else
+#else
     TEST_EXPECT_EQ_STR("%02d", buf);
-#    endif
+#endif
 
     (void)fmt_snprintf(buf, sizeof(buf), "%.2q");
-#    if FMT_ENABLE_WIDTH_PRECISION
+#if FMT_ENABLE_WIDTH_PRECISION
     TEST_EXPECT_EQ_STR("%q", buf);
-#    else
+#else
     TEST_EXPECT_EQ_STR("%.2q", buf);
-#    endif
+#endif
 }
 
 TEST_CASE(test_fmt_float_feature)
@@ -151,7 +151,29 @@ TEST_CASE(test_fmt_float_feature)
     char buf[64];
 
     (void)fmt_snprintf(buf, sizeof(buf), "%f", 1.2367);
-#    if FMT_ENABLE_FLOAT
+#if FMT_ENABLE_FLOAT
+#    if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#    elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    TEST_EXPECT_EQ_STR("1.237", buf);
+#    else
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#    endif
+#else
+    TEST_EXPECT_EQ_STR("%f", buf);
+#endif
+
+    (void)fmt_snprintf(buf, sizeof(buf), "%.2f", 1.2367);
+#if FMT_ENABLE_FLOAT
+#    if FMT_ENABLE_WIDTH_PRECISION
+#        if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
+    TEST_EXPECT_EQ_STR("1.236", buf);
+#        elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
+    TEST_EXPECT_EQ_STR("1.24", buf);
+#        else
+    TEST_EXPECT_EQ_STR("1.23", buf);
+#        endif
+#    else
 #        if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
     TEST_EXPECT_EQ_STR("1.236", buf);
 #        elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
@@ -159,36 +181,14 @@ TEST_CASE(test_fmt_float_feature)
 #        else
     TEST_EXPECT_EQ_STR("1.236", buf);
 #        endif
-#    else
-    TEST_EXPECT_EQ_STR("%f", buf);
 #    endif
-
-    (void)fmt_snprintf(buf, sizeof(buf), "%.2f", 1.2367);
-#    if FMT_ENABLE_FLOAT
-#        if FMT_ENABLE_WIDTH_PRECISION
-#            if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
-    TEST_EXPECT_EQ_STR("1.236", buf);
-#            elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    TEST_EXPECT_EQ_STR("1.24", buf);
-#            else
-    TEST_EXPECT_EQ_STR("1.23", buf);
-#            endif
-#        else
-#            if FMT_FLOAT_MODE == FMT_FLOAT_MODE_FIXED
-    TEST_EXPECT_EQ_STR("1.236", buf);
-#            elif FMT_FLOAT_MODE == FMT_FLOAT_MODE_NORMAL
-    TEST_EXPECT_EQ_STR("1.237", buf);
-#            else
-    TEST_EXPECT_EQ_STR("1.236", buf);
-#            endif
-#        endif
-#    else
-#        if FMT_ENABLE_WIDTH_PRECISION
+#else
+#    if FMT_ENABLE_WIDTH_PRECISION
     TEST_EXPECT_EQ_STR("%f", buf);
-#        else
+#    else
     TEST_EXPECT_EQ_STR("%.2f", buf);
-#        endif
 #    endif
+#endif
 }
 
 TEST_CASE(test_fmt_snprintf_semantics)
@@ -238,4 +238,3 @@ TEST_CASE(test_fmt_invalid_input)
     TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_fast_call(buf, 0U, "x"));
     TEST_EXPECT_EQ_I32(0, test_fmt_vsnprintf_fast_call(buf, sizeof(buf), NULL));
 }
-

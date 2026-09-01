@@ -49,10 +49,7 @@ public:
     /// @param file    源文件名（__FILE__）。
     /// @param line    源文件行号（__LINE__）。
     /// @param message 格式化参数载体；调 message.render_to(buf) 取完整字符串。
-    virtual void log(Level              level,
-                     std::string_view   target,
-                     std::string_view   file,
-                     int                line,
+    virtual void log(Level level, std::string_view target, std::string_view file, int line,
                      const OpaqueFormat& message) = 0;
 };
 
@@ -83,4 +80,4 @@ private:
     std::atomic<Level>           level_{Level::Info};
 };
 
-}  // namespace ca::log
+}   // namespace ca::log

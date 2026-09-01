@@ -8,9 +8,14 @@ namespace ca::crypto {
 /// @brief MD5 哈希（RFC 1321），16 字节摘要。
 /// @warning MD5 已不满足抗碰撞要求，仅用于非安全场景（校验和、遗留协议）；
 ///          安全用途请用 SHA-256 及以上。
-class MD5 {
+class MD5
+{
 public:
-    enum { BlockSize = 512 / 8, HashBytes = 16 };
+    enum
+    {
+        BlockSize = 512 / 8,
+        HashBytes = 16
+    };
 
     MD5();
     /// 一次性计算，返回小写十六进制 digest。
@@ -30,12 +35,15 @@ private:
     void process_block(const void* data);
     void process_buffer();
 
-    uint64_t num_bytes_ = 0;
-    size_t buffer_size_ = 0;
-    uint8_t buffer_[BlockSize]{};
+    uint64_t num_bytes_   = 0;
+    size_t   buffer_size_ = 0;
+    uint8_t  buffer_[BlockSize]{};
 
-    enum { HashValues = HashBytes / 4 };
+    enum
+    {
+        HashValues = HashBytes / 4
+    };
     uint32_t hash_[HashValues]{};
 };
 
-}
+}   // namespace ca::crypto

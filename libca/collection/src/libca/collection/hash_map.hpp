@@ -21,12 +21,13 @@ namespace ca::collection {
 /// entry 快照。查询类 API 使用指针表达“存在或不存在”，移除和覆盖类 API 使用
 /// `std::optional<V>` 返回旧值所有权。迭代顺序遵循底层哈希表，不保证稳定。
 template<typename K, typename V, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>>
-class HashMap {
+class HashMap
+{
 public:
-    using key_type = K;
-    using mapped_type = V;
-    using value_type = typename std::unordered_map<K, V, Hash, KeyEqual>::value_type;
-    using iterator = typename std::unordered_map<K, V, Hash, KeyEqual>::iterator;
+    using key_type       = K;
+    using mapped_type    = V;
+    using value_type     = typename std::unordered_map<K, V, Hash, KeyEqual>::value_type;
+    using iterator       = typename std::unordered_map<K, V, Hash, KeyEqual>::iterator;
     using const_iterator = typename std::unordered_map<K, V, Hash, KeyEqual>::const_iterator;
 
     HashMap() = default;
@@ -185,7 +186,7 @@ public:
             return std::nullopt;
         }
 
-        V old = std::move(it->second);
+        V old      = std::move(it->second);
         it->second = value;
         return old;
     }
@@ -198,7 +199,7 @@ public:
             return std::nullopt;
         }
 
-        V old = std::move(it->second);
+        V old      = std::move(it->second);
         it->second = std::move(value);
         return old;
     }
@@ -242,9 +243,7 @@ public:
     template<typename Pred>
     void retain(Pred&& keep)
     {
-        remove_if([&keep](const K& key, const V& value) {
-            return !keep(key, value);
-        });
+        remove_if([&keep](const K& key, const V& value) { return !keep(key, value); });
     }
 
     /// @brief 移除谓词返回 true 的键值对。
@@ -257,15 +256,16 @@ public:
             if (remove(it->first, it->second)) {
                 it = data_.erase(it);
                 ++removed;
-            } else {
+            }
+            else {
                 ++it;
             }
         }
         return removed;
     }
 
-    iterator begin() noexcept { return data_.begin(); }
-    iterator end() noexcept { return data_.end(); }
+    iterator       begin() noexcept { return data_.begin(); }
+    iterator       end() noexcept { return data_.end(); }
     const_iterator begin() const noexcept { return data_.begin(); }
     const_iterator end() const noexcept { return data_.end(); }
     const_iterator cbegin() const noexcept { return data_.cbegin(); }
@@ -275,4 +275,4 @@ private:
     std::unordered_map<K, V, Hash, KeyEqual> data_;
 };
 
-}  // namespace ca::collection
+}   // namespace ca::collection

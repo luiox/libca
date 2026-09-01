@@ -16,7 +16,7 @@
 #ifndef PINGPONG_BUFFER_H
 #define PINGPONG_BUFFER_H
 
-#include <em_base/datatype.h> 
+#include <em_base/datatype.h>
 
 // 乒乓缓冲区状态定义
 #define PINGPONG_BUF_IDLE 0      // 空闲状态
@@ -24,22 +24,22 @@
 
 typedef struct
 {
-    u8* read_buffer; // 读缓冲区，通常用于解析数据
-    u8* write_buffer; // 写缓冲区，通常给DMA使用
-    usize buffer_size; // 缓冲区大小
-    volatile u8 write_flag;   // 写入标志，1表示正在写入，0表示空闲
+    u8*         read_buffer;    // 读缓冲区，通常用于解析数据
+    u8*         write_buffer;   // 写缓冲区，通常给DMA使用
+    usize       buffer_size;    // 缓冲区大小
+    volatile u8 write_flag;     // 写入标志，1表示正在写入，0表示空闲
 } pingpong_buffer_t;
 
 // 函数声明
-void pingpong_buf_init(pingpong_buffer_t* pingpong_buf, u8* buffer1, u8* buffer2,
-                           usize buffer_size);
-u8   pingpong_buf_switch(pingpong_buffer_t* pingpong_buf);
-u8*  pingpong_buf_get_read_buffer(pingpong_buffer_t* pingpong_buf);
-u8*  pingpong_buf_get_write_buffer(pingpong_buffer_t* pingpong_buf);
-usize  pingpong_buf_get_size(pingpong_buffer_t* pingpong_buf);
-void pingpong_buf_clear(u8* buffer, usize size);
-void pingpong_buf_start_write(pingpong_buffer_t* pingpong_buf);
-void pingpong_buf_end_write(pingpong_buffer_t* pingpong_buf);
-u8   pingpong_buf_is_writing(pingpong_buffer_t* pingpong_buf);
+void  pingpong_buf_init(pingpong_buffer_t* pingpong_buf, u8* buffer1, u8* buffer2,
+                        usize buffer_size);
+u8    pingpong_buf_switch(pingpong_buffer_t* pingpong_buf);
+u8*   pingpong_buf_get_read_buffer(pingpong_buffer_t* pingpong_buf);
+u8*   pingpong_buf_get_write_buffer(pingpong_buffer_t* pingpong_buf);
+usize pingpong_buf_get_size(pingpong_buffer_t* pingpong_buf);
+void  pingpong_buf_clear(u8* buffer, usize size);
+void  pingpong_buf_start_write(pingpong_buffer_t* pingpong_buf);
+void  pingpong_buf_end_write(pingpong_buffer_t* pingpong_buf);
+u8    pingpong_buf_is_writing(pingpong_buffer_t* pingpong_buf);
 
 #endif   // PINGPONG_BUFFER_H

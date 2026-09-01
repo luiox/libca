@@ -54,13 +54,13 @@ public:
     /// @param capacity 缓冲区容量。
     /// @return 成功返回实际读取字节数（0 表示所有写端已关闭的干净 EOF）；
     ///         系统错误返回 Status。
-    ca::core::StatusResult<usize>       read(void* buffer, usize capacity);
+    ca::core::StatusResult<usize> read(void* buffer, usize capacity);
     /// @brief 读取直到所有写端关闭，把全部内容拼成字符串返回。
     ca::core::StatusResult<std::string> read_to_end();
     /// @brief 句柄是否仍打开。
-    bool                                is_open() const noexcept;
+    bool is_open() const noexcept;
     /// @brief 关闭并释放底层句柄；重复调用安全。
-    void                                close() noexcept;
+    void close() noexcept;
 
 private:
     explicit PipeReader(std::intptr_t native_handle) noexcept;
@@ -153,7 +153,7 @@ private:
 ///          不是 Status 错误。
 struct ExitStatus
 {
-    i32  code{-1};
+    i32 code{-1};
     /// @brief 退出码是否为 0（成功）。
     bool success() const noexcept;
 };
@@ -180,24 +180,24 @@ public:
     Child& operator=(Child&& other) noexcept;
 
     /// @brief 返回平台进程标识（Linux 为 pid，Windows 为进程 id）。
-    u64                                               id() const noexcept;
+    u64 id() const noexcept;
     /// @brief 非阻塞试探子进程是否已退出。
     /// @return 子进程仍在运行返回空 optional；已退出返回 ExitStatus。
     ca::core::StatusResult<std::optional<ExitStatus>> try_wait();
     /// @brief 阻塞回收子进程，返回退出状态。
-    ca::core::StatusResult<ExitStatus>                wait();
+    ca::core::StatusResult<ExitStatus> wait();
     /// @brief 最多等待 timeout，超时不杀子进程，返回空 optional。
     ca::core::StatusResult<std::optional<ExitStatus>> wait_for(std::chrono::milliseconds timeout);
     /// @brief 终止子进程。Linux 上子进程在新进程组内，kill 针对整个组；
     ///        Windows 上针对单个子进程句柄。终止后仍需调用 wait() 回收。
-    ca::core::Status                                  kill();
+    ca::core::Status kill();
 
     /// @brief 取出（并交出所有权）子进程标准输入写端；未配置 piped 返回空。
-    std::optional<ChildStdin>      take_stdin();
+    std::optional<ChildStdin> take_stdin();
     /// @brief 取出子进程标准输出读端；未配置 piped 返回空。
-    std::optional<ChildStdout>     take_stdout();
+    std::optional<ChildStdout> take_stdout();
     /// @brief 取出子进程标准错误读端；未配置 piped 返回空。
-    std::optional<ChildStderr>     take_stderr();
+    std::optional<ChildStderr> take_stderr();
     /// @brief 关闭 stdin 后并发排空 stdout/stderr，阻塞到子进程退出，返回全部输出。
     ca::core::StatusResult<Output> wait_with_output();
 
@@ -242,20 +242,20 @@ public:
     Command& stderr(Stdio stdio);
 
     /// @brief 启动子进程并返回 Child 句柄。
-    ca::core::StatusResult<Child>      spawn() const;
+    ca::core::StatusResult<Child> spawn() const;
     /// @brief 启动子进程、等待其退出并返回退出状态（不收集输出）。
     ca::core::StatusResult<ExitStatus> status() const;
     /// @brief 启动子进程、收集 stdout/stderr 并返回 Output。
-    ca::core::StatusResult<Output>     output() const;
+    ca::core::StatusResult<Output> output() const;
 
 private:
-    std::string                program_;
-    std::vector<std::string>   args_;
+    std::string                                      program_;
+    std::vector<std::string>                         args_;
     std::vector<std::pair<std::string, std::string>> env_;
-    std::optional<std::string> current_dir_;
-    Stdio                      stdin_{Stdio::inherit()};
-    Stdio                      stdout_{Stdio::inherit()};
-    Stdio                      stderr_{Stdio::inherit()};
+    std::optional<std::string>                       current_dir_;
+    Stdio                                            stdin_{Stdio::inherit()};
+    Stdio                                            stdout_{Stdio::inherit()};
+    Stdio                                            stderr_{Stdio::inherit()};
 };
 
 }   // namespace ca::process

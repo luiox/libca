@@ -14,7 +14,7 @@
 /// @return 0 或 1
 static u8 bits_read_bit_msb(const u8* data, usize bit_index)
 {
-    usize byte_index = bit_index >> 3;
+    usize byte_index  = bit_index >> 3;
     u8    bit_in_byte = (u8)(7u - (bit_index & 0x7u));   // MSB-first: 索引0对应bit7
     return (u8)((data[byte_index] >> bit_in_byte) & 0x01u);
 }
@@ -25,13 +25,14 @@ static u8 bits_read_bit_msb(const u8* data, usize bit_index)
 /// @param bit_value 0 或 1
 static void bits_write_bit_msb(u8* data, usize bit_index, u8 bit_value)
 {
-    usize byte_index = bit_index >> 3;
+    usize byte_index  = bit_index >> 3;
     u8    bit_in_byte = (u8)(7u - (bit_index & 0x7u));   // MSB-first: 索引0对应bit7
-    u8    mask = (u8)(1u << bit_in_byte);
+    u8    mask        = (u8)(1u << bit_in_byte);
 
     if (bit_value != 0u) {
         data[byte_index] |= mask;
-    } else {
+    }
+    else {
         data[byte_index] &= (u8)~mask;
     }
 }
@@ -43,7 +44,8 @@ static void bits_write_bit_msb(u8* data, usize bit_index, u8 bit_value)
 /// @param length bit 长度
 /// @param max_len 支持的最大 bit 长度
 /// @return 0 成功, 负数错误码
-static i32 bits_validate_params(const u8* data, usize data_size, usize start_bit, u8 length, usize max_len)
+static i32 bits_validate_params(const u8* data, usize data_size, usize start_bit, u8 length,
+                                usize max_len)
 {
     if (data == NULL) {
         return BITS_UTIL_EINVAL;
@@ -98,7 +100,7 @@ i32 bits_write_le(u8* data, usize data_size, usize start_bit, u8 length, u32 val
     }
 
     u32   masked = value & bits_mask_low_u32(length);
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // le: value 低位先进入 bitstream
     for (usize i = 0; i < len; i++) {
@@ -117,11 +119,11 @@ i32 bits_write_be(u8* data, usize data_size, usize start_bit, u8 length, u32 val
     }
 
     u32   masked = value & bits_mask_low_u32(length);
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // be: value 高位先进入 bitstream
     for (usize i = 0; i < len; i++) {
-        usize shift = len - 1u - i;
+        usize shift     = len - 1u - i;
         u8    bit_value = (u8)((masked >> shift) & 0x01u);
         bits_write_bit_msb(data, start_bit + i, bit_value);
     }
@@ -141,7 +143,7 @@ i32 bits_read_le(const u8* data, usize data_size, usize start_bit, u8 length, u3
     }
 
     u32   result = 0u;
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // le: bitstream 低位映射到 value 低位
     for (usize i = 0; i < len; i++) {
@@ -165,12 +167,12 @@ i32 bits_read_be(const u8* data, usize data_size, usize start_bit, u8 length, u3
     }
 
     u32   result = 0u;
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // be: bitstream 先读到 value 高位
     for (usize i = 0; i < len; i++) {
         u8 bit_value = bits_read_bit_msb(data, start_bit + i);
-        result = (result << 1) | (u32)bit_value;
+        result       = (result << 1) | (u32)bit_value;
     }
 
     *value = result;
@@ -187,7 +189,7 @@ i32 bits_write64_le(u8* data, usize data_size, usize start_bit, u8 length, u64 v
     }
 
     u64   masked = value & bits_mask_low_u64(length);
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // le: value 低位先进入 bitstream
     for (usize i = 0; i < len; i++) {
@@ -206,11 +208,11 @@ i32 bits_write64_be(u8* data, usize data_size, usize start_bit, u8 length, u64 v
     }
 
     u64   masked = value & bits_mask_low_u64(length);
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // be: value 高位先进入 bitstream
     for (usize i = 0; i < len; i++) {
-        usize shift = len - 1u - i;
+        usize shift     = len - 1u - i;
         u8    bit_value = (u8)((masked >> shift) & 0x01u);
         bits_write_bit_msb(data, start_bit + i, bit_value);
     }
@@ -230,7 +232,7 @@ i32 bits_read64_le(const u8* data, usize data_size, usize start_bit, u8 length, 
     }
 
     u64   result = 0ULL;
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // le: bitstream 低位映射到 value 低位
     for (usize i = 0; i < len; i++) {
@@ -254,12 +256,12 @@ i32 bits_read64_be(const u8* data, usize data_size, usize start_bit, u8 length, 
     }
 
     u64   result = 0ULL;
-    usize len = (usize)length;
+    usize len    = (usize)length;
 
     // be: bitstream 先读到 value 高位
     for (usize i = 0; i < len; i++) {
         u8 bit_value = bits_read_bit_msb(data, start_bit + i);
-        result = (result << 1) | (u64)bit_value;
+        result       = (result << 1) | (u64)bit_value;
     }
 
     *value = result;

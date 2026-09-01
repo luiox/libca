@@ -168,7 +168,7 @@ i32 str_cat(char* dest, const char* src, usize dest_max_size)
 
     usize i;
     usize remaining = dest_max_size - dest_len;
-    
+
     for (i = 0; i < remaining - 1 && src[i] != '\0'; i++) {
         dest[dest_len + i] = src[i];
     }
@@ -221,7 +221,7 @@ i32 str_ltrim(char* str)
 
     if (start > 0) {
         usize new_len = 0;
-        usize i = start;
+        usize i       = start;
         while (str[i] != '\0') {
             str[new_len++] = str[i++];
         }
@@ -295,8 +295,8 @@ void str_reverse(char* str)
     usize j = len - 1;
     while (i < j) {
         char temp = str[i];
-        str[i] = str[j];
-        str[j] = temp;
+        str[i]    = str[j];
+        str[j]    = temp;
         i++;
         j--;
     }
@@ -343,7 +343,7 @@ bool str_ends_with(const char* str, const char* suffix)
     }
 
     usize str_len_val = str_len(str);
-    usize suffix_len = str_len(suffix);
+    usize suffix_len  = str_len(suffix);
 
     if (suffix_len > str_len_val) {
         return false;
@@ -368,7 +368,7 @@ bool str_ends_with_i(const char* str, const char* suffix)
     }
 
     usize str_len_val = str_len(str);
-    usize suffix_len = str_len(suffix);
+    usize suffix_len  = str_len(suffix);
 
     if (suffix_len > str_len_val) {
         return false;

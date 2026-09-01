@@ -9,43 +9,43 @@
 ///
 
 #ifndef I2C_SCL_H
-#error "Please define I2C_SCL_H macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SCL_H macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SCL_L
-#error "Please define I2C_SCL_L macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SCL_L macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SDA_H
-#error "Please define I2C_SDA_H macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SDA_H macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SDA_L
-#error "Please define I2C_SDA_L macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SDA_L macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SDA_READ
-#error "Please define I2C_SDA_READ macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SDA_READ macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SDA_OUT
-#error "Please define I2C_SDA_OUT macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SDA_OUT macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_SDA_IN
-#error "Please define I2C_SDA_IN macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_SDA_IN macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef I2C_DELAY
-#error "Please define I2C_DELAY macro before including soft_i2c_template_source.h"
+#    error "Please define I2C_DELAY macro before including soft_i2c_template_source.h"
 #endif
 
 #ifndef SOFT_I2C_WR
-#define SOFT_I2C_WR 0
+#    define SOFT_I2C_WR 0
 #endif
 
 #ifndef SOFT_I2C_RD
-#define SOFT_I2C_RD 1
+#    define SOFT_I2C_RD 1
 #endif
 
 // 发起I2C总开始信号
@@ -81,7 +81,8 @@ void I2C_CLASS_FUNC_NAME(send_byte)(u8 byte)
     for (i = 0; i < 8; i++) {
         if (byte & 0x80) {
             I2C_SDA_H();
-        } else {
+        }
+        else {
             I2C_SDA_L();
         }
         byte <<= 1;
@@ -181,58 +182,57 @@ u8 I2C_CLASS_FUNC_NAME(check_device)(u8 address)
 // 完成后清理宏定义，允许再次包含用于生成不同的 I2C 实例
 
 #ifdef USER_I2C_PREFIX_NAME
-#undef USER_I2C_PREFIX_NAME
+#    undef USER_I2C_PREFIX_NAME
 #endif
 
 #ifdef NAME_CONNECT
-#undef NAME_CONNECT
+#    undef NAME_CONNECT
 #endif
 
 #ifdef I2C_CLASS_NAME
-#undef I2C_CLASS_NAME
+#    undef I2C_CLASS_NAME
 #endif
 
 #ifdef I2C_CLASS_FUNC_NAME
-#undef I2C_CLASS_FUNC_NAME
+#    undef I2C_CLASS_FUNC_NAME
 #endif
 
 #ifdef I2C_SCL_H
-#undef I2C_SCL_H
+#    undef I2C_SCL_H
 #endif
 
 #ifdef I2C_SCL_L
-#undef I2C_SCL_L
+#    undef I2C_SCL_L
 #endif
 
 #ifdef I2C_SDA_H
-#undef I2C_SDA_H
+#    undef I2C_SDA_H
 #endif
 
 #ifdef I2C_SDA_L
-#undef I2C_SDA_L
+#    undef I2C_SDA_L
 #endif
 
 #ifdef I2C_SDA_READ
-#undef I2C_SDA_READ
+#    undef I2C_SDA_READ
 #endif
 
 #ifdef I2C_SDA_OUT
-#undef I2C_SDA_OUT
+#    undef I2C_SDA_OUT
 #endif
 
 #ifdef I2C_SDA_IN
-#undef I2C_SDA_IN
+#    undef I2C_SDA_IN
 #endif
 
 #ifdef I2C_DELAY
-#undef I2C_DELAY
+#    undef I2C_DELAY
 #endif
 
 #ifdef SOFT_I2C_WR
-#undef SOFT_I2C_WR
+#    undef SOFT_I2C_WR
 #endif
 
 #ifdef SOFT_I2C_RD
-#undef SOFT_I2C_RD
+#    undef SOFT_I2C_RD
 #endif
-

@@ -14,7 +14,8 @@ class ZipEntry;
 ///
 /// 每条目以 data descriptor 收尾（bit 3 置位），CEN/EOCD 在 close 时统一回写。
 /// 析构时若仍打开则尝试收尾（不抛异常）。
-class ZipOutputStream {
+class ZipOutputStream
+{
 public:
     ZipOutputStream();
 

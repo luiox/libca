@@ -38,8 +38,8 @@ bool collect_tokens(const Arg& arg, std::vector<std::string>& tokens, std::strin
     tokens.push_back("--" + arg.name);
     for (const auto& alias : arg.aliases) {
         if (alias.size() < 2 || alias[0] != '-') {
-            err = ca::str::format_std("alias '{}' of option --{} must start with '-'", alias,
-                                      arg.name);
+            err = ca::str::format_std(
+                "alias '{}' of option --{} must start with '-'", alias, arg.name);
             return false;
         }
         tokens.push_back(alias);
@@ -120,9 +120,9 @@ std::string group_identity(const MutexGroup& group)
 
 // 运行期互斥约束检查。显式选择 = 命令行或注入初值（静态默认不算选择）：
 // 多于一个选择报冲突；required 且无任何选择报缺失。
-bool check_mutex_groups(const Command& cmd,
+bool check_mutex_groups(const Command&                                      cmd,
                         const std::unordered_map<std::string, ValueSource>& sources,
-                        ParseError& err_out)
+                        ParseError&                                         err_out)
 {
     auto chosen = [&sources](const std::string& name) {
         auto it = sources.find(name);
@@ -142,10 +142,11 @@ bool check_mutex_groups(const Command& cmd,
                     joined += ", ";
                 joined += "--" + present[k];
             }
-            err_out = ParseError{ParseErrorCategory::MutexConflict, "",
-                                 ca::str::format_std("mutually exclusive options given: {}",
-                                                     joined),
-                                 group_identity(group)};
+            err_out =
+                ParseError{ParseErrorCategory::MutexConflict,
+                           "",
+                           ca::str::format_std("mutually exclusive options given: {}", joined),
+                           group_identity(group)};
             return false;
         }
         if (group.required && present.empty()) {
@@ -155,7 +156,8 @@ bool check_mutex_groups(const Command& cmd,
                     joined += "|";
                 joined += "--" + group.names[k];
             }
-            err_out = ParseError{ParseErrorCategory::MutexRequired, "",
+            err_out = ParseError{ParseErrorCategory::MutexRequired,
+                                 "",
                                  ca::str::format_std("one of {} is required", joined),
                                  group_identity(group)};
             return false;
@@ -200,14 +202,10 @@ std::string kind_metavar(const Arg& arg)
     if (!arg.metavar.empty())
         return arg.metavar;
     switch (arg.kind) {
-    case OptKind::Int:
-        return "<int>";
-    case OptKind::StringList:
-        return "<list>";
-    case OptKind::String:
-        return "<value>";
-    default:
-        return "";
+    case OptKind::Int: return "<int>";
+    case OptKind::StringList: return "<list>";
+    case OptKind::String: return "<value>";
+    default: return "";
     }
 }
 
@@ -218,8 +216,8 @@ std::string kind_metavar(const Arg& arg)
 std::string render_help(const Command& cmd, const std::vector<std::string>& path,
                         const std::vector<std::string>* group_filter)
 {
-    const bool               filtering = group_filter != nullptr && !group_filter->empty();
-    std::set<std::string>    filter_set;
+    const bool            filtering = group_filter != nullptr && !group_filter->empty();
+    std::set<std::string> filter_set;
     if (filtering)
         filter_set.insert(group_filter->begin(), group_filter->end());
 
@@ -258,7 +256,7 @@ std::string render_help(const Command& cmd, const std::vector<std::string>& path
         // 左列：全部 token 拼接，如 "-i, --input <jar>"
         std::vector<std::string> tokens;
         std::string              err;
-        collect_tokens(arg, tokens, err);  // build_lookup 已验证过，此处不会失败
+        collect_tokens(arg, tokens, err);   // build_lookup 已验证过，此处不会失败
         oss << "  ";
         for (std::size_t k = 0; k < tokens.size(); ++k) {
             if (k != 0)
@@ -340,7 +338,7 @@ bool parse_int_strict(const std::string& text, int& out)
     if (first != '+' && first != '-' && (first < '0' || first > '9'))
         return false;
     errno                 = 0;
-    char*          end    = nullptr;
+    char*           end   = nullptr;
     const long long value = std::strtoll(text.c_str(), &end, 10);
     if (errno != 0 || end == text.c_str() || *end != '\0')
         return false;
@@ -367,12 +365,12 @@ std::vector<std::string> split_comma(const std::string& s)
     return out;
 }
 
-}  // namespace
+}   // namespace
 
 // 预置选项初值：静态 default_value 先行，随后被 initial_values 中同名项覆盖
 // （三级优先级：default < 注入初值 < 命令行）。仅带值选项参与；空串初值与非法
 // 整数初值报错。失败时写入 err_out 并返回 false。
-bool Parser::seed_option_values(const Command& cmd,
+bool Parser::seed_option_values(const Command&                                      cmd,
                                 const std::unordered_map<std::string, std::string>* initials,
                                 ParseResult& result, ParseError& err_out)
 {
@@ -395,9 +393,10 @@ bool Parser::seed_option_values(const Command& cmd,
 
         if (init != nullptr) {
             if (init->empty()) {
-                err_out = ParseError{ParseErrorCategory::EmptyValue, arg.name,
-                                     ca::str::format_std("initial value of --{} is empty",
-                                                         arg.name)};
+                err_out =
+                    ParseError{ParseErrorCategory::EmptyValue,
+                               arg.name,
+                               ca::str::format_std("initial value of --{} is empty", arg.name)};
                 return false;
             }
             result.sources_[arg.name] = ValueSource::Initial;
@@ -405,10 +404,10 @@ bool Parser::seed_option_values(const Command& cmd,
                 int parsed = 0;
                 if (!parse_int_strict(*init, parsed)) {
                     err_out = ParseError{
-                        ParseErrorCategory::InvalidInteger, arg.name,
+                        ParseErrorCategory::InvalidInteger,
+                        arg.name,
                         ca::str::format_std(
-                            "initial value of --{} expects an integer, got '{}'", arg.name,
-                            *init)};
+                            "initial value of --{} expects an integer, got '{}'", arg.name, *init)};
                     return false;
                 }
                 result.values_[arg.name] = *init;
@@ -426,7 +425,7 @@ bool Parser::seed_option_values(const Command& cmd,
         }
 
         if (!arg.default_value.empty()) {
-            result.values_[arg.name] = arg.default_value;
+            result.values_[arg.name]  = arg.default_value;
             result.sources_[arg.name] = ValueSource::Default;
         }
     }
@@ -436,18 +435,18 @@ bool Parser::seed_option_values(const Command& cmd,
 // 命中选项后的统一取值消费（--name 与多字符单横线别名 -name 共用）：
 // Flag/OptionalString 直接收尾，带值选项取内联值（=value）或空格后继 token，
 // 按 kind 校验（空值/整数合法性）后以 CommandLine 来源写入 result。
-bool Parser::consume_option_value(
-    const Arg& arg, const std::string& display, bool has_inline,
-    const std::string& inline_value, int argc, const char* const argv[],
-    int& i, ParseResult& result, ParseError& err_out)
+bool Parser::consume_option_value(const Arg& arg, const std::string& display, bool has_inline,
+                                  const std::string& inline_value, int argc,
+                                  const char* const argv[], int& i, ParseResult& result,
+                                  ParseError& err_out)
 {
     const OptKind kind = arg.kind;
 
     if (!kind_takes_value(kind)) {
         if (has_inline) {
-            err_out = ParseError{
-                ParseErrorCategory::UnexpectedArgument, arg.name,
-                ca::str::format_std("option {} does not take a value", display)};
+            err_out = ParseError{ParseErrorCategory::UnexpectedArgument,
+                                 arg.name,
+                                 ca::str::format_std("option {} does not take a value", display)};
             return false;
         }
         result.values_[arg.name]  = "true";
@@ -471,17 +470,17 @@ bool Parser::consume_option_value(
     }
     else {
         if (i + 1 >= argc) {
-            err_out = ParseError{
-                ParseErrorCategory::MissingValue, arg.name,
-                ca::str::format_std("option {} requires a value", display)};
+            err_out = ParseError{ParseErrorCategory::MissingValue,
+                                 arg.name,
+                                 ca::str::format_std("option {} requires a value", display)};
             return false;
         }
         value = argv[++i];
     }
     if (value.empty()) {
-        err_out = ParseError{
-            ParseErrorCategory::EmptyValue, arg.name,
-            ca::str::format_std("option {} requires a non-empty value", display)};
+        err_out = ParseError{ParseErrorCategory::EmptyValue,
+                             arg.name,
+                             ca::str::format_std("option {} requires a non-empty value", display)};
         return false;
     }
 
@@ -489,7 +488,8 @@ bool Parser::consume_option_value(
         int parsed = 0;
         if (!parse_int_strict(value, parsed)) {
             err_out = ParseError{
-                ParseErrorCategory::InvalidInteger, arg.name,
+                ParseErrorCategory::InvalidInteger,
+                arg.name,
                 ca::str::format_std("option {} expects an integer, got '{}'", display, value)};
             return false;
         }
@@ -497,9 +497,9 @@ bool Parser::consume_option_value(
     else if (kind == OptKind::StringList) {
         auto& dst = result.lists_[arg.name];
         for (auto& piece : split_comma(value))
-            dst.push_back(std::move(piece));  // 追加语义
+            dst.push_back(std::move(piece));   // 追加语义
     }
-    result.values_[arg.name]  = value;  // last-wins
+    result.values_[arg.name]  = value;   // last-wins
     result.sources_[arg.name] = ValueSource::CommandLine;
     ++i;
     return true;
@@ -514,12 +514,9 @@ std::string help_text(const Command& cmd, const std::vector<std::string>& groups
 StatusCode to_status_code(ParseErrorCategory category) noexcept
 {
     switch (category) {
-    case ParseErrorCategory::HelpRequested:
-        return StatusCode::CANCELLED;
-    case ParseErrorCategory::InvalidDefinition:
-        return StatusCode::FAILED_PRECONDITION;
-    default:
-        return StatusCode::INVALID_ARGUMENT;
+    case ParseErrorCategory::HelpRequested: return StatusCode::CANCELLED;
+    case ParseErrorCategory::InvalidDefinition: return StatusCode::FAILED_PRECONDITION;
+    default: return StatusCode::INVALID_ARGUMENT;
     }
 }
 
@@ -584,18 +581,18 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
     int argc, const char* const argv[],
     const std::unordered_map<std::string, std::string>& initial_values)
 {
-    ParseResult result;
-    std::vector<std::string> path;           // 已穿过的子命令路径
+    ParseResult              result;
+    std::vector<std::string> path;   // 已穿过的子命令路径
     const Command*           current = &root_;
 
     // 命令行显式写入：值与来源同步登记。
     auto put_value = [&result](const std::string& name, const std::string& v) {
-        result.values_[name]   = v;
-        result.sources_[name]  = ValueSource::CommandLine;
+        result.values_[name]  = v;
+        result.sources_[name] = ValueSource::CommandLine;
     };
 
     // 预置选项初值（静态默认 + 注入初值）。
-    Lookup lookup;
+    Lookup      lookup;
     std::string err;
     if (!build_lookup(*current, lookup, err))
         return ca::core::Err(ParseError{ParseErrorCategory::InvalidDefinition, "", err});
@@ -607,7 +604,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             return ca::core::Err(std::move(seed_err));
     }
 
-    bool only_positional = false;  // 遇到 -- 之后为真
+    bool only_positional = false;   // 遇到 -- 之后为真
     int  i               = 1;
     while (i < argc) {
         const std::string token(argv[i]);
@@ -645,7 +642,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             std::string body = token.substr(2);
             std::string inline_value;
             bool        has_inline = false;
-            auto        eq = body.find('=');
+            auto        eq         = body.find('=');
             if (eq != std::string::npos) {
                 inline_value = body.substr(eq + 1);
                 body         = body.substr(0, eq);
@@ -654,14 +651,21 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
 
             auto it = lookup.by_token.find("--" + body);
             if (it == lookup.by_token.end()) {
-                return ca::core::Err(ParseError{
-                    ParseErrorCategory::UnknownOption, body,
-                    ca::str::format_std("unknown option: --{}", body)});
+                return ca::core::Err(ParseError{ParseErrorCategory::UnknownOption,
+                                                body,
+                                                ca::str::format_std("unknown option: --{}", body)});
             }
             {
                 ParseError err;
-                if (!consume_option_value(*it->second, "--" + body, has_inline,
-                                          inline_value, argc, argv, i, result, err))
+                if (!consume_option_value(*it->second,
+                                          "--" + body,
+                                          has_inline,
+                                          inline_value,
+                                          argc,
+                                          argv,
+                                          i,
+                                          result,
+                                          err))
                     return ca::core::Err(std::move(err));
             }
             continue;
@@ -673,10 +677,10 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             // 精确匹配，命中则与长形态同语义取值；不进入短旗标簇与 -xvalue
             // 附着展开（簇与附着形态仅对两字符短名定义）。
             if (token.size() > 2) {
-                std::string probe        = token;
+                std::string probe = token;
                 std::string inline_value;
-                bool        has_inline   = false;
-                const auto  eq           = probe.find('=');
+                bool        has_inline = false;
+                const auto  eq         = probe.find('=');
                 if (eq != std::string::npos) {
                     inline_value = probe.substr(eq + 1);
                     probe        = probe.substr(0, eq);
@@ -686,17 +690,25 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                     auto full = lookup.by_token.find(probe);
                     if (full != lookup.by_token.end()) {
                         ParseError err;
-                        if (!consume_option_value(*full->second, probe, has_inline,
-                                                  inline_value, argc, argv, i, result, err))
+                        if (!consume_option_value(*full->second,
+                                                  probe,
+                                                  has_inline,
+                                                  inline_value,
+                                                  argc,
+                                                  argv,
+                                                  i,
+                                                  result,
+                                                  err))
                             return ca::core::Err(std::move(err));
                         continue;
                     }
                     if (has_inline) {
                         // -name=value 但 name 未注册：按未知选项报全名，
                         // 不落入短簇拆分产生截断的错误定位。
-                        return ca::core::Err(ParseError{
-                            ParseErrorCategory::UnknownOption, probe,
-                            ca::str::format_std("unknown option: {}", probe)});
+                        return ca::core::Err(
+                            ParseError{ParseErrorCategory::UnknownOption,
+                                       probe,
+                                       ca::str::format_std("unknown option: {}", probe)});
                     }
                 }
             }
@@ -704,9 +716,9 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             char short_char = token[1];
             auto it         = lookup.by_token.find(token.substr(0, 2));
             if (it == lookup.by_token.end()) {
-                return ca::core::Err(ParseError{
-                    ParseErrorCategory::UnknownOption, token,
-                    ca::str::format_std("unknown option: {}", token)});
+                return ca::core::Err(ParseError{ParseErrorCategory::UnknownOption,
+                                                token,
+                                                ca::str::format_std("unknown option: {}", token)});
             }
             const Arg*    arg  = it->second;
             const OptKind kind = arg->kind;
@@ -725,16 +737,19 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                         const char ch  = token[c];
                         auto       fit = lookup.by_token.find(std::string("-") + ch);
                         if (fit == lookup.by_token.end()) {
-                            return ca::core::Err(ParseError{
-                                ParseErrorCategory::UnknownOption, std::string("-") + ch,
-                                ca::str::format_std("unknown option: -{}", ch)});
+                            return ca::core::Err(
+                                ParseError{ParseErrorCategory::UnknownOption,
+                                           std::string("-") + ch,
+                                           ca::str::format_std("unknown option: -{}", ch)});
                         }
                         if (kind_takes_value(fit->second->kind)) {
-                            return ca::core::Err(ParseError{
-                                ParseErrorCategory::UnexpectedArgument, fit->second->name,
-                                ca::str::format_std(
-                                    "option -{} takes a value; cannot combine in -{}", ch,
-                                    token.substr(1))});
+                            return ca::core::Err(
+                                ParseError{ParseErrorCategory::UnexpectedArgument,
+                                           fit->second->name,
+                                           ca::str::format_std(
+                                               "option -{} takes a value; cannot combine in -{}",
+                                               ch,
+                                               token.substr(1))});
                         }
                         put_value(fit->second->name, "true");
                     }
@@ -748,19 +763,21 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
 
             std::string value;
             if (token.size() > 2) {
-                value = token.substr(2);  // -xvalue 形式
+                value = token.substr(2);   // -xvalue 形式
             }
             else {
                 if (i + 1 >= argc) {
-                    return ca::core::Err(ParseError{
-                        ParseErrorCategory::MissingValue, arg->name,
-                        ca::str::format_std("option -{} requires a value", short_char)});
+                    return ca::core::Err(
+                        ParseError{ParseErrorCategory::MissingValue,
+                                   arg->name,
+                                   ca::str::format_std("option -{} requires a value", short_char)});
                 }
                 value = argv[++i];
             }
             if (value.empty()) {
                 return ca::core::Err(ParseError{
-                    ParseErrorCategory::EmptyValue, arg->name,
+                    ParseErrorCategory::EmptyValue,
+                    arg->name,
                     ca::str::format_std("option -{} requires a non-empty value", short_char)});
             }
 
@@ -768,9 +785,10 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
                 int parsed = 0;
                 if (!parse_int_strict(value, parsed)) {
                     return ca::core::Err(ParseError{
-                        ParseErrorCategory::InvalidInteger, arg->name,
-                        ca::str::format_std("option -{} expects an integer, got '{}'",
-                                            short_char, value)});
+                        ParseErrorCategory::InvalidInteger,
+                        arg->name,
+                        ca::str::format_std(
+                            "option -{} expects an integer, got '{}'", short_char, value)});
                 }
                 put_value(arg->name, value);
             }
@@ -795,9 +813,10 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
             bool       failed = false;
             for (const Arg& arg : current->args) {
                 if (arg.required && kind_takes_value(arg.kind) && !result.has(arg.name)) {
-                    finalize_err = ParseError{
-                        ParseErrorCategory::MissingRequired, arg.name,
-                        ca::str::format_std("missing required option: --{}", arg.name)};
+                    finalize_err =
+                        ParseError{ParseErrorCategory::MissingRequired,
+                                   arg.name,
+                                   ca::str::format_std("missing required option: --{}", arg.name)};
                     failed = true;
                     break;
                 }
@@ -831,17 +850,18 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
         }
 
         // 无 Positional 声明时的多余裸 token：报错而非静默丢弃（v2 行为变更）。
-        return ca::core::Err(ParseError{
-            ParseErrorCategory::UnexpectedArgument, token,
-            ca::str::format_std("unexpected argument: {}", token)});
+        return ca::core::Err(ParseError{ParseErrorCategory::UnexpectedArgument,
+                                        token,
+                                        ca::str::format_std("unexpected argument: {}", token)});
     }
 
     // 收尾校验当前命令：required 选项与互斥组。
     for (const Arg& arg : current->args) {
         if (arg.required && kind_takes_value(arg.kind) && !result.has(arg.name)) {
-            return ca::core::Err(ParseError{
-                ParseErrorCategory::MissingRequired, arg.name,
-                ca::str::format_std("missing required option: --{}", arg.name)});
+            return ca::core::Err(
+                ParseError{ParseErrorCategory::MissingRequired,
+                           arg.name,
+                           ca::str::format_std("missing required option: --{}", arg.name)});
         }
     }
     ParseError mutex_err;
@@ -852,4 +872,4 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
     return ca::core::Ok(std::move(result));
 }
 
-}  // namespace ca::opt
+}   // namespace ca::opt

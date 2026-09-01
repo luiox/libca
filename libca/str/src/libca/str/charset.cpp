@@ -30,16 +30,15 @@ core::Status wide_convert_error(const char* operation)
     return core::ErrStatus(
         error == ERROR_NO_UNICODE_TRANSLATION ? core::StatusCode::INVALID_ARGUMENT
                                               : core::StatusCode::INTERNAL,
-        ca::str::format_std("{} failed with Windows error {}",
-                            operation,
-                            static_cast<unsigned long>(error)));
+        ca::str::format_std(
+            "{} failed with Windows error {}", operation, static_cast<unsigned long>(error)));
 }
 
 core::Status input_too_large(const char* operation)
 {
-    return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
-                           ca::str::format_std("{} input exceeds the Win32 API length limit",
-                                               operation));
+    return core::ErrStatus(
+        core::StatusCode::INVALID_ARGUMENT,
+        ca::str::format_std("{} input exceeds the Win32 API length limit", operation));
 }
 
 // 多字节 → 宽字符的通用实现：先用 0 长度探测输出大小，再分配并真正转换。
@@ -114,7 +113,7 @@ core::StatusResult<std::string> wide_to_multi_byte(unsigned int code_page, std::
     return core::Ok<std::string>(std::move(converted));
 }
 
-}  // namespace
+}   // namespace
 
 core::StatusResult<std::wstring> CharsetConverter::utf8_to_wide(std::string_view utf8)
 {
@@ -165,7 +164,7 @@ core::StatusResult<std::string> CharsetConverter::wide_to_gbk(std::wstring_view 
     return wide_to_multi_byte(936, wide);
 }
 
-#else  // !defined(_WIN32)
+#else   // !defined(_WIN32)
 
 // 非 Windows 平台：函数存在但永远返回 UNIMPLEMENTED，保证头文件可被跨平台代码包含。
 // 这样调用方写 `if (auto r = CharsetConverter::gbk_to_utf8(s); r.is_ok()) { ... }`
@@ -177,7 +176,7 @@ core::Status unimplemented()
     return core::ErrStatus(core::StatusCode::UNIMPLEMENTED,
                            "CharsetConverter is only available on Windows");
 }
-}  // namespace
+}   // namespace
 
 core::StatusResult<std::wstring> CharsetConverter::utf8_to_wide(std::string_view)
 {
@@ -212,6 +211,6 @@ core::StatusResult<std::string> CharsetConverter::wide_to_gbk(std::wstring_view)
     return core::Err(unimplemented());
 }
 
-#endif  // defined(_WIN32)
+#endif   // defined(_WIN32)
 
-}  // namespace ca::str
+}   // namespace ca::str

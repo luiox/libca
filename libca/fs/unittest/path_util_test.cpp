@@ -2,7 +2,9 @@
 
 #include "libca/fs/path_util.hpp"
 
-namespace ca { namespace fs { namespace test {
+namespace ca {
+namespace fs {
+namespace test {
 
 using namespace testing;
 
@@ -298,4 +300,6 @@ TEST(PathUtilTest, UnicodePath_SplitPreservesCharacters)
     EXPECT_EQ(parts[1], u8"文件.txt");
 }
 
-}}}  // namespace ca::fs::test
+}   // namespace test
+}   // namespace fs
+}   // namespace ca

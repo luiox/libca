@@ -21,4 +21,4 @@ namespace ca::ui {
 /// @return 至少成功设置一个窗口返回 OK；未命中或 API 不可用返回 INTERNAL。
 core::Status apply_capture_exclusion(const std::string& class_name = "IntermediateD3DWindowClass");
 
-}  // namespace ca::ui
+}   // namespace ca::ui

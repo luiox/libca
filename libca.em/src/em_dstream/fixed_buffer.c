@@ -29,7 +29,8 @@ void fixed_buf_rewind(fixed_buffer_t* self, usize size)
 
     if (size > self->cursor) {
         self->cursor = 0;
-    } else {
+    }
+    else {
         self->cursor -= size;
     }
 }
@@ -45,7 +46,8 @@ void fixed_buf_flush(fixed_buffer_t* self)
         usize remaining = self->used - self->cursor;
         memmove(self->raw, self->raw + self->cursor, remaining);
         self->used = remaining;
-    } else {
+    }
+    else {
         self->used = 0;
     }
     self->cursor = 0;
@@ -165,4 +167,3 @@ i32 fixed_buf_write(fixed_buffer_t* self, const u8* data, usize size)
     }
     return (i32)to_write;
 }
-

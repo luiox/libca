@@ -1,5 +1,6 @@
 /// @file utf8_string.hpp
-/// @brief 不可变 UTF-8 字符串：拥有所有权的 Utf8String、非拥有视图 Utf8StringRef、码点迭代器 Utf8Iterator。
+/// @brief 不可变 UTF-8 字符串：拥有所有权的 Utf8String、非拥有视图 Utf8StringRef、码点迭代器
+/// Utf8Iterator。
 /// @author Canrad
 /// @date 2026/05/31
 /// @note 命名空间 ca::str，UTF-8 是唯一编码，按 u8 存储。
@@ -35,9 +36,12 @@ class ZUtf8StringRef;
 
 /// @brief 非拥有、不可变的 UTF-8 字符串视图（类似 Rust &str）。
 /// @warning 不拥有数据，调用方须保证 data() 在视图使用期内有效。来自 Utf8String::ref()/slice()
-///          的视图在原串销毁或移动后失效；来自 Utf8StringArena::intern() 的在 arena 销毁/clear() 后失效。
-/// @note 不保证结尾 `\0`，故**不提供** c_str()（中段切片不能假设以 `\0` 结尾）。切片须落在码点边界。
-class Utf8StringRef {
+///          的视图在原串销毁或移动后失效；来自 Utf8StringArena::intern() 的在 arena 销毁/clear()
+///          后失效。
+/// @note 不保证结尾 `\0`，故**不提供** c_str()（中段切片不能假设以 `\0`
+/// 结尾）。切片须落在码点边界。
+class Utf8StringRef
+{
 public:
     /// 空视图。
     Utf8StringRef() noexcept;
@@ -82,7 +86,8 @@ public:
     operator std::string_view() const noexcept;
 
     // 不提供c_str的根本原因是 拿到原始的c风格字符串，如果UTF8字符串内部有\0，那么不能保证可用性，
-    // 其次如果只为了方便提供一个const char*版本的原始字符串，而且因为是ref，所以如果是别人字符串的中间切片的ref，也不能随意修改加\0
+    // 其次如果只为了方便提供一个const
+    // char*版本的原始字符串，而且因为是ref，所以如果是别人字符串的中间切片的ref，也不能随意修改加\0
     // 所以c_str这种导出一个const char*的接口不能在0拷贝情况下存在
     // const char* c_str();
 
@@ -164,6 +169,7 @@ public:
 
     // 创建标准库的字符串
     std::string to_std_string() const;
+
 private:
     const u8* data_;
     usize     byte_length_;
@@ -174,7 +180,8 @@ private:
 /// @brief 拥有所有权、不可变、内部以 `\0` 终止的 UTF-8 字符串。
 /// @note 禁止隐式拷贝（须显式 clone()），可移动。保证结尾 `\0`，故提供 c_str()。
 ///       构造时校验 UTF-8 并缓存码点数。
-class Utf8String {
+class Utf8String
+{
 public:
     // ---- 构造 / 析构 ----
 
@@ -223,7 +230,7 @@ public:
     /// @note 与抛异常的 from_data 并存：前者适合异常不友好的边界（解析器入口、
     ///       FFI），后者适合异常风格调用点。二者校验口径一致。
     static ca::core::StatusResult<Utf8String> try_from_data(const u8* data,
-                                                            usize byte_len) noexcept;
+                                                            usize     byte_len) noexcept;
     /// @brief 从字节数据复制构造，**不校验 UTF-8**，按原始字节保留。
     /// @details 码点数 length 取保守值 byte_length（上界），与
     ///          `Utf8StringArena::intern_raw` 语义一致。用于字节流载体（CSV 等不规定编码
@@ -315,13 +322,13 @@ public:
     usize index_of(const Utf8StringRef& needle, usize start_cp) const noexcept;
     usize index_of(u32 code_point) const noexcept;
     usize index_of(u32 code_point, usize start_cp) const noexcept;
-    bool contains(const Utf8StringRef& needle) const noexcept;
+    bool  contains(const Utf8StringRef& needle) const noexcept;
 
     // ---- 比较 ----
 
-    int compare(const Utf8StringRef& other) const noexcept;
-    int compare(const Utf8String& other) const noexcept;
-    int compare(const char* cstr) const noexcept;
+    int  compare(const Utf8StringRef& other) const noexcept;
+    int  compare(const Utf8String& other) const noexcept;
+    int  compare(const char* cstr) const noexcept;
     bool equals(const Utf8StringRef& other) const noexcept;
     bool equals(const char* cstr) const noexcept;
     bool operator==(const Utf8String& other) const noexcept;
@@ -353,7 +360,8 @@ private:
 /// @brief 构建 Utf8String 的可变构建器（追加写入，build() 校验并产出）。
 /// @note **Provisional**：暴露可变缓冲/容量语义，下游暂勿写入公共接口。
 ///       按长度 append 接受未校验字节，非法直到 build() 才暴露。
-class Utf8StringBuilder {
+class Utf8StringBuilder
+{
 public:
     Utf8StringBuilder() noexcept;
     Utf8StringBuilder(Utf8StringBuilder&& other) noexcept;
@@ -361,7 +369,7 @@ public:
 
     Utf8StringBuilder& operator=(Utf8StringBuilder&& other) noexcept;
 
-    Utf8StringBuilder(const Utf8StringBuilder&) = delete;
+    Utf8StringBuilder(const Utf8StringBuilder&)            = delete;
     Utf8StringBuilder& operator=(const Utf8StringBuilder&) = delete;
 
     Utf8StringBuilder& append(const Utf8StringRef& str);
@@ -370,28 +378,29 @@ public:
     /// @brief 追加指定长度的 char 字节序列，不要求以 NUL 结尾。
     Utf8StringBuilder& append(const char* data, usize byte_length);
     Utf8StringBuilder& append(const u8* data, usize byte_length);
-    bool append_code_point(u32 cp);
+    bool               append_code_point(u32 cp);
 
-    void reserve(usize byte_capacity);
+    void  reserve(usize byte_capacity);
     usize capacity() const noexcept;
     usize byte_length() const noexcept;
-    bool is_empty() const noexcept;
-    void clear() noexcept;
+    bool  is_empty() const noexcept;
+    void  clear() noexcept;
 
     Utf8String build() const;
     Utf8String build_or_empty() const noexcept;
 
 private:
-    u8*   buffer_;
-    usize byte_length_;
-    usize capacity_;
+    u8*                    buffer_;
+    usize                  byte_length_;
+    usize                  capacity_;
     static constexpr usize DEFAULT_CAPACITY = 64;
-    void grow(usize min_capacity);
+    void                   grow(usize min_capacity);
 };
 
 
 /// @brief 前向迭代器，解引用得到 u32 码点，O(1) 步进。配合范围 for 使用。
-class Utf8Iterator {
+class Utf8Iterator
+{
 public:
     using iterator_category = std::forward_iterator_tag;
     using value_type        = u32;
@@ -399,31 +408,33 @@ public:
     using pointer           = const u32*;
     using reference         = u32;
 
-    Utf8Iterator() noexcept : pos_(nullptr), end_(nullptr) {}
-    Utf8Iterator(const u8* pos, const u8* end) noexcept : pos_(pos), end_(end) {}
+    Utf8Iterator() noexcept
+        : pos_(nullptr)
+        , end_(nullptr)
+    {}
+    Utf8Iterator(const u8* pos, const u8* end) noexcept
+        : pos_(pos)
+        , end_(end)
+    {}
 
-    u32 operator*() const noexcept {
-        return utf8_decode_code_point(pos_);
-    }
+    u32 operator*() const noexcept { return utf8_decode_code_point(pos_); }
 
-    Utf8Iterator& operator++() noexcept {
+    Utf8Iterator& operator++() noexcept
+    {
         pos_ += utf8_code_point_bytes_safe(*pos_);
         return *this;
     }
 
-    Utf8Iterator operator++(int) noexcept {
+    Utf8Iterator operator++(int) noexcept
+    {
         Utf8Iterator tmp = *this;
         pos_ += utf8_code_point_bytes_safe(*pos_);
         return tmp;
     }
 
-    bool operator==(const Utf8Iterator& other) const noexcept {
-        return pos_ == other.pos_;
-    }
+    bool operator==(const Utf8Iterator& other) const noexcept { return pos_ == other.pos_; }
 
-    bool operator!=(const Utf8Iterator& other) const noexcept {
-        return pos_ != other.pos_;
-    }
+    bool operator!=(const Utf8Iterator& other) const noexcept { return pos_ != other.pos_; }
 
     const u8* byte_ptr() const noexcept { return pos_; }
 
@@ -485,12 +496,10 @@ bool operator==(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 bool operator!=(const char* lhs, const ZUtf8StringRef& rhs) noexcept;
 
 /// 按分隔符拆分为视图列表
-std::vector<Utf8StringRef> split(const Utf8StringRef& str,
-                                 const Utf8StringRef& delimiter);
+std::vector<Utf8StringRef> split(const Utf8StringRef& str, const Utf8StringRef& delimiter);
 
 /// 用分隔符连接多个字符串
-Utf8String join(const std::vector<Utf8StringRef>& parts,
-                const Utf8StringRef& separator);
+Utf8String join(const std::vector<Utf8StringRef>& parts, const Utf8StringRef& separator);
 
 /// 流输出
 std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s);
@@ -502,7 +511,8 @@ std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 ///       解决了"字面量既不必分配(Utf8String)、又不能丢 `\0` 保证(Utf8StringRef)"的两难。
 /// @warning from_std_string() 的视图依赖传入 std::string 的生命周期；
 ///          from_static() 按 const char* 地址缓存，依赖字面量地址稳定（不保证跨串去重）。
-class ZUtf8StringRef {
+class ZUtf8StringRef
+{
 public:
     /// @brief 从 C 字符串构造（仅建议字面量/全局常量）。命中全局缓存表优化；不保证去重。
     static ZUtf8StringRef from_static(const char* cstr);
@@ -516,22 +526,23 @@ public:
     // 不提供从普通 Utf8StringRef 的隐式转换，防止传入不保证 \0 的视图
 
     const u8* data() const { return data_; }
-    usize byte_length() const { return byte_length_; }
-    usize length() const { return cp_length_; }
+    usize     byte_length() const { return byte_length_; }
+    usize     length() const { return cp_length_; }
     // 安全，保证 \0；空句柄（from_static(nullptr)）返回 nullptr
-    const char* c_str() const { return reinterpret_cast<const char*>(data_); }
+    const char*   c_str() const { return reinterpret_cast<const char*>(data_); }
     Utf8StringRef ref() const noexcept;
     operator Utf8StringRef() const noexcept;
     /// @brief 显式转换为 std::string_view，避免与 Utf8StringRef 的隐式转换产生二义。
-    explicit operator std::string_view() const noexcept {
+    explicit operator std::string_view() const noexcept
+    {
         // nullptr 传给 string_view(const CharT*, n) 是 UB（即便 n==0），空句柄须回落默认构造。
         return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
                                         static_cast<std::string_view::size_type>(byte_length_))
                      : std::string_view{};
     }
 
-    int compare(const Utf8StringRef& other) const noexcept;
-    int compare(const char* cstr) const noexcept;
+    int  compare(const Utf8StringRef& other) const noexcept;
+    int  compare(const char* cstr) const noexcept;
     bool equals(const Utf8StringRef& other) const noexcept;
     bool equals(const char* cstr) const noexcept;
     bool operator==(const Utf8StringRef& other) const noexcept;
@@ -541,10 +552,14 @@ public:
 
 private:
     const u8* data_;
-    usize byte_length_;
-    usize cp_length_;
+    usize     byte_length_;
+    usize     cp_length_;
 
-    ZUtf8StringRef(const u8* d, usize bl, usize cl) : data_(d), byte_length_(bl), cp_length_(cl) {}
+    ZUtf8StringRef(const u8* d, usize bl, usize cl)
+        : data_(d)
+        , byte_length_(bl)
+        , cp_length_(cl)
+    {}
 };
 
 /// @brief `Utf8StringRef == ZUtf8StringRef` 的直接重载。
@@ -580,7 +595,7 @@ bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 
 // ============================================================================
@@ -589,14 +604,16 @@ bool operator!=(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 
 namespace std {
 
-template <>
-struct hash<ca::str::Utf8String> {
+template<>
+struct hash<ca::str::Utf8String>
+{
     size_t operator()(const ca::str::Utf8String& s) const noexcept;
 };
 
-template <>
-struct hash<ca::str::Utf8StringRef> {
+template<>
+struct hash<ca::str::Utf8StringRef>
+{
     size_t operator()(const ca::str::Utf8StringRef& s) const noexcept;
 };
 
-}  // namespace std
+}   // namespace std

@@ -83,7 +83,8 @@ inline std::string& current_lang()
 inline LangIndex* find_lang(const char* lang)
 {
     for (auto& index : lang_registry()) {
-        if (index.lang == lang) return &index;
+        if (index.lang == lang)
+            return &index;
     }
     return nullptr;
 }
@@ -96,20 +97,24 @@ inline bool entry_key_less(const Entry* a, const Entry* b)
 inline const Entry* lookup_in(const LangIndex& index, const char* key)
 {
     auto it = std::lower_bound(
-        index.entries.begin(), index.entries.end(), key,
-        [](const Entry* e, const char* k) { return std::strcmp(e->key, k) < 0; });
-    if (it == index.entries.end() || std::strcmp((*it)->key, key) != 0) return nullptr;
+        index.entries.begin(), index.entries.end(), key, [](const Entry* e, const char* k) {
+            return std::strcmp(e->key, k) < 0;
+        });
+    if (it == index.entries.end() || std::strcmp((*it)->key, key) != 0)
+        return nullptr;
     return *it;
 }
 
 inline const char* lookup(const char* key)
 {
     if (const LangIndex* index = find_lang(current_lang().c_str())) {
-        if (const Entry* hit = lookup_in(*index, key)) return hit->val;
+        if (const Entry* hit = lookup_in(*index, key))
+            return hit->val;
     }
     if (std::strcmp(current_lang().c_str(), kFallbackLang) != 0) {
         if (const LangIndex* fallback = find_lang(kFallbackLang)) {
-            if (const Entry* hit = lookup_in(*fallback, key)) return hit->val;
+            if (const Entry* hit = lookup_in(*fallback, key))
+                return hit->val;
         }
     }
     return key;
@@ -126,8 +131,10 @@ inline bool initialized()
 /// 显式切换语言；未注册的语言忽略并返回 false。
 inline bool set_lang(const char* lang)
 {
-    if (lang == nullptr || lang[0] == '\0') return false;
-    if (detail::find_lang(lang) == nullptr) return false;
+    if (lang == nullptr || lang[0] == '\0')
+        return false;
+    if (detail::find_lang(lang) == nullptr)
+        return false;
     detail::current_lang() = lang;
     return true;
 }
@@ -137,8 +144,7 @@ inline bool set_lang(const char* lang)
 /// @param sets 全部来源的表组（如共享框架表 + 产品线表）；可多次调用追加，
 ///             重复 key 后注册者胜（产品线可覆盖共享层文案）。
 /// @param env_names 按序取第一个非空且命中已注册语言的环境变量；全空用 zh_CN。
-inline void init(std::initializer_list<TableSet> sets,
-                 std::initializer_list<const char*> env_names)
+inline void init(std::initializer_list<TableSet> sets, std::initializer_list<const char*> env_names)
 {
     auto& registry = detail::lang_registry();
     for (const TableSet& set : sets) {
@@ -171,15 +177,17 @@ inline void init(std::initializer_list<TableSet> sets,
     // 环境变量按序取第一个非空且已注册的语言。
     for (const char* name : env_names) {
 #if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996)   // getenv 触发 MSVC C4996 去弃用告警
+#    pragma warning(push)
+#    pragma warning(disable : 4996)   // getenv 触发 MSVC C4996 去弃用告警
 #endif
         const char* value = std::getenv(name);
 #if defined(_MSC_VER)
-#pragma warning(pop)
+#    pragma warning(pop)
 #endif
-        if (value == nullptr || value[0] == '\0') continue;
-        if (set_lang(value)) break;
+        if (value == nullptr || value[0] == '\0')
+            continue;
+        if (set_lang(value))
+            break;
     }
 }
 
@@ -195,7 +203,8 @@ inline bool apply_lang_from_argv(int argc, char** argv)
         std::string_view arg(argv[i]);
         std::string_view value;
         if (arg == kFlag) {
-            if (i + 1 >= argc) return false;
+            if (i + 1 >= argc)
+                return false;
             value = argv[i + 1];
         }
         else if (arg.substr(0, kInline.size()) == kInline) {
@@ -205,7 +214,8 @@ inline bool apply_lang_from_argv(int argc, char** argv)
             continue;
         }
         std::string lang(value);
-        if (!lang.empty() && set_lang(lang.c_str())) return true;
+        if (!lang.empty() && set_lang(lang.c_str()))
+            return true;
     }
     return false;
 }
@@ -226,17 +236,18 @@ inline const char* tr(const char* key)
 /// 缺参的占位符原样保留；多余 args 忽略。
 inline ca::str::Utf8String trf(const char* key, std::initializer_list<std::string_view> args)
 {
-    const char*                 text    = detail::lookup(key);
-    ca::str::Utf8StringBuilder  builder;
-    const char*                 literal = text;   // 当前连续字面量段起点
+    const char*                text = detail::lookup(key);
+    ca::str::Utf8StringBuilder builder;
+    const char*                literal = text;   // 当前连续字面量段起点
     for (const char* p = text; *p != '\0'; ++p) {
-        if (*p != '{') continue;
+        if (*p != '{')
+            continue;
         // {N}：N 为十进制数字串，占位符仅支持 ASCII 数字，与 UTF-8 多字节不冲突。
         const char* q     = p + 1;
         std::size_t n     = 0;
         bool        valid = false;
         while (*q >= '0' && *q <= '9') {
-            n = n * 10 + static_cast<std::size_t>(*q - '0');
+            n     = n * 10 + static_cast<std::size_t>(*q - '0');
             valid = true;
             ++q;
         }

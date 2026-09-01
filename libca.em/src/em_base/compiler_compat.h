@@ -87,7 +87,8 @@
 #    if defined(__GNUC__) || defined(__clang__)
 #        define CA_PACKED __attribute__((packed))
 #    elif defined(__CC_ARM) || defined(__ARMCC_VERSION)
-#        define CA_PACKED __packed   // 为了兼容AC5编译器，我们尽可能使用__packed而不是__attribute__((packed))
+#        define CA_PACKED \
+            __packed   // 为了兼容AC5编译器，我们尽可能使用__packed而不是__attribute__((packed))
 #    elif defined(_MSC_VER)
 #        define CA_PACKED
 // MSVC 比较麻烦需要按照下面这样子写

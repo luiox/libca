@@ -66,13 +66,13 @@ public:
 private:
     static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
-    std::string                          title_;
-    int                                  x_;
-    int                                  y_;
-    int                                  width_;
-    int                                  height_;
-    HWND                                 hwnd_{nullptr};
-    HINSTANCE                            instance_{nullptr};
+    std::string                           title_;
+    int                                   x_;
+    int                                   y_;
+    int                                   width_;
+    int                                   height_;
+    HWND                                  hwnd_{nullptr};
+    HINSTANCE                             instance_{nullptr};
     std::vector<std::shared_ptr<Control>> controls_;
 };
 
@@ -100,4 +100,4 @@ private:
     std::map<HWND, Window*> windows_;
 };
 
-}  // namespace ca::ui
+}   // namespace ca::ui

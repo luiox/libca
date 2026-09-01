@@ -61,7 +61,7 @@ TEST_CASE(doubly_linked_list_iteration)
     doubly_linked_list_t list;
     doubly_linked_list_init(&list);
 
-    int data[3] = {1, 2, 3};
+    int                       data[3] = {1, 2, 3};
     doubly_linked_list_node_t nodes[3];
     for (int i = 0; i < 3; i++) {
         doubly_linked_list_node_init(&nodes[i], &data[i]);
@@ -69,14 +69,16 @@ TEST_CASE(doubly_linked_list_iteration)
     }
 
     int count = 0;
-    DOUBLE_LINKED_LIST_FOR_EACH(it, &list) {
+    DOUBLE_LINKED_LIST_FOR_EACH(it, &list)
+    {
         TEST_ASSERT_EQUAL_INT(data[count], *(int*)it->data);
         count++;
     }
     TEST_ASSERT_EQUAL_INT(3, count);
 
     count = 2;
-    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(it, &list) {
+    DOUBLE_LINKED_LIST_REVERSE_FOR_EACH(it, &list)
+    {
         TEST_ASSERT_EQUAL_INT(data[count], *(int*)it->data);
         count--;
     }
@@ -89,7 +91,7 @@ TEST_CASE(doubly_linked_list_dynamic)
     TEST_ASSERT(list != NULL);
     TEST_ASSERT_EQUAL_INT(0, (int)list->size);
 
-    int val = 100;
+    int                        val  = 100;
     doubly_linked_list_node_t* node = doubly_linked_list_node_create(&val);
     TEST_ASSERT(node != NULL);
     TEST_ASSERT(node->data == &val);
@@ -105,4 +107,3 @@ TEST_CASE(doubly_linked_list_dynamic)
     free(node);
     free(list);
 }
-

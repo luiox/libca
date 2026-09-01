@@ -4,14 +4,14 @@
 /// @version 0.1
 /// @date 2025-04-12
 /// @update 0.2 添加extern外部依赖注入模式
-/// update 2026-01-11 重新以OOP方式实现 
+/// update 2026-01-11 重新以OOP方式实现
 ///
 /// @copyright Copyright (c) 2025
 ///
 #ifndef LIBCA_EM_DRIVER_KEY_H
 #define LIBCA_EM_DRIVER_KEY_H
 
-#include <em_base/datatype.h> 
+#include <em_base/datatype.h>
 
 // 外部模式
 #define LIBCA_KEY_PORT_MODE_EXTERN 1
@@ -19,7 +19,7 @@
 #define LIBCA_KEY_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_KEY_PORT_MODE
-#define LIBCA_KEY_PORT_MODE LIBCA_KEY_PORT_MODE_EXTERN
+#    define LIBCA_KEY_PORT_MODE LIBCA_KEY_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -34,14 +34,15 @@ extern "C" {
 extern u8 port_key_read_pin(void* gpio, u16 pin);
 
 #elif (LIBCA_KEY_PORT_MODE == LIBCA_KEY_PORT_MODE_DYNAMIC)
-typedef struct key_port {
-    u8 (*read_pin)(void* gpio, u16 pin);  // 读取引脚电平
+typedef struct key_port
+{
+    u8 (*read_pin)(void* gpio, u16 pin);   // 读取引脚电平
 } key_port_t;
 void key_bind_port(const key_port_t* port);
 bool key_port_is_registered(void);
 
 #else
-#error "Invalid KEY port mode"
+#    error "Invalid KEY port mode"
 #endif
 
 #define KEY_STATE_PRESS 1
@@ -50,7 +51,7 @@ bool key_port_is_registered(void);
 typedef struct key
 {
     void* gpio;
-    u16 pin;
+    u16   pin;
 
     // 按键状态，KEY_STATE_PRESS或者是KEY_STATE_RELEASE
     u8 key_state;
@@ -65,7 +66,7 @@ typedef struct key
     // 时间，tick为单位
     // 如果是确定按下的时候，是按下的时间，要不然是第一次按下以后，滤波的时间
     u16 time;
-}key_t;
+} key_t;
 
 void key_init(key_t* self);
 // 扫描按键，更新按键状态，一般来说放在10ms或者20ms这种中断里面
@@ -89,4 +90,4 @@ void key_scan_all(key_t* keys, usize keys_size);
 }
 #endif
 
-#endif // !LIBCA_EM_DRIVER_KEY_H
+#endif   // !LIBCA_EM_DRIVER_KEY_H

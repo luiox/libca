@@ -14,17 +14,17 @@
 
 // 启用浮点支持（默认0，若需要则定义为1）
 #ifndef FMT_ENABLE_FLOAT
-#define FMT_ENABLE_FLOAT 0
+#    define FMT_ENABLE_FLOAT 0
 #endif
 
 // 启用宽度/精度支持（默认0，若需要则定义为1），即 %.Nf 和 %0Nd
 #ifndef FMT_ENABLE_WIDTH_PRECISION
-#define FMT_ENABLE_WIDTH_PRECISION 0
+#    define FMT_ENABLE_WIDTH_PRECISION 0
 #endif
 
 // 启用十六进制支持（默认0，若需要则定义为1），即 %x 和 %X
 #ifndef FMT_ENABLE_HEX
-#define FMT_ENABLE_HEX 0
+#    define FMT_ENABLE_HEX 0
 #endif
 
 // 固定N位小数的截断
@@ -36,29 +36,29 @@
 
 // 若启用浮点，还可选择浮点处理模式
 #ifndef FMT_FLOAT_MODE
-#define FMT_FLOAT_MODE FMT_FLOAT_MODE_FIXED
+#    define FMT_FLOAT_MODE FMT_FLOAT_MODE_FIXED
 #endif
 
 // 当浮点启用且模式为 FIXED 时，固定小数位数
 #ifndef FMT_FIXED_DECIMALS
-#define FMT_FIXED_DECIMALS 3U
+#    define FMT_FIXED_DECIMALS 3U
 #endif
 
 // 默认精度（当未启用宽度精度时，浮点输出使用的默认小数位数）
 #ifndef FMT_DEFAULT_PRECISION
-#define FMT_DEFAULT_PRECISION 3U
+#    define FMT_DEFAULT_PRECISION 3U
 #endif
 
 #ifndef FMT_U32_TMP_BUF_SIZE
-#define FMT_U32_TMP_BUF_SIZE 16U
+#    define FMT_U32_TMP_BUF_SIZE 16U
 #endif
 
 #ifndef FMT_BASE_CONV_TMP_BUF_SIZE
-#define FMT_BASE_CONV_TMP_BUF_SIZE 16U
+#    define FMT_BASE_CONV_TMP_BUF_SIZE 16U
 #endif
 
 #ifndef FMT_F64_TO_STR_TMP_BUF_SIZE
-#define FMT_F64_TO_STR_TMP_BUF_SIZE 48U
+#    define FMT_F64_TO_STR_TMP_BUF_SIZE 48U
 #endif
 
 /// @brief 格式化特性开关说明
@@ -206,4 +206,4 @@ i32 fmt_snprintf_fast(char* buf, usize buf_size, const char* fmt, ...);
 /// @return 实际写入字符数（不包含 '\0'）；当参数非法时返回 0
 i32 fmt_sprintf(char* buf, const char* fmt, ...);
 
-#endif // !LIBCA_EM_FORMAT_FORMAT_H
+#endif   // !LIBCA_EM_FORMAT_FORMAT_H

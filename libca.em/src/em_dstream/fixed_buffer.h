@@ -22,11 +22,11 @@ extern "C" {
 
 ///
 /// @brief fixed_buffer 的错误码
-#define FIXED_BUF_OK          0  ///< 成功
-#define FIXED_BUF_ERR_FULL    -1 ///< 缓冲区已满
-#define FIXED_BUF_ERR_EMPTY   -2 ///< 缓冲区为空
-#define FIXED_BUF_ERR_INVALID -3 ///< 无效参数
-#define FIXED_BUF_ERR_OOB     -4 ///< 越界访问
+#define FIXED_BUF_OK 0             ///< 成功
+#define FIXED_BUF_ERR_FULL -1      ///< 缓冲区已满
+#define FIXED_BUF_ERR_EMPTY -2     ///< 缓冲区为空
+#define FIXED_BUF_ERR_INVALID -3   ///< 无效参数
+#define FIXED_BUF_ERR_OOB -4       ///< 越界访问
 
 ///
 /// @brief 固定大小的缓冲区结构
@@ -35,10 +35,10 @@ extern "C" {
 /// used 是当前缓冲区中有效数据的长度。
 typedef struct fixed_buffer
 {
-    u8*   raw;      ///< 缓冲区指针
-    usize capacity; ///< 缓冲区的总大小
-    usize used;     ///< 缓冲区使用了的大小
-    usize cursor;   ///< 当前游标位置
+    u8*   raw;        ///< 缓冲区指针
+    usize capacity;   ///< 缓冲区的总大小
+    usize used;       ///< 缓冲区使用了的大小
+    usize cursor;     ///< 当前游标位置
 } fixed_buffer_t;
 
 ///

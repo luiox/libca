@@ -19,37 +19,40 @@ extern "C" {
 
 ///
 /// @brief 定界符解析器结果码
-typedef enum delimiter_parser_result_enum {
-    DELIMITER_PARSER_OK = 0,                ///< 成功找到完整帧
-    DELIMITER_PARSER_NEED_MORE,             ///< 数据不足，需等待更多数据
-    DELIMITER_PARSER_ERR_FRAME_TOO_LONG,    ///< 帧长度超出 max_frame_len
-    DELIMITER_PARSER_ERR_INTERNAL,          ///< 内部错误（参数非法等）
+typedef enum delimiter_parser_result_enum
+{
+    DELIMITER_PARSER_OK = 0,               ///< 成功找到完整帧
+    DELIMITER_PARSER_NEED_MORE,            ///< 数据不足，需等待更多数据
+    DELIMITER_PARSER_ERR_FRAME_TOO_LONG,   ///< 帧长度超出 max_frame_len
+    DELIMITER_PARSER_ERR_INTERNAL,         ///< 内部错误（参数非法等）
 } delimiter_parser_result_t;
 
 typedef struct delimiter_parser delimiter_parser_t;
 
 ///
 /// @brief 定界符解析器状态
-typedef enum delimiter_parser_state_enum {
-    DELIM_STATE_IDLE,                ///< 空闲：寻找头部（若有）或直接进入帧
-    DELIM_STATE_IN_FRAME,            ///< 已进入帧，正在寻找尾部
-    DELIM_STATE_TRAILER_MATCH,       ///< 部分匹配尾部
-    DELIM_STATE_FRAME_READY,         ///< 完整帧已找到
+typedef enum delimiter_parser_state_enum
+{
+    DELIM_STATE_IDLE,            ///< 空闲：寻找头部（若有）或直接进入帧
+    DELIM_STATE_IN_FRAME,        ///< 已进入帧，正在寻找尾部
+    DELIM_STATE_TRAILER_MATCH,   ///< 部分匹配尾部
+    DELIM_STATE_FRAME_READY,     ///< 完整帧已找到
 } delimiter_parser_state_t;
 
 ///
 /// @brief 定界符解析器
-struct delimiter_parser {
-    dstream_t* ds;                  ///< 关联的数据流
-    const u8* header;               ///< 头部定界符（可为NULL）
-    usize header_len;               ///< 头部长度
-    const u8* trailer;              ///< 尾部定界符（可为NULL）
-    usize trailer_len;              ///< 尾部长度
-    usize max_frame_len;            ///< 允许的最大帧总长度（含头部和尾部）
+struct delimiter_parser
+{
+    dstream_t* ds;              ///< 关联的数据流
+    const u8*  header;          ///< 头部定界符（可为NULL）
+    usize      header_len;      ///< 头部长度
+    const u8*  trailer;         ///< 尾部定界符（可为NULL）
+    usize      trailer_len;     ///< 尾部长度
+    usize      max_frame_len;   ///< 允许的最大帧总长度（含头部和尾部）
 
-    delimiter_parser_state_t state; ///< 状态机状态
-    usize match_len;                ///< 当前已匹配的定界符字节数
-    usize current_frame_len;        ///< 从帧起始开始已累积的字节数
+    delimiter_parser_state_t state;               ///< 状态机状态
+    usize                    match_len;           ///< 当前已匹配的定界符字节数
+    usize                    current_frame_len;   ///< 从帧起始开始已累积的字节数
 };
 
 ///
@@ -62,9 +65,8 @@ struct delimiter_parser {
 /// @param trailer_len 尾部长度
 /// @param max_frame_len 最大允许帧长度（包含头部和尾部），超过此值视为错误
 /// @note 必须至少提供一个定界符（头部或尾部），否则无法定界
-void delimiter_parser_init(delimiter_parser_t* self, dstream_t* ds,
-                           const u8* header, usize header_len,
-                           const u8* trailer, usize trailer_len,
+void delimiter_parser_init(delimiter_parser_t* self, dstream_t* ds, const u8* header,
+                           usize header_len, const u8* trailer, usize trailer_len,
                            usize max_frame_len);
 
 ///
@@ -94,4 +96,4 @@ void delimiter_parser_reset(delimiter_parser_t* self);
 }
 #endif
 
-#endif // LIBCA_EM_DSTREAM_DELIMITER_PARSER_H
+#endif   // LIBCA_EM_DSTREAM_DELIMITER_PARSER_H

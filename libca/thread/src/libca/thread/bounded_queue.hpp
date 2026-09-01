@@ -23,9 +23,9 @@ template<typename T>
 class BoundedQueue
 {
 public:
-    BoundedQueue(const BoundedQueue&)            = delete;
-    BoundedQueue& operator=(const BoundedQueue&) = delete;
-    BoundedQueue(BoundedQueue&&) noexcept = default;
+    BoundedQueue(const BoundedQueue&)                = delete;
+    BoundedQueue& operator=(const BoundedQueue&)     = delete;
+    BoundedQueue(BoundedQueue&&) noexcept            = default;
     BoundedQueue& operator=(BoundedQueue&&) noexcept = default;
 
     /// @brief 创建指定容量的队列。
@@ -34,14 +34,14 @@ public:
     {
         if (capacity == 0)
             return ca::core::Err(ca::core::ErrStatus(ca::core::StatusCode::INVALID_ARGUMENT,
-                                                      "queue capacity must be nonzero"));
+                                                     "queue capacity must be nonzero"));
         try {
             return ca::core::Ok(BoundedQueue(std::make_shared<State>(capacity)));
         }
         catch (const std::exception& error) {
-            return ca::core::Err(ca::core::ErrStatus(
-                ca::core::StatusCode::RESOURCE_EXHAUSTED,
-                std::string("queue allocation failed: ") + error.what()));
+            return ca::core::Err(
+                ca::core::ErrStatus(ca::core::StatusCode::RESOURCE_EXHAUSTED,
+                                    std::string("queue allocation failed: ") + error.what()));
         }
     }
 
@@ -53,9 +53,8 @@ public:
             return invalid_state("push");
 
         std::unique_lock<std::mutex> lock(state->mutex);
-        state->not_full.wait(lock, [&]() {
-            return state->closed || state->items.size() < state->capacity;
-        });
+        state->not_full.wait(
+            lock, [&]() { return state->closed || state->items.size() < state->capacity; });
         if (state->closed)
             return closed_for_push();
         state->items.push_back(std::move(value));
@@ -205,10 +204,7 @@ public:
     }
 
     /// @brief 返回固定容量；移动后的空对象返回 0。
-    usize capacity() const noexcept
-    {
-        return state_ == nullptr ? 0 : state_->capacity;
-    }
+    usize capacity() const noexcept { return state_ == nullptr ? 0 : state_->capacity; }
 
     /// @brief 返回当前元素数量。
     usize size() const noexcept
@@ -263,8 +259,7 @@ private:
 
     static ca::core::Status closed_for_pop()
     {
-        return ca::core::ErrStatus(ca::core::StatusCode::CANCELLED,
-                                   "queue is closed and empty");
+        return ca::core::ErrStatus(ca::core::StatusCode::CANCELLED, "queue is closed and empty");
     }
 
     std::shared_ptr<State> state_;

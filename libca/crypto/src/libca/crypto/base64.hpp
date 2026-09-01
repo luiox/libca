@@ -26,4 +26,4 @@ std::string base64_encode(ca::core::ByteSlice data);
 /// @return 成功返回解码后的字节；格式、padding 或补零位非法时返回 INVALID_BASE64。
 ca::Result<ca::core::Bytes, CryptoError> base64_decode(const std::string& src);
 
-} // namespace ca::crypto
+}   // namespace ca::crypto

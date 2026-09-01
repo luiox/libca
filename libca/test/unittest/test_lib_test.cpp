@@ -31,7 +31,8 @@ void set_env(const char* name, const char* value)
 #else
     if (value && value[0]) {
         setenv(name, value, 1);
-    } else {
+    }
+    else {
         unsetenv(name);
     }
 #endif

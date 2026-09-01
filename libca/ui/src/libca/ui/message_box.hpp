@@ -25,7 +25,9 @@ class MessageDialog
 public:
     /// @brief 构造，记录标题与内容。
     MessageDialog(std::string title, std::string message)
-        : title_(std::move(title)), message_(std::move(message)) {}
+        : title_(std::move(title))
+        , message_(std::move(message))
+    {}
 
     /// @brief 弹出信息框（::MessageBoxW，MB_ICONINFORMATION）。
     /// @return 用户点击的按钮 ID（IDOK/IDCANCEL 等）；文本不是合法 UTF-8 时返回
@@ -40,4 +42,4 @@ private:
     std::string message_;
 };
 
-}  // namespace ca::ui
+}   // namespace ca::ui

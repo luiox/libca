@@ -8,7 +8,8 @@
 #include <em_base/datatype.h>
 
 // CRC-32/IEEE 802.3
-// 多项式: 0x04C11DB7 (x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1)
+// 多项式: 0x04C11DB7 (x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4
+// + x^2 + x + 1)
 u32 crc32_ieee(const void* data, usize size);
 u32 crc32_ieee_fast(const void* data, usize size);
 /// @brief CRC-32/IEEE 滚动计算版本，用于数据分块到达、无法一次性读入的场景（如 OTA 镜像校验）
@@ -42,4 +43,4 @@ u16 crc16_ymodem_fast(const void* data, usize size);
 // u8的checksum计算
 u8 checksum_calc_u8(const u8* data, usize len);
 
-#endif // !LIBCA_EM_UTIL_CRC_H
+#endif   // !LIBCA_EM_UTIL_CRC_H

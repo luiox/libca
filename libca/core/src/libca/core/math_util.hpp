@@ -16,7 +16,8 @@ namespace ca::core {
 /// `MathUtil` 只封装稳定、无状态的基础数学操作，不保存运行时上下文，也不处理
 /// Java 异常或对象语义。整数除法相关函数按 Java `Math.floorDiv` /
 /// `Math.floorMod` 的符号规则实现，便于翻译器直接映射。
-class MathUtil {
+class MathUtil
+{
 public:
     /// @brief 返回两个值中较小的一个。
     template<typename T>
@@ -49,27 +50,29 @@ public:
         static_assert(std::is_arithmetic<T>::value, "MathUtil::abs requires an arithmetic type");
         if constexpr (std::is_unsigned<T>::value) {
             return value;
-        } else if constexpr (std::is_integral<T>::value) {
+        }
+        else if constexpr (std::is_integral<T>::value) {
             // 经无符号取反规避 -min() 的有符号溢出 UB。
             using U = std::make_unsigned_t<T>;
             return value < static_cast<T>(0)
                        ? static_cast<T>(static_cast<U>(0) - static_cast<U>(value))
                        : value;
-        } else {
+        }
+        else {
             return value < static_cast<T>(0) ? -value : value;
         }
     }
 
     /// @brief 向负无穷取整，包装 `std::floor`。
-    static float floor(float value) noexcept { return std::floor(value); }
+    static float  floor(float value) noexcept { return std::floor(value); }
     static double floor(double value) noexcept { return std::floor(value); }
 
     /// @brief 向正无穷取整，包装 `std::ceil`。
-    static float ceil(float value) noexcept { return std::ceil(value); }
+    static float  ceil(float value) noexcept { return std::ceil(value); }
     static double ceil(double value) noexcept { return std::ceil(value); }
 
     /// @brief 四舍五入到浮点整数值，包装 `std::round`。
-    static float round(float value) noexcept { return std::round(value); }
+    static float  round(float value) noexcept { return std::round(value); }
     static double round(double value) noexcept { return std::round(value); }
 
     /// @brief 按 Java `Math.round(float)` 语义返回 i32。
@@ -109,10 +112,10 @@ public:
         if (lhs == std::numeric_limits<T>::min() && rhs == static_cast<T>(-1))
             return std::numeric_limits<T>::min();
 
-        const T quotient = static_cast<T>(lhs / rhs);
+        const T quotient  = static_cast<T>(lhs / rhs);
         const T remainder = static_cast<T>(lhs % rhs);
-        if (remainder != static_cast<T>(0)
-            && ((remainder < static_cast<T>(0)) != (rhs < static_cast<T>(0)))) {
+        if (remainder != static_cast<T>(0) &&
+            ((remainder < static_cast<T>(0)) != (rhs < static_cast<T>(0)))) {
             return static_cast<T>(quotient - static_cast<T>(1));
         }
         return quotient;
@@ -132,8 +135,8 @@ public:
     }
 };
 
-}  // namespace ca::core
+}   // namespace ca::core
 
 namespace ca {
-    using core::MathUtil;
+using core::MathUtil;
 }

@@ -10,34 +10,35 @@
 #include "libca/core/datatype.hpp"
 #include "libca/core/result.hpp"
 
-namespace ca { namespace fs {
+namespace ca {
+namespace fs {
 
 /// 文件写入模式常量
 struct FileMode
 {
-    static constexpr unsigned int OVERWRITE   = 0x01;  ///< 覆盖写入（默认）
-    static constexpr unsigned int APPEND      = 0x02;  ///< 追加写入
-    static constexpr unsigned int CREATE_NEW  = 0x04;  ///< 创建新文件，失败若已存在
+    static constexpr unsigned int OVERWRITE  = 0x01;   ///< 覆盖写入（默认）
+    static constexpr unsigned int APPEND     = 0x02;   ///< 追加写入
+    static constexpr unsigned int CREATE_NEW = 0x04;   ///< 创建新文件，失败若已存在
 };
 
 /// @brief 文件元数据快照。
 /// @note 使用 symlink_status 获取类型信息，因此 is_symlink 可以识别符号链接本身。
 struct FileMetadata
 {
-    bool exists = false;                         ///< 路径是否存在
-    bool is_file = false;                        ///< 是否为普通文件
-    bool is_directory = false;                   ///< 是否为目录
-    bool is_symlink = false;                     ///< 是否为符号链接
-    ca::i64 size = -1;                           ///< 普通文件大小；非普通文件为 -1
-    std::filesystem::perms permissions{};        ///< 文件权限位
-    std::filesystem::file_time_type modified_at; ///< 最后修改时间
+    bool                            exists       = false;   ///< 路径是否存在
+    bool                            is_file      = false;   ///< 是否为普通文件
+    bool                            is_directory = false;   ///< 是否为目录
+    bool                            is_symlink   = false;   ///< 是否为符号链接
+    ca::i64                         size = -1;       ///< 普通文件大小；非普通文件为 -1
+    std::filesystem::perms          permissions{};   ///< 文件权限位
+    std::filesystem::file_time_type modified_at;     ///< 最后修改时间
 };
 
 /// 文件与目录操作工具类
 ///
 /// 封装 std::filesystem，提供类似 Java FileUtil 的便捷静态接口。
-/// 可能失败且需知原因的操作返回 ca::Result<T, FsError>（结构化错误码，可用 to_string 转可读字符串）；
-/// 纯查询/只关心成败的操作返回裸 bool 或哨兵值。不向外抛异常。
+/// 可能失败且需知原因的操作返回 ca::Result<T, FsError>（结构化错误码，可用 to_string
+/// 转可读字符串）； 纯查询/只关心成败的操作返回裸 bool 或哨兵值。不向外抛异常。
 ///
 /// @note 所有 `std::string` 路径参数一律按 **UTF-8** 编码。内部统一用
 ///       `std::filesystem::u8path` 构造路径，在 Windows 上正确按 UTF-8 解码为
@@ -55,9 +56,9 @@ public:
     static Result<std::string, FsError> read_all_text(const std::string& path);
 
     /// 按模式写入字节序列到文件。content 为非拥有只读视图（ca::core::ByteSlice）。
-    static Result<void, FsError> write_bytes(const std::string& path,
+    static Result<void, FsError> write_bytes(const std::string&         path,
                                              const ca::core::ByteSlice& content,
-                                             unsigned int mode = FileMode::OVERWRITE);
+                                             unsigned int               mode = FileMode::OVERWRITE);
 
     /// 按模式写入字符串到文件
     static Result<void, FsError> write_text(const std::string& path, const std::string& content,
@@ -68,7 +69,7 @@ public:
     /// @param content 待写入的非拥有字节视图。
     /// @return 成功返回 Ok；失败返回 FsError，并尽力清理临时文件。
     /// @note 失败时不会主动删除或截断既有目标文件；rename 是唯一提交点。
-    static Result<void, FsError> atomic_write_bytes(const std::string& path,
+    static Result<void, FsError> atomic_write_bytes(const std::string&         path,
                                                     const ca::core::ByteSlice& content);
 
     /// @brief 原子写入 UTF-8 文本：先写入同目录临时文件，再用 rename 提交。
@@ -112,7 +113,7 @@ public:
 
     /// 列出目录下所有文件（不含子目录本身）。recursive=true 时递归所有子目录。
     static Result<std::vector<std::string>, FsError> list_files(const std::string& dir,
-                                                                 bool recursive = false);
+                                                                bool recursive = false);
 
     /// 列出目录下的直接条目（文件和子目录）
     static Result<std::vector<std::string>, FsError> list_entries(const std::string& dir);
@@ -158,7 +159,7 @@ public:
 
     /// 创建临时文件，返回完整路径
     static Result<std::string, FsError> create_temp_file(const std::string& prefix = "",
-                                                          const std::string& suffix = "");
+                                                         const std::string& suffix = "");
 
     /// 创建临时目录，返回完整路径
     static Result<std::string, FsError> create_temp_directory(const std::string& prefix = "");
@@ -177,4 +178,5 @@ public:
     static bool is_writable(const std::string& path);
 };
 
-}}  // namespace ca::fs
+}   // namespace fs
+}   // namespace ca

@@ -10,7 +10,7 @@ namespace {
 
 constexpr ca::usize SHA256_BLOCK_SIZE = 64;
 
-}  // namespace
+}   // namespace
 
 ca::core::Bytes hmac_sha256(ca::core::ByteSlice key, ca::core::ByteSlice data)
 {
@@ -23,13 +23,15 @@ ca::core::Bytes hmac_sha256(ca::core::ByteSlice key, ca::core::ByteSlice data)
         // 密钥哈希与密钥等价（HMAC 语义下可直接充当密钥），同样属于敏感材料。
         // as_ptr 为只读视图，本地缓冲底层可写，经 const_cast 清零。
         secure_zero(const_cast<ca::u8*>(hashed_key.as_ptr()), hashed_key.len());
-    } else {
+    }
+    else {
         for (ca::usize i = 0; i < key.size(); ++i)
             key_block[i] = key[i];
     }
 
     ca::core::BytesMut inner = ca::core::BytesMut::with_capacity(SHA256_BLOCK_SIZE + data.size());
-    ca::core::BytesMut outer = ca::core::BytesMut::with_capacity(SHA256_BLOCK_SIZE + SHA256::HashBytes);
+    ca::core::BytesMut outer =
+        ca::core::BytesMut::with_capacity(SHA256_BLOCK_SIZE + SHA256::HashBytes);
 
     for (ca::usize i = 0; i < SHA256_BLOCK_SIZE; ++i) {
         inner.put_u8(static_cast<ca::u8>(key_block[i] ^ 0x36));
@@ -55,4 +57,4 @@ std::string hmac_sha256_hex(ca::core::ByteSlice key, ca::core::ByteSlice data)
     return hex_encode(ca::core::ByteSlice(digest.as_ptr(), digest.len()));
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

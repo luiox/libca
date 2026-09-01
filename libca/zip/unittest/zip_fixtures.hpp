@@ -47,7 +47,7 @@ inline uint32_t crc32_of(const T& container)
 }
 
 // 单条 stored 条目的最小合法 ZIP。
-inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name = "a.txt",
+inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name    = "a.txt",
                                                      const std::string& content = "abc")
 {
     const std::vector<uint8_t> data(content.begin(), content.end());
@@ -108,7 +108,7 @@ inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name = "
 // 带 "PREFIX" 前缀的自提取式 ZIP64：CEN 偏移相对 ZIP 段自身。
 inline std::vector<uint8_t> build_prefixed_zip64_zip()
 {
-    const std::string         name = "zip64.txt";
+    const std::string          name = "zip64.txt";
     const std::vector<uint8_t> data = {'z', 'i', 'p', '6', '4'};
     const uint32_t             crc  = crc32_of(data);
     const uint32_t             size = static_cast<uint32_t>(data.size());
@@ -185,8 +185,8 @@ inline std::vector<uint8_t> build_prefixed_zip64_zip()
 // CEN 中 CRC 与 LOC 数据不一致的归档：读取时应报 CRC 校验失败。
 inline std::vector<uint8_t> build_crc_mismatch_zip()
 {
-    const std::string         name       = "a.txt";
-    const std::vector<uint8_t> data      = {'a', 'b', 'c'};
+    const std::string          name       = "a.txt";
+    const std::vector<uint8_t> data       = {'a', 'b', 'c'};
     const uint32_t             correctCrc = crc32_of(data);
     const uint32_t             wrongCrc   = 0xDEADBEEF;
     const uint32_t             size       = static_cast<uint32_t>(data.size());
@@ -245,9 +245,9 @@ inline std::vector<uint8_t> build_crc_mismatch_zip()
 // 单条 stored 条目 + 无签名 12 字节旧式 data descriptor。
 inline std::vector<uint8_t> build_stored_zip_with_unsigned_data_descriptor()
 {
-    constexpr uint16_t        kDdFlags = 0x0008u;
-    std::vector<uint8_t>      out;
-    const std::string         name = "a.txt";
+    constexpr uint16_t         kDdFlags = 0x0008u;
+    std::vector<uint8_t>       out;
+    const std::string          name = "a.txt";
     const std::vector<uint8_t> data = {'a', 'b', 'c'};
 
     append_u32_le(out, 0x04034b50u);
@@ -350,7 +350,7 @@ inline std::vector<uint8_t> build_truncated_unsigned_data_descriptor_zip()
 inline std::filesystem::path temp_path(const std::string& filename)
 {
     namespace fs = std::filesystem;
-    auto dir = fs::temp_directory_path() / "libca_zip_test";
+    auto dir     = fs::temp_directory_path() / "libca_zip_test";
     fs::create_directories(dir);
     return dir / filename;
 }

@@ -26,7 +26,8 @@ class CsvWriter;
 /// @brief CSV 的一行记录。
 /// @details CsvRow 是字段 Utf8StringRef 的轻量包装，保留字段顺序，允许字段为空字符串。
 ///          字段 ref 生命周期绑定所属 CsvDocument。
-class CsvRow {
+class CsvRow
+{
 public:
     /// @brief 构造空行。
     CsvRow() = default;
@@ -75,12 +76,13 @@ private:
 /// @brief CSV 文档数据模型（Arena 架构）。
 /// @details 文档由可选标题行和若干数据行组成。标题行不强制和记录行列数一致，
 ///          以便承载不规则 CSV；需要严格校验时可在上层业务中按 size() 判断。
-class CsvDocument {
+class CsvDocument
+{
 public:
     CsvDocument();
     ~CsvDocument();
 
-    CsvDocument(const CsvDocument&) = delete;
+    CsvDocument(const CsvDocument&)            = delete;
     CsvDocument& operator=(const CsvDocument&) = delete;
     CsvDocument(CsvDocument&& other) noexcept;
     CsvDocument& operator=(CsvDocument&& other) noexcept;
@@ -128,10 +130,10 @@ public:
     void clear() noexcept;
 
 private:
-    ca::str::Utf8StringArena arena_;
-    bool header_enabled_ = false;
+    ca::str::Utf8StringArena            arena_;
+    bool                                header_enabled_ = false;
     std::vector<ca::str::Utf8StringRef> header_;
-    std::vector<CsvRow> rows_;
+    std::vector<CsvRow>                 rows_;
 };
 
-}  // namespace ca::csv
+}   // namespace ca::csv

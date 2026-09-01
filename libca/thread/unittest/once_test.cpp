@@ -63,7 +63,7 @@ TEST(OnceCellTest, HoldsMovableOnlyType)
 
 TEST(OnceLockTest, ConcurrentGetOrInitRunsFactoryOnce)
 {
-    OnceLock<int>  lock;
+    OnceLock<int>    lock;
     std::atomic<int> factory_calls{0};
     constexpr int    thread_count = 8;
 
@@ -110,5 +110,5 @@ TEST(OnceLockTest, HoldsGlobalSingleton)
     EXPECT_EQ(&logger, &again);
 }
 
-}  // namespace
-}  // namespace ca::sync::test
+}   // namespace
+}   // namespace ca::sync::test

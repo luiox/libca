@@ -3,12 +3,11 @@
 
 #include <em_base/datatype.h>
 
-void heap_init(void *buf, uint32_t size);
+void heap_init(void* buf, uint32_t size);
 
-void *heap_alloc(uint32_t size);
+void* heap_alloc(uint32_t size);
 
-void heap_free(void *ptr);
+void heap_free(void* ptr);
 
 
-#endif // !MYLIB_UTILITY_HEAP_H
-
+#endif   // !MYLIB_UTILITY_HEAP_H

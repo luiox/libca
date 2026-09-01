@@ -100,8 +100,9 @@ IoErrorKind classify_native_error(i64 native_code) noexcept
     case EADDRINUSE: return IoErrorKind::AddrInUse;
     case EADDRNOTAVAIL: return IoErrorKind::AddrNotAvailable;
     case EPIPE: return IoErrorKind::BrokenPipe;
-    case EEXIST: return IoErrorKind::AlreadyExists;
-    // Linux 上 EAGAIN 与 EWOULDBLOCK 同值，直接写两个 case 会重复标签编译失败，故用预处理守卫。
+    case EEXIST:
+        return IoErrorKind::AlreadyExists;
+        // Linux 上 EAGAIN 与 EWOULDBLOCK 同值，直接写两个 case 会重复标签编译失败，故用预处理守卫。
 #    if EAGAIN != EWOULDBLOCK
     case EAGAIN:
 #    endif

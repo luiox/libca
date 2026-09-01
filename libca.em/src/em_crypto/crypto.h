@@ -12,37 +12,40 @@
 
 #include <em_base/datatype.h>
 
-typedef struct crypto_ops {
+typedef struct crypto_ops
+{
     void (*init)(void* context);
     i32 (*encrypt)(void* context, u8* in, usize in_size, u8* out, usize out_size);
     i32 (*decrypt)(void* context, u8* in, usize in_size, u8* out, usize out_size);
     void (*destroy)(void* context);
-}crypto_ops_t; 
+} crypto_ops_t;
 
 ///
 /// @brief 空加密器上下文类型（无状态）
 ///
 /// 该上下文由使用者分配和持有；无需释放。
-typedef struct crypto_null_ctx {
+typedef struct crypto_null_ctx
+{
     /* 无状态，占位以便未来扩展 */
     u8 _reserved;
-}crypto_null_ctx_t;
+} crypto_null_ctx_t;
 
 ///
 /// @brief XOR 加密器上下文类型
 ///
 /// 用户需要提供该上下文实例并通过 `crypto_xor_ctx_init` 初始化密钥后
 /// 与 `crypto_ops_get_xor` 返回的操作表配合使用。
-typedef struct crypto_xor_ctx {
+typedef struct crypto_xor_ctx
+{
     ///
     /// @brief 指向密钥数据的指针
     ///
     /// 该上下文不会复制密钥；调用者必须保证传入的密钥缓冲在该上下文
     /// 使用期间保持有效且不可被修改（如果需要请传入只读或在外部保护）。
     const u8* key;
-    /// 密钥长度 
+    /// 密钥长度
     usize key_len;
-}crypto_xor_ctx_t;
+} crypto_xor_ctx_t;
 
 ///
 /// @brief 获取空加密器操作表（单例）
@@ -79,4 +82,4 @@ crypto_ops_t* crypto_ops_get_xor(void);
 /// @return 0 成功；-1 参数不合法或密钥过长
 i32 crypto_xor_ctx_init(crypto_xor_ctx_t* ctx, const u8* key, usize key_len);
 
-#endif // !LIBCA_EM_CRYPTO_CRYPTO_H
+#endif   // !LIBCA_EM_CRYPTO_CRYPTO_H

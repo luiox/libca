@@ -21,14 +21,11 @@ public:
     /// @param logger 已配置好的 spdlog logger（pattern/level/sink 由调用方设定）。
     explicit SpdlogBackend(std::shared_ptr<spdlog::logger> logger);
 
-    void log(Level              level,
-             std::string_view   target,
-             std::string_view   file,
-             int                line,
+    void log(Level level, std::string_view target, std::string_view file, int line,
              const OpaqueFormat& message) override;
 
 private:
     std::shared_ptr<spdlog::logger> logger_;
 };
 
-}  // namespace ca::log
+}   // namespace ca::log

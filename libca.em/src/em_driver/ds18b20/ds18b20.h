@@ -15,7 +15,7 @@
 #define LIBCA_DS18B20_PORT_MODE_DYNAMIC 2
 
 #ifndef LIBCA_DS18B20_PORT_MODE
-#define LIBCA_DS18B20_PORT_MODE LIBCA_DS18B20_PORT_MODE_EXTERN
+#    define LIBCA_DS18B20_PORT_MODE LIBCA_DS18B20_PORT_MODE_EXTERN
 #endif
 
 #ifdef __cplusplus
@@ -46,9 +46,10 @@ extern void port_ds18b20_set_input_mode(void* gpio, u16 pin);
 extern void port_ds18b20_delay_us(u32 us);
 
 #elif (LIBCA_DS18B20_PORT_MODE == LIBCA_DS18B20_PORT_MODE_DYNAMIC)
-typedef struct ds18b20_port {
-    void (*write_pin)(void* gpio, u16 pin, u8 value);  // 写引脚电平
-    u8   (*read_pin)(void* gpio, u16 pin);              // 读引脚电平
+typedef struct ds18b20_port
+{
+    void (*write_pin)(void* gpio, u16 pin, u8 value);   // 写引脚电平
+    u8 (*read_pin)(void* gpio, u16 pin);                // 读引脚电平
     void (*set_output_mode)(void* gpio, u16 pin);       // 设置输出模式
     void (*set_input_mode)(void* gpio, u16 pin);        // 设置输入模式
     void (*delay_us)(u32 us);                           // 微秒延时
@@ -57,16 +58,17 @@ void ds18b20_bind_port(const ds18b20_port_t* port);
 bool ds18b20_port_is_registered(void);
 
 #else
-#error "Invalid DS18B20 port mode"
+#    error "Invalid DS18B20 port mode"
 #endif
 
 // 错误码定义（返回 i32）
-#define DS18B20_OK                          0
-#define DS18B20_ERR_NO_PRESENCE            (-1) // 设备没有存在脉冲（presence pulse）
-#define DS18B20_ERR_NO_RELEASE             (-2) // 设备没有释放脉冲（release pulse）
-#define DS18B20_ERR_DEVICE_CHECK_FAILED    (-3) // 设备检测失败（通用）
+#define DS18B20_OK 0
+#define DS18B20_ERR_NO_PRESENCE (-1)           // 设备没有存在脉冲（presence pulse）
+#define DS18B20_ERR_NO_RELEASE (-2)            // 设备没有释放脉冲（release pulse）
+#define DS18B20_ERR_DEVICE_CHECK_FAILED (-3)   // 设备检测失败（通用）
 
-typedef struct ds18b20 {
+typedef struct ds18b20
+{
     void* gpio;
     u16   pin;
 } ds18b20_t;
@@ -82,4 +84,4 @@ i32 ds18b20_read_temperature(ds18b20_t* self, u16* temp);
 }
 #endif
 
-#endif // LIBCA_EM_DRIVER_DS18B20_H
+#endif   // LIBCA_EM_DRIVER_DS18B20_H

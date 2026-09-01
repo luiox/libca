@@ -37,34 +37,38 @@ u32 time_get_current_tick(void)
 }
 
 
-static time_get_fn_t g_ms_provider = NULL;
-static time_get_fn_t g_us_provider = NULL;
-static volatile u32 g_manual_ms_tick = 0;
+static time_get_fn_t g_ms_provider    = NULL;
+static time_get_fn_t g_us_provider    = NULL;
+static volatile u32  g_manual_ms_tick = 0;
 
-void time_set_ms_provider(time_get_fn_t provider) {
+void time_set_ms_provider(time_get_fn_t provider)
+{
     g_ms_provider = provider;
 }
 
-void time_update_tick_ms(u32 ms_delta) {
+void time_update_tick_ms(u32 ms_delta)
+{
     g_manual_ms_tick += ms_delta;
 }
 
-void time_set_us_provider(time_get_fn_t provider) {
+void time_set_us_provider(time_get_fn_t provider)
+{
     g_us_provider = provider;
 }
 
-u32 time_get_ms(void) {
+u32 time_get_ms(void)
+{
     if (g_ms_provider) {
         return g_ms_provider();
     }
     return g_manual_ms_tick;
 }
 
-u32 time_get_us(void) {
+u32 time_get_us(void)
+{
     if (g_us_provider) {
         return g_us_provider();
     }
     // 如果没有 us 提供者，返回0
     return 0;
 }
-

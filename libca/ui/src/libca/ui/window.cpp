@@ -19,7 +19,7 @@ namespace {
 // 用宽字符（WNDCLASSEXW + RegisterClassExW）避免在 NT 系统上被内部 A→W 转换。
 constexpr const wchar_t* kWindowClassName = L"ca::ui::Window";
 
-}  // namespace
+}   // namespace
 
 Window::Window(std::string title, int x, int y, int width, int height)
     : title_(std::move(title))
@@ -27,15 +27,14 @@ Window::Window(std::string title, int x, int y, int width, int height)
     , y_(y)
     , width_(width)
     , height_(height)
-{
-}
+{}
 
 Window::~Window()
 {
     controls_.clear();
     if (hwnd_ != nullptr) {
         const HWND hwnd = hwnd_;
-        hwnd_ = nullptr;
+        hwnd_           = nullptr;
         DestroyWindow(hwnd);
         // 成功路径 WM_NCDESTROY 已同步自摘；失败/跨线程等异常路径在此兜底移除，
         // erase 幂等，重复移除无害。此前只在 DestroyWindow 失败分支清理，
@@ -71,8 +70,7 @@ LRESULT CALLBACK Window::window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM 
 core::Status Window::create(HINSTANCE instance)
 {
     if (hwnd_ != nullptr)
-        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS,
-                               "Window has already been created");
+        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS, "Window has already been created");
     if (instance == nullptr)
         return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
                                "Window HINSTANCE must not be null");
@@ -107,7 +105,10 @@ core::Status Window::create(HINSTANCE instance)
                             kWindowClassName,
                             wide_title.c_str(),
                             WS_OVERLAPPEDWINDOW,
-                            x_, y_, width_, height_,
+                            x_,
+                            y_,
+                            width_,
+                            height_,
                             nullptr,
                             nullptr,
                             instance_,
@@ -189,4 +190,4 @@ Window* WindowManager::get_window(HWND hwnd) const
     return it == windows_.end() ? nullptr : it->second;
 }
 
-}  // namespace ca::ui
+}   // namespace ca::ui

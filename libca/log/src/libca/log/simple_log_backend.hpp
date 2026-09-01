@@ -52,16 +52,13 @@ public:
     /// @brief 用指定配置构造。file_path 非空时会打开文件，失败则仅写终端（不抛）。
     explicit SimpleLogBackend(SimpleLogConfig config);
 
-    void log(Level              level,
-             std::string_view   target,
-             std::string_view   file,
-             int                line,
+    void log(Level level, std::string_view target, std::string_view file, int line,
              const OpaqueFormat& message) override;
 
 private:
     SimpleLogConfig config_;
     std::ofstream   file_;
-    std::mutex      mutex_;  // 串行化本后端的写操作
+    std::mutex      mutex_;   // 串行化本后端的写操作
 };
 
-}  // namespace ca::log
+}   // namespace ca::log

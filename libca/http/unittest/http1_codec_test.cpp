@@ -28,10 +28,7 @@ public:
         return ca::core::Ok(count);
     }
 
-    usize remaining() const noexcept
-    {
-        return input_.size() - position_;
-    }
+    usize remaining() const noexcept { return input_.size() - position_; }
 
 private:
     std::string input_;
@@ -48,15 +45,9 @@ public:
         return ca::core::Ok(length);
     }
 
-    io::IoResult<void> flush() override
-    {
-        return ca::core::Ok();
-    }
+    io::IoResult<void> flush() override { return ca::core::Ok(); }
 
-    const std::string& output() const noexcept
-    {
-        return output_;
-    }
+    const std::string& output() const noexcept { return output_; }
 
 private:
     std::string output_;
@@ -86,16 +77,15 @@ HttpRequest read_request(std::string input, usize max_chunk = 3)
 
 TEST(Http1ReaderTest, ReadsFragmentedContentLengthAndPipelinedRequests)
 {
-    const std::string input =
-        "POST /mcp?x=1 HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "Content-Length: 5, 5\r\n"
-        "X-Value: one\r\n"
-        "x-value: two\r\n\r\n"
-        "hello"
-        "GET /next HTTP/1.1\r\nHost: localhost\r\n\r\n";
-    FragmentedReader stream(input, 2);
-    Http1Reader      reader(stream);
+    const std::string input = "POST /mcp?x=1 HTTP/1.1\r\n"
+                              "Host: localhost\r\n"
+                              "Content-Length: 5, 5\r\n"
+                              "X-Value: one\r\n"
+                              "x-value: two\r\n\r\n"
+                              "hello"
+                              "GET /next HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    FragmentedReader  stream(input, 2);
+    Http1Reader       reader(stream);
 
     auto first = reader.read_request();
     ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
@@ -120,27 +110,25 @@ TEST(Http1ReaderTest, ReadsFragmentedContentLengthAndPipelinedRequests)
 
 TEST(Http1ReaderTest, DecodesChunkExtensionsAndTrailers)
 {
-    const std::string input =
-        "POST /upload HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "Transfer-Encoding: chunked\r\n"
-        "Trailer: X-Checksum\r\n\r\n"
-        "4;part=1\r\nWiki\r\n"
-        "5\r\npedia\r\n"
-        "0\r\nX-Checksum: ok\r\n\r\n";
-    auto request = read_request(input, 1);
+    const std::string input   = "POST /upload HTTP/1.1\r\n"
+                                "Host: localhost\r\n"
+                                "Transfer-Encoding: chunked\r\n"
+                                "Trailer: X-Checksum\r\n\r\n"
+                                "4;part=1\r\nWiki\r\n"
+                                "5\r\npedia\r\n"
+                                "0\r\nX-Checksum: ok\r\n\r\n";
+    auto              request = read_request(input, 1);
     EXPECT_EQ(text(request.body), "Wikipedia");
     EXPECT_EQ(request.trailers.get("x-checksum"), "ok");
 }
 
 TEST(Http1ReaderTest, HandlesHeadNotModifiedAndCloseDelimitedResponses)
 {
-    FragmentedReader pipelined(
-        "HTTP/1.1 304 Not Modified\r\nContent-Length: 7\r\n\r\n"
-        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
-        5);
-    Http1Reader reader(pipelined);
-    auto first = reader.read_response("GET");
+    FragmentedReader pipelined("HTTP/1.1 304 Not Modified\r\nContent-Length: 7\r\n\r\n"
+                               "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
+                               5);
+    Http1Reader      reader(pipelined);
+    auto             first = reader.read_response("GET");
     ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
     ASSERT_TRUE(first.unwrap().has_value());
     EXPECT_EQ(first.unwrap()->status, 304);
@@ -151,17 +139,15 @@ TEST(Http1ReaderTest, HandlesHeadNotModifiedAndCloseDelimitedResponses)
     ASSERT_TRUE(second.unwrap().has_value());
     EXPECT_EQ(text(second.unwrap()->body), "ok");
 
-    FragmentedReader head_stream(
-        "HTTP/1.1 200 OK\r\nContent-Length: 99\r\n\r\n",
-        4);
-    Http1Reader head_reader(head_stream);
-    auto head = head_reader.read_response("HEAD");
+    FragmentedReader head_stream("HTTP/1.1 200 OK\r\nContent-Length: 99\r\n\r\n", 4);
+    Http1Reader      head_reader(head_stream);
+    auto             head = head_reader.read_response("HEAD");
     ASSERT_TRUE(head.is_ok());
     EXPECT_TRUE(head.unwrap()->body.is_empty());
 
     FragmentedReader close_stream("HTTP/1.0 200 OK\r\nX-Test: yes\r\n\r\nclose body", 3);
-    Http1Reader close_reader(close_stream);
-    auto close = close_reader.read_response("GET");
+    Http1Reader      close_reader(close_stream);
+    auto             close = close_reader.read_response("GET");
     ASSERT_TRUE(close.is_ok()) << close.unwrap_err().to_string();
     EXPECT_EQ(text(close.unwrap()->body), "close body");
 }
@@ -200,7 +186,7 @@ TEST(Http1WriterTest, WritesAndReadsBackChunkedResponseWithTrailers)
 
     FragmentedReader reader_stream(writer_stream.output(), 2);
     Http1Reader      reader(reader_stream);
-    auto parsed = reader.read_response("GET");
+    auto             parsed = reader.read_response("GET");
     ASSERT_TRUE(parsed.is_ok()) << parsed.unwrap_err().to_string();
     ASSERT_TRUE(parsed.unwrap().has_value());
     EXPECT_EQ(text(parsed.unwrap()->body), "stream-data");
@@ -275,15 +261,12 @@ TEST_P(Http1InvalidMessageTest, RejectsAmbiguousOrUnsafeRequest)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SmugglingAndLineSyntax,
-    Http1InvalidMessageTest,
+    SmugglingAndLineSyntax, Http1InvalidMessageTest,
     ::testing::Values(
         "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n",
         "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n",
-        "GET / HTTP/1.1\nHost: x\n\n",
-        "GET / HTTP/1.1\r\nHost: x\r\n folded\r\n\r\n",
-        "GET / HTTP/1.1\r\n\r\n",
-        "GET / HTTP/1.1\r\nHost: x\r\nHost: y\r\n\r\n",
+        "GET / HTTP/1.1\nHost: x\n\n", "GET / HTTP/1.1\r\nHost: x\r\n folded\r\n\r\n",
+        "GET / HTTP/1.1\r\n\r\n", "GET / HTTP/1.1\r\nHost: x\r\nHost: y\r\n\r\n",
         "GET / HTTP/1.1\r\nHost: x, y\r\n\r\n",
         "POST / HTTP/1.0\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
         "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: gzip, chunked\r\n\r\n"));
@@ -294,62 +277,51 @@ TEST(Http1ReaderTest, EnforcesStartHeaderAndBodyLimits)
     limits.max_start_line_bytes = 8;
     FragmentedReader long_start("GET /toolong HTTP/1.1\r\nHost: x\r\n\r\n", 2);
     Http1Reader      start_reader(long_start, limits);
-    EXPECT_EQ(start_reader.read_request().unwrap_err().kind(),
-              HttpErrorKind::HeaderLimitExceeded);
+    EXPECT_EQ(start_reader.read_request().unwrap_err().kind(), HttpErrorKind::HeaderLimitExceeded);
 
-    limits = HttpLimits();
+    limits                  = HttpLimits();
     limits.max_header_count = 1;
     FragmentedReader many_headers("GET / HTTP/1.1\r\nHost: x\r\nX-Test: y\r\n\r\n", 2);
     Http1Reader      header_reader(many_headers, limits);
-    EXPECT_EQ(header_reader.read_request().unwrap_err().kind(),
-              HttpErrorKind::HeaderLimitExceeded);
+    EXPECT_EQ(header_reader.read_request().unwrap_err().kind(), HttpErrorKind::HeaderLimitExceeded);
 
-    limits = HttpLimits();
+    limits                = HttpLimits();
     limits.max_body_bytes = 4;
-    FragmentedReader large_body(
-        "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\nhello",
-        2);
-    Http1Reader body_reader(large_body, limits);
+    FragmentedReader large_body("POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\nhello", 2);
+    Http1Reader      body_reader(large_body, limits);
     EXPECT_EQ(body_reader.read_request().unwrap_err().kind(), HttpErrorKind::BodyLimitExceeded);
 }
 
 TEST(Http1ReaderTest, RejectsTruncatedFixedAndChunkedBodies)
 {
-    FragmentedReader fixed(
-        "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\nabc",
-        2);
-    Http1Reader fixed_reader(fixed);
+    FragmentedReader fixed("POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\nabc", 2);
+    Http1Reader      fixed_reader(fixed);
     EXPECT_EQ(fixed_reader.read_request().unwrap_err().kind(), HttpErrorKind::InvalidMessage);
 
     FragmentedReader chunked(
-        "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabcX",
-        2);
+        "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabcX", 2);
     Http1Reader chunked_reader(chunked);
     EXPECT_EQ(chunked_reader.read_request().unwrap_err().kind(), HttpErrorKind::InvalidMessage);
 }
 
 TEST(Http1ReaderTest, EnforcesResponseFramingRules)
 {
-    FragmentedReader no_content(
-        "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n",
-        2);
-    Http1Reader no_content_reader(no_content);
+    FragmentedReader no_content("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n", 2);
+    Http1Reader      no_content_reader(no_content);
     EXPECT_EQ(no_content_reader.read_response("GET").unwrap_err().kind(),
               HttpErrorKind::InvalidMessage);
 
     FragmentedReader http10_chunked(
-        "HTTP/1.0 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
-        2);
+        "HTTP/1.0 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", 2);
     Http1Reader http10_reader(http10_chunked);
     EXPECT_EQ(http10_reader.read_response("GET").unwrap_err().kind(),
               HttpErrorKind::InvalidMessage);
 
-    FragmentedReader connect(
-        "HTTP/1.1 200 Connection Established\r\n"
-        "Content-Length: 7\r\nTransfer-Encoding: gzip\r\n\r\ntunnel",
-        2);
-    Http1Reader connect_reader(connect);
-    auto        connected = connect_reader.read_response("CONNECT");
+    FragmentedReader connect("HTTP/1.1 200 Connection Established\r\n"
+                             "Content-Length: 7\r\nTransfer-Encoding: gzip\r\n\r\ntunnel",
+                             2);
+    Http1Reader      connect_reader(connect);
+    auto             connected = connect_reader.read_response("CONNECT");
     ASSERT_TRUE(connected.is_ok()) << connected.unwrap_err().to_string();
     ASSERT_TRUE(connected.unwrap().has_value());
     EXPECT_TRUE(connected.unwrap()->body.is_empty());

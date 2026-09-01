@@ -93,8 +93,9 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
         if (!detail.empty())
             return io::IoError::from_kind(io::IoErrorKind::InvalidData,
                                           ca::str::format_std("{} failed: {}", operation, detail));
-        return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                      ca::str::format_std("{} reached an unclean TLS EOF", operation));
+        return io::IoError::from_kind(
+            io::IoErrorKind::UnexpectedEof,
+            ca::str::format_std("{} reached an unclean TLS EOF", operation));
     }
 #    if defined(SSL_R_UNEXPECTED_EOF_WHILE_READING)
     if (ssl_error == SSL_ERROR_SSL) {
@@ -102,8 +103,9 @@ io::IoError ssl_io_error(SSL* ssl, int result, const char* operation)
         if (ERR_GET_LIB(code) == ERR_LIB_SSL &&
             ERR_GET_REASON(code) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
             ERR_clear_error();
-            return io::IoError::from_kind(io::IoErrorKind::UnexpectedEof,
-                                          ca::str::format_std("{} reached an unclean TLS EOF", operation));
+            return io::IoError::from_kind(
+                io::IoErrorKind::UnexpectedEof,
+                ca::str::format_std("{} reached an unclean TLS EOF", operation));
         }
     }
 #    endif
@@ -120,8 +122,9 @@ HttpError tls_configuration_error(const char* operation)
 {
     const auto detail = openssl_error_message();
     return HttpError::from_kind(HttpErrorKind::InvalidState,
-                                detail.empty() ? ca::str::format_std("{} failed", operation)
-                                               : ca::str::format_std("{} failed: {}", operation, detail));
+                                detail.empty()
+                                    ? ca::str::format_std("{} failed", operation)
+                                    : ca::str::format_std("{} failed: {}", operation, detail));
 }
 
 class OpenSslClientTransport final : public ClientTransport

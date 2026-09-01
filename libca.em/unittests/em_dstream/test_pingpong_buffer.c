@@ -1,6 +1,6 @@
 /* Auto-migrated from src/em_dstream/pingpong_buffer.c test blocks */
 #include "pingpong_buffer.h"
-#include <string.h> // for memset
+#include <string.h>   // for memset
 
 
 #include <em_test/test.h>
@@ -75,4 +75,3 @@ TEST_CASE(pingpong_buf_clear)
         TEST_ASSERT_EQUAL_INT(0, test_buffer1[i]);
     }
 }
-

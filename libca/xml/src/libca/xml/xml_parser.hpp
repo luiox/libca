@@ -23,7 +23,8 @@
 namespace ca::xml {
 
 /// @brief XML 解析选项。
-struct XmlParserOptions {
+struct XmlParserOptions
+{
     /// 最大元素嵌套深度，超出报错以防栈溢出。
     /// @note 默认 256（与 libxml2 的 XML_MAX_DEPTH 一致）：parse_element/parse_content
     ///       每层递归合计约 1KB 栈帧，实测 Windows 默认 1MB 栈约 850 层即耗尽——
@@ -35,7 +36,8 @@ struct XmlParserOptions {
 };
 
 /// @brief XML 递归下降解析器，把输入构建为 XmlDocument。
-class XmlParser {
+class XmlParser
+{
 public:
     /// @brief 构造解析器。document 持有 arena + root；解析期间所有字符串入 arena。
     ///        输入视图须在使用期内有效（零拷贝）。
@@ -51,33 +53,33 @@ public:
 
 private:
     // ---- 字节流游标 ----
-    const u8* data_;
-    ca::usize byte_length_;
-    ca::usize pos_;
+    const u8*      data_;
+    ca::usize      byte_length_;
+    ca::usize      pos_;
     SourceLocation loc_;
-    bool failed_;
-    ca::usize depth_;
+    bool           failed_;
+    ca::usize      depth_;
 
-    XmlDocument& document_;
+    XmlDocument&     document_;
     XmlParserOptions options_;
-    ParseError error_;
+    ParseError       error_;
 
     // ---- 基本字节操作 ----
-    u8 peek() const noexcept;
-    u8 peek_at(ca::usize offset) const noexcept;
+    u8   peek() const noexcept;
+    u8   peek_at(ca::usize offset) const noexcept;
     void advance() noexcept;
     bool at_end() const noexcept;
     // 从当前位置起是否精确匹配字面量（不消费）。
     bool starts_with(const char* literal) const noexcept;
 
     // ---- 空白 / 错误 ----
-    bool skip_ws();  // 跳过 XML 空白（空格/\t/\r/\n），返回是否跳过了至少一个
+    bool skip_ws();   // 跳过 XML 空白（空格/\t/\r/\n），返回是否跳过了至少一个
     void fail(SourceLocation loc, const char* message);
     void fail_str(SourceLocation loc, const std::string& message);
 
     // ---- 顶层结构 ----
     void skip_bom();
-    bool parse_declaration();  // 可选 <?xml ... ?>
+    bool parse_declaration();   // 可选 <?xml ... ?>
     // 解析 prolog/epilog 的杂项（空白 + 注释）到 out；遇元素起始或 EOF 停。
     // DOCTYPE/PI 报错。
     bool parse_misc(std::vector<XmlNode>& out);
@@ -87,7 +89,7 @@ private:
     bool parse_name(ca::str::Utf8StringRef& out);
     bool parse_attributes(XmlNode& element);
     bool parse_attr_value(ca::str::Utf8StringRef& out);
-    bool parse_content(XmlNode& element);  // 解析子节点直到 </
+    bool parse_content(XmlNode& element);   // 解析子节点直到 </
     bool parse_end_tag(const ca::str::Utf8StringRef& expected_name);
 
     // ---- 叶子节点 ----
@@ -104,4 +106,4 @@ private:
     static bool encode_utf8(u32 cp, ca::str::Utf8StringBuilder& out);
 };
 
-}  // namespace ca::xml
+}   // namespace ca::xml

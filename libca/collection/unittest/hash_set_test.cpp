@@ -12,26 +12,23 @@ namespace ca::collection {
 
 namespace {
 
-struct NamedId {
-    ca::i32 id;
+struct NamedId
+{
+    ca::i32     id;
     std::string name;
 };
 
-struct NamedIdHash {
-    std::size_t operator()(const NamedId& value) const
-    {
-        return std::hash<ca::i32>{}(value.id);
-    }
+struct NamedIdHash
+{
+    std::size_t operator()(const NamedId& value) const { return std::hash<ca::i32>{}(value.id); }
 };
 
-struct NamedIdEqual {
-    bool operator()(const NamedId& left, const NamedId& right) const
-    {
-        return left.id == right.id;
-    }
+struct NamedIdEqual
+{
+    bool operator()(const NamedId& left, const NamedId& right) const { return left.id == right.id; }
 };
 
-}  // namespace
+}   // namespace
 
 TEST(HashSetTest, AddContainsAndLen)
 {
@@ -112,7 +109,7 @@ TEST(HashSetTest, ReplaceReturnsOldEquivalentValue)
 TEST(HashSetTest, FromSliceAndBulkAddDeduplicates)
 {
     const ca::i32 raw[] = {1, 2, 2, 3};
-    auto set = HashSet<ca::i32>::from_slice(raw, 4);
+    auto          set   = HashSet<ca::i32>::from_slice(raw, 4);
 
     EXPECT_EQ(set.len(), 3u);
     EXPECT_TRUE(set.contains(1));
@@ -153,7 +150,7 @@ TEST(HashSetTest, ValuesAndToArrayListReturnSnapshots)
 {
     HashSet<std::string> set = {"one", "two", "three"};
 
-    auto values = set.values();
+    auto values     = set.values();
     auto array_list = set.to_array_list();
     auto snake_list = set.to_array_list();
     set.add("four");
@@ -183,9 +180,9 @@ TEST(HashSetTest, ValuesAndToArrayListReturnSnapshots)
 TEST(HashSetTest, SetRelations)
 {
     HashSet<ca::i32> empty;
-    HashSet<ca::i32> small = {1, 2};
-    HashSet<ca::i32> large = {1, 2, 3, 4};
-    HashSet<ca::i32> overlap = {4, 5};
+    HashSet<ca::i32> small    = {1, 2};
+    HashSet<ca::i32> large    = {1, 2, 3, 4};
+    HashSet<ca::i32> overlap  = {4, 5};
     HashSet<ca::i32> separate = {8, 9};
 
     EXPECT_TRUE(empty.is_subset_of(small));
@@ -207,33 +204,33 @@ TEST(HashSetTest, SetRelations)
 
 TEST(HashSetTest, SetOperationSnapshots)
 {
-    HashSet<ca::i32> left = {1, 2, 3};
+    HashSet<ca::i32> left  = {1, 2, 3};
     HashSet<ca::i32> right = {3, 4, 5};
 
-    auto union_set = left.union_with(right);
-    auto intersection_set = left.intersection_with(right);
-    auto difference_set = left.difference_with(right);
+    auto union_set          = left.union_with(right);
+    auto intersection_set   = left.intersection_with(right);
+    auto difference_set     = left.difference_with(right);
     auto reverse_difference = right.difference_with(left);
 
-    auto union_values = union_set.values();
+    auto                 union_values = union_set.values();
     std::vector<ca::i32> union_items;
     for (const auto& value : union_values)
         union_items.push_back(value);
     std::sort(union_items.begin(), union_items.end());
 
-    auto intersection_values = intersection_set.values();
+    auto                 intersection_values = intersection_set.values();
     std::vector<ca::i32> intersection_items;
     for (const auto& value : intersection_values)
         intersection_items.push_back(value);
     std::sort(intersection_items.begin(), intersection_items.end());
 
-    auto difference_values = difference_set.values();
+    auto                 difference_values = difference_set.values();
     std::vector<ca::i32> difference_items;
     for (const auto& value : difference_values)
         difference_items.push_back(value);
     std::sort(difference_items.begin(), difference_items.end());
 
-    auto reverse_difference_values = reverse_difference.values();
+    auto                 reverse_difference_values = reverse_difference.values();
     std::vector<ca::i32> reverse_difference_items;
     for (const auto& value : reverse_difference_values)
         reverse_difference_items.push_back(value);
@@ -294,7 +291,8 @@ TEST(HashSetTest, RemoveIfSupportsMoveOnlyValues)
 
     EXPECT_EQ(set.remove_if([](const std::unique_ptr<ca::i32>& value) {
         return value != nullptr && *value == 2;
-    }), 1u);
+    }),
+              1u);
 
     ca::i32 sum = 0;
     for (const auto& value : set) {
@@ -306,4 +304,4 @@ TEST(HashSetTest, RemoveIfSupportsMoveOnlyValues)
     EXPECT_EQ(sum, 4);
 }
 
-}  // namespace ca::collection
+}   // namespace ca::collection

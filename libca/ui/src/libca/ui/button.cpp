@@ -14,8 +14,7 @@ namespace ca::ui {
 
 Button::Button(Window* parent)
     : Control(parent)
-{
-}
+{}
 
 Button::~Button()
 {
@@ -27,8 +26,7 @@ Button::~Button()
 core::Status Button::create()
 {
     if (hwnd_ != nullptr)
-        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS,
-                               "Button has already been created");
+        return core::ErrStatus(core::StatusCode::ALREADY_EXISTS, "Button has already been created");
 
     HWND parent_hwnd = parent() != nullptr ? parent()->native_handle() : nullptr;
     if (parent_hwnd == nullptr || !IsWindow(parent_hwnd))
@@ -41,16 +39,19 @@ core::Status Button::create()
         return std::move(converted).unwrap_err();
     auto wide_text = std::move(converted).unwrap();
 
-    hwnd_ = CreateWindowExW(0,
-                            L"BUTTON",
-                            wide_text.c_str(),
-                            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                            x_, y_, width_, height_,
-                            parent_hwnd,
-                            nullptr,
-                            reinterpret_cast<HINSTANCE>(
-                                GetWindowLongPtrW(parent_hwnd, GWLP_HINSTANCE)),
-                            nullptr);
+    hwnd_ =
+        CreateWindowExW(0,
+                        L"BUTTON",
+                        wide_text.c_str(),
+                        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                        x_,
+                        y_,
+                        width_,
+                        height_,
+                        parent_hwnd,
+                        nullptr,
+                        reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(parent_hwnd, GWLP_HINSTANCE)),
+                        nullptr);
     if (hwnd_ == nullptr) {
         const DWORD err = GetLastError();
         return core::ErrStatus(core::StatusCode::INTERNAL,
@@ -75,4 +76,4 @@ void Button::dispatch_click()
     }
 }
 
-}  // namespace ca::ui
+}   // namespace ca::ui

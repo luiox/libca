@@ -150,7 +150,8 @@ static CA_INLINE f32 mem_view_read_f32_be(mem_view_t* self)
 /// @return true 成功并将 out 写入，游标前进；false 数据不足，out 不变，游标不变
 static CA_INLINE bool mem_view_read_f32_safe(mem_view_t* self, f32* out)
 {
-    if (!mem_view_has(self, 4)) return false;
+    if (!mem_view_has(self, 4))
+        return false;
     memcpy(out, self->ptr, 4);
     self->ptr += 4;
     return true;
@@ -160,7 +161,8 @@ static CA_INLINE bool mem_view_read_f32_safe(mem_view_t* self, f32* out)
 /// @return true 成功并将 out 写入，游标前进；false 数据不足，out 不变，游标不变
 static CA_INLINE bool mem_view_read_f32_be_safe(mem_view_t* self, f32* out)
 {
-    if (!mem_view_has(self, 4)) return false;
+    if (!mem_view_has(self, 4))
+        return false;
     u32 tmp = (u32)(((u32)self->ptr[0] << 24) | ((u32)self->ptr[1] << 16) |
                     ((u32)self->ptr[2] << 8) | self->ptr[3]);
     memcpy(out, &tmp, 4);

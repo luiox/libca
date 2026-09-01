@@ -14,10 +14,12 @@ void local_cpu_enter_critical(void);
 void local_cpu_exit_critical(void);
 #else
 // 提供一个默认的空实现，避免未定义
-static inline void local_cpu_enter_critical(void) {
+static inline void local_cpu_enter_critical(void)
+{
     // 默认空实现
 }
-static inline void local_cpu_exit_critical(void) {
+static inline void local_cpu_exit_critical(void)
+{
     // 默认空实现
 }
 #endif
@@ -25,13 +27,13 @@ static inline void local_cpu_exit_critical(void) {
 /// @brief 进入临界区 (禁止中断/锁定)
 /// @note 用户需根据具体平台实现此宏或函数
 #ifndef CPU_ENTER_CRITICAL
-#define CPU_ENTER_CRITICAL() local_cpu_enter_critical()
+#    define CPU_ENTER_CRITICAL() local_cpu_enter_critical()
 #endif
 
 /// @brief 退出临界区 (恢复中断/解锁)
 /// @note 用户需根据具体平台实现此宏或函数
 #ifndef CPU_EXIT_CRITICAL
-#define CPU_EXIT_CRITICAL() local_cpu_exit_critical()
+#    define CPU_EXIT_CRITICAL() local_cpu_exit_critical()
 #endif
 
-#endif // LIBCA_ARCH_EM_CPU_PORT_H
+#endif   // LIBCA_ARCH_EM_CPU_PORT_H

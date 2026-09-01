@@ -92,7 +92,7 @@ TEST(BoundedQueueTest, CloseWakesBlockedProducerAndConsumer)
     auto consumer_created = BoundedQueue<int>::create(1);
     ASSERT_TRUE(consumer_created.is_ok());
     auto consumer_queue = std::move(consumer_created).unwrap();
-    auto consumer = std::async(std::launch::async, [&]() { return consumer_queue.pop(); });
+    auto consumer       = std::async(std::launch::async, [&]() { return consumer_queue.pop(); });
 
     EXPECT_EQ(producer.wait_for(10ms), std::future_status::timeout);
     EXPECT_EQ(consumer.wait_for(10ms), std::future_status::timeout);
@@ -127,9 +127,9 @@ TEST(BoundedQueueTest, SupportsConcurrentProducersAndConsumers)
 {
     auto created = BoundedQueue<int>::create(8);
     ASSERT_TRUE(created.is_ok());
-    auto queue = std::move(created).unwrap();
-    std::atomic<int> count{0};
-    std::atomic<int> sum{0};
+    auto                     queue = std::move(created).unwrap();
+    std::atomic<int>         count{0};
+    std::atomic<int>         sum{0};
     std::vector<std::thread> consumers;
     for (int index = 0; index < 4; ++index) {
         consumers.emplace_back([&]() {

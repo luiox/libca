@@ -23,7 +23,7 @@ bool encode_code_point(ca::u32 cp, Char16& high, Char16& low) noexcept
         return false;
     if (cp < 0x10000) {
         high = Char16(static_cast<ca::u16>(cp));
-        low = Char16();
+        low  = Char16();
         return true;
     }
 
@@ -32,7 +32,7 @@ bool encode_code_point(ca::u32 cp, Char16& high, Char16& low) noexcept
     if (!Utf16Char::encode_pair(cp, high_char, low_char))
         return false;
     high = Char16(high_char.unit());
-    low = Char16(low_char.unit());
+    low  = Char16(low_char.unit());
     return true;
 }
 
@@ -41,11 +41,13 @@ ca::u32 decode_pair(Char16 high, Char16 low) noexcept
     return Utf16Char::decode_pair(Utf16Char(high.unit()), Utf16Char(low.unit()));
 }
 
-bool matches_at(const Char16* data, ca::usize length, const Utf16StringRef& needle, ca::usize offset) noexcept
+bool matches_at(const Char16* data, ca::usize length, const Utf16StringRef& needle,
+                ca::usize offset) noexcept
 {
     if (needle.length() == 0)
         return offset <= length;
-    if (data == nullptr || needle.data() == nullptr || offset > length || needle.length() > length - offset)
+    if (data == nullptr || needle.data() == nullptr || offset > length ||
+        needle.length() > length - offset)
         return false;
 
     for (ca::usize i = 0; i < needle.length(); ++i) {
@@ -62,9 +64,8 @@ Utf16String utf16_from_ascii(const char* text)
 
 Utf16String utf16_from_number_text(const std::string& text)
 {
-    return Utf16String::from_utf8_string(
-        Utf8StringRef::from_data(reinterpret_cast<const ca::u8*>(text.data()),
-                                 static_cast<ca::usize>(text.size())));
+    return Utf16String::from_utf8_string(Utf8StringRef::from_data(
+        reinterpret_cast<const ca::u8*>(text.data()), static_cast<ca::usize>(text.size())));
 }
 
 template<typename T>
@@ -75,10 +76,12 @@ Utf16String value_of_with_stream(T value)
     return utf16_from_number_text(out.str());
 }
 
-}  // namespace
+}   // namespace
 
 Utf16StringRef::Utf16StringRef(const Utf16String& str) noexcept
-    : data_(str.data()), length_(str.length()) {}
+    : data_(str.data())
+    , length_(str.length())
+{}
 
 Utf16StringRef Utf16StringRef::from_data(const ca::u16* data, ca::usize length) noexcept
 {
@@ -87,7 +90,8 @@ Utf16StringRef Utf16StringRef::from_data(const ca::u16* data, ca::usize length) 
 
 Utf16StringRef Utf16StringRef::from_std_u16string(const std::u16string& str) noexcept
 {
-    return from_data(reinterpret_cast<const ca::u16*>(str.data()), static_cast<ca::usize>(str.size()));
+    return from_data(reinterpret_cast<const ca::u16*>(str.data()),
+                     static_cast<ca::usize>(str.size()));
 }
 
 const ca::u16* Utf16StringRef::raw_data() const noexcept
@@ -209,7 +213,7 @@ ca::usize Utf16StringRef::last_index_of(const Utf16StringRef& needle, ca::usize 
         return npos;
 
     const auto max_start = length_ - needle.length_;
-    ca::usize i = from < max_start ? from : max_start;
+    ca::usize  i         = from < max_start ? from : max_start;
     for (;;) {
         if (matches_at(data_, length_, needle, i))
             return i;
@@ -313,16 +317,20 @@ Utf8String Utf16StringRef::to_utf8_string() const
         throw std::runtime_error("Utf16StringRef::to_utf8_string: invalid UTF-16 sequence");
 
     std::vector<ca::u8> buffer(byte_count);
-    const auto written = utf16_to_utf8(raw_data(), length_, buffer.data());
+    const auto          written = utf16_to_utf8(raw_data(), length_, buffer.data());
     if (written != byte_count)
         throw std::runtime_error("Utf16StringRef::to_utf8_string: failed to encode UTF-8");
     return Utf8String(buffer.data(), byte_count);
 }
 
-Utf16String::Utf16String() noexcept : data_(nullptr), length_(0) {}
+Utf16String::Utf16String() noexcept
+    : data_(nullptr)
+    , length_(0)
+{}
 
 Utf16String::Utf16String(const Char16* data, ca::usize length)
-    : data_(nullptr), length_(0)
+    : data_(nullptr)
+    , length_(0)
 {
     if (data == nullptr || length == 0)
         return;
@@ -333,15 +341,18 @@ Utf16String::Utf16String(const Char16* data, ca::usize length)
 }
 
 Utf16String::Utf16String(const ca::u16* data, ca::usize length)
-    : Utf16String(reinterpret_cast<const Char16*>(data), length) {}
+    : Utf16String(reinterpret_cast<const Char16*>(data), length)
+{}
 
 Utf16String::Utf16String(const std::u16string& str)
-    : Utf16String(reinterpret_cast<const ca::u16*>(str.data()), static_cast<ca::usize>(str.size())) {}
+    : Utf16String(reinterpret_cast<const ca::u16*>(str.data()), static_cast<ca::usize>(str.size()))
+{}
 
 Utf16String::Utf16String(Utf16String&& other) noexcept
-    : data_(other.data_), length_(other.length_)
+    : data_(other.data_)
+    , length_(other.length_)
 {
-    other.data_ = nullptr;
+    other.data_   = nullptr;
     other.length_ = 0;
 }
 
@@ -349,9 +360,9 @@ Utf16String& Utf16String::operator=(Utf16String&& other) noexcept
 {
     if (this != &other) {
         delete[] data_;
-        data_ = other.data_;
-        length_ = other.length_;
-        other.data_ = nullptr;
+        data_         = other.data_;
+        length_       = other.length_;
+        other.data_   = nullptr;
         other.length_ = 0;
     }
     return *this;
@@ -378,7 +389,7 @@ Utf16String Utf16String::from_utf8_string(const Utf8StringRef& str)
         throw std::runtime_error("Utf16String::from_utf8_string: invalid UTF-8 sequence");
 
     std::vector<ca::u16> units(unit_count);
-    const auto written = utf8_to_utf16(str.data(), str.byte_length(), units.data());
+    const auto           written = utf8_to_utf16(str.data(), str.byte_length(), units.data());
     if (written != unit_count)
         throw std::runtime_error("Utf16String::from_utf8_string: failed to encode UTF-16");
     return Utf16String(units.data(), unit_count);
@@ -529,7 +540,8 @@ Char16 Utf16StringBuilder::char_at(ca::usize index) const noexcept
 
 ca::u32 Utf16StringBuilder::code_point_at(ca::usize index) const noexcept
 {
-    return Utf16StringRef(buffer_.data(), static_cast<ca::usize>(buffer_.size())).code_point_at(index);
+    return Utf16StringRef(buffer_.data(), static_cast<ca::usize>(buffer_.size()))
+        .code_point_at(index);
 }
 
 Utf16StringBuilder& Utf16StringBuilder::set_char_at(ca::usize index, Char16 ch) noexcept
@@ -631,7 +643,8 @@ Utf16StringBuilder& Utf16StringBuilder::reverse()
             reversed.push_back(buffer_[i - 2]);
             reversed.push_back(current);
             i -= 2;
-        } else {
+        }
+        else {
             reversed.push_back(current);
             --i;
         }
@@ -697,7 +710,7 @@ bool operator>=(const Utf16StringRef& lhs, const Utf16StringRef& rhs) noexcept
 std::ostream& operator<<(std::ostream& os, Char16 ch)
 {
     const auto flags = os.flags();
-    const auto fill = os.fill();
+    const auto fill  = os.fill();
     os << "\\u" << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << ch.unit();
     os.flags(flags);
     os.fill(fill);
@@ -716,7 +729,7 @@ std::ostream& operator<<(std::ostream& os, const Utf16String& str)
     return os;
 }
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 namespace std {
 
@@ -727,7 +740,7 @@ size_t hash<ca::str::Char16>::operator()(ca::str::Char16 ch) const noexcept
 
 size_t hash<ca::str::Utf16StringRef>::operator()(const ca::str::Utf16StringRef& str) const noexcept
 {
-    size_t h = 14695981039346656037ULL;
+    size_t      h    = 14695981039346656037ULL;
     const auto* data = str.data();
     for (ca::usize i = 0; i < str.length(); ++i) {
         h ^= static_cast<size_t>(data[i].unit() & 0xFF);
@@ -743,4 +756,4 @@ size_t hash<ca::str::Utf16String>::operator()(const ca::str::Utf16String& str) c
     return std::hash<ca::str::Utf16StringRef>{}(str.ref());
 }
 
-}  // namespace std
+}   // namespace std

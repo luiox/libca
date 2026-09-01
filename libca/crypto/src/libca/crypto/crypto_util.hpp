@@ -17,4 +17,4 @@ bool constant_time_eq(ca::core::ByteSlice lhs, ca::core::ByteSlice rhs) noexcept
 ///       密钥残留栈帧可被栈复用或进程转储读出。size 为 0 时无操作。
 void secure_zero(void* data, ca::usize size) noexcept;
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

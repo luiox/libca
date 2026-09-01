@@ -1,5 +1,5 @@
 /* Auto-migrated from src/em_dstream/ring_buffer.c test blocks */
-#include "ring_buffer.h" // header renamed semantics: still same file but new declarations
+#include "ring_buffer.h"   // header renamed semantics: still same file but new declarations
 #include <em_base/debug.h>
 
 
@@ -7,10 +7,10 @@
 
 TEST_CASE(ring_buf_basic)
 {
-    u8      buf[16];
+    u8            buf[16];
     ring_buffer_t rb;
-    u8      data_to_write[] = {0x01, 0x02, 0x03, 0x04};
-    u8      data_to_read[4] = {0};
+    u8            data_to_write[] = {0x01, 0x02, 0x03, 0x04};
+    u8            data_to_read[4] = {0};
 
     ring_buf_init(&rb, buf, 16);
 
@@ -34,11 +34,11 @@ TEST_CASE(ring_buf_basic)
 
 TEST_CASE(ring_buf_wrap_around)
 {
-    u8      buf[8];
+    u8            buf[8];
     ring_buffer_t rb;
-    u8      data1[] = {1, 2, 3, 4, 5, 6};
-    u8      data2[] = {7, 8};
-    u8      read_buf[8];
+    u8            data1[] = {1, 2, 3, 4, 5, 6};
+    u8            data2[] = {7, 8};
+    u8            read_buf[8];
 
     ring_buf_init(&rb, buf, 8);
 
@@ -64,7 +64,7 @@ TEST_CASE(ring_buf_wrap_around)
 
 TEST_CASE(ring_buf_u8)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -74,7 +74,7 @@ TEST_CASE(ring_buf_u8)
 
 TEST_CASE(ring_buf_u16)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -84,7 +84,7 @@ TEST_CASE(ring_buf_u16)
 
 TEST_CASE(ring_buf_i16)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -94,7 +94,7 @@ TEST_CASE(ring_buf_i16)
 
 TEST_CASE(ring_buf_u32)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -104,7 +104,7 @@ TEST_CASE(ring_buf_u32)
 
 TEST_CASE(ring_buf_i32)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -114,14 +114,14 @@ TEST_CASE(ring_buf_i32)
 
 TEST_CASE(ring_buf_float)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
     float f_in = 3.14159f;
     ring_buf_write_float(&rb, f_in);
     float f_out = ring_buf_read_float(&rb);
-    
+
     if (fabs(f_out - f_in) > 0.00001f) {
         printf("Float test failed: expected %f, got %f\n", f_in, f_out);
     }
@@ -129,7 +129,7 @@ TEST_CASE(ring_buf_float)
 
 TEST_CASE(ring_buf_checksum)
 {
-    u8           mem[64];
+    u8            mem[64];
     ring_buffer_t rb;
     ring_buf_init(&rb, mem, 64);
 
@@ -137,4 +137,3 @@ TEST_CASE(ring_buf_checksum)
     ring_buf_write(&rb, data, 4);
     TEST_ASSERT_EQUAL_INT(10, ring_buf_calculate_checksum(&rb));
 }
-

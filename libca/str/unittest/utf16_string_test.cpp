@@ -30,7 +30,7 @@ TEST(Char16Test, ValueTypeComparisonAndHash)
 TEST(Utf16StringTest, LengthCharAtAndCodePointAtUseJavaSemantics)
 {
     const ca::u16 raw[] = {0x0041, 0xD83D, 0xDE00, 0x0042};
-    Utf16String s(raw, 4);
+    Utf16String   s(raw, 4);
 
     EXPECT_EQ(s.length(), 4u);
     EXPECT_EQ(s.char_at(0), Char16(0x0041));
@@ -44,7 +44,7 @@ TEST(Utf16StringTest, LengthCharAtAndCodePointAtUseJavaSemantics)
 TEST(Utf16StringTest, SubstringSlicesCodeUnits)
 {
     const ca::u16 raw[] = {0x0041, 0xD83D, 0xDE00, 0x0042};
-    Utf16String s(raw, 4);
+    Utf16String   s(raw, 4);
 
     auto emoji = s.substring(1, 3);
 
@@ -55,10 +55,10 @@ TEST(Utf16StringTest, SubstringSlicesCodeUnits)
 
 TEST(Utf16StringTest, IndexOfCharAndString)
 {
-    const ca::u16 raw[] = {0x0061, 0x0062, 0x0061, 0xD83D, 0xDE00};
-    Utf16String s(raw, 5);
-    const ca::u16 needle_raw[] = {0x0061, 0xD83D, 0xDE00};
-    Utf16StringRef needle = Utf16StringRef::from_data(needle_raw, 3);
+    const ca::u16  raw[] = {0x0061, 0x0062, 0x0061, 0xD83D, 0xDE00};
+    Utf16String    s(raw, 5);
+    const ca::u16  needle_raw[] = {0x0061, 0xD83D, 0xDE00};
+    Utf16StringRef needle       = Utf16StringRef::from_data(needle_raw, 3);
 
     EXPECT_EQ(s.index_of(Char16(0x0061)), 0u);
     EXPECT_EQ(s.index_of(Char16(0x0061), 1), 2u);
@@ -69,12 +69,12 @@ TEST(Utf16StringTest, IndexOfCharAndString)
 
 TEST(Utf16StringTest, StartsEndsAndLastIndexOf)
 {
-    const ca::u16 raw[] = {0x0061, 0x0062, 0x0061, 0x0062, 0x0061, 0xD83D, 0xDE00};
-    Utf16String s(raw, 7);
-    const ca::u16 ab_raw[] = {0x0061, 0x0062};
-    const ca::u16 emoji_raw[] = {0xD83D, 0xDE00};
-    Utf16StringRef ab = Utf16StringRef::from_data(ab_raw, 2);
-    Utf16StringRef emoji = Utf16StringRef::from_data(emoji_raw, 2);
+    const ca::u16  raw[] = {0x0061, 0x0062, 0x0061, 0x0062, 0x0061, 0xD83D, 0xDE00};
+    Utf16String    s(raw, 7);
+    const ca::u16  ab_raw[]    = {0x0061, 0x0062};
+    const ca::u16  emoji_raw[] = {0xD83D, 0xDE00};
+    Utf16StringRef ab          = Utf16StringRef::from_data(ab_raw, 2);
+    Utf16StringRef emoji       = Utf16StringRef::from_data(emoji_raw, 2);
     Utf16StringRef empty;
 
     EXPECT_TRUE(s.starts_with(ab));
@@ -95,10 +95,10 @@ TEST(Utf16StringTest, StartsEndsAndLastIndexOf)
 
 TEST(Utf16StringTest, CloneEqualsConcatAndCompare)
 {
-    const ca::u16 left_raw[] = {0x0041, 0x0042};
+    const ca::u16 left_raw[]  = {0x0041, 0x0042};
     const ca::u16 right_raw[] = {0x0043};
-    Utf16String left(left_raw, 2);
-    Utf16String right(right_raw, 1);
+    Utf16String   left(left_raw, 2);
+    Utf16String   right(right_raw, 1);
 
     auto clone = left.clone();
     EXPECT_TRUE(clone == left);
@@ -118,7 +118,8 @@ TEST(Utf16StringTest, JavaStyleAliases)
 
     EXPECT_TRUE(empty.is_empty());
     EXPECT_FALSE(value.is_empty());
-    EXPECT_EQ(value.compare_to(Utf16String::from_utf8_string(Utf8StringRef::from_cstr("abd")).ref()), -1);
+    EXPECT_EQ(
+        value.compare_to(Utf16String::from_utf8_string(Utf8StringRef::from_cstr("abd")).ref()), -1);
 
     auto copy = value.to_string();
     EXPECT_TRUE(copy == value);
@@ -127,12 +128,12 @@ TEST(Utf16StringTest, JavaStyleAliases)
 
 TEST(Utf16StringTest, HashCodeMatchesJavaString)
 {
-    Utf16String empty;
-    auto abc = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("abc"));
-    auto aa = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("Aa"));
-    auto bb = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("BB"));
+    Utf16String   empty;
+    auto          abc   = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("abc"));
+    auto          aa    = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("Aa"));
+    auto          bb    = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("BB"));
     const ca::u16 raw[] = {0x0041, 0xD83D, 0xDE00, 0x0042};
-    Utf16String with_surrogate(raw, 4);
+    Utf16String   with_surrogate(raw, 4);
 
     EXPECT_EQ(empty.hash_code(), 0);
     EXPECT_EQ(abc.hash_code(), 96354);
@@ -145,7 +146,7 @@ TEST(Utf16StringTest, HashCodeMatchesJavaString)
 TEST(Utf16StringTest, ConvertsToAndFromUtf8)
 {
     Utf8String utf8("A😀中");
-    auto utf16 = Utf16String::from_utf8_string(utf8.ref());
+    auto       utf16 = Utf16String::from_utf8_string(utf8.ref());
 
     EXPECT_EQ(utf16.length(), 4u);
     EXPECT_EQ(utf16.code_point_at(1), 0x1F600u);
@@ -157,7 +158,7 @@ TEST(Utf16StringTest, ConvertsToAndFromUtf8)
 TEST(Utf16StringTest, ConvertsToStdU16String)
 {
     const ca::u16 raw[] = {0x0041, 0xD83D, 0xDE00};
-    Utf16String s(raw, 3);
+    Utf16String   s(raw, 3);
 
     auto standard = s.to_std_u16_string();
 
@@ -170,7 +171,7 @@ TEST(Utf16StringTest, ConvertsToStdU16String)
 TEST(Utf16StringTest, InvalidUtf16ToUtf8Throws)
 {
     const ca::u16 raw[] = {0xD83D, 0x0041};
-    Utf16String s(raw, 2);
+    Utf16String   s(raw, 2);
 
     EXPECT_THROW(s.to_utf8_string(), std::runtime_error);
 }
@@ -224,7 +225,7 @@ TEST(Utf16StringBuilderTest, AppendInsertAndBuild)
 TEST(Utf16StringBuilderTest, AppendJavaStyleValues)
 {
     Utf16StringBuilder builder;
-    Utf8StringRef ref = Utf8StringRef::from_cstr("中");
+    Utf8StringRef      ref = Utf8StringRef::from_cstr("中");
 
     builder.append("value=")
         .append(static_cast<ca::i32>(42))
@@ -344,7 +345,7 @@ TEST(Utf16StringBuilderTest, ReverseKeepsSurrogatePairsTogether)
 
 TEST(Utf16StringTest, StreamOutputUsesUtf8Text)
 {
-    auto s = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("Hi中"));
+    auto               s = Utf16String::from_utf8_string(Utf8StringRef::from_cstr("Hi中"));
     std::ostringstream os;
 
     os << s;
@@ -352,4 +353,4 @@ TEST(Utf16StringTest, StreamOutputUsesUtf8Text)
     EXPECT_EQ(os.str(), "Hi中");
 }
 
-}  // namespace ca::str
+}   // namespace ca::str

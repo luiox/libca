@@ -38,19 +38,21 @@ class Utf8StringPool;
 
 
 /// @brief 池内条目：数据 + 引用计数 + 回指 owner（refcount 归零时由 owner 真删）。
-struct Utf8PoolEntry {
-    u8*             data;
-    usize           byte_length;
-    usize           length;    // 码点个数
-    usize           hash;
-    usize           ref_count;
-    Utf8StringPool* owner;     // 回指：ref_count 归零时由它真删本条目；被 disown 后为 nullptr
+struct Utf8PoolEntry
+{
+    u8*   data;
+    usize byte_length;
+    usize length;   // 码点个数
+    usize hash;
+    usize ref_count;
+    Utf8StringPool* owner;   // 回指：ref_count 归零时由它真删本条目；被 disown 后为 nullptr
 };
 
 
 /// @brief 引用计数的池化不可变 UTF-8 字符串句柄，8 字节（一个指针）。
 /// @note 拷贝/赋值 refcount++，析构 refcount--，归零触发真删或（被 disown 时）自管释放。
-class Utf8StringPooledPtr {
+class Utf8StringPooledPtr
+{
 public:
     /// 空句柄。
     Utf8StringPooledPtr() noexcept;
@@ -74,7 +76,7 @@ public:
 
     const u8* data() const noexcept;
     usize     byte_length() const noexcept;
-    usize     length() const noexcept;  // 码点个数
+    usize     length() const noexcept;   // 码点个数
     bool      is_empty() const noexcept;
 
     explicit operator bool() const noexcept;
@@ -111,13 +113,14 @@ private:
 // ============================================================================
 
 /// @brief 引用计数 UTF-8 字符串池。详见文件头的选型与生命周期契约。
-class Utf8StringPool {
+class Utf8StringPool
+{
 public:
     Utf8StringPool() noexcept;
     /// 析构：disown_all fail-safe 释放（残留句柄转为自管，不 UAF）。
     ~Utf8StringPool();
 
-    Utf8StringPool(const Utf8StringPool&) = delete;
+    Utf8StringPool(const Utf8StringPool&)            = delete;
     Utf8StringPool& operator=(const Utf8StringPool&) = delete;
 
     Utf8StringPool(Utf8StringPool&&) noexcept;
@@ -140,9 +143,9 @@ public:
 
     // ---- 统计 ----
 
-    usize size() const noexcept;            ///< 唯一条目数（真删后 == 活条目数）
-    usize active_entries() const noexcept;  ///< 活跃条目数（ref_count > 0）
-    usize total_bytes() const noexcept;     ///< 活条目字节和
+    usize size() const noexcept;             ///< 唯一条目数（真删后 == 活条目数）
+    usize active_entries() const noexcept;   ///< 活跃条目数（ref_count > 0）
+    usize total_bytes() const noexcept;      ///< 活条目字节和
 
     /// disown_all fail-safe，回到空池（残留句柄转自管，不 UAF）。
     void clear() noexcept;
@@ -181,7 +184,7 @@ bool operator!=(const Utf8StringPooledPtr& lhs, const Utf8StringRef& rhs) noexce
 bool operator==(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
 bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexcept;
 
-}  // namespace ca::str
+}   // namespace ca::str
 
 
 // ============================================================================
@@ -190,9 +193,10 @@ bool operator!=(const Utf8StringRef& lhs, const Utf8StringPooledPtr& rhs) noexce
 
 namespace std {
 
-template <>
-struct hash<ca::str::Utf8StringPooledPtr> {
+template<>
+struct hash<ca::str::Utf8StringPooledPtr>
+{
     size_t operator()(const ca::str::Utf8StringPooledPtr& p) const noexcept;
 };
 
-}  // namespace std
+}   // namespace std

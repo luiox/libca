@@ -39,28 +39,25 @@ struct ChannelState
     {}
 
     /// 是否仍有生产者（含显式关闭）。
-    bool producers_alive() const noexcept
-    {
-        return sender_count > 0 && !explicitly_closed;
-    }
+    bool producers_alive() const noexcept { return sender_count > 0 && !explicitly_closed; }
 
     const usize             capacity;
     mutable std::mutex      mutex;
-    std::condition_variable not_empty;  // 队列从空变非空时通知消费者
-    std::condition_variable not_full;   // 有界队列从满变非满时通知生产者
+    std::condition_variable not_empty;   // 队列从空变非空时通知消费者
+    std::condition_variable not_full;    // 有界队列从满变非满时通知生产者
     std::deque<T>           items;
     usize                   sender_count{0};
     bool                    receiver_alive{true};
-    bool                    explicitly_closed{false};  // Sender::close() 提前关闭
+    bool                    explicitly_closed{false};   // Sender::close() 提前关闭
 };
 
-}  // namespace detail
+}   // namespace detail
 
 template<typename T>
 class Sender
 {
 public:
-    Sender() noexcept = default;  // 空发送端，send 返回 false。
+    Sender() noexcept = default;   // 空发送端，send 返回 false。
 
     // 拷贝 = 新增一个生产者，sender_count++。
     Sender(const Sender& other)
@@ -113,8 +110,8 @@ public:
             return false;
         if (state->capacity > 0) {
             state->not_full.wait(lock, [&] {
-                return !state->receiver_alive || state->explicitly_closed
-                       || state->items.size() < state->capacity;
+                return !state->receiver_alive || state->explicitly_closed ||
+                       state->items.size() < state->capacity;
             });
             if (!state->receiver_alive || state->explicitly_closed)
                 return false;
@@ -175,7 +172,7 @@ template<typename T>
 class Receiver
 {
 public:
-    Receiver() noexcept = default;
+    Receiver() noexcept                  = default;
     Receiver(const Receiver&)            = delete;
     Receiver& operator=(const Receiver&) = delete;
     Receiver(Receiver&&) noexcept        = default;
@@ -199,9 +196,8 @@ public:
             return std::nullopt;
 
         std::unique_lock<std::mutex> lock(state->mutex);
-        state->not_empty.wait(lock, [&] {
-            return !state->items.empty() || !state->producers_alive();
-        });
+        state->not_empty.wait(lock,
+                              [&] { return !state->items.empty() || !state->producers_alive(); });
         if (state->items.empty())
             return std::nullopt;
         T value = std::move(state->items.front());
@@ -239,9 +235,8 @@ public:
             return std::nullopt;
 
         std::unique_lock<std::mutex> lock(state->mutex);
-        if (!state->not_empty.wait_for(lock, timeout, [&] {
-                return !state->items.empty() || !state->producers_alive();
-            }))
+        if (!state->not_empty.wait_for(
+                lock, timeout, [&] { return !state->items.empty() || !state->producers_alive(); }))
             return std::nullopt;
         if (state->items.empty())
             return std::nullopt;
@@ -282,11 +277,11 @@ private:
 template<typename T>
 std::pair<Sender<T>, Receiver<T>> channel(usize capacity)
 {
-    auto state = std::make_shared<detail::ChannelState<T>>(capacity);
+    auto state          = std::make_shared<detail::ChannelState<T>>(capacity);
     state->sender_count = 1;
     Sender<T>   sender(state);
     Receiver<T> receiver(state);
     return {std::move(sender), std::move(receiver)};
 }
 
-}  // namespace ca::thread
+}   // namespace ca::thread

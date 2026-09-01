@@ -18,11 +18,11 @@
  * - 定义为 1：使用自定义实现（适用于无标准库环境的嵌入式场景）
  */
 #ifndef USE_CUSTOM_MEMORY_UTIL_IMPL
-#define USE_CUSTOM_MEMORY_UTIL_IMPL 0
+#    define USE_CUSTOM_MEMORY_UTIL_IMPL 0
 #endif
 
 #if !USE_CUSTOM_MEMORY_UTIL_IMPL
-#include <string.h>
+#    include <string.h>
 #endif
 
 #ifdef __cplusplus
@@ -123,8 +123,10 @@ static inline i32 mem_cmp(const void* s1, const void* s2, usize size)
     if (s1 == s2 || size == 0) {
         return 0;
     }
-    if (!s1) return -1;
-    if (!s2) return 1;
+    if (!s1)
+        return -1;
+    if (!s2)
+        return 1;
     return (i32)memcmp(s1, s2, size);
 }
 
@@ -180,8 +182,8 @@ static inline void mem_swap(void* s1, void* s2, usize size)
 
     while (size--) {
         u8 temp = *p1;
-        *p1++ = *p2;
-        *p2++ = temp;
+        *p1++   = *p2;
+        *p2++   = temp;
     }
 }
 
@@ -197,4 +199,4 @@ static inline void mem_zero(void* dest, usize size)
 }
 #endif
 
-#endif // !LIBCA_EM_BASE_MEMORY_UTIL_H
+#endif   // !LIBCA_EM_BASE_MEMORY_UTIL_H

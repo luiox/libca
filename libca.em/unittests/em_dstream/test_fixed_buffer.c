@@ -7,7 +7,7 @@
 
 TEST_CASE(fixed_buf_test_init)
 {
-    u8                  buf[10];
+    u8             buf[10];
     fixed_buffer_t fsb;
 
     // Success
@@ -19,7 +19,7 @@ TEST_CASE(fixed_buf_test_init)
 
 TEST_CASE(fixed_buf_test_cursor_ops)
 {
-    u8                  buf[10];
+    u8             buf[10];
     fixed_buffer_t fsb;
     fixed_buf_init(&fsb, buf, 10);
 
@@ -48,7 +48,7 @@ TEST_CASE(fixed_buf_test_cursor_ops)
 
 TEST_CASE(fixed_buf_test_state_info)
 {
-    u8                  buf[10];
+    u8             buf[10];
     fixed_buffer_t fsb;
     fixed_buf_init(&fsb, buf, 10);
 
@@ -66,13 +66,13 @@ TEST_CASE(fixed_buf_test_state_info)
     fixed_buf_skip(&fsb, 2);
     TEST_ASSERT_EQUAL_UINT(3, fixed_buf_remaining_to_read(&fsb));
 
-    fixed_buf_skip(&fsb, 10); // cursor at used
+    fixed_buf_skip(&fsb, 10);   // cursor at used
     TEST_ASSERT_EQUAL_UINT(0, fixed_buf_remaining_to_read(&fsb));
 }
 
 TEST_CASE(fixed_buf_test_read_ops)
 {
-    u8                  buf[10];
+    u8             buf[10];
     fixed_buffer_t fsb;
     fixed_buf_init(&fsb, buf, 10);
     fixed_buf_append(&fsb, (u8*)"ABC", 3);
@@ -83,7 +83,7 @@ TEST_CASE(fixed_buf_test_read_ops)
     TEST_ASSERT_EQUAL_INT(FIXED_BUF_OK, fixed_buf_read_u8(&fsb, &val));
     TEST_ASSERT_EQUAL_UINT('A', val);
 
-    u8 r_buf[5];
+    u8  r_buf[5];
     i32 n = fixed_buf_read(&fsb, r_buf, 2);
     TEST_ASSERT_EQUAL_INT(2, n);
     TEST_ASSERT_EQUAL_UINT('B', r_buf[0]);
@@ -99,7 +99,7 @@ TEST_CASE(fixed_buf_test_read_ops)
     TEST_ASSERT_EQUAL_UINT('A', val);
     TEST_ASSERT_EQUAL_UINT('B', fixed_buf_peek_at(&fsb, 1));
     TEST_ASSERT_EQUAL_UINT('C', fixed_buf_peek_at(&fsb, 2));
-    TEST_ASSERT_EQUAL_UINT(0, fixed_buf_peek_at(&fsb, 3)); // OOB
+    TEST_ASSERT_EQUAL_UINT(0, fixed_buf_peek_at(&fsb, 3));   // OOB
 
     // Peek empty
     fixed_buf_skip(&fsb, 10);
@@ -108,24 +108,24 @@ TEST_CASE(fixed_buf_test_read_ops)
 
 TEST_CASE(fixed_buf_test_write_ops)
 {
-    u8                  buf[5];
+    u8             buf[5];
     fixed_buffer_t fsb;
     fixed_buf_init(&fsb, buf, 5);
 
     // Success append & partial write
     TEST_ASSERT_EQUAL_INT(3, fixed_buf_append(&fsb, (u8*)"123", 3));
-    TEST_ASSERT_EQUAL_INT(2, fixed_buf_append(&fsb, (u8*)"456", 3)); // 45 written, 6 dropped
+    TEST_ASSERT_EQUAL_INT(2, fixed_buf_append(&fsb, (u8*)"456", 3));   // 45 written, 6 dropped
     TEST_ASSERT_EQUAL_UINT(5, fixed_buf_used(&fsb));
 
     // write_u8
     fixed_buf_write_u8(&fsb, 0, 'X');
     TEST_ASSERT_EQUAL_UINT('X', buf[0]);
-    fixed_buf_write_u8(&fsb, 10, 'Y'); // OOB index, no crash
+    fixed_buf_write_u8(&fsb, 10, 'Y');   // OOB index, no crash
 
     // Write at cursor
     fixed_buf_reset_cursor(&fsb);
     fixed_buf_skip(&fsb, 2);
-    TEST_ASSERT_EQUAL_INT(3, fixed_buf_write(&fsb, (u8*)"ABC", 3)); // Overwrite from index 2
+    TEST_ASSERT_EQUAL_INT(3, fixed_buf_write(&fsb, (u8*)"ABC", 3));   // Overwrite from index 2
     TEST_ASSERT_EQUAL_UINT('A', buf[2]);
     TEST_ASSERT_EQUAL_UINT(5, fsb.cursor);
     TEST_ASSERT_EQUAL_UINT(5, fixed_buf_used(&fsb));
@@ -134,8 +134,8 @@ TEST_CASE(fixed_buf_test_write_ops)
     fixed_buf_init(&fsb, buf, 5);
     fixed_buf_append(&fsb, (u8*)"123", 3);
     fixed_buf_reset_cursor(&fsb);
-    fixed_buf_skip(&fsb, 2); // cursor at 2
-    fixed_buf_write(&fsb, (u8*)"XY", 2); // Overwrite index 2,3. Index 3 is new.
+    fixed_buf_skip(&fsb, 2);               // cursor at 2
+    fixed_buf_write(&fsb, (u8*)"XY", 2);   // Overwrite index 2,3. Index 3 is new.
     TEST_ASSERT_EQUAL_UINT(4, fixed_buf_used(&fsb));
     TEST_ASSERT_EQUAL_UINT(4, fsb.cursor);
     TEST_ASSERT_EQUAL_UINT('X', buf[2]);
@@ -144,12 +144,12 @@ TEST_CASE(fixed_buf_test_write_ops)
     // Partial write at cursor
     fixed_buf_reset_cursor(&fsb);
     fixed_buf_skip(&fsb, 4);
-    TEST_ASSERT_EQUAL_INT(1, fixed_buf_write(&fsb, (u8*)"123", 3)); // Only 1 byte fits
+    TEST_ASSERT_EQUAL_INT(1, fixed_buf_write(&fsb, (u8*)"123", 3));   // Only 1 byte fits
     TEST_ASSERT_EQUAL_UINT(5, fixed_buf_used(&fsb));
 
     // Merge
     fixed_buffer_t other;
-    u8                  o_buf[2] = { 0xAA, 0xBB };
+    u8             o_buf[2] = {0xAA, 0xBB};
     fixed_buf_init(&other, o_buf, 2);
     other.used = 2;
 
@@ -167,18 +167,18 @@ TEST_CASE(fixed_buf_test_write_ops)
 
 TEST_CASE(fixed_buf_test_management)
 {
-    u8                  buf[10];
+    u8             buf[10];
     fixed_buffer_t fsb;
     fixed_buf_init(&fsb, buf, 10);
     fixed_buf_append(&fsb, (u8*)"0123456789", 10);
 
     // Flush No-op
     fixed_buf_reset_cursor(&fsb);
-    fixed_buf_flush(&fsb); // cursor is 0
+    fixed_buf_flush(&fsb);   // cursor is 0
     TEST_ASSERT_EQUAL_UINT(10, fixed_buf_used(&fsb));
 
     // Normal Flush
-    fixed_buf_skip(&fsb, 4); // cursor at 4
+    fixed_buf_skip(&fsb, 4);   // cursor at 4
     fixed_buf_flush(&fsb);
     TEST_ASSERT_EQUAL_UINT(0, fsb.cursor);
     TEST_ASSERT_EQUAL_UINT(6, fixed_buf_used(&fsb));
@@ -193,7 +193,7 @@ TEST_CASE(fixed_buf_test_management)
     fixed_buf_append(&fsb, (u8*)"12345", 5);
     fixed_buf_skip(&fsb, 2);
     fixed_buffer_t sub;
-    
+
     fixed_buf_new_from_cursor(&fsb, &sub);
     TEST_ASSERT_EQUAL_UINT(3, fixed_buf_used(&sub));
     TEST_ASSERT_EQUAL_UINT(3, fixed_buf_capacity(&sub));

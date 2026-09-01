@@ -16,25 +16,26 @@
 extern "C" {
 #endif
 
-#define FIXED_ALLOCATOR_OK                  (0)
-#define FIXED_ALLOCATOR_ERR_INVALID_PARAM   (-1)
-#define FIXED_ALLOCATOR_ERR_INVALID_ALIGN   (-2)
-#define FIXED_ALLOCATOR_ERR_NOT_ENOUGH_MEM  (-3)
-#define FIXED_ALLOCATOR_ERR_OUT_OF_POOL     (-4)
-#define FIXED_ALLOCATOR_ERR_DOUBLE_FREE     (-5)
+#define FIXED_ALLOCATOR_OK (0)
+#define FIXED_ALLOCATOR_ERR_INVALID_PARAM (-1)
+#define FIXED_ALLOCATOR_ERR_INVALID_ALIGN (-2)
+#define FIXED_ALLOCATOR_ERR_NOT_ENOUGH_MEM (-3)
+#define FIXED_ALLOCATOR_ERR_OUT_OF_POOL (-4)
+#define FIXED_ALLOCATOR_ERR_DOUBLE_FREE (-5)
 
-typedef struct fixed_allocator{
-    void *memory;
-    usize total_memory_size;
-    usize usable_memory_size;
-    usize block_size;
-    usize block_stride;
-    usize block_count;
-    usize free_count;
-    u8 *alloc_bitmap;
-    usize alloc_bitmap_size;
+typedef struct fixed_allocator
+{
+    void*  memory;
+    usize  total_memory_size;
+    usize  usable_memory_size;
+    usize  block_size;
+    usize  block_stride;
+    usize  block_count;
+    usize  free_count;
+    u8*    alloc_bitmap;
+    usize  alloc_bitmap_size;
     lifo_t free_blocks;
-}fixed_allocator_t;
+} fixed_allocator_t;
 
 /// @brief 使用外部内存初始化固定块分配器（不依赖 malloc）
 /// @param self 分配器对象
@@ -44,12 +45,8 @@ typedef struct fixed_allocator{
 /// @param block_count 块数量
 /// @param alignment 块对齐（必须为 2 的幂，且不小于指针大小）
 /// @return FIXED_ALLOCATOR_OK 成功，其他值表示失败
-i32 fixed_allocator_init(fixed_allocator_t* self,
-                          void* memory,
-                          usize memory_size,
-                          usize block_size,
-                          usize block_count,
-                          usize alignment);
+i32 fixed_allocator_init(fixed_allocator_t* self, void* memory, usize memory_size, usize block_size,
+                         usize block_count, usize alignment);
 
 /// @brief 销毁分配器元数据（不释放外部内存）
 /// @param self 分配器对象
@@ -89,4 +86,4 @@ usize fixed_allocator_used(const fixed_allocator_t* self);
 }
 #endif
 
-#endif // !LIBCA_EM_MPOOL_FIXED_ALLOCATOR_H
+#endif   // !LIBCA_EM_MPOOL_FIXED_ALLOCATOR_H

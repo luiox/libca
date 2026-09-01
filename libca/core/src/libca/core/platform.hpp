@@ -9,11 +9,11 @@
 // ============================================================================
 
 #ifdef _WIN32
-    #define CA_PLATFORM_WINDOWS 1
+#    define CA_PLATFORM_WINDOWS 1
 #elif __linux__
-    #define CA_PLATFORM_LINUX 1
+#    define CA_PLATFORM_LINUX 1
 #else
-    #error "Unsupported platform: only Windows and Linux are supported"
+#    error "Unsupported platform: only Windows and Linux are supported"
 #endif
 
 // ============================================================================
@@ -22,14 +22,14 @@
 // 注意: __clang__ 必须在 __GNUC__ 之前检测，因为 Clang 也定义了 __GNUC__
 
 #if defined(__clang__)
-    #define CA_COMPILER_CLANG 1
+#    define CA_COMPILER_CLANG 1
 #elif defined(__GNUC__)
-    #define CA_COMPILER_GCC 1
+#    define CA_COMPILER_GCC 1
 #elif defined(_MSC_VER)
-    #define CA_COMPILER_MSVC 1
+#    define CA_COMPILER_MSVC 1
 #else
-    #define CA_COMPILER_UNKNOWN 1
-    #warning "Unknown compiler"
+#    define CA_COMPILER_UNKNOWN 1
+#    warning "Unknown compiler"
 #endif
 
 // ============================================================================
@@ -41,7 +41,8 @@
 namespace ca::core {
 
 /// @brief 返回当前操作系统名（"Windows" 或 "Linux"）。
-inline std::string get_os_name() {
+inline std::string get_os_name()
+{
 #ifdef _WIN32
     return "Windows";
 #else
@@ -49,4 +50,4 @@ inline std::string get_os_name() {
 #endif
 }
 
-} // namespace ca::core
+}   // namespace ca::core

@@ -7,6 +7,6 @@ int main(void)
     led_on(&led);
     led_off(&led);
     led_toggle(&led);
-    
+
     return 0;
 }

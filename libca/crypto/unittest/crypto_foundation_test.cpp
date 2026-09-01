@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 // 聚合头编译健康检查：任何头文件语法损坏都会在这里暴露。
-#include "libca/crypto/crypto.hpp"  // IWYU pragma: keep
+#include "libca/crypto/crypto.hpp"   // IWYU pragma: keep
 
 #include "libca/crypto/base64.hpp"
 #include "libca/crypto/crypto_util.hpp"
@@ -27,7 +27,7 @@ ByteSlice bytes(const Bytes& data)
     return ByteSlice(data.as_ptr(), data.len());
 }
 
-}  // namespace
+}   // namespace
 
 // ============================================================
 // constant_time_eq（安全敏感原语，直接行为测试）
@@ -59,7 +59,7 @@ TEST(ConstantTimeEqTest, BothEmpty)
 TEST(HexTest, EncodeDecodeRoundtrip)
 {
     const std::string input("Hello\0World", 11);
-    const auto encoded = hex_encode(bytes(input));
+    const auto        encoded = hex_encode(bytes(input));
     EXPECT_EQ(encoded, "48656c6c6f00576f726c64");
 
     auto decoded = hex_decode(encoded);
@@ -75,8 +75,8 @@ TEST(HexTest, RejectsInvalidInput)
 
 TEST(Base64ResultTest, StrictDecode)
 {
-    const std::string input = "foobar";
-    const auto encoded = base64_encode(bytes(input));
+    const std::string input   = "foobar";
+    const auto        encoded = base64_encode(bytes(input));
     EXPECT_EQ(encoded, "Zm9vYmFy");
 
     auto decoded = base64_decode(encoded);
@@ -106,9 +106,7 @@ TEST(HmacSHA256Test, Rfc4231TestCase1)
     for (ca::usize i = 0; i < 20; ++i)
         key_data[i] = 0x0b;
 
-    const auto digest = hmac_sha256(
-        ca::core::ByteSlice(key_data, 20),
-        bytes("Hi There"));
+    const auto digest = hmac_sha256(ca::core::ByteSlice(key_data, 20), bytes("Hi There"));
 
     EXPECT_EQ(hex_encode(bytes(digest)),
               "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");
@@ -122,9 +120,9 @@ TEST(HmacSHA256Test, Rfc4231TestCase6LargerThanBlockSizeKey)
     for (ca::usize i = 0; i < 131; ++i)
         key_data[i] = 0xaa;
 
-    const auto digest = hmac_sha256(
-        ca::core::ByteSlice(key_data, 131),
-        bytes("Test Using Larger Than Block-Size Key - Hash Key First"));
+    const auto digest =
+        hmac_sha256(ca::core::ByteSlice(key_data, 131),
+                    bytes("Test Using Larger Than Block-Size Key - Hash Key First"));
 
     EXPECT_EQ(hex_encode(bytes(digest)),
               "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
@@ -137,11 +135,11 @@ TEST(HmacSHA256Test, Rfc4231TestCase7LargerThanBlockSizeKeyAndData)
     for (ca::usize i = 0; i < 131; ++i)
         key_data[i] = 0xaa;
 
-    const auto digest = hmac_sha256(
-        ca::core::ByteSlice(key_data, 131),
-        bytes("This is a test using a larger than block-size key and a larger "
-              "than block-size data. The key needs to be hashed before being "
-              "used by the HMAC algorithm."));
+    const auto digest =
+        hmac_sha256(ca::core::ByteSlice(key_data, 131),
+                    bytes("This is a test using a larger than block-size key and a larger "
+                          "than block-size data. The key needs to be hashed before being "
+                          "used by the HMAC algorithm."));
 
     EXPECT_EQ(hex_encode(bytes(digest)),
               "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2");

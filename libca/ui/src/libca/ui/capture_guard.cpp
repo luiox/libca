@@ -33,7 +33,7 @@ struct EnumContext
 
 BOOL CALLBACK enum_windows_proc(HWND hwnd, LPARAM lparam)
 {
-    auto* ctx = reinterpret_cast<EnumContext*>(lparam);
+    auto* ctx               = reinterpret_cast<EnumContext*>(lparam);
     char  window_class[256] = {0};
     if (GetClassNameA(hwnd, window_class, static_cast<int>(sizeof(window_class) - 1)) > 0) {
         if (std::strcmp(window_class, ctx->target_class) == 0) {
@@ -43,10 +43,10 @@ BOOL CALLBACK enum_windows_proc(HWND hwnd, LPARAM lparam)
             // 单个窗口失败不中止枚举：可能有多个同类窗口，能成功几个算几个。
         }
     }
-    return TRUE;  // 继续枚举
+    return TRUE;   // 继续枚举
 }
 
-}  // namespace
+}   // namespace
 
 core::Status apply_capture_exclusion(const std::string& class_name)
 {
@@ -60,4 +60,4 @@ core::Status apply_capture_exclusion(const std::string& class_name)
     return core::OkStatus();
 }
 
-}  // namespace ca::ui
+}   // namespace ca::ui

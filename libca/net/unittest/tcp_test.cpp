@@ -48,13 +48,13 @@ TEST(TcpTest, LoopbackStreamUsesReaderWriterAndReportsAddresses)
     ASSERT_TRUE(listener_result.is_ok()) << listener_result.unwrap_err().to_string();
     auto listener = std::move(listener_result).unwrap();
     expect_socket_not_inheritable(listener.native_socket());
-    auto address  = listener.local_address();
+    auto address = listener.local_address();
     ASSERT_TRUE(address.is_ok()) << address.unwrap_err().to_string();
     ASSERT_NE(address.unwrap().port(), 0);
 
     auto client_result = TcpStream::connect(address.unwrap());
     ASSERT_TRUE(client_result.is_ok()) << client_result.unwrap_err().to_string();
-    auto client          = std::move(client_result).unwrap();
+    auto client = std::move(client_result).unwrap();
     expect_socket_not_inheritable(client.native_socket());
     auto accepted_result = listener.accept();
     ASSERT_TRUE(accepted_result.is_ok()) << accepted_result.unwrap_err().to_string();
@@ -101,7 +101,7 @@ TEST(TcpTest, HostnameConnectAndConnectTimeoutReachListener)
     EXPECT_LT(std::chrono::steady_clock::now() - started, 1s);
     EXPECT_TRUE(listener.accept().is_ok());
 
-    started = std::chrono::steady_clock::now();
+    started                      = std::chrono::steady_clock::now();
     auto hostname_timeout_client = TcpStream::connect_timeout("127.0.0.1", address.port(), 2s);
     ASSERT_TRUE(hostname_timeout_client.is_ok())
         << hostname_timeout_client.unwrap_err().to_string();
@@ -172,20 +172,20 @@ TEST(TcpListenerTest, ValidatesBindOptionsAndClosesExplicitly)
 {
     TcpListenerOptions invalid_backlog;
     invalid_backlog.backlog = 0;
-    auto invalid = TcpListener::bind(loopback_address(), invalid_backlog);
+    auto invalid            = TcpListener::bind(loopback_address(), invalid_backlog);
     ASSERT_TRUE(invalid.is_err());
     EXPECT_EQ(invalid.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
 
     TcpListenerOptions invalid_ipv6;
     invalid_ipv6.ipv6_only = true;
-    auto wrong_family = TcpListener::bind(loopback_address(), invalid_ipv6);
+    auto wrong_family      = TcpListener::bind(loopback_address(), invalid_ipv6);
     ASSERT_TRUE(wrong_family.is_err());
     EXPECT_EQ(wrong_family.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
 
     TcpListenerOptions options;
     options.backlog       = 16;
     options.reuse_address = true;
-    auto bound = TcpListener::bind(loopback_address(), options);
+    auto bound            = TcpListener::bind(loopback_address(), options);
     ASSERT_TRUE(bound.is_ok()) << bound.unwrap_err().to_string();
     auto listener = std::move(bound).unwrap();
     EXPECT_TRUE(listener.is_open());

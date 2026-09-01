@@ -16,10 +16,11 @@ extern "C" {
 #endif
 
 /// @brief 二维位姿（世界坐标系）
-typedef struct pose2d_s {
-	f32 x;
-	f32 y;
-	f32 theta;
+typedef struct pose2d_s
+{
+    f32 x;
+    f32 y;
+    f32 theta;
 } pose2d_t;
 
 /// @brief 差速逆运动学
@@ -55,4 +56,4 @@ void diff_drive_odometry(f32 left, f32 right, f32 wheel_base, f32 dt, pose2d_t* 
 }
 #endif
 
-#endif // !LIBCA_EM_MOTION_KIN_DIFF_H
+#endif   // !LIBCA_EM_MOTION_KIN_DIFF_H

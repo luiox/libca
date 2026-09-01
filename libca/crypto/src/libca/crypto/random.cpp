@@ -1,18 +1,18 @@
 #include "libca/crypto/random.hpp"
 
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#include <bcrypt.h>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <windows.h>
+#    include <bcrypt.h>
 #elif defined(__linux__)
-#include <cerrno>
-#include <sys/random.h>
+#    include <cerrno>
+#    include <sys/random.h>
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#include <cstdlib>
+#    include <cstdlib>
 #else
-#include <random>
+#    include <random>
 #endif
 
 namespace ca::crypto {
@@ -32,12 +32,11 @@ Result<Bytes, CryptoError> secure_random_bytes(usize len)
 #if defined(_WIN32)
     usize offset = 0;
     while (offset < len) {
-        const usize chunk = (len - offset) > 0xFFFFFFFFu ? 0xFFFFFFFFu : (len - offset);
-        const auto status = BCryptGenRandom(
-            nullptr,
-            output.as_mut_ptr() + offset,
-            static_cast<ULONG>(chunk),
-            BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        const usize chunk  = (len - offset) > 0xFFFFFFFFu ? 0xFFFFFFFFu : (len - offset);
+        const auto  status = BCryptGenRandom(nullptr,
+                                            output.as_mut_ptr() + offset,
+                                            static_cast<ULONG>(chunk),
+                                            BCRYPT_USE_SYSTEM_PREFERRED_RNG);
         if (status < 0)
             return Err(CryptoError::RANDOM_FAILED);
         offset += chunk;
@@ -57,7 +56,7 @@ Result<Bytes, CryptoError> secure_random_bytes(usize len)
     arc4random_buf(output.as_mut_ptr(), len);
 #else
     std::random_device rd;
-    usize i = 0;
+    usize              i = 0;
     while (i < len) {
         auto value = rd();
         for (usize j = 0; j < sizeof(value) && i < len; ++j) {
@@ -70,4 +69,4 @@ Result<Bytes, CryptoError> secure_random_bytes(usize len)
     return Ok(output.freeze());
 }
 
-}  // namespace ca::crypto
+}   // namespace ca::crypto

@@ -14,7 +14,8 @@
 namespace ca::time {
 
 /// @brief 日期值类型（年/月/日），不做范围校验，依赖调用方保证合法。
-class Date {
+class Date
+{
 public:
     /// @brief 由年/月/日构造，不做合法性校验。
     Date(int year, int month, int day);
@@ -38,7 +39,8 @@ private:
 };
 
 /// @brief 时间值类型（时/分/秒），不做范围校验，依赖调用方保证合法。
-class Time {
+class Time
+{
 public:
     /// @brief 由时/分/秒构造，不做合法性校验。
     Time(int hour, int minute, int second);
@@ -62,10 +64,11 @@ private:
 };
 
 /// @brief 日期时间工具，仅提供当前时间入口。
-struct DateTime {
+struct DateTime
+{
     /// @brief 获取当前本地日期时间。
     /// @return (Date, Time)，基于 std::time 和 std::localtime 拆分。
     static std::tuple<Date, Time> now();
 };
 
-} // namespace ca::time
+}   // namespace ca::time

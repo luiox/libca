@@ -189,8 +189,8 @@ StatusResult<std::vector<wchar_t>> environment_block(
         std::wstring wide_key;
         std::wstring wide_value;
         if (!utf8_to_utf16(key, wide_key) || !utf8_to_utf16(value, wide_value))
-            return Err(ErrStatus(StatusCode::INVALID_ARGUMENT,
-                                 "environment variable is not valid UTF-8"));
+            return Err(
+                ErrStatus(StatusCode::INVALID_ARGUMENT, "environment variable is not valid UTF-8"));
         const auto existing = std::find_if(values.begin(), values.end(), [&](const auto& entry) {
             return environment_key_equal(entry.first, wide_key);
         });
@@ -397,7 +397,7 @@ Status PipeWriter::write_all(const void* data, usize length)
         offset += written;
 #else
         // POSIX write 长度超过 SSIZE_MAX 是 UB，单次封顶（循环继续写剩余部分）。
-        const usize   capped = std::min<usize>(
+        const usize capped = std::min<usize>(
             length - offset, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
         const ssize_t written =
             ::write(to_fd(native_handle_), static_cast<const char*>(data) + offset, capped);
@@ -556,7 +556,7 @@ StatusResult<std::optional<ExitStatus>> Child::try_wait()
     if (result < 0)
         return Err(system_error("waitpid"));
     exit_status_ = ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
-                                                 : static_cast<i32>(128 + WTERMSIG(status))};
+                                                : static_cast<i32>(128 + WTERMSIG(status))};
     return Ok(exit_status_);
 #endif
 }
@@ -581,7 +581,7 @@ StatusResult<ExitStatus> Child::wait()
     if (waitpid(static_cast<pid_t>(native_process_), &status, 0) < 0)
         return Err(system_error("waitpid"));
     exit_status_ = ExitStatus{WIFEXITED(status) ? static_cast<i32>(WEXITSTATUS(status))
-                                                 : static_cast<i32>(128 + WTERMSIG(status))};
+                                                : static_cast<i32>(128 + WTERMSIG(status))};
     return Ok(*exit_status_);
 #endif
 }
@@ -717,9 +717,8 @@ Command& Command::current_dir(std::string path)
 }
 Command& Command::env(std::string key, std::string value)
 {
-    const auto existing = std::find_if(env_.begin(), env_.end(), [&](const auto& entry) {
-        return entry.first == key;
-    });
+    const auto existing = std::find_if(
+        env_.begin(), env_.end(), [&](const auto& entry) { return entry.first == key; });
     if (existing == env_.end())
         env_.emplace_back(std::move(key), std::move(value));
     else
@@ -772,7 +771,7 @@ StatusResult<Child> Command::spawn() const
 
     HANDLE parent_in = nullptr, parent_out = nullptr, parent_err = nullptr, child_in = nullptr,
            child_out = nullptr, child_err = nullptr;
-    HANDLE null_in = nullptr, null_out = nullptr, null_err = nullptr;
+    HANDLE     null_in = nullptr, null_out = nullptr, null_err = nullptr;
     const auto close_handle = [](HANDLE& handle) {
         if (handle != nullptr && handle != INVALID_HANDLE_VALUE)
             CloseHandle(handle);
@@ -840,7 +839,7 @@ StatusResult<Child> Command::spawn() const
     std::vector<wchar_t> mutable_line(text.begin(), text.end());
     mutable_line.push_back(L'\0');
     PROCESS_INFORMATION info{};
-    const DWORD creation_flags =
+    const DWORD         creation_flags =
         env_.empty() ? CREATE_NO_WINDOW : CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT;
     if (!CreateProcessW(nullptr,
                         mutable_line.data(),
@@ -871,14 +870,14 @@ StatusResult<Child> Command::spawn() const
         parent_err ? std::optional<ChildStderr>(ChildStderr(to_native(parent_err)))
                    : std::nullopt));
 #else
-    int parent_in = -1;
-    int parent_out = -1;
-    int parent_err = -1;
-    int child_in = -1;
-    int child_out = -1;
-    int child_err = -1;
-    int exec_read = -1;
-    int exec_write = -1;
+    int        parent_in        = -1;
+    int        parent_out       = -1;
+    int        parent_err       = -1;
+    int        child_in         = -1;
+    int        child_out        = -1;
+    int        child_err        = -1;
+    int        exec_read        = -1;
+    int        exec_write       = -1;
     const auto close_descriptor = [](int& descriptor) {
         if (descriptor >= 0)
             ::close(descriptor);
@@ -916,7 +915,8 @@ StatusResult<Child> Command::spawn() const
     values.insert(values.end(), args_.begin(), args_.end());
     std::vector<char*> argv;
     argv.reserve(values.size() + 1);
-    for (std::string& value : values) argv.push_back(value.data());
+    for (std::string& value : values)
+        argv.push_back(value.data());
     argv.push_back(nullptr);
 
     const pid_t pid = fork();
@@ -933,11 +933,14 @@ StatusResult<Child> Command::spawn() const
             write_exec_error(exec_write, error);
             _exit(127);
         }
-        const auto set_stream = [](Stdio::Mode mode, int descriptor, int target, int access) -> bool {
-            if (mode == Stdio::Mode::Piped) return dup2(descriptor, target) >= 0;
+        const auto set_stream =
+            [](Stdio::Mode mode, int descriptor, int target, int access) -> bool {
+            if (mode == Stdio::Mode::Piped)
+                return dup2(descriptor, target) >= 0;
             if (mode == Stdio::Mode::Null) {
                 const int null_fd = open("/dev/null", access);
-                if (null_fd < 0) return false;
+                if (null_fd < 0)
+                    return false;
                 const bool ok = dup2(null_fd, target) >= 0;
                 ::close(null_fd);
                 return ok;
@@ -951,8 +954,10 @@ StatusResult<Child> Command::spawn() const
             write_exec_error(exec_write, error);
             _exit(127);
         }
-        for (int descriptor : {parent_in, parent_out, parent_err, child_in, child_out, child_err, exec_read}) {
-            if (descriptor >= 0 && descriptor > STDERR_FILENO) ::close(descriptor);
+        for (int descriptor :
+             {parent_in, parent_out, parent_err, child_in, child_out, child_err, exec_read}) {
+            if (descriptor >= 0 && descriptor > STDERR_FILENO)
+                ::close(descriptor);
         }
         for (const auto& [key, value] : env_) {
             if (setenv(key.c_str(), value.c_str(), 1) != 0) {
@@ -972,7 +977,7 @@ StatusResult<Child> Command::spawn() const
     close_descriptor(child_out);
     close_descriptor(child_err);
     close_descriptor(exec_write);
-    int exec_error = 0;
+    int     exec_error  = 0;
     ssize_t exec_result = -1;
     do {
         exec_result = ::read(exec_read, &exec_error, sizeof(exec_error));
@@ -994,10 +999,12 @@ StatusResult<Child> Command::spawn() const
         cleanup();
         return Err(error);
     }
-    return Ok(Child(static_cast<std::intptr_t>(pid), static_cast<u64>(pid),
-                    parent_in >= 0 ? std::optional<ChildStdin>(ChildStdin(parent_in)) : std::nullopt,
-                    parent_out >= 0 ? std::optional<ChildStdout>(ChildStdout(parent_out)) : std::nullopt,
-                    parent_err >= 0 ? std::optional<ChildStderr>(ChildStderr(parent_err)) : std::nullopt));
+    return Ok(Child(
+        static_cast<std::intptr_t>(pid),
+        static_cast<u64>(pid),
+        parent_in >= 0 ? std::optional<ChildStdin>(ChildStdin(parent_in)) : std::nullopt,
+        parent_out >= 0 ? std::optional<ChildStdout>(ChildStdout(parent_out)) : std::nullopt,
+        parent_err >= 0 ? std::optional<ChildStderr>(ChildStderr(parent_err)) : std::nullopt));
 #endif
 }
 

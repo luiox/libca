@@ -14,7 +14,8 @@
 namespace ca::crypto {
 
 /// CRC16 校验（CCITT 标准，多项式 0x1021）
-struct Crc16 {
+struct Crc16
+{
     Crc16() = delete;
 
     /// 计算 CRC16
@@ -27,4 +28,4 @@ struct Crc16 {
     static uint16_t calculate(const std::string& s);
 };
 
-} // namespace ca::crypto
+}   // namespace ca::crypto

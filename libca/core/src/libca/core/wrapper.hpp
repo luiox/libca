@@ -95,4 +95,4 @@ private:
     MeyersSingleton& operator=(const MeyersSingleton&) = delete;
 };
 
-} // namespace ca
+}   // namespace ca
