@@ -1,16 +1,19 @@
 #include "path_util.hpp"
 
-#include <filesystem>
 #include <algorithm>
 #include <cctype>
 
+#include "path.hpp"
+
 namespace ca { namespace fs {
+
+// 本文件不直接使用 std::filesystem::u8path/generic_u8string：UTF-8 编码语义统一经
+// Path 的 from_utf8_lossy / to_utf8_lossy 边界，转换实现全库只有 path.cpp 一份。
 
 std::string PathUtil::normalize(const std::string& path)
 {
-    auto p = std::filesystem::u8path(to_unix_separators(path)).lexically_normal();
-    auto result = p.generic_u8string();  // 统一使用 '/' 分隔符
-    return result;
+    // 先把反斜杠归一为 '/'：POSIX 上 '\\' 不是分隔符，归一化前后语义保持与本类历史行为一致。
+    return Path::from_utf8_lossy(to_unix_separators(path)).normalized().to_utf8_lossy();
 }
 
 Result<std::string, FsError> PathUtil::normalize_within(const std::string& path,
@@ -21,15 +24,15 @@ Result<std::string, FsError> PathUtil::normalize_within(const std::string& path,
 
     // 纯词法处理：反斜杠先统一为 '/'，再各自 lexically_normal（消除 . 与 .. 段），
     // 全程不访问文件系统。
-    auto base_p = std::filesystem::u8path(to_unix_separators(base)).lexically_normal();
-    auto path_p = std::filesystem::u8path(to_unix_separators(path)).lexically_normal();
+    auto base_p = Path::from_utf8_lossy(to_unix_separators(base)).native().lexically_normal();
+    auto path_p = Path::from_utf8_lossy(to_unix_separators(path)).native().lexically_normal();
 
     // 根一致性检查一：root_name 有无不一致（如一方带盘符/UNC、另一方是纯相对路径）。
     if (path_p.has_root_name() != base_p.has_root_name())
         return Err(FsError::PathOutsideBase);
     if (path_p.has_root_name()) {
-        const auto path_root = path_p.root_name().generic_u8string();
-        const auto base_root = base_p.root_name().generic_u8string();
+        const auto path_root = Path(path_p.root_name()).to_utf8_lossy();
+        const auto base_root = Path(base_p.root_name()).to_utf8_lossy();
         // Windows 盘符大小写不区分（c:/ 与 C:/ 同一根）；盘符不同则必然不在 base 之下。
         // 部分标准库实现的 lexically_relative 不做盘符大小写折叠，这里显式比较：
         // 仅大小写差异时用 base 的书写形式做相对化，结果仍保留 path 原书写形式。
@@ -64,7 +67,7 @@ Result<std::string, FsError> PathUtil::normalize_within(const std::string& path,
     if (*relative.begin() == "..")
         return Err(FsError::PathOutsideBase);
 
-    return Ok(path_p.generic_u8string());
+    return Ok(Path(path_p).to_utf8_lossy());
 }
 
 std::string PathUtil::to_unix_separators(const std::string& path)
@@ -76,49 +79,54 @@ std::string PathUtil::to_unix_separators(const std::string& path)
 
 std::string PathUtil::join(const std::string& base, const std::string& part1)
 {
-    return (std::filesystem::u8path(base) /= std::filesystem::u8path(part1)).generic_u8string();
+    return (Path::from_utf8_lossy(base) / Path::from_utf8_lossy(part1)).to_utf8_lossy();
 }
 
 std::string PathUtil::join(const std::string& base, const std::string& part1, const std::string& part2)
 {
-    return ((std::filesystem::u8path(base) /= std::filesystem::u8path(part1)) /= std::filesystem::u8path(part2)).generic_u8string();
+    return ((Path::from_utf8_lossy(base) / Path::from_utf8_lossy(part1)) /
+            Path::from_utf8_lossy(part2))
+        .to_utf8_lossy();
 }
 
 std::string PathUtil::extension(const std::string& path)
 {
-    return std::filesystem::u8path(path).extension().generic_u8string();
+    return Path::from_utf8_lossy(path).extension();
 }
 
 std::string PathUtil::stem(const std::string& path)
 {
-    return std::filesystem::u8path(path).stem().generic_u8string();
+    return Path::from_utf8_lossy(path).stem().to_utf8_lossy();
 }
 
 std::string PathUtil::filename(const std::string& path)
 {
-    return std::filesystem::u8path(path).filename().generic_u8string();
+    return Path::from_utf8_lossy(path).filename().to_utf8_lossy();
 }
 
 std::string PathUtil::parent(const std::string& path)
 {
-    return std::filesystem::u8path(path).parent_path().generic_u8string();
+    return Path::from_utf8_lossy(path).parent().to_utf8_lossy();
 }
 
 bool PathUtil::is_absolute(const std::string& path)
 {
-    return std::filesystem::u8path(path).is_absolute();
+    return Path::from_utf8_lossy(path).is_absolute();
 }
 
 std::string PathUtil::to_absolute(const std::string& path)
 {
-    return std::filesystem::absolute(std::filesystem::u8path(path)).generic_u8string();
+    // 此前直接调用抛异常版 std::filesystem::absolute，极端失败时异常会逃逸出本类
+    //（与“所有方法均不抛异常”的承诺不符）；现失败时返回原路径。
+    auto result = Path::from_utf8_lossy(path).absolute();
+    return result.is_ok() ? result.unwrap().to_utf8_lossy() : path;
 }
 
 std::vector<std::string> PathUtil::split(const std::string& path)
 {
     std::vector<std::string> parts;
-    for (const auto& part : std::filesystem::u8path(path)) {
-        parts.push_back(part.generic_u8string());
+    for (const auto& part : Path::from_utf8_lossy(path).components()) {
+        parts.push_back(part.to_utf8_lossy());
     }
     return parts;
 }
