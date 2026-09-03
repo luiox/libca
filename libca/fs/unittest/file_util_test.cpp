@@ -816,4 +816,131 @@ TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
     EXPECT_EQ(to_string(FsError::TooManyOpenFiles), "too many open files");
 }
 
+// ==================== Path 重载族 ====================
+
+namespace {
+
+// Path 族的构造快捷方式（测试内路径均为合法 UTF-8）。
+Path p(std::string_view utf8)
+{
+    return Path::from_utf8_lossy(utf8);
+}
+
+}  // namespace
+
+TEST(FileUtilPathTest, WriteReadTextRoundtrip)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto file = p(tmp.path()) / p("配置.txt");
+    ASSERT_TRUE(FileUtil::write_text(file, u8"内容-abc").is_ok());
+    EXPECT_TRUE(FileUtil::exists(file));
+    EXPECT_EQ(FileUtil::read_all_text(file).unwrap(), u8"内容-abc");
+    EXPECT_EQ(FileUtil::size(file), static_cast<ca::i64>(std::string(u8"内容-abc").size()));
+}
+
+TEST(FileUtilPathTest, WriteCreatesParentDirectories)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto file = p(tmp.path()) / p("a") / p("b") / p("c.txt");
+    ASSERT_TRUE(FileUtil::write_text(file, "x").is_ok());
+    EXPECT_TRUE(FileUtil::is_file(file));
+    EXPECT_TRUE(FileUtil::is_directory(p(tmp.path()) / p("a/b")));
+}
+
+TEST(FileUtilPathTest, MetadataViaPath)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto file = p(tmp.path()) / p("meta.txt");
+    ASSERT_TRUE(FileUtil::write_text(file, "hello").is_ok());
+    auto meta = FileUtil::metadata(file).unwrap();
+    EXPECT_TRUE(meta.exists);
+    EXPECT_TRUE(meta.is_file);
+    EXPECT_EQ(meta.size, 5);
+    EXPECT_FALSE(FileUtil::metadata(p(tmp.path()) / p("不存在.txt")).is_ok());
+}
+
+TEST(FileUtilPathTest, ListFilesReturnsPaths)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    tmp.create_file("x.txt", "1");
+    tmp.create_file("sub/y.txt", "2");
+
+    auto files = FileUtil::list_files(p(tmp.path())).unwrap();
+    ASSERT_EQ(files.size(), 1u);
+    EXPECT_EQ(files[0].filename().to_utf8_lossy(), "x.txt");
+
+    auto all = FileUtil::list_files(p(tmp.path()), true).unwrap();
+    ASSERT_EQ(all.size(), 2u);
+
+    auto entries = FileUtil::list_entries(p(tmp.path())).unwrap();
+    ASSERT_EQ(entries.size(), 2u);  // x.txt + sub/
+}
+
+TEST(FileUtilPathTest, MoveAndRemoveViaPath)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto src = p(tmp.path()) / p("a.txt");
+    auto dst = p(tmp.path()) / p("b.txt");
+    ASSERT_TRUE(FileUtil::write_text(src, "data").is_ok());
+    EXPECT_TRUE(FileUtil::move(src, dst));
+    EXPECT_FALSE(FileUtil::exists(src));
+    EXPECT_TRUE(FileUtil::exists(dst));
+
+    EXPECT_TRUE(FileUtil::remove(dst));
+    EXPECT_FALSE(FileUtil::exists(dst));
+    EXPECT_FALSE(FileUtil::remove(dst));  // 已不存在
+}
+
+TEST(FileUtilPathTest, BackupReturnsPath)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto file = p(tmp.path()) / p("orig.txt");
+    ASSERT_TRUE(FileUtil::write_text(file, "v1").is_ok());
+
+    auto backup = FileUtil::backup(file).unwrap();
+    EXPECT_EQ(backup.filename().to_utf8_lossy(), "orig.txt.backup");
+    EXPECT_TRUE(FileUtil::is_file(backup));
+}
+
+TEST(FileUtilPathTest, AtomicWriteViaPath)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto file = p(tmp.path()) / p("state.json");
+    ASSERT_TRUE(FileUtil::atomic_write_text(file, "v1").is_ok());
+    ASSERT_TRUE(FileUtil::atomic_write_text(file, "v2").is_ok());
+    EXPECT_EQ(FileUtil::read_all_text(file).unwrap(), "v2");
+}
+
+TEST(FileUtilPathTest, StringOverloadDelegatesLossy)
+{
+    // string 族的编码契约：非法 UTF-8 以 U+FFFD 替代后按该名字操作（不抛异常、不乱码扩散）
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    std::string bad_name = std::string(tmp.path()) + "/bad\xff" "name.txt";
+    // 写入与读取经同一条 lossy 转换路径，指向同一个替换后的物理文件名
+    ASSERT_TRUE(FileUtil::write_text(bad_name, "ok").is_ok());
+    EXPECT_TRUE(FileUtil::exists(bad_name));
+    EXPECT_EQ(FileUtil::read_all_text(bad_name).unwrap(), "ok");
+
+    // Path 族 from_utf8 则显式拒绝同一输入
+    auto strict = Path::from_utf8("/tmp/bad\xff" "name");
+    ASSERT_TRUE(strict.is_err());
+    EXPECT_EQ(strict.unwrap_err(), FsError::InvalidUtf8);
+}
+
 }}}  // namespace ca::fs::test

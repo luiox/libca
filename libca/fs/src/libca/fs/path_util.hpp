@@ -7,12 +7,14 @@ namespace ca { namespace fs {
 
 /// 路径字符串操作工具类
 ///
-/// 路径解析与拼接运算，内部基于 `std::filesystem::path`；除 `to_absolute` 外不访问
+/// 路径解析与拼接运算，内部基于 `ca::fs::Path`；除 `to_absolute` 外不访问
 /// 文件系统。所有方法均不抛异常。
 ///
-/// @note 所有 `std::string` 路径参数一律按 **UTF-8** 编码，内部统一用
-///       `std::filesystem::u8path` 构造路径，避免 Windows 上按本地代码页解析导致
-///       中文/非 ASCII 路径有损。
+/// @note 所有 `std::string` 路径参数一律按 **UTF-8** 编码，内部经
+///       `Path::from_utf8_lossy`（非法序列以 U+FFFD 替代）转换，避免 Windows 上
+///       按本地代码页（ACP）解析导致中文/非 ASCII 路径有损。
+///       需要拼接/分解的链式运算建议直接用 `Path` 值类型（`operator/` 等），
+///       本类服务于只拿字符串做一次性运算的场景。
 class PathUtil
 {
 public:
@@ -44,6 +46,7 @@ public:
     static bool is_absolute(const std::string& path);
 
     /// 转为绝对路径（基于当前工作目录进行解析）
+    /// @note 解析失败时返回原路径，不抛异常。
     static std::string to_absolute(const std::string& path);
 
     /// 拆分路径为各段。如 "a/b/c" -> ["a", "b", "c"]

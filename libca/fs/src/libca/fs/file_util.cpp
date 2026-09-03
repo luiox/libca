@@ -18,28 +18,17 @@ namespace ca { namespace fs {
 
 namespace {
 
-// 把 std::error_code 归类为 FsError。无错误映射时退回 Unknown。
-FsError classify_fs_error(const std::error_code& ec) noexcept
+// UTF-8 路径字符串 → 原生 std::filesystem::path 的统一入口（lossy 语义）。
+// 本文件不直接使用 std::filesystem::u8path/generic_u8string，编码转换全部经 Path。
+std::filesystem::path to_native_path(std::string_view utf8)
 {
-    if (!ec) return FsError::Unknown;
-    // 优先用 std::errc 条件值判断，跨平台稳定。
-    const auto cond = static_cast<std::errc>(ec.default_error_condition().value());
-    switch (cond) {
-        case std::errc::no_such_file_or_directory:    return FsError::FileNotFound;
-        case std::errc::not_a_directory:              return FsError::NotADirectory;
-        case std::errc::is_a_directory:               return FsError::IsADirectory;
-        case std::errc::directory_not_empty:          return FsError::DirectoryNotEmpty;
-        case std::errc::permission_denied:            return FsError::PermissionDenied;
-        case std::errc::operation_not_permitted:      return FsError::PermissionDenied;
-        case std::errc::read_only_file_system:        return FsError::PermissionDenied;
-        case std::errc::file_exists:                  return FsError::AlreadyExists;
-        case std::errc::no_space_on_device:           return FsError::DiskFull;
-        case std::errc::no_buffer_space:              return FsError::DiskFull;
-        case std::errc::filename_too_long:            return FsError::NameTooLong;
-        case std::errc::too_many_files_open:          return FsError::TooManyOpenFiles;
-        case std::errc::too_many_files_open_in_system: return FsError::TooManyOpenFiles;
-        default:                                       return FsError::Unknown;
-    }
+    return Path::from_utf8_lossy(utf8).native();
+}
+
+// 原生 path → UTF-8 字符串（generic 格式，'/' 分隔）的统一出口。
+std::string to_utf8_path(const std::filesystem::path& p)
+{
+    return Path(p).to_utf8_lossy();
 }
 
 void remove_if_exists(const std::filesystem::path& path) noexcept
@@ -48,14 +37,14 @@ void remove_if_exists(const std::filesystem::path& path) noexcept
     std::filesystem::remove(path, ec);
 }
 
-// read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
+// read_all_bytes/read_all_text/read_lines 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
 // 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
 // 失败时返回具体 FsError（out_* 未定义）。
 // size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
 // 防止后续 buffer 分配截断导致缓冲区溢出。
-FsError open_for_read(const std::string& path, std::ifstream& out_file, std::streamoff& out_size)
+FsError open_for_read(const std::filesystem::path& p, std::ifstream& out_file,
+                      std::streamoff& out_size)
 {
-    auto p = std::filesystem::u8path(path);
     if (!std::filesystem::exists(p)) {
         return FsError::FileNotFound;
     }
@@ -85,16 +74,17 @@ FsError open_for_read(const std::string& path, std::ifstream& out_file, std::str
 
 std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
 {
-    auto parent = dst.has_parent_path() ? dst.parent_path() : std::filesystem::u8path(".");
-    auto name = dst.filename().generic_u8string();
+    auto parent = dst.has_parent_path() ? dst.parent_path() : std::filesystem::path(".");
+    // 临时文件名在 UTF-8 层面拼接（ASCII 前后缀 + 数字），再转回原生 path。
+    const std::string name = to_utf8_path(dst.filename());
     // 每个线程只初始化一次随机源，避免 atomic write 高频调用时反复触发系统熵源。
     thread_local static std::mt19937_64 rng(std::random_device{}());
     for (int i = 0; i < 128; ++i) {
-        auto candidate = parent / std::filesystem::u8path(name + ".tmp." + std::to_string(rng()));
+        auto candidate = parent / to_native_path(name + ".tmp." + std::to_string(rng()));
         if (!std::filesystem::exists(candidate))
             return candidate;
     }
-    return parent / std::filesystem::u8path(name + ".tmp");
+    return parent / to_native_path(name + ".tmp");
 }
 
 bool has_glob_wildcard(const std::string& pattern) noexcept
@@ -160,7 +150,7 @@ std::filesystem::path glob_root(const std::string& pattern)
 {
     const auto wildcard = pattern.find_first_of("*?");
     if (wildcard == std::string::npos)
-        return std::filesystem::u8path(pattern).parent_path();
+        return to_native_path(pattern).parent_path();
 
     auto prefix = pattern.substr(0, wildcard);
     while (!prefix.empty() && prefix.back() != '/' && prefix.back() != '\\')
@@ -168,10 +158,10 @@ std::filesystem::path glob_root(const std::string& pattern)
     if (prefix.empty())
         return ".";
 
-    auto root = std::filesystem::u8path(prefix);
+    auto root = to_native_path(prefix);
     if (root.has_relative_path() && root.filename().empty())
         root = root.parent_path();
-    return root.empty() ? std::filesystem::u8path(".") : root;
+    return root.empty() ? std::filesystem::path(".") : root;
 }
 
 bool glob_needs_recursive_walk(const std::string& pattern) noexcept
@@ -192,10 +182,15 @@ bool glob_needs_recursive_walk(const std::string& pattern) noexcept
 
 Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& path)
 {
+    return read_all_bytes(Path::from_utf8_lossy(path));
+}
+
+Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const Path& path)
+{
     try {
         std::ifstream file;
         std::streamoff size = 0;
-        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok) {
             return Err(e);
         }
         auto byte_count = static_cast<ca::usize>(size);
@@ -214,7 +209,7 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
 
         return Ok(ca::core::Bytes::copy_from_slice(buffer.data(), buffer.size()));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -222,10 +217,15 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
 
 Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
 {
+    return read_all_text(Path::from_utf8_lossy(path));
+}
+
+Result<std::string, FsError> FileUtil::read_all_text(const Path& path)
+{
     try {
         std::ifstream file;
         std::streamoff size = 0;
-        if (auto e = open_for_read(path, file, size); e != FsError::Ok) {
+        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok) {
             return Err(e);
         }
 
@@ -243,7 +243,7 @@ Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
 
         return Ok(std::move(buffer));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -252,8 +252,14 @@ Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
 Result<void, FsError> FileUtil::write_bytes(const std::string& path,
                                             const ca::core::ByteSlice& content, unsigned int mode)
 {
+    return write_bytes(Path::from_utf8_lossy(path), content, mode);
+}
+
+Result<void, FsError> FileUtil::write_bytes(const Path& path,
+                                            const ca::core::ByteSlice& content, unsigned int mode)
+{
     try {
-        auto p = std::filesystem::u8path(path);
+        const auto& p = path.native();
 
         if ((mode & FileMode::CREATE_NEW) && std::filesystem::exists(p)) {
             return Err(FsError::AlreadyExists);
@@ -279,7 +285,7 @@ Result<void, FsError> FileUtil::write_bytes(const std::string& path,
         if (file.fail()) return Err(FsError::WriteFailed);
         return Ok();
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -292,13 +298,26 @@ Result<void, FsError> FileUtil::write_text(const std::string& path, const std::s
     return write_bytes(path, bytes, mode);
 }
 
+Result<void, FsError> FileUtil::write_text(const Path& path, const std::string& content,
+                                           unsigned int mode)
+{
+    ca::core::ByteSlice bytes(reinterpret_cast<const ca::u8*>(content.data()), content.size());
+    return write_bytes(path, bytes, mode);
+}
+
 Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
                                                    const ca::core::ByteSlice& content)
 {
-    auto dst = std::filesystem::u8path(path);
+    return atomic_write_bytes(Path::from_utf8_lossy(path), content);
+}
+
+Result<void, FsError> FileUtil::atomic_write_bytes(const Path& path,
+                                                   const ca::core::ByteSlice& content)
+{
+    const auto& dst = path.native();
     auto tmp = make_atomic_temp_path(dst);
 
-    auto write_result = write_bytes(tmp.generic_u8string(), content, FileMode::CREATE_NEW);
+    auto write_result = write_bytes(Path(tmp), content, FileMode::CREATE_NEW);
     if (write_result.is_err()) {
         remove_if_exists(tmp);
         return write_result;
@@ -310,12 +329,12 @@ Result<void, FsError> FileUtil::atomic_write_bytes(const std::string& path,
         std::filesystem::rename(tmp, dst, ec);
         if (ec) {
             remove_if_exists(tmp);
-            return Err(classify_fs_error(ec));
+            return Err(classify_error(ec));
         }
         return Ok();
     } catch (const std::filesystem::filesystem_error& e) {
         remove_if_exists(tmp);
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         remove_if_exists(tmp);
         return Err(FsError::Unknown);
@@ -329,12 +348,24 @@ Result<void, FsError> FileUtil::atomic_write_text(const std::string& path,
     return atomic_write_bytes(path, bytes);
 }
 
+Result<void, FsError> FileUtil::atomic_write_text(const Path& path,
+                                                  const std::string& content)
+{
+    ca::core::ByteSlice bytes(reinterpret_cast<const ca::u8*>(content.data()), content.size());
+    return atomic_write_bytes(path, bytes);
+}
+
 Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string& path)
+{
+    return read_lines(Path::from_utf8_lossy(path));
+}
+
+Result<std::vector<std::string>, FsError> FileUtil::read_lines(const Path& path)
 {
     try {
         std::ifstream file;
         std::streamoff size = 0;
-        if (auto e = open_for_read(path, file, size); e != FsError::Ok)
+        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok)
             return Err(e);
 
         std::vector<std::string> lines;
@@ -350,7 +381,7 @@ Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string
 
         return Ok(std::move(lines));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -360,8 +391,13 @@ Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string
 
 ca::i64 FileUtil::size(const std::string& path)
 {
+    return size(Path::from_utf8_lossy(path));
+}
+
+ca::i64 FileUtil::size(const Path& path)
+{
     try {
-        auto p = std::filesystem::u8path(path);
+        const auto& p = path.native();
         if (!std::filesystem::exists(p) || !std::filesystem::is_regular_file(p)) return -1;
         return static_cast<ca::i64>(std::filesystem::file_size(p));
     } catch (const std::exception&) {
@@ -371,29 +407,49 @@ ca::i64 FileUtil::size(const std::string& path)
 
 bool FileUtil::exists(const std::string& path)
 {
+    return exists(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::exists(const Path& path)
+{
     std::error_code ec;
-    return std::filesystem::exists(std::filesystem::u8path(path), ec);
+    return std::filesystem::exists(path.native(), ec);
 }
 
 bool FileUtil::is_file(const std::string& path)
 {
+    return is_file(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::is_file(const Path& path)
+{
     std::error_code ec;
-    return std::filesystem::is_regular_file(std::filesystem::u8path(path), ec);
+    return std::filesystem::is_regular_file(path.native(), ec);
 }
 
 bool FileUtil::is_directory(const std::string& path)
 {
+    return is_directory(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::is_directory(const Path& path)
+{
     std::error_code ec;
-    return std::filesystem::is_directory(std::filesystem::u8path(path), ec);
+    return std::filesystem::is_directory(path.native(), ec);
 }
 
 Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
 {
+    return metadata(Path::from_utf8_lossy(path));
+}
+
+Result<FileMetadata, FsError> FileUtil::metadata(const Path& path)
+{
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
+    const auto& p = path.native();
     auto st = std::filesystem::symlink_status(p, ec);
     if (ec)
-        return Err(classify_fs_error(ec));
+        return Err(classify_error(ec));
     if (!std::filesystem::exists(st))
         return Err(FsError::FileNotFound);
 
@@ -405,11 +461,11 @@ Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
     meta.permissions = st.permissions();
     meta.modified_at = std::filesystem::last_write_time(p, ec);
     if (ec)
-        return Err(classify_fs_error(ec));
+        return Err(classify_error(ec));
     if (meta.is_file) {
         auto size = std::filesystem::file_size(p, ec);
         if (ec)
-            return Err(classify_fs_error(ec));
+            return Err(classify_error(ec));
         meta.size = static_cast<ca::i64>(size);
     }
 
@@ -418,10 +474,15 @@ Result<FileMetadata, FsError> FileUtil::metadata(const std::string& path)
 
 Result<std::filesystem::perms, FsError> FileUtil::permissions(const std::string& path)
 {
+    return permissions(Path::from_utf8_lossy(path));
+}
+
+Result<std::filesystem::perms, FsError> FileUtil::permissions(const Path& path)
+{
     std::error_code ec;
-    auto st = std::filesystem::symlink_status(std::filesystem::u8path(path), ec);
+    auto st = std::filesystem::symlink_status(path.native(), ec);
     if (ec)
-        return Err(classify_fs_error(ec));
+        return Err(classify_error(ec));
     if (!std::filesystem::exists(st))
         return Err(FsError::FileNotFound);
     return Ok(st.permissions());
@@ -431,22 +492,35 @@ Result<std::filesystem::perms, FsError> FileUtil::permissions(const std::string&
 
 Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string& dir, bool recursive)
 {
+    auto files = list_files(Path::from_utf8_lossy(dir), recursive);
+    if (files.is_err())
+        return Err(std::move(files).unwrap_err());
+    auto value = std::move(files).unwrap();
+    std::vector<std::string> names;
+    names.reserve(value.size());
+    for (const auto& f : value)
+        names.push_back(f.to_utf8_lossy());
+    return Ok(std::move(names));
+}
+
+Result<std::vector<Path>, FsError> FileUtil::list_files(const Path& dir, bool recursive)
+{
     try {
-        auto p = std::filesystem::u8path(dir);
+        const auto& p = dir.native();
         if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
         if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
 
-        std::vector<std::string> files;
+        std::vector<Path> files;
         if (recursive) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(p))
-                if (entry.is_regular_file()) files.push_back(entry.path().generic_u8string());
+                if (entry.is_regular_file()) files.push_back(Path(entry.path()));
         } else {
             for (const auto& entry : std::filesystem::directory_iterator(p))
-                if (entry.is_regular_file()) files.push_back(entry.path().generic_u8string());
+                if (entry.is_regular_file()) files.push_back(Path(entry.path()));
         }
         return Ok(std::move(files));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -454,17 +528,30 @@ Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string
 
 Result<std::vector<std::string>, FsError> FileUtil::list_entries(const std::string& dir)
 {
+    auto entries = list_entries(Path::from_utf8_lossy(dir));
+    if (entries.is_err())
+        return Err(std::move(entries).unwrap_err());
+    auto value = std::move(entries).unwrap();
+    std::vector<std::string> names;
+    names.reserve(value.size());
+    for (const auto& e : value)
+        names.push_back(e.to_utf8_lossy());
+    return Ok(std::move(names));
+}
+
+Result<std::vector<Path>, FsError> FileUtil::list_entries(const Path& dir)
+{
     try {
-        auto p = std::filesystem::u8path(dir);
+        const auto& p = dir.native();
         if (!std::filesystem::exists(p))  return Err(FsError::FileNotFound);
         if (!std::filesystem::is_directory(p)) return Err(FsError::NotADirectory);
 
-        std::vector<std::string> entries;
+        std::vector<Path> entries;
         for (const auto& entry : std::filesystem::directory_iterator(p))
-            entries.push_back(entry.path().generic_u8string());
+            entries.push_back(Path(entry.path()));
         return Ok(std::move(entries));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -474,9 +561,14 @@ Result<std::vector<std::string>, FsError> FileUtil::list_entries(const std::stri
 
 bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwrite)
 {
+    return copy(Path::from_utf8_lossy(src), Path::from_utf8_lossy(dst), overwrite);
+}
+
+bool FileUtil::copy(const Path& src, const Path& dst, bool overwrite)
+{
     try {
-        auto srcPath = std::filesystem::u8path(src);
-        auto dstPath = std::filesystem::u8path(dst);
+        const auto& srcPath = src.native();
+        const auto& dstPath = dst.native();
         if (!std::filesystem::exists(srcPath)) return false;
 
         auto opts = overwrite
@@ -491,9 +583,14 @@ bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwri
 
 bool FileUtil::move(const std::string& src, const std::string& dst, bool overwrite)
 {
+    return move(Path::from_utf8_lossy(src), Path::from_utf8_lossy(dst), overwrite);
+}
+
+bool FileUtil::move(const Path& src, const Path& dst, bool overwrite)
+{
     try {
-        auto srcPath = std::filesystem::u8path(src);
-        auto dstPath = std::filesystem::u8path(dst);
+        const auto& srcPath = src.native();
+        const auto& dstPath = dst.native();
         if (!std::filesystem::exists(srcPath)) return false;
 
         // 防止 src == dst 时先删除源文件导致数据丢失
@@ -517,9 +614,14 @@ bool FileUtil::move(const std::string& src, const std::string& dst, bool overwri
 Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::string& dst,
                                          bool overwrite)
 {
+    return copy_dir(Path::from_utf8_lossy(src), Path::from_utf8_lossy(dst), overwrite);
+}
+
+Result<void, FsError> FileUtil::copy_dir(const Path& src, const Path& dst, bool overwrite)
+{
     try {
-        auto srcPath = std::filesystem::u8path(src);
-        auto dstPath = std::filesystem::u8path(dst);
+        const auto& srcPath = src.native();
+        const auto& dstPath = dst.native();
         if (!std::filesystem::exists(srcPath))
             return Err(FsError::FileNotFound);
         if (!std::filesystem::is_directory(srcPath))
@@ -555,7 +657,7 @@ Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::stri
         }
         return Ok();
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -566,9 +668,10 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
     try {
         auto normalized = PathUtil::to_unix_separators(pattern);
         if (!has_glob_wildcard(normalized)) {
-            if (!std::filesystem::exists(std::filesystem::u8path(normalized)))
+            auto direct = to_native_path(normalized);
+            if (!std::filesystem::exists(direct))
                 return Err(FsError::FileNotFound);
-            return Ok(std::vector<std::string>{std::filesystem::u8path(normalized).generic_u8string()});
+            return Ok(std::vector<std::string>{to_utf8_path(direct)});
         }
 
         auto root = glob_root(normalized);
@@ -582,7 +685,7 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         auto options = std::filesystem::directory_options::skip_permission_denied;
         if (glob_needs_recursive_walk(normalized)) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(root, options)) {
-                auto candidate = PathUtil::to_unix_separators(entry.path().generic_u8string());
+                auto candidate = to_utf8_path(entry.path());
                 if (std::regex_match(candidate, matcher))
                     matches.push_back(candidate);
             }
@@ -596,7 +699,7 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
                 (last_slash == std::string::npos) ? std::string()
                                                   : normalized.substr(0, last_slash + 1);
             for (const auto& entry : std::filesystem::directory_iterator(root, options)) {
-                auto candidate = prefix + entry.path().filename().generic_u8string();
+                auto candidate = prefix + to_utf8_path(entry.path().filename());
                 if (std::regex_match(candidate, matcher))
                     matches.push_back(std::move(candidate));
             }
@@ -604,7 +707,7 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         std::sort(matches.begin(), matches.end());
         return Ok(std::move(matches));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -614,14 +717,24 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
 
 bool FileUtil::remove(const std::string& path)
 {
+    return remove(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::remove(const Path& path)
+{
     std::error_code ec;
-    return std::filesystem::remove(std::filesystem::u8path(path), ec);
+    return std::filesystem::remove(path.native(), ec);
 }
 
 bool FileUtil::remove_all(const std::string& path)
 {
+    return remove_all(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::remove_all(const Path& path)
+{
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
+    const auto& p = path.native();
     if (!std::filesystem::exists(p, ec)) return true;  // 不存在视为已删除
     return std::filesystem::remove_all(p, ec) > 0;
 }
@@ -630,8 +743,13 @@ bool FileUtil::remove_all(const std::string& path)
 
 bool FileUtil::create_file(const std::string& path)
 {
+    return create_file(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::create_file(const Path& path)
+{
     try {
-        auto p = std::filesystem::u8path(path);
+        const auto& p = path.native();
         if (std::filesystem::exists(p)) return false;  // 已有文件不截断
         if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
         std::ofstream file(p, std::ios::binary | std::ios::out);
@@ -643,8 +761,13 @@ bool FileUtil::create_file(const std::string& path)
 
 bool FileUtil::create_directories(const std::string& path)
 {
+    return create_directories(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::create_directories(const Path& path)
+{
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
+    const auto& p = path.native();
     if (std::filesystem::exists(p, ec)) return true;  // 已存在视为成功
     return std::filesystem::create_directories(p, ec);
 }
@@ -658,15 +781,15 @@ Result<std::string, FsError> FileUtil::create_temp_file(const std::string& prefi
         std::mt19937_64 rng(rd());
         for (int i = 0; i < 1024; ++i) {
             auto id = std::to_string(rng());
-            auto p = basePath / std::filesystem::u8path(prefix + id + suffix);
+            auto p = basePath / to_native_path(prefix + id + suffix);
             if (!std::filesystem::exists(p)) {
                 std::ofstream f(p, std::ios::binary);
-                if (f.is_open()) { f.close(); return Ok(p.generic_u8string()); }
+                if (f.is_open()) { f.close(); return Ok(to_utf8_path(p)); }
             }
         }
         return Err(FsError::OpenFailed);
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -680,12 +803,12 @@ Result<std::string, FsError> FileUtil::create_temp_directory(const std::string& 
         std::mt19937_64 rng(rd());
         for (int i = 0; i < 1024; ++i) {
             auto id = std::to_string(rng());
-            auto p = basePath / std::filesystem::u8path(prefix + id);
-            if (std::filesystem::create_directory(p)) return Ok(p.generic_u8string());
+            auto p = basePath / to_native_path(prefix + id);
+            if (std::filesystem::create_directory(p)) return Ok(to_utf8_path(p));
         }
         return Err(FsError::OpenFailed);
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -695,15 +818,23 @@ Result<std::string, FsError> FileUtil::create_temp_directory(const std::string& 
 
 Result<std::string, FsError> FileUtil::backup(const std::string& path)
 {
+    auto result = backup(Path::from_utf8_lossy(path));
+    if (result.is_err())
+        return Err(std::move(result).unwrap_err());
+    return Ok(std::move(result).unwrap().to_utf8_lossy());
+}
+
+Result<Path, FsError> FileUtil::backup(const Path& path)
+{
     try {
-        auto srcPath = std::filesystem::u8path(path);
+        const auto& srcPath = path.native();
         if (!std::filesystem::exists(srcPath)) return Err(FsError::FileNotFound);
 
         auto backupPath = srcPath;
-        auto newName = srcPath.filename().generic_u8string() + ".backup";
+        auto newName = to_utf8_path(srcPath.filename()) + ".backup";
         backupPath = srcPath.has_parent_path()
-            ? srcPath.parent_path() / std::filesystem::u8path(newName)
-            : std::filesystem::u8path(newName);
+            ? srcPath.parent_path() / to_native_path(newName)
+            : to_native_path(newName);
 
         if (std::filesystem::is_regular_file(srcPath)) {
             std::filesystem::copy(srcPath, backupPath, std::filesystem::copy_options::overwrite_existing);
@@ -713,9 +844,9 @@ Result<std::string, FsError> FileUtil::backup(const std::string& path)
         } else {
             return Err(FsError::NotARegularFile);
         }
-        return Ok(backupPath.generic_u8string());
+        return Ok(Path(backupPath));
     } catch (const std::filesystem::filesystem_error& e) {
-        return Err(classify_fs_error(e.code()));
+        return Err(classify_error(e.code()));
     } catch (const std::exception&) {
         return Err(FsError::Unknown);
     }
@@ -725,8 +856,13 @@ Result<std::string, FsError> FileUtil::backup(const std::string& path)
 
 bool FileUtil::is_readable(const std::string& path)
 {
+    return is_readable(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::is_readable(const Path& path)
+{
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
+    const auto& p = path.native();
     if (!std::filesystem::exists(p, ec)) return false;
 
 #ifdef _WIN32
@@ -744,8 +880,13 @@ bool FileUtil::is_readable(const std::string& path)
 
 bool FileUtil::is_writable(const std::string& path)
 {
+    return is_writable(Path::from_utf8_lossy(path));
+}
+
+bool FileUtil::is_writable(const Path& path)
+{
     std::error_code ec;
-    auto p = std::filesystem::u8path(path);
+    const auto& p = path.native();
     if (!std::filesystem::exists(p, ec)) return false;
 
 #ifdef _WIN32
