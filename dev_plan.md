@@ -50,6 +50,23 @@ GBK 用 glibc "GBK" 转换器，本地代码页取 `nl_langinfo(CODESET)`，wcha
 "WCHAR_T"；非法/残缺序列返回 INVALID_ARGUMENT，转换对不被支持返回
 UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu CI 验证。
 
+### 6. fs::Path 路径值类型与编码边界收敛 `[本分支: feat/fs-path]`
+
+现状：std::filesystem 的窄字符接口在 Windows 按 ACP 解析（中文路径有损），原对策是
+每个调用点手写 u8path/generic_u8string——契约只在注释、u8path 在 C++20 废弃、
+非法 UTF-8 行为实现定义且两平台不一致。
+
+目标（已实现，待评审合并）：
+
+- 新增 `ca::fs::Path`：内部持 `std::filesystem::path`，编码转换全经 `ca::str::OsString`
+  （from_utf8 校验报 InvalidUtf8 / from_utf8_lossy / from_os_string / from_native），
+  与 std::string 无隐式转换；fs 新增依赖 libca_str（fs 设计文档 §1 挂账的迁移评估落地）；
+- FileUtil 全函数 Path 重载（返回路径的族返回 Path/vector<Path>），string 重载委托
+  lossy——非法 UTF-8 收敛为定义清楚的 U+FFFD 替换；PathUtil 保留、内部经 Path；
+- u8path/generic_u8string 全库 src 清零：csv/ini/json/toml/xml/yaml 文件流改经
+  `Path::native()`（盘点修正：json/toml/xml/yaml 四模块的 u8path 此前漏记）；
+- 设计记录见 fs设计文档 §4.8；fs 140 例测试全绿。
+
 ### 5. CA_TRY 的 MSVC 可用性 `[搁置]`
 
 依赖 GNU statement expression，MSVC 不可用。**用户判断：实际使用率低，不处理。**
@@ -81,6 +98,8 @@ UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu 
 
 ## 变更记录
 
+- 2026-09-03：新增第 6 项 fs::Path（分支 feat/fs-path）：Path 类型 + FileUtil 双重载族
+  + u8path 全库清零；盘点修正——json/toml/xml/yaml 同样存在 u8path 调用（此前漏记）。
 - 2026-08-31（第二批）：macOS 决策为砍掉（方案 B）并删除死分支；charset POSIX
   侧 iconv 实现完成——高优先级 1/2/3/4 全部落地。
 - 2026-08-31：初版，来自全库盘点；高优先级 1/2 在 `feat/stream-pipeline-ipc-tests` 实施。

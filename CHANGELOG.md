@@ -231,3 +231,23 @@
   缺该 gconv 模块）返回 `UNIMPLEMENTED`。跨平台注意：`std::wstring` 编码跟随
   平台（Windows UTF-16 / Linux UCS-4）；POSIX「本地代码页」在未 setlocale 时
   为 "C"（ASCII）。charset 测试重构为可移植用例（码点断言）+ 平台专属用例。
+- **[fs] 新增 `Path` 路径值类型**：类型化 UTF-8 编码边界，语义对齐 Rust
+  `std::path::Path`。内部持 `std::filesystem::path`，编码转换经 `ca::str::OsString`
+  （fs 因此新增对 `libca_str` 的依赖）：`from_utf8`（显式校验，非法返回新增的
+  `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）/ `from_os_string` /
+  `from_native`（Windows）/ `to_utf8_lossy` / `to_os_string` / `native()`，
+  与 `std::string` 无隐式转换；`operator/`、parent/filename/stem/extension/
+  normalized/absolute/components、`operator==`/`operator<`/`std::hash`。
+- **[fs] FileUtil/PathUtil 全面接入 Path**：每个接受路径的 FileUtil 函数新增
+  `const Path&` 重载（list_files/list_entries 返回 `std::vector<Path>`、backup
+  返回 `Path`，避免每条结果重复编码转换）；`std::string` 重载族保留并委托
+  `Path::from_utf8_lossy`。**行为收敛**：string 族接口收到非法 UTF-8 时，从
+  「实现定义的静默损坏」（MSVC 有损替换 / libstdc++ 近似透传）统一定义为
+  U+FFFD 替换，不抛异常、跨平台一致；`PathUtil::to_absolute` 解析失败不再抛异常，
+  返回原路径（与该类「不抛异常」的既有承诺对齐）。`FsError` 新增 `classify_error`
+  公开 `std::error_code` 归类映射。
+- **[全局] u8path 清零**：fs/csv/ini/json/toml/xml/yaml 的文件流打开统一改为
+  `ca::fs::Path::from_utf8_lossy(...).native()`（fstream 原生接受
+  `std::filesystem::path`），`std::filesystem::u8path`/`generic_u8string` 在
+  全库 src 中不再出现——C++20（`char8_t` 废弃 u8path）迁移时只需改
+  `fs/path.cpp` 一处。解析器六模块因此新增对 `libca_fs` 的依赖。
