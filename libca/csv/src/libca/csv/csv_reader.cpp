@@ -1,5 +1,7 @@
 #include "libca/csv/csv_reader.hpp"
 
+#include "libca/fs/path.hpp"
+
 #include "libca/str/format.hpp"
 
 #include <filesystem>
@@ -167,7 +169,7 @@ ca::Result<CsvDocument, ParseError> CsvReader::read_file(
     const CsvReaderOptions& options) {
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
+    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
     if (!input.is_open()) {
         return ca::Err(make_error(1, 1,
             ca::str::format_std("failed to open CSV file: {}", path_str)));

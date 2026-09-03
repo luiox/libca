@@ -1,5 +1,7 @@
 #include "libca/json/json_reader.hpp"
 
+#include "libca/fs/path.hpp"
+
 #include "libca/json/json_dom_builder.hpp"
 #include "libca/json/json_parser.hpp"
 
@@ -60,7 +62,7 @@ ca::Result<JsonDocument, ParseError> JsonReader::read_file(
     const JsonReaderOptions& options) {
     // 路径转 std::string（ifstream 需要）
     std::string path_str(path.data(), path.data() + path.byte_length());
-    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
+    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
     if (!input.is_open()) {
         return ca::Err(make_open_error(path));
     }

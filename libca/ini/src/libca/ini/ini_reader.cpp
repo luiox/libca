@@ -1,5 +1,7 @@
 #include "libca/ini/ini_reader.hpp"
 
+#include "libca/fs/path.hpp"
+
 #include "libca/ini/ini_document.hpp"
 #include "libca/ini/parse_error.hpp"
 #include "libca/ini/source_location.hpp"
@@ -315,7 +317,7 @@ ca::Result<IniDocument, ParseError> IniReader::read_file(
     const ca::str::Utf8StringRef& path,
     const IniReaderOptions& options) {
     std::string path_str = to_std(path);
-    std::ifstream input(std::filesystem::u8path(path_str), std::ios::binary);
+    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
     if (!input.is_open()) {
         ParseError err;
         err.location = SourceLocation{};
