@@ -6,7 +6,7 @@ target("libca_yaml")
     add_files("src/libca/yaml/*.cpp")
     add_headerfiles("src/(libca/yaml/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core", "libca_str")
+    add_deps("libca_core", "libca_str", "libca_fs")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
