@@ -6,7 +6,7 @@ target("libca_xml")
     add_files("src/libca/xml/*.cpp")
     add_headerfiles("src/(libca/xml/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core", "libca_str")
+    add_deps("libca_core", "libca_str", "libca_fs")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})

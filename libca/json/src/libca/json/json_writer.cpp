@@ -1,5 +1,7 @@
 #include "libca/json/json_writer.hpp"
 
+#include "libca/fs/path.hpp"
+
 #include "libca/str/utf8_string.hpp"
 
 #include <cmath>
@@ -246,7 +248,8 @@ ca::Result<void, ca::str::Utf8String> JsonWriter::write_file(
     const JsonWriterOptions& options) {
     ca::str::Utf8String text = write(document, options);
     std::string path_str(path.data(), path.data() + path.byte_length());
-    std::ofstream out(std::filesystem::u8path(path_str), std::ios::binary | std::ios::trunc);
+    std::ofstream out(ca::fs::Path::from_utf8_lossy(path_str).native(),
+                      std::ios::binary | std::ios::trunc);
     if (!out.is_open()) {
         return ca::Err(ca::str::Utf8String::from_cstr("failed to open file for writing"));
     }
