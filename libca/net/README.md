@@ -2,7 +2,7 @@
 
 跨平台网络子库：地址、DNS、TCP、UDP。命名空间 `ca::net`。
 
-> 设计与选型见 `doc/design.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
+> 设计与选型见 `doc/net设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 地址与 DNS
 
