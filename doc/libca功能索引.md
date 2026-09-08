@@ -465,8 +465,8 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/process/ipc.hpp>`
 
 功能：
-- `Command`：可复用的子进程启动配置，`spawn()`/`status()`/`output()` 三种启动方式。
-- `Child`：move-only 子进程句柄，`try_wait`/`wait`/`wait_for`/`kill`，标准流经 `take_*` 取出。
+- `Command`：可复用的子进程启动配置，`spawn()`/`status()`/`output()` 三种启动方式；`output(OutputOptions)` 支持超时与超时 kill 策略。
+- `Child`：move-only 子进程句柄，`try_wait`/`wait`/`wait_for`/`kill`，标准流经 `take_*` 取出；`wait_with_output(_for)` 排空收集输出，超时版不杀子进程、可续接不丢数据。
 - `Stdio`：标准流配置（inherit / null / piped）。
 - `ipc::NamedPipeServer` / `NamedPipeClient` / `NamedPipeConnection`：命名管道（Windows Win32 管道 / Linux Unix-domain socket）。
 - `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。

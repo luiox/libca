@@ -13,6 +13,13 @@
 
 ### libca
 
+- **[process] 子进程超时通道（#206）**：`Child::wait_with_output_for(timeout)` 超时返回
+  `DEADLINE_EXCEEDED`，不杀子进程，stdout/stderr 端与已排空的数据留在 `Child`，kill 后
+  再调 `wait_with_output()` 续接即可取回全部输出与退出状态（不丢数据）；`Command::output`
+  新增 `OutputOptions` 重载（`timeout` + `kill_on_timeout`，后者默认 true：超时自动终止并
+  回收）。`wait_with_output()` 的排空从并发读线程改为等待期间非阻塞增量排空（Windows
+  `PeekNamedPipe` / POSIX `poll`），对外行为不变。服务 morpher mj2x-cli 编译器外呼超时
+  （其 dev_plan G-2）。
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
 - **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物

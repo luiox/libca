@@ -51,10 +51,19 @@ but does not kill a running child. On Linux, the process is launched in a new
 process group, so `kill()` targets the group. On Windows it targets the child
 process handle.
 
-`wait_with_output()` closes any owned stdin and concurrently drains the owned
-stdout and stderr pipes before returning. This avoids a deadlock when a child
-writes enough data to fill either pipe. Interactive users that take both read
-ends must drain them concurrently themselves.
+`wait_with_output()` closes any owned stdin and drains the owned stdout and
+stderr pipes while polling for exit, using non-blocking incremental reads
+(`PeekNamedPipe` on Windows, `poll` on POSIX). This avoids a deadlock when a
+child writes enough data to fill either pipe. Interactive users that take
+both read ends must drain them concurrently themselves.
+
+`wait_with_output_for(timeout)` bounds the wait. On expiry it returns
+`DEADLINE_EXCEEDED` without killing the child; the stream endpoints and the
+bytes drained so far stay inside the `Child`, so a later call — normally
+after `kill()` — resumes draining and returns everything together with the
+exit status, losing nothing. `Command::output()` accepts `OutputOptions`
+with `timeout` (zero means unbounded) and `kill_on_timeout` (default true),
+which terminates and reaps the child on expiry.
 
 `ExitStatus::code` holds a normal exit code or a platform-derived termination
 code. A nonzero exit code is valid process data, not a `Status` error.
@@ -98,14 +107,15 @@ for expected operating-system failures.
 
 Windows process creation uses `CreateProcessW` with UTF-8 to UTF-16 conversion
 and correctly quoted arguments. Linux uses `fork`, `execvp`, pipes, and
-`waitpid`. Linux additionally links `pthread` for concurrent stream draining
-and `rt` for POSIX message queues on toolchains that require it.
+`waitpid`. Linux additionally links `pthread` and `rt` for the IPC primitives
+(semaphores, message queues) on toolchains that require them.
 
 ## Test Strategy
 
 The unit suite covers exact argument boundaries, command reuse, nonzero exit,
-interactive stdin/stdout, timeout observation followed by kill and reap, and
-concurrent stdout/stderr collection. IPC tests cover anonymous-pipe transfer,
-named-pipe exchange, shared-memory visibility, timed semaphore acquisition,
-and whole-message queue delivery. Platform-specific tests remain guarded by
-their native platform conditions.
+interactive stdin/stdout, timeout observation followed by kill and reap,
+incremental stdout/stderr collection with deadline and resume-after-kill
+semantics, and the `Command::output` timeout kill policy. IPC tests cover
+anonymous-pipe transfer, named-pipe exchange, shared-memory visibility, timed
+semaphore acquisition, and whole-message queue delivery. Platform-specific
+tests remain guarded by their native platform conditions.

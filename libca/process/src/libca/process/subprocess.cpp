@@ -24,6 +24,7 @@
 #    undef stderr
 #else
 #    include <fcntl.h>
+#    include <poll.h>
 #    include <signal.h>
 #    include <sys/types.h>
 #    include <sys/wait.h>
@@ -336,6 +337,55 @@ StatusResult<std::string> PipeReader::read_to_end()
     }
 }
 
+StatusResult<std::optional<usize>> PipeReader::read_available(void* buffer, usize capacity)
+{
+    if (!is_open())
+        return Err(closed_error("read"));
+    // capacity 为 0 时底层读会返回 0，与 EOF 信号混淆，直接按“暂无数据”处理。
+    if (capacity == 0)
+        return Ok(std::optional<usize>{});
+#if defined(_WIN32)
+    // 匿名管道也支持 PeekNamedPipe：先查可读字节数，只读这么多就不会阻塞。
+    DWORD available = 0;
+    if (!PeekNamedPipe(to_handle(native_handle_), nullptr, 0, nullptr, &available, nullptr)) {
+        if (GetLastError() == ERROR_BROKEN_PIPE)
+            return Ok(std::optional<usize>(static_cast<usize>(0)));
+        return Err(system_error("PeekNamedPipe"));
+    }
+    if (available == 0)
+        return Ok(std::optional<usize>{});
+    const usize want =
+        std::min<usize>(available, std::min<usize>(capacity, std::numeric_limits<DWORD>::max()));
+    DWORD count = 0;
+    if (!ReadFile(to_handle(native_handle_), buffer, static_cast<DWORD>(want), &count, nullptr)) {
+        if (GetLastError() == ERROR_BROKEN_PIPE)
+            return Ok(std::optional<usize>(static_cast<usize>(0)));
+        return Err(system_error("ReadFile"));
+    }
+    return Ok(std::optional<usize>(static_cast<usize>(count)));
+#else
+    // poll 零超时探测可读；POLLIN 时 read 至少返回 1 字节不阻塞，POLLHUP 时返回 0。
+    pollfd    polled{to_fd(native_handle_), POLLIN, 0};
+    const int result = ::poll(&polled, 1, 0);
+    if (result < 0) {
+        if (errno == EINTR)
+            return Ok(std::optional<usize>{});
+        return Err(system_error("poll"));
+    }
+    if (result == 0)
+        return Ok(std::optional<usize>{});
+    const usize capped =
+        std::min<usize>(capacity, static_cast<usize>(std::numeric_limits<ssize_t>::max()));
+    const ssize_t count = ::read(to_fd(native_handle_), buffer, capped);
+    if (count < 0) {
+        if (errno == EINTR || errno == EAGAIN)
+            return Ok(std::optional<usize>{});
+        return Err(system_error("read"));
+    }
+    return Ok(std::optional<usize>(static_cast<usize>(count)));
+#endif
+}
+
 bool PipeReader::is_open() const noexcept
 {
     return native_handle_ != -1;
@@ -496,6 +546,8 @@ Child::Child(Child&& other) noexcept
     , stdin_(std::move(other.stdin_))
     , stdout_(std::move(other.stdout_))
     , stderr_(std::move(other.stderr_))
+    , collected_stdout_(std::move(other.collected_stdout_))
+    , collected_stderr_(std::move(other.collected_stderr_))
 {
     other.native_process_ = -1;
     other.process_id_     = 0;
@@ -511,6 +563,8 @@ Child& Child::operator=(Child&& other) noexcept
         stdin_                = std::move(other.stdin_);
         stdout_               = std::move(other.stdout_);
         stderr_               = std::move(other.stderr_);
+        collected_stdout_     = std::move(other.collected_stdout_);
+        collected_stderr_     = std::move(other.collected_stderr_);
         other.native_process_ = -1;
         other.process_id_     = 0;
         other.exit_status_.reset();
@@ -656,43 +710,97 @@ std::optional<ChildStderr> Child::take_stderr()
     return result;
 }
 
-StatusResult<Output> Child::wait_with_output()
+namespace {
+
+// 排空循环的轮询间隔，粒度与 wait_for 的 POSIX 轮询一致。
+constexpr auto DRAIN_POLL_INTERVAL = std::chrono::milliseconds(2);
+
+}   // namespace
+
+StatusResult<Output> Child::wait_with_output_until(std::optional<std::chrono::milliseconds> timeout)
 {
     stdin_.reset();
-    Output      output;
-    Status      stdout_status = OkStatus();
-    Status      stderr_status = OkStatus();
-    auto        stdout        = take_stdout();
-    auto        stderr        = take_stderr();
-    std::thread stdout_thread([&]() {
-        if (stdout) {
-            auto value = stdout->read_to_end();
-            if (value.is_ok())
-                output.stdout_data = value.unwrap();
-            else
-                stdout_status = value.unwrap_err();
+    // 把 stream 当前已到达的数据全部追加进 sink；写端全关时关闭该端（后续视为无流）。
+    const auto drain_available = [](std::optional<ChildStdout>& stream, std::string& sink) -> Status {
+        if (!stream)
+            return OkStatus();
+        char buffer[4096];
+        for (;;) {
+            auto value = stream->read_available(buffer, sizeof(buffer));
+            if (value.is_err())
+                return value.unwrap_err();
+            const auto count = value.unwrap();
+            if (!count.has_value())
+                return OkStatus();
+            if (*count == 0) {
+                stream.reset();
+                return OkStatus();
+            }
+            sink.append(buffer, *count);
         }
-    });
-    std::thread stderr_thread([&]() {
-        if (stderr) {
-            auto value = stderr->read_to_end();
-            if (value.is_ok())
-                output.stderr_data = value.unwrap();
-            else
-                stderr_status = value.unwrap_err();
+    };
+    // 子进程退出后阻塞读完剩余数据到 EOF 并关闭该端。
+    const auto drain_to_end = [](std::optional<ChildStdout>& stream, std::string& sink) -> Status {
+        if (!stream)
+            return OkStatus();
+        auto rest = stream->read_to_end();
+        if (rest.is_err())
+            return rest.unwrap_err();
+        sink += rest.unwrap();
+        stream.reset();
+        return OkStatus();
+    };
+    std::optional<std::chrono::steady_clock::time_point> deadline;
+    if (timeout)
+        deadline = std::chrono::steady_clock::now() + *timeout;
+    for (;;) {
+        // 等待期间持续非阻塞排空两个管道：子进程持续产出时管道不会被写满，这是本函数
+        // 不因输出积压而死锁的关键；不用阻塞读线程是因为它们在超时后无法安全中止。
+        auto drained = drain_available(stdout_, collected_stdout_);
+        if (drained.is_err())
+            return Err(drained);
+        drained = drain_available(stderr_, collected_stderr_);
+        if (drained.is_err())
+            return Err(drained);
+        auto value = try_wait();
+        if (value.is_err())
+            return Err(value.unwrap_err());
+        if (value.unwrap().has_value()) {
+            // 子进程已退出，其写端随之关闭；阻塞读完剩余数据即到 EOF。若孙进程继承了
+            // 写端则等到它也关闭为止，与原并发排空实现的语义一致。
+            drained = drain_to_end(stdout_, collected_stdout_);
+            if (drained.is_err())
+                return Err(drained);
+            drained = drain_to_end(stderr_, collected_stderr_);
+            if (drained.is_err())
+                return Err(drained);
+            Output output;
+            output.status      = *value.unwrap();
+            output.stdout_data = std::move(collected_stdout_);
+            output.stderr_data = std::move(collected_stderr_);
+            collected_stdout_.clear();
+            collected_stderr_.clear();
+            return Ok(std::move(output));
         }
-    });
-    auto        status = wait();
-    stdout_thread.join();
-    stderr_thread.join();
-    if (status.is_err())
-        return Err(status.unwrap_err());
-    if (stdout_status.is_err())
-        return Err(stdout_status);
-    if (stderr_status.is_err())
-        return Err(stderr_status);
-    output.status = status.unwrap();
-    return Ok(std::move(output));
+        if (deadline && std::chrono::steady_clock::now() >= *deadline) {
+            // 超时：流端与已排空数据都留在 Child，子进程保持运行；调用方 kill 或继续等待后
+            // 再次调用本系列函数即可续接，不丢数据。
+            return Err(ErrStatus(
+                StatusCode::DEADLINE_EXCEEDED,
+                ca::str::format_std("child did not exit within {} ms", timeout->count())));
+        }
+        std::this_thread::sleep_for(DRAIN_POLL_INTERVAL);
+    }
+}
+
+StatusResult<Output> Child::wait_with_output()
+{
+    return wait_with_output_until(std::nullopt);
+}
+
+StatusResult<Output> Child::wait_with_output_for(std::chrono::milliseconds timeout)
+{
+    return wait_with_output_until(timeout);
 }
 
 Command::Command(std::string program)
@@ -1010,12 +1118,26 @@ StatusResult<ExitStatus> Command::status() const
 }
 StatusResult<Output> Command::output() const
 {
+    return output(OutputOptions{});
+}
+StatusResult<Output> Command::output(const OutputOptions& options) const
+{
     Command copy(*this);
     copy.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     auto child = copy.spawn();
     if (child.is_err())
         return Err(child.unwrap_err());
-    return std::move(child).unwrap().wait_with_output();
+    auto owned = std::move(child).unwrap();
+    if (options.timeout.count() <= 0)
+        return owned.wait_with_output();
+    auto result = owned.wait_with_output_for(options.timeout);
+    if (result.is_err() && result.unwrap_err().code() == StatusCode::DEADLINE_EXCEEDED &&
+        options.kill_on_timeout) {
+        // 收尾尽力而为：kill 可能因子进程恰好自行退出而失败，随后的 wait 负责回收。
+        (void)owned.kill();
+        (void)owned.wait();
+    }
+    return result;
 }
 
 }   // namespace ca::process
