@@ -51,8 +51,15 @@ public:
     /// 读取整个文件为不可变字节序列 ca::core::Bytes（自管理生命周期）。
     static Result<ca::core::Bytes, FsError> read_all_bytes(const std::string& path);
 
-    /// 读取整个文件为 UTF-8 字符串
-    static Result<std::string, FsError> read_all_text(const std::string& path);
+    /// @brief 读取整个文件为 UTF-8 字符串。
+    /// @param path 文件路径（UTF-8）。
+    /// @param strip_bom 是否剥离文件开头的 BOM（内部调用 str 模块 detect_bom/strip_bom，
+    ///                  按原始字节剥离，支持 UTF-8/UTF-16/UTF-32 各系 BOM）。
+    /// @return 成功返回文件内容；strip_bom=true 且文件带 BOM 时，BOM 不包含在结果中。
+    /// @note strip_bom 只去头部标记、不做编码转换：带 UTF-16 BOM 的内容按原字节返回，
+    ///       需要文本语义的调用方应确认文件本身是 UTF-8（或自行转码）。
+    static Result<std::string, FsError> read_all_text(const std::string& path,
+                                                      bool strip_bom = false);
 
     /// 按模式写入字节序列到文件。content 为非拥有只读视图（ca::core::ByteSlice）。
     static Result<void, FsError> write_bytes(const std::string& path,
