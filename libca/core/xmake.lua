@@ -7,6 +7,7 @@ target("libca_core")
     add_headerfiles("src/(libca/core/*.hpp)")
     add_files("src/libca/core/bytes.cpp")
     add_files("src/libca/core/dynamic_library.cpp")
+    add_files("src/libca/core/minidump.cpp")
     add_includedirs("src", {public = true})
 
     if is_plat("linux") then
