@@ -53,7 +53,7 @@ xmake run libca_fs_unittest    # 跑单个模块测试
 L0  core              ← 地基，不依赖任何 libca 模块
 L1  str, collection   ← 仅依赖 core
 L2  fs, time, crypto  ← 依赖 L0/L1
-L3  业务 / 上层
+L3  业务 / 上层（如 config）
 ```
 
 新增模块按此分层放置；改 L0 会连锁影响下游，需谨慎。
@@ -64,13 +64,14 @@ L3  业务 / 上层
 
 | 模块 | 职责 | 关键类型 / 入口头文件 | 命名空间 | 阶段 | 设计文档 |
 |------|------|----------------------|----------|------|----------|
-| **core** | Result/Option/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
+| **core** | Result/Option/字节（含 varint/zigzag）/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
-| **crypto** | 哈希/CRC/base64/base32/murmur3 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp`、`base32.hpp`、`murmur3.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
+| **crypto** | 哈希（SHA-1/256/384/512、SHA-3、MD5）/HMAC/HKDF/PBKDF2/CRC/base64/base32/murmur3 | `hash.hpp`、`sha256.hpp`、`sha512.hpp`、`md5.hpp`、`sha1.hpp`、`hmac.hpp`、`hkdf.hpp`、`pbkdf2.hpp`、`crc.hpp`、`base64.hpp`、`base32.hpp`、`murmur3.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
 | **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
 | **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
 | **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool/Timer/EventBus/ObjectPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp`、`timer.hpp`、`event_bus.hpp`、`object_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
+| **config** | 强类型配置中心：`ConfigVar<T>` 幂等注册、变更监听、JSON 增量加载 | `config.hpp`(`Config`)、`config_var.hpp`(`ConfigVar<T>`)、`lexical_cast.hpp`(`JsonCast<T>`) | `ca::config` | 主线 | `libca/config/doc/config设计文档.md` |
 | **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
 | **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
 | **json** / **toml** | JSON / TOML DOM、解析与写出 | `json.hpp`、`toml.hpp` | `ca::json` / `ca::toml` | 主线 | `json/doc/json设计文档.md` / `toml/doc/toml设计文档.md` |
@@ -89,7 +90,7 @@ L3  业务 / 上层
 | **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
 | utility / reflect | 历史遗留，已从仓库移除 | — | — | 移除 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / config / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定
