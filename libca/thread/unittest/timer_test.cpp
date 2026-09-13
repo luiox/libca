@@ -123,9 +123,9 @@ TEST(TimerManagerTest, CallbackMayScheduleNewTimer)
     auto         signal      = inner_fired->get_future();
     std::atomic<bool> inner_valid{false};
 
-    auto outer = manager.schedule_once(20ms, [&inner_valid, inner_fired] {
+    auto outer = manager.schedule_once(20ms, [&manager, &inner_valid, inner_fired] {
         // 回调内安排新任务，不应死锁；新任务正常触发。
-        auto inner = manager.schedule_once(10ms, [inner_fired] { inner_fired->set_value(); });
+        auto inner = manager.schedule_once(10ms, [&manager, inner_fired] { inner_fired->set_value(); });
         inner_valid.store(static_cast<bool>(inner));
     });
     ASSERT_TRUE(static_cast<bool>(outer));

@@ -35,11 +35,9 @@ TEST(ObjectPoolTest, ReusesReturnedObjectInSingleThread)
     EXPECT_EQ(calls.load(), 1);
     first->payload = 42;
     PooledObject* raw = first.get();
-    std::weak_ptr<PooledObject> observer = first;
 
-    first.reset();                        // 归还
+    first.reset();                        // 归还（池持有 unique_ptr，shared_ptr 控制块随之销毁）
     EXPECT_EQ(calls.load(), 1);           // 未新建对象
-    EXPECT_FALSE(observer.expired());     // 对象被保留在池内
 
     auto second = pool.obtain();
     ASSERT_NE(second, nullptr);
