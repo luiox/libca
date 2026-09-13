@@ -45,16 +45,18 @@
   - **[core]** `bytes.hpp` 新增 varint（LEB128）读写：`BytesMut::put_var_u32/u64`、
     `Bytes/BytesMut::get_var_u32/u64`（截断返回 Underflow，非规范编码返回
     `MalformedVarint`，出错游标不动），及 zigzag 有符号映射自由函数；
-    `BytesError` 追加 `MalformedVarint` 枚举值。
+    `BytesError` 追加 `MalformedVarint` 枚举值；`BytesMut::fill(u8)` 就地填充
+    已写区域（volatile 写抗死存储消除，作敏感缓冲离场清零入口）。
   - **[crypto]** 密码学 P0 四件套：SHA-512/SHA-384（FIPS 180-4）；HMAC 家族扩展
     `hmac_sha1`/`hmac_sha512`（内部与 `hmac_sha256` 收敛到共享模板，既有行为不变）；
     HKDF（RFC 5869，SHA-1/256/512 三套 extract/expand/derive）；PBKDF2-HMAC-SHA256
-    （RFC 7914）。`CryptoError` 追加 `UNSUPPORTED_ALGORITHM`（为后续 OpenSSL/CNG
-    后端预留）。
+    （RFC 7914，`dk_len` 上限 (2^32-1)·32 显式拒绝）。`CryptoError` 追加
+    `UNSUPPORTED_ALGORITHM`（为后续 OpenSSL/CNG 后端预留）。
   - **[config]** 新模块：强类型配置中心。`ConfigVar<T>`（幂等 lookup，类型冲突返回
     nullptr；set 值相等短路；监听器锁外回调）、`JsonCast<T>` 双向转换链（含
     `vector<T>`/`unordered_map<string,T>` 嵌套）、`Config::load/load_file` JSON
-    增量加载（非法输入整体拒绝零副作用；未注册 key 延迟物化，类型不符退回默认值）。
+    增量加载（非法输入整体拒绝零副作用；未注册 key 延迟物化，类型不符退回默认值；
+    监听器回调抛异常不穿透 load，转 `LISTENER_FAILED` 计入失败 key）。
     config 依赖 core/json/fs。
 
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
