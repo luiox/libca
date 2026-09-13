@@ -95,8 +95,7 @@ TEST(HttpUrlTest, RejectsAmbiguousOrUnsupportedAuthorities)
 {
     EXPECT_EQ(HttpUrl::parse("ftp://example.com/").unwrap_err().kind(),
               HttpErrorKind::InvalidUrl);
-    EXPECT_EQ(HttpUrl::parse("http://user@example.com/").unwrap_err().kind(),
-              HttpErrorKind::InvalidUrl);
+    // userinfo 已由 RFC 3986 全量解析支持，见 url_rfc3986_test.cpp。
     EXPECT_EQ(HttpUrl::parse("http://::1/").unwrap_err().kind(), HttpErrorKind::InvalidUrl);
     EXPECT_EQ(HttpUrl::parse("http://example.com:0/").unwrap_err().kind(),
               HttpErrorKind::InvalidUrl);
