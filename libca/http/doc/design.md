@@ -1,6 +1,7 @@
 ---
-version: 1.5
+version: 1.6
 update:
+2026-09-13 - Url 升级 RFC 3986 全量解析：userinfo、path/query/fragment 组件、percent 工具、query 参数、normalize 与 round-trip
 2026-09-13 - client 增加可选 keep-alive 连接池（按 origin 空闲复用、借出探活与空闲超时、多 client 共享）
 2026-08-24 - 协议错误响应改 shutdown 写半侧+排水防 RST 吞响应；100-continue 仅 HTTP/1.1；client 幂等请求在 stale keep-alive 连接上自动重试一次
 2026-07-20 - 增加可选 OpenSSL 3 HTTPS client transport
@@ -62,13 +63,24 @@ UTF-8。chunked trailers 与普通 headers 分开保存，避免调用方误把 
 
 ## 3. URL
 
-`HttpUrl` 只接受 http/https absolute URL，拥有 scheme、host、有效端口和 origin-form target。
-空 path 规范化为 `/`，query 保留，fragment 不发送。IPv6 host 输入必须使用方括号，内部
-存储时去掉方括号，生成 Host authority 时恢复。
+`HttpUrl` 只接受 http/https absolute URL，按 RFC 3986 拆分 scheme、userinfo、host、有效
+端口、path、query 与 fragment。空 path 规范化为 `/`；`target()` 仍返回 path + query 的
+origin-form（fragment 不发送），`authority()` 仍只含 host 与非默认端口（userinfo 不进入
+Host header），保持既有调用方语义不变。IPv6 host 输入必须使用方括号，内部存储去掉方括号，
+生成 authority 与 `to_string()` 时恢复；userinfo 按最后一个 `@` 切分，内部允许 `@` 字符。
 
-首版明确拒绝 userinfo、端口 0、超范围端口、反斜杠、控制字符、未加方括号 IPv6 和
-非 ASCII reg-name。IDNA、percent-encoded host 与 IPv6 zone id 留给独立 URL 能力扩展，
-不能在 HTTP client 中临时猜测。
+percent-encode/decode 与 query 参数解析（`HttpQueryParam` 有序 kv，重复 key 保序，值已
+decode）是 URL 的配套工具；`parse` 对 userinfo、path、query、fragment 统一校验 percent
+序列合法性（`%` 后必须两个十六进制位），因此成员便捷方法 `query_params()` 不会失败。
+`normalize()` 做 RFC 3986 §6.2.2 语法归一化：scheme/host 小写、省略显式默认端口、percent
+编码先规范化（unreserved 解码、其余统一大写 `%XX`）再消解 path 的 dot 段。dot 段消解对
+"/A/../B" 这类直接给定的绝对 path 采用与 WHATWG/Go `path.Clean` 一致的逐段语义（RFC
+伪代码面向合并后的相对引用，对这种输入会得到错误结果）。`to_string()` 与 `parse` 保证
+round-trip。
+
+parse 仍拒绝端口 0、超范围端口、反斜杠、控制字符、未加方括号 IPv6 与非 ASCII reg-name。
+IDNA、percent-encoded host 与 IPv6 zone id 留给独立 URL 能力扩展，不在 HTTP client 中
+临时猜测；normalize 也不主动给裸的非法原始字节补编码，只规范化已存在的 `%` 序列。
 
 ## 4. Codec 与缓冲
 
@@ -204,6 +216,8 @@ server 识别 `Expect: 100-continue`（仅 HTTP/1.1，1.0 请求不回 interim r
 - CL/TE、冲突长度、重复/合并 Host、裸 LF、obs-fold、HTTP/1.0 TE 和截断 body。
 - start-line、header count/bytes 和 body 限制。
 - URL 的默认端口、query、fragment、IPv6 与非法 authority。
+- URL 的 userinfo 拆分（含最后 `@` 切分与空 userinfo）、percent 编解码边界、query 参数
+  保序解析、normalize 的大小写/默认端口/dot 段/%XX 规范化与 to_string round-trip。
 - 连接池的同 origin 复用与跨 client 共享、空闲超时丢弃重建、探活识别服务器关闭的空闲
   连接（非幂等请求直连重建）、不同 origin 不混用、max_idle_per_host 满额拒收。
 
