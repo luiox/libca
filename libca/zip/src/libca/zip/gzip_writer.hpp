@@ -23,7 +23,9 @@ public:
     /// @brief 指定压缩级别（-1 默认 / 0-9）；非法值抛 std::runtime_error。
     explicit GzipWriter(int level);
 
-    /// @brief 若尚未 finish 则先收尾再释放资源。
+    /// @brief 释放 zlib 资源；不自动收尾。
+    /// @note 未 finish 即析构时内部缓冲是不完整的 gzip 数据（缺 deflate 结束块与
+    ///       CRC32/ISIZE 尾部），需要完整输出必须显式调用 finish()。
     ~GzipWriter();
 
     GzipWriter(const GzipWriter&)            = delete;
