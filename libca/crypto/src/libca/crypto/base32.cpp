@@ -2,7 +2,7 @@
 // @brief Base32 编解码实现（RFC 4648 standard alphabet）
 //
 
-#include "base32.hpp"
+#include "libca/crypto/base32.hpp"
 
 namespace ca::crypto {
 

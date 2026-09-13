@@ -2,7 +2,7 @@
 // @brief MurmurHash3 x86 32 位实现（Austin Appleby canonical 算法）
 //
 
-#include "murmur3.hpp"
+#include "libca/crypto/murmur3.hpp"
 
 namespace ca::crypto {
 
