@@ -7,6 +7,8 @@
 
 #include "libca/core/datatype.hpp"
 
+#include "libca/fs/file_util.hpp"
+
 #include "libca/json/json_document.hpp"
 #include "libca/json/json_reader.hpp"
 #include "libca/json/json_value.hpp"
@@ -305,6 +307,202 @@ TEST_F(ConfigTest, ConfigVarToJsonScratchArena)
     ASSERT_EQ(value.size(), ca::usize(2));
     EXPECT_EQ(value.at(0).as_string().to_std_string(), "x");
     EXPECT_EQ(value.at(1).as_string().to_std_string(), "y");
+}
+
+// ==================== load：注册项应用 / 监听器 ====================
+
+// load 应用到已注册 var：监听器触发一次，旧值/新值正确。
+TEST_F(ConfigTest, LoadAppliesRegisteredVarAndFiresListener)
+{
+    auto var = Config::lookup<ca::i32>("t2/port", 80);
+    ca::i32 observed_old = 0;
+    ca::i32 observed_new = 0;
+    int fire_count = 0;
+    var->add_listener([&observed_old, &observed_new, &fire_count](const ca::i32& old_value,
+                                                                  const ca::i32& new_value) {
+        observed_old = old_value;
+        observed_new = new_value;
+        ++fire_count;
+    });
+
+    const auto result = Config::load(R"({"t2/port": 8080})");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(var->value(), 8080);
+    ASSERT_EQ(fire_count, 1);
+    EXPECT_EQ(observed_old, 80);
+    EXPECT_EQ(observed_new, 8080);
+}
+
+// load 的值与当前值相等：不触发监听器。
+TEST_F(ConfigTest, LoadEqualValueDoesNotFireListener)
+{
+    auto var = Config::lookup<ca::i32>("t2/same", 42);
+    int fire_count = 0;
+    var->add_listener([&fire_count](const ca::i32&, const ca::i32&) { ++fire_count; });
+
+    const auto result = Config::load(R"({"t2/same": 42})");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(fire_count, 0);
+}
+
+// load 未知 key：存入未物化表，后续 lookup 物化时以已加载值为初值。
+TEST_F(ConfigTest, LoadUnknownKeyMaterializedOnLookup)
+{
+    const auto result = Config::load(R"({"t2/future": 7})");
+    ASSERT_TRUE(result.is_ok());
+
+    auto var = Config::lookup<ca::i32>("t2/future", 0, "后注册");
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->value(), 7);
+
+    // 物化后未物化表为空：visit 只剩已注册条目
+    std::vector<ca::config::ConfigEntry> entries;
+    Config::visit([&entries](const ca::config::ConfigEntry& entry) { entries.push_back(entry); });
+    ASSERT_EQ(entries.size(), ca::usize(1));
+    EXPECT_FALSE(entries[0].pending);
+    EXPECT_EQ(entries[0].value, "7");
+}
+
+// 未物化 key 与 lookup 类型不符：退回本次 default（文档化语义），注册仍成功。
+TEST_F(ConfigTest, LoadUnknownKeyFallsBackToDefaultOnMismatch)
+{
+    const auto result = Config::load(R"({"t2/fallback": "not-a-number"})");
+    ASSERT_TRUE(result.is_ok());
+
+    auto var = Config::lookup<ca::i32>("t2/fallback", 5);
+    ASSERT_NE(var, nullptr);
+    EXPECT_EQ(var->value(), 5);
+}
+
+// 嵌套容器经 load 注入：vector<int> / vector<string> / map<string,int> / map<string,vector<int>>。
+TEST_F(ConfigTest, LoadIntoNestedContainerVars)
+{
+    auto vec_int = Config::lookup<std::vector<ca::i32>>("t2/vec_int", {});
+    auto vec_str = Config::lookup<std::vector<std::string>>("t2/vec_str", {});
+    auto map_int = Config::lookup<std::unordered_map<std::string, ca::i32>>("t2/map_int", {});
+    auto map_vec =
+        Config::lookup<std::unordered_map<std::string, std::vector<ca::i32>>>("t2/map_vec", {});
+
+    const auto result = Config::load(R"({
+        "t2/vec_int": [1, 2, 3],
+        "t2/vec_str": ["a", "b"],
+        "t2/map_int": {"x": 10, "y": 20},
+        "t2/map_vec": {"k": [7, 8], "m": [9]}
+    })");
+    ASSERT_TRUE(result.is_ok());
+
+    EXPECT_EQ(vec_int->value(), (std::vector<ca::i32>{1, 2, 3}));
+    EXPECT_EQ(vec_str->value(), (std::vector<std::string>{"a", "b"}));
+
+    const auto map_int_value = map_int->value();
+    ASSERT_EQ(map_int_value.size(), ca::usize(2));
+    EXPECT_EQ(map_int_value.at("x"), 10);
+    EXPECT_EQ(map_int_value.at("y"), 20);
+
+    const auto map_vec_value = map_vec->value();
+    EXPECT_EQ(map_vec_value.at("k"), (std::vector<ca::i32>{7, 8}));
+    EXPECT_EQ(map_vec_value.at("m"), (std::vector<ca::i32>{9}));
+}
+
+// ==================== load：失败语义 ====================
+
+// 非法 JSON / 顶层非 object：整体拒绝，内部状态零变化。
+TEST_F(ConfigTest, LoadInvalidJsonRejectedAtomically)
+{
+    auto var = Config::lookup<ca::i32>("t2/atomic", 1);
+    int fire_count = 0;
+    var->add_listener([&fire_count](const ca::i32&, const ca::i32&) { ++fire_count; });
+
+    auto bad_syntax = Config::load(R"({"t2/atomic": )");
+    ASSERT_TRUE(bad_syntax.is_err());
+    EXPECT_EQ(std::move(bad_syntax).unwrap_err().code, ConfigError::PARSE_FAILED);
+
+    auto not_object = Config::load("[1, 2, 3]");
+    ASSERT_TRUE(not_object.is_err());
+    EXPECT_EQ(std::move(not_object).unwrap_err().code, ConfigError::ROOT_NOT_OBJECT);
+
+    // 两次整体失败：值与监听器均未动，注册表也无新增条目
+    EXPECT_EQ(var->value(), 1);
+    EXPECT_EQ(fire_count, 0);
+    std::vector<ca::config::ConfigEntry> entries;
+    Config::visit([&entries](const ca::config::ConfigEntry& entry) { entries.push_back(entry); });
+    ASSERT_EQ(entries.size(), ca::usize(1));
+    EXPECT_FALSE(entries[0].pending);
+}
+
+// 单 key 类型不匹配：跳过该 key、其余 key 生效，Err 携带失败 key 详情。
+TEST_F(ConfigTest, LoadSingleKeyMismatchSkipsAndReports)
+{
+    auto good = Config::lookup<ca::i32>("t2/good", 0);
+    auto bad = Config::lookup<ca::i32>("t2/bad", 0);
+    int bad_fire = 0;
+    bad->add_listener([&bad_fire](const ca::i32&, const ca::i32&) { ++bad_fire; });
+
+    const auto result = Config::load(R"({"t2/good": 3, "t2/bad": "text"})");
+    ASSERT_TRUE(result.is_err());
+    const ca::config::ConfigErrorInfo info = std::move(result).unwrap_err();
+    EXPECT_EQ(info.code, ConfigError::TYPE_MISMATCH);
+    ASSERT_EQ(info.keys.size(), ca::usize(1));
+    EXPECT_EQ(info.keys[0], "t2/bad");
+    EXPECT_NE(info.message.find("t2/bad"), std::string::npos);
+
+    // 好的 key 生效；坏的 key 保持原值且未触发监听器
+    EXPECT_EQ(good->value(), 3);
+    EXPECT_EQ(bad->value(), 0);
+    EXPECT_EQ(bad_fire, 0);
+}
+
+// ==================== load_file / visit ====================
+
+// load_file 往返：写临时文件 → load_file → 断言 → 删除。
+TEST_F(ConfigTest, LoadFileRoundTrip)
+{
+    const auto temp_result = ca::fs::FileUtil::create_temp_file("libca_config_test", ".json");
+    ASSERT_TRUE(temp_result.is_ok());
+    const std::string path = std::move(temp_result).unwrap();
+
+    const auto write_result = ca::fs::FileUtil::write_text(path, R"({"t2/file_var": 123})");
+    ASSERT_TRUE(write_result.is_ok());
+
+    auto var = Config::lookup<ca::i32>("t2/file_var", 0);
+    const auto load_result = Config::load_file(path);
+    ASSERT_TRUE(load_result.is_ok());
+    EXPECT_EQ(var->value(), 123);
+
+    EXPECT_TRUE(ca::fs::FileUtil::remove(path));
+}
+
+// load_file：文件不存在返回 READ_FILE_FAILED。
+TEST_F(ConfigTest, LoadFileMissingReportsReadFileFailed)
+{
+    const auto result = Config::load_file("t2/no/such/file.json");
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(std::move(result).unwrap_err().code, ConfigError::READ_FILE_FAILED);
+}
+
+// visit：同时覆盖已注册 var 与未物化条目，name + JSON 文本表示正确。
+TEST_F(ConfigTest, VisitCoversRegisteredAndPending)
+{
+    auto var = Config::lookup<ca::i32>("t2/registered", 9);
+    (void)var;
+    const auto result = Config::load(R"({"t2/pending_key": true})");
+    ASSERT_TRUE(result.is_ok());
+
+    std::vector<ca::config::ConfigEntry> entries;
+    Config::visit([&entries](const ca::config::ConfigEntry& entry) { entries.push_back(entry); });
+    ASSERT_EQ(entries.size(), ca::usize(2));
+
+    for (const auto& entry : entries) {
+        if (entry.name == "t2/registered") {
+            EXPECT_FALSE(entry.pending);
+            EXPECT_EQ(entry.value, "9");
+        } else if (entry.name == "t2/pending_key") {
+            EXPECT_TRUE(entry.pending);
+            EXPECT_EQ(entry.value, "true");
+        } else {
+            FAIL() << "unexpected entry: " << entry.name;
+        }
+    }
 }
 
 }  // namespace
