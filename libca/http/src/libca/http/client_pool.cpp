@@ -105,23 +105,36 @@ std::unique_ptr<ClientConnection> pool_checkout(HttpConnectionPool& pool, const 
 {
     if (pool.impl_ == nullptr)
         return nullptr;
-    std::lock_guard<std::mutex> lock(pool.impl_->mutex);
-    auto bucket =
-        pool.impl_->idle.find(make_origin(url.scheme(), url.host(), url.port()));
-    if (bucket == pool.impl_->idle.end())
-        return nullptr;
-    const auto now = std::chrono::steady_clock::now();
-    // 从最新归还的连接开始向后找，跳过并丢弃空闲超时与探活失败的连接。
-    while (!bucket->second.empty()) {
-        auto entry = std::move(bucket->second.back());
-        bucket->second.pop_back();
-        if (now - entry.idle_since >= pool.impl_->options.idle_timeout)
-            continue;
-        if (entry.connection->probe_alive())
-            return std::move(entry.connection);
+    const auto origin = make_origin(url.scheme(), url.host(), url.port());
+    const auto now    = std::chrono::steady_clock::now();
+    for (;;) {
+        std::unique_ptr<ClientConnection> candidate;
+        {
+            std::lock_guard<std::mutex> lock(pool.impl_->mutex);
+            auto bucket = pool.impl_->idle.find(origin);
+            if (bucket == pool.impl_->idle.end())
+                return nullptr;
+            // 持锁只做弹出：从最新归还的连接向后取，空闲超时的直接丢弃，取到第一个
+            // 未过期候选即出锁；取尽顺带清掉空桶，避免 map 残留空 vector 条目。
+            while (!bucket->second.empty()) {
+                auto entry = std::move(bucket->second.back());
+                bucket->second.pop_back();
+                if (now - entry.idle_since < pool.impl_->options.idle_timeout) {
+                    candidate = std::move(entry.connection);
+                    break;
+                }
+            }
+            if (bucket->second.empty())
+                pool.impl_->idle.erase(bucket);
+            if (candidate == nullptr)
+                return nullptr;
+        }
+        // 探活在锁外执行：probe_alive 含 set_nonblocking/read 系统调用（TLS 连接更贵），
+        // 持锁做会把所有借出/归还方串行化在一次 socket I/O 上。失败连接在锁外析构，
+        // 回循环重新取下一个候选。
+        if (candidate->probe_alive())
+            return candidate;
     }
-    pool.impl_->idle.erase(bucket);
-    return nullptr;
 }
 
 bool pool_checkin(HttpConnectionPool& pool, std::unique_ptr<ClientConnection> connection)
