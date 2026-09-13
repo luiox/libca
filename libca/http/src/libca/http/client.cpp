@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "libca/core/bytes.hpp"
+#include "libca/http/detail/client_connection.hpp"
 #include "libca/http/detail/client_transport.hpp"
 #include "libca/http/detail/deadline_io.hpp"
 #include "libca/http/http1_codec.hpp"
@@ -108,31 +109,7 @@ private:
 class HttpClient::Impl
 {
 public:
-    struct Connection
-    {
-        Connection(std::unique_ptr<detail::ClientTransport> value, HttpScheme origin_scheme,
-                   std::string origin_host, u16 origin_port, const HttpLimits& limits)
-            : transport(std::move(value))
-            , deadline_reader(*transport, transport->tcp_stream(),
-                              origin_scheme == HttpScheme::Https)
-            , deadline_writer(*transport, transport->tcp_stream(),
-                              origin_scheme == HttpScheme::Https)
-            , codec_reader(deadline_reader, limits)
-            , codec_writer(deadline_writer)
-            , scheme(origin_scheme)
-            , host(std::move(origin_host))
-            , port(origin_port)
-        {}
-
-        std::unique_ptr<detail::ClientTransport> transport;
-        detail::DeadlineReader                   deadline_reader;
-        detail::DeadlineWriter                   deadline_writer;
-        Http1Reader                              codec_reader;
-        Http1Writer                              codec_writer;
-        HttpScheme                               scheme{HttpScheme::Http};
-        std::string                              host;
-        u16                                      port{0};
-    };
+    using Connection = detail::ClientConnection;
 
     explicit Impl(HttpClientOptions value)
         : options(std::move(value))
@@ -153,6 +130,14 @@ public:
             return ca::core::Ok();
 
         connection.reset();
+        // 可选连接池：checkout 内部已完成空闲超时与探活校验，失效连接直接丢弃。
+        if (options.pool != nullptr) {
+            auto pooled = detail::pool_checkout(*options.pool, url);
+            if (pooled != nullptr) {
+                connection = std::move(pooled);
+                return ca::core::Ok();
+            }
+        }
         auto connected =
             net::TcpStream::connect_timeout(url.host(), url.port(), options.connect_timeout);
         if (connected.is_err())
@@ -287,8 +272,12 @@ public:
                               !is_connect_tunnel(request.method, response.status) &&
                               should_keep_alive(request.version, request.headers) &&
                               should_keep_alive(response.version, response.headers);
+        // 响应体消费完且 framing 允许 keep-alive 才算可复用：无池时保留为本 client 的
+        // 复用连接，有池时归还池中；不可复用的连接直接丢弃。
         if (!reusable)
             connection.reset();
+        else if (options.pool != nullptr)
+            detail::pool_checkin(*options.pool, std::move(connection));
         return ca::core::Ok(std::move(response));
     }
 

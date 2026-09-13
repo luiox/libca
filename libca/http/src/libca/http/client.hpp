@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "libca/http/client_pool.hpp"
 #include "libca/http/message.hpp"
 #include "libca/http/url.hpp"
 
@@ -34,6 +35,9 @@ struct HttpClientOptions
     HttpTlsClientOptions      tls;                              ///< HTTPS 证书校验配置。
     usize max_informational_responses{8};   ///< 单次 request 最多接受的 1xx response 数量。
     bool tcp_nodelay{true};                 ///< 是否为新连接启用 TCP_NODELAY。
+    /// @brief 可选共享连接池；设置后请求完成时把仍可复用的 keep-alive 连接归还池中，
+    /// 下次请求优先从池中借出（借出前做空闲超时与存活校验，失效即丢弃重建）。
+    std::shared_ptr<HttpConnectionPool> pool;
 };
 
 /// @brief 同步、单调用线程使用并复用同源 keep-alive 连接的 HTTP/HTTPS client。
