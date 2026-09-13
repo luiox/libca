@@ -27,14 +27,17 @@ constexpr ca::u8 kFlagReserved = 0xE0;
 constexpr ca::usize kTrailerSize   = 8;   // CRC32 + ISIZE
 constexpr ca::usize kFixedHeadSize = 10;
 
+// u8 先提升到 u32 再移位：p[3] << 24 若按 int 提升做有符号移位，p[3] >= 0x80 时
+// 溢出为 UB（C++17 下未定义，C++20 才收敛为回绕）。
 ca::u16 read_u16(const ca::u8* p)
 {
-    return static_cast<ca::u16>(p[0] | (p[1] << 8));
+    return static_cast<ca::u16>(static_cast<ca::u32>(p[0]) | (static_cast<ca::u32>(p[1]) << 8));
 }
 
 ca::u32 read_u32(const ca::u8* p)
 {
-    return static_cast<ca::u32>(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
+    return static_cast<ca::u32>(p[0]) | (static_cast<ca::u32>(p[1]) << 8) |
+           (static_cast<ca::u32>(p[2]) << 16) | (static_cast<ca::u32>(p[3]) << 24);
 }
 
 }   // anonymous namespace
