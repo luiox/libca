@@ -48,6 +48,8 @@ private:
 /// 返回 false 或抛出异常后停止；一次性任务用 schedule_once()。析构函数取消所有未到期
 /// 任务、等待正在执行的回调返回后 join 调度线程；析构与其它线程的 schedule/cancel/
 /// next_expiry 并发是安全的，但回调捕获的外部对象需由调用方保证存活期。
+/// 回调内禁止销毁 TimerManager 本身：析构会 join 调度线程，而调度线程正被该回调
+/// 占用，必然死锁。
 class TimerManager
 {
 public:

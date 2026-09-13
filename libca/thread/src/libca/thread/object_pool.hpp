@@ -127,7 +127,13 @@ private:
                     return;
                 }
             }
-            locked->idle.emplace_back(ptr);
+            try {
+                locked->idle.emplace_back(ptr);
+            }
+            catch (...) {
+                // 本函数整体 noexcept：回池分配失败（bad_alloc）时销毁对象，而不是 terminate。
+                delete ptr;
+            }
         }
     };
 
