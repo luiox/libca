@@ -73,11 +73,12 @@ inline void log_with_source(Logger*              logger,
     do {                                                                                           \
         if constexpr (::ca::log::should_compile(level)) {                                          \
             /* 运行期检查必须在实参求值前完成：get/should_log 通过后才展开 __VA_ARGS__，  */        \
-            /* 级别不满足时实参零求值（短路求值）。 */                                              \
-            auto* ca_log_logger = ::ca::log::LoggerRegistry::get((target));                        \
+            /* 级别不满足时实参零求值（短路求值）。target 只求值一次，暂存后两处使用。   */        \
+            const std::string_view ca_log_target = (target);                                       \
+            auto* ca_log_logger = ::ca::log::LoggerRegistry::get(ca_log_target);                   \
             if (ca_log_logger != nullptr && ca_log_logger->should_log(level)) {                    \
                 ::ca::log::detail::log_with_source(                                                \
-                    ca_log_logger, level, (target), __FILE__, __LINE__, __VA_ARGS__);              \
+                    ca_log_logger, level, ca_log_target, __FILE__, __LINE__, __VA_ARGS__);         \
             }                                                                                      \
         }                                                                                          \
     } while (0)
