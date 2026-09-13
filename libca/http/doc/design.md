@@ -151,7 +151,8 @@ Host 固定取自 URL，调用方不能让连接 origin 与 Host 分离。当前
 才归还池中；close-delimited、CONNECT tunnel 与错误路径一律丢弃连接。借出时做两级校验：
 steady_clock 空闲超时，以及非阻塞 socket 探活——codec 仍有预读字节视为存活，否则对原始
 socket 做一次非阻塞读，读到 WouldBlock/TimedOut 视为存活，EOF、reset 或任何意外字节视为
-失效；失效连接直接丢弃、由 client 按需重建。`max_idle_per_host` 限制同 origin 空闲数，
+失效；失效连接直接丢弃、由 client 按需重建。借出只持锁弹出候选，探活在锁外执行，
+socket 系统调用不阻塞其它借出/归还；候选探活失败时回锁内取下一个候选。`max_idle_per_host` 限制同 origin 空闲数，
 归还满额即丢弃；连接句柄类型只在 detail 层可见，公开池接口不暴露连接对象。未注入池时
 client 保持原有的单连接同源复用行为。
 

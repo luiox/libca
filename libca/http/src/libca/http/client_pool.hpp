@@ -39,7 +39,8 @@ struct HttpConnectionPoolOptions
 /// @details 通过 HttpClientOptions::pool 注入，可被多个 HttpClient 共享。借出前做两级
 /// 校验：空闲超时（steady_clock）与非阻塞 socket 探活，失效连接直接丢弃、由 client 重建；
 /// 归还由 HttpClient 在响应体消费完且双方 keep-alive framing 允许时执行。整池一把 mutex
-/// 保证线程安全；HTTPS 连接与普通连接同池管理，TLS 细节对池不可见。
+/// 保护桶表；借出只持锁弹出候选，探活校验在锁外执行（socket 系统调用不阻塞其它借出/归还）。
+/// HTTPS 连接与普通连接同池管理，TLS 细节对池不可见。
 class HttpConnectionPool
 {
 public:
