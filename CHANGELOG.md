@@ -13,6 +13,34 @@
 
 ### libca
 
+- **2026-09 小件批次**（分支 `feat/small-items`，全部为新增能力，详见各头文件 Doxygen）：
+  - **[core]** 新增 `at_exit.hpp`（`AtExitManager` 进程级 LIFO 退出回调）、
+    `registry.hpp`（`Registry<K,Base>` 泛型自注册工厂）、`minidump.hpp`
+    （Windows 崩溃转储落盘，非 Windows 返回不支持）。
+  - **[str]** 新增 `bom.hpp`（UTF BOM 检测/剥离，UTF-8/16/32 最长匹配）。
+  - **[fs]** `PathUtil::normalize_within` 路径穿越防护（纯词法）；`FsError` 追加
+    `PathOutsideBase`；`FileUtil::read_all_text` 增加 `strip_bom` 可选参数
+    （默认 false，既有调用不受影响）。
+  - **[json]** 新增 `KvStore` JSON 持久化键值存储；json 模块由此新增对 fs 的单向依赖。
+  - **[crypto]** 新增 `murmur3_32` 非加密哈希、Base32 编解码（RFC 4648）；
+    `CryptoError` 追加 `INVALID_BASE32`。
+  - **[collection]** 新增 `LruCache<K,V>`（容量淘汰 + 命中统计 + on_evict 回调）。
+  - **[time]** 新增 `Stopwatch` 秒表、`ScopeTiming` RAII 耗时打点。
+  - **[thread]** 新增 `TimerManager`（steady_clock 定时器，一次性/重复/句柄取消）、
+    `EventBus`（进程内事件总线，快照语义 + 异常隔离）、`ObjectPool<T>`
+    （借还式对象池，try-lock 快路径 + weak_ptr 归还）。
+  - **[log]** 行为变更：日志宏运行期级别不满足时**实参零求值**（此前实参总被求值，
+    仅输出被过滤）；格式化副作用依赖旧行为的调用方需注意。
+  - **[net]** 新增 `SocketError` 归一化错误码与 `from_native`（WSA/errno 双路），
+    纯新增不改既有错误模型。
+  - **[http]** 新增 `HttpConnectionPool`（keep-alive 连接复用，经 `HttpClientOptions.pool`
+    注入，不注入则行为不变）。**行为变更**：`HttpUrl::parse` 由拒绝 userinfo 改为
+    按 RFC 3986 解析（`user@host` 形式）；`HttpUrl` 新增 percent 编解码、query 参数
+    保序解析、normalize 与 round-trip 序列化。
+  - **[zip]** 新增流式 gzip：`GzipReader`/`GzipWriter` 与一次性
+    `gzip_compress`/`gzip_decompress`（多成员拼接、CRC32/ISIZE 校验）。
+  - 文档：新增 `doc/加密与编码内置化方案.md`、`doc/后续批次路线图.md`。
+
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
 - **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物

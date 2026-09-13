@@ -17,6 +17,9 @@
 - `<libca/core/any.hpp>`
 - `<libca/core/platform.hpp>`
 - `<libca/core/stacktrace.hpp>`
+- `<libca/core/at_exit.hpp>`
+- `<libca/core/registry.hpp>`
+- `<libca/core/minidump.hpp>`
 
 功能：
 - 定长类型与大小语义类型：`u8`、`i32`、`usize` 等。
@@ -26,6 +29,9 @@
 - 类型转换：精确动态类型匹配、类型判断和安全转换辅助。
 - `Any`：轻量类型擦除，适合需要运行时保存少量异构值的边界。
 - 平台检测、导出宏、栈追踪等基础工具。
+- `AtExitManager`：进程级 LIFO 退出回调（静态单例析构顺序的解法）。
+- `Registry<K, Base>`：泛型自注册工厂（静态注册器惯用法），重复 key 报错。
+- Minidump：Windows 崩溃转储落盘（dbghelp），非 Windows 平台返回不支持。
 
 设计文档：
 - `libca/core/doc/core设计文档.md`
@@ -45,6 +51,7 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/str/char_util.hpp>`
 - `<libca/str/os_string.hpp>`
 - `<libca/str/format.hpp>`
+- `<libca/str/bom.hpp>`
 
 功能：
 - `Utf8String`：拥有所有权的 UTF-8 字符串，移动语义，显式 `clone()`。
@@ -56,6 +63,7 @@ UTF-8 字符串与所有权模型模块。
 - `format` / `format_to` / `format_runtime`：基于 fmt 的 `{}`-style 格式化门面，返回 `Utf8String` 或追加到 builder/std::string（对标 Rust `format!`）。fmt 以 str 的 public 依赖提供，下游模块通过 `add_deps("libca_str")` 间接拿到。
 - `OsString` / `OsStr`：平台原生编码字符串载体（Windows UTF-16 / POSIX UTF-8），用于与 OS API 边界交互。
 - C 字符串、宽字符串、编码转换、字符分类和字符串工具函数。
+- `detect_bom` / `strip_bom`：UTF BOM 检测与剥离（UTF-8/16/32，最长匹配优先）。
 
 设计文档：
 - `libca/str/doc/str设计文档.md`
@@ -70,7 +78,7 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/fs/fs_error.hpp>`
 
 功能：
-- `PathUtil`：路径拼接、规范化、扩展名、文件名、父目录等纯字符串路径操作。
+- `PathUtil`：路径拼接、规范化、扩展名、文件名、父目录等纯字符串路径操作；`normalize_within` 词法归一化并校验不逃出 base（路径穿越防护）。
 - `FileUtil`：读写文本、读写字节、文件/目录创建、删除、复制、移动和查询。
 - `FileMode`：写入模式控制。
 - `FsError`：文件操作错误码与可读文本转换。
@@ -174,6 +182,7 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采�
 
 入口头文件：
 - `<libca/json/json.hpp>`（聚合头）
+- `<libca/json/kv_store.hpp>`
 - `<libca/json/json_value.hpp>`
 - `<libca/json/json_document.hpp>`
 - `<libca/json/json_handler.hpp>`
@@ -193,6 +202,7 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采�
 - `JsonReader`：DOM 静态入口，`read(text)` / `read_file(path)` 返回 `Result<JsonDocument, ParseError>`。
 - `JsonWriter`：把 `JsonDocument` 序列化为 `Utf8String`，支持 pretty 缩进和 ensure_ascii。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。
+- `KvStore`：JSON 持久化键值存储（读-改-原子写回；缺文件返回空存储，坏 JSON 报错）。
 - 宽松选项：尾随逗号、`//` 与 `/* */` 注释（默认严格 RFC 8259）。
 
 设计与使用文档：
@@ -315,6 +325,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/net/dns.hpp>`
 - `<libca/net/tcp.hpp>`
 - `<libca/net/udp.hpp>`
+- `<libca/net/socket_error.hpp>`
 
 功能：
 - `IpAddress` / `SocketAddress`：IPv4、IPv6、端口、flow info 和 scope id 值类型。
@@ -323,6 +334,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时和非阻塞。
 - `TcpListener`：TCP bind、accept、临时端口、非阻塞和 clone。
 - `UdpSocket`：保留数据报边界的 send/receive API、超时、非阻塞和 broadcast。
+- `SocketError`：原生 socket 错误码归一化（WSA/errno 双路），可桥接 `IoErrorKind`。
 
 TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展。
 
@@ -338,6 +350,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 入口头文件：
 - `<libca/http/http.hpp>`（聚合头）
 - `<libca/http/client.hpp>`
+- `<libca/http/client_pool.hpp>`
 - `<libca/http/server.hpp>`
 - `<libca/http/http_error.hpp>`
 - `<libca/http/headers.hpp>`
@@ -349,11 +362,13 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `HttpRequest` / `HttpResponse`：完整缓冲报文，body 使用 `ca::core::Bytes`。
 - `HttpRequestHead` / `HttpResponseHead` / `HttpBodyInfo`：流式读取前的 head 与 framing 信息。
 - `HttpHeaders`：保序、允许重复、ASCII 大小写不敏感查询，拒绝 header injection 字节。
-- `HttpUrl`：http/https absolute URL、DNS/IPv4、方括号 IPv6、端口、query 和 authority。
+- `HttpUrl`：RFC 3986 全量解析（scheme/userinfo/host/IPv6/port/path/query/fragment）、
+  percent 编解码、query 参数保序解析、normalize 与 round-trip 序列化。
 - `Http1Reader` / `Http1Writer`：完整缓冲或流式处理碎片化字节流、Content-Length、chunked、
   trailers、close-delimited response、HEAD/无 body 状态码和 keep-alive framing。
 - `Http1ChunkedBodyWriter`：逐 chunk 写入与显式 flush/finalize，支持 SSE 等低延迟输出。
 - `HttpClient`：HTTP/HTTPS 完整缓冲 response、同源 keep-alive、TLS verification、1xx 与分阶段总 deadline。
+- `HttpConnectionPool`：按 host 复用 keep-alive 连接（空闲超时、借出探活），经 `HttpClientOptions.pool` 注入。
 - `HttpServer`：method/path 精确路由、有界 worker/排队、keep-alive、stop-aware IO。
 - `HttpServerResponse`：handler 返回 buffered response 或 chunked producer。
 - `HttpLimits` / `HttpError`：start-line、header count/bytes、body 上限与结构化协议错误。
@@ -381,11 +396,15 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/crypto/random.hpp>`
 - `<libca/crypto/chacha20.hpp>`
 - `<libca/crypto/rc4.hpp>`
+- `<libca/crypto/murmur3.hpp>`
+- `<libca/crypto/base32.hpp>`
 
 功能：
 - SHA-1、SHA-256、SHA-3、MD5 等 hash。
 - HMAC。
 - CRC、Base64、Hex 编解码。
+- Base32 编解码（RFC 4648）。
+- `murmur3_32`：非加密哈希（HashMap 键哈希/布隆过滤器用）。
 - 随机数辅助。
 - ChaCha20、RC4 等流式算法。
 
@@ -401,12 +420,16 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/time/timestamp.hpp>`
 - `<libca/time/datetime.hpp>`
 - `<libca/time/time_util.hpp>`
+- `<libca/time/stopwatch.hpp>`
+- `<libca/time/scope_timing.hpp>`
 
 功能：
 - `Duration`：纳秒精度时间间隔，纯值类型，支持 constexpr 算术与 chrono 互转。
 - `Timestamp`：Unix epoch 纳秒时间戳，与 `Duration` 做加减、与 `system_clock` 互转。
 - `Date` / `Time` / `DateTime`：面向日历展示与简单解析的轻量类型。
 - `TimeUtil`：时钟工具，对齐 Java `currentTimeMillis` / `nanoTime` 语义。
+- `Stopwatch`：秒表（构造即启动，elapsed/restart/reset）。
+- `ScopeTiming`：RAII 耗时打点，按名字聚合 count/total/max 统计（支持注入 registry）。
 
 设计文档：
 - `libca/time/doc/time设计文档.md`
@@ -421,6 +444,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/collection/hash_set.hpp>`
 - `<libca/collection/immutable_list.hpp>`
 - `<libca/collection/stream.hpp>`
+- `<libca/collection/lru_cache.hpp>`
 - `<libca/collection/collection.hpp>`
 
 功能：
@@ -428,6 +452,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `HashMap<K, V>` / `HashSet<T>`：基于 `std::unordered_map` / `std::unordered_set` 的哈希容器。
 - `ImmutableList<T>`：构造后不可修改的列表，支持范围 for 与随机访问。
 - `Stream`：基于迭代器范围的惰性 `filter/map/for_each/collect`。
+- `LruCache<K, V>`：容量淘汰缓存，get 提升热度，带命中/淘汰统计与 on_evict 回调。
 
 设计文档：
 - `libca/collection/doc/collection设计文档.md`
@@ -443,6 +468,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/thread/once.hpp>`
 - `<libca/thread/bounded_queue.hpp>`
 - `<libca/thread/thread_pool.hpp>`
+- `<libca/thread/timer.hpp>`
+- `<libca/thread/event_bus.hpp>`
+- `<libca/thread/object_pool.hpp>`
 
 功能：
 - `StopSource` / `StopToken`：共享、幂等的协作停止状态，支持等待停止请求。
@@ -451,6 +479,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
 - `channel<T>`：MPSC 通道（多生产者单消费者），对齐 Rust `std::sync::mpsc` 简化版；全部 Sender 销毁后自动关闭生产端。
 - `OnceCell` / `OnceLock`：延迟一次性初始化容器（非线程安全 / 线程安全），对应 Rust 同名类型。
+- `TimerManager`：steady_clock 定时器调度（一次性/重复、句柄取消、回调在调度线程串行执行）。
+- `EventBus`：进程内按事件名发布/订阅（快照语义、异常隔离、句柄注销）。
+- `ObjectPool<T>`：借还式对象池（shared_ptr 归还进池、try-lock 快路径、高竞争退化为直接构造）。
 
 设计与使用文档：
 - `libca/thread/doc/thread设计文档.md`
@@ -546,7 +577,7 @@ UUID v4 生成与校验（不做 v1/v3/v5）。底层随机源复用系统 CSPRN
 
 功能：
 - `CA_LOG_<LEVEL>(...)` / `CA_LOGT_<LEVEL>(target, ...)`：日志宏，编译期裁剪
-  （`CA_COMPILE_LOG_LEVEL`，默认 Info）+ 运行期级别过滤。
+  （`CA_COMPILE_LOG_LEVEL`，默认 Info）+ 运行期级别过滤（级别不满足时实参零求值）。
 - `Level`：Trace..Off；`Error_` 规避 Windows `wingdi.h` 的 `ERROR` 宏冲突。
 - `OpaqueFormat`：类型擦除的格式化参数载体（view 语义，严禁跨线程入队）。
 - `ILogBackend`：后端接口，调 `message.render_to(out)` 取格式化完成的字符串。
@@ -571,6 +602,27 @@ Win32 桌面 GUI 薄封装，仅 Windows 平台可用。
 
 设计文档：
 - `libca/ui/doc/ui设计文档.md`
+
+## zip
+
+压缩与归档模块：JVM `ZipFile` 语义 ZIP 读写 + 流式 gzip。zlib 经 xrepo 提供，
+根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
+
+入口头文件：
+- `<libca/zip/file.hpp>`（`ZipFile`）
+- `<libca/zip/input_stream.hpp>` / `<libca/zip/output_stream.hpp>`
+- `<libca/zip/gzip_reader.hpp>` / `<libca/zip/gzip_writer.hpp>`
+- `<libca/zip/checksum.hpp>`
+
+功能：
+- `ZipFile`：ZIP 只读访问器（EOCD 定位与恢复、ZIP64）。
+- `ZipInputStream` / `ZipOutputStream`：流式 ZIP 读写（DD 条目支持）。
+- `gzip_compress` / `gzip_decompress`：一次性 gzip 编解码（多成员拼接、CRC32/ISIZE 校验）。
+- `GzipReader` / `GzipWriter`：流式 gzip（RFC 1952 头部逐 flag 解析）。
+- CRC32 等校验和。
+
+设计文档：
+- `libca/zip/doc/zip设计文档.md`（如无则以上口头文件 Doxygen 为准）
 
 ## 暂未作为主线使用的代码
 
