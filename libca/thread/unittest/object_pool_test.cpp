@@ -130,6 +130,7 @@ TEST(ObjectPoolTest, HookExceptionDestroysObjectInsteadOfPooling)
     }
 
     auto next = pool.obtain();
+    destroyed.store(false);                // 两颗炸弹共用标志：清掉第一颗的痕迹再观察第二颗
     EXPECT_EQ(calls.load(), 2);            // 坏对象未入池，重新构造
     EXPECT_FALSE(destroyed.load());        // 新对象存活
 }
