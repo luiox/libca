@@ -8,6 +8,7 @@ enum class CryptoError
     INVALID_ARGUMENT,
     INVALID_HEX,
     INVALID_BASE64,
+    INVALID_BASE32,
     RANDOM_FAILED,
 };
 
@@ -23,6 +24,8 @@ inline const char* to_string(CryptoError error) noexcept
         return "invalid hex input";
     case CryptoError::INVALID_BASE64:
         return "invalid base64 input";
+    case CryptoError::INVALID_BASE32:
+        return "invalid base32 input";
     case CryptoError::RANDOM_FAILED:
         return "secure random generation failed";
     }
