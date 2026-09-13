@@ -39,8 +39,8 @@ YAML 是超集级语法，自写解析器成本高且无现成依赖。配置格
 - **注册表锁**（`ConfigState::mutex`，`std::shared_mutex`）：保护 vars / pending
   两张表。lookup 注册、load 装配应用清单、visit 取快照用独占锁；lookup_base、
   visit 快照用共享锁。
-- **配置项锁**（每个 `ConfigVar<T>` 内部 `std::shared_mutex`）：保护值、监听器表
-  与 to_json scratch arena。读值用共享锁，set/add/remove 用独占锁。
+- **配置项锁**（每个 `ConfigVar<T>` 内部 `std::shared_mutex`）：保护值与监听器表。
+  读值用共享锁，set/add/remove 用独占锁。
 
 监听器回调在**两级锁之外**触发：`set()` 先在独占锁内换值并把监听器列表拷出，
 释放锁后逐个调用。这是刻意设计——回调中常见"再读其它配置项"（进注册表锁）甚至
@@ -80,6 +80,11 @@ nullptr，重复 lookup 幂等返回同实例。
   失败直接返回，注册表与 pending 表零改动。
 - **部分生效（仍返回 Err）**：单 key 与已注册 var 类型不匹配/超范围时跳过该 key，
   其余 key 照常生效，最后返回 `Err(TYPE_MISMATCH)`，`keys` 列出被跳过的 key。
+  同级还有一类：该 key 的**监听器回调抛出异常**。监听器是用户代码，异常若穿透
+  `load` 会打破"错误都走 Err"的接口契约，且此刻值已应用、回调链中断，处于无法
+  报告的半应用状态。处理方式是在应用循环内捕获，该 key 计入 `keys`、code 记
+  `LISTENER_FAILED`（与类型失败混合时 code 取 TYPE_MISMATCH，message 注明），
+  继续应用后续 key。
 
 部分生效仍返回 Err 而不是 Ok 携带警告，是因为调用方需要显式感知"这次配置没有
 完整生效"——把信息塞进成功通道会诱导调用方不看。生成了哪些 key 可从 keys 的
@@ -87,15 +92,17 @@ nullptr，重复 lookup 幂等返回同实例。
 
 ## 6. 其它取舍
 
-- **to_json 的字符串生命周期**：`JsonValue` 的字符串是指向 arena 的视图。模块提供
-  两个形态：`to_json()`（便捷，字符串 intern 到 var 内部 scratch arena，仅到该 var
-  下一次 to_json 前有效）与 `to_json(JsonDocument&)`（显式生命周期，visit 内部用
-  这个）。并发或长持有场景必须用后者。
+- **to_json 的字符串生命周期**：`JsonValue` 的字符串是指向 arena 的视图。只提供
+  `to_json(JsonDocument&)` 一种形态（字符串 intern 到调用方 document，visit 内部
+  临时构造 document 即用即弃）。曾考虑过 `to_json()` 无参便捷版本（var 内部持有
+  scratch arena），被否决：arena 构造即分配 64KB chunk，等于让每个配置项常驻
+  64KB，且追加式去重池对"历史值只增不减"的短命序列化结果是错误的容量模型。
 - **取值返回拷贝**：`value()` 返回 `T` 拷贝而非引用，换内部锁保护下的完整快照，
   避免引用在并发 set 下悬空/撕裂。配置值都是小对象，拷贝成本可忽略。
 - **整型范围**：JSON Int 以 i64 存储，`JsonCast` 对窄整型做范围检查（OUT_OF_RANGE）；
   u64 高位超出 i64 正域的值在 JSON 解析期已降级为 Float，对本转换表现为类型不符
-  ——这是 JSON 表示能力的固有限制，非本模块 bug。
+  ——这是 JSON 表示能力的固有限制，非本模块 bug。序列化方向对称处理：u64 超域值
+  `to_json` 降级为 Float 输出（而非 `static_cast<i64>` 回绕成负数造成静默值损坏）。
 - **id 从 1 开始**：监听器 id 0 保留为无效值，`add_listener` 首个返回 1，
   `remove_listener(0)` 恒 false。
 - **`Config::clear()`**：注册中心是进程级单例，为测试隔离与程序初始化阶段重建
@@ -103,8 +110,9 @@ nullptr，重复 lookup 幂等返回同实例。
 
 ## 7. 测试组织
 
-单测 25 例覆盖：lookup 幂等/类型冲突/默认值、set 短路与监听器旧新值、load 应用
+单测 28 例覆盖：lookup 幂等/类型冲突/默认值、set 短路与监听器旧新值、load 应用
 与监听、未知 key 物化与 default 退回、嵌套容器（vector/int/string、map 嵌套
-vector）、非法 JSON 整体拒绝、单 key 跳过并报详情、load_file 往返（临时文件）、
+vector）、非法 JSON 整体拒绝、单 key 跳过并报详情、监听器异常转 LISTENER_FAILED（含
+与类型失败的混合场景）、u64 超域序列化降级 Float、load_file 往返（临时文件）、
 visit 覆盖 pending、并发 smoke（2 lookup + 1 load + 原子计数监听器，5 秒总截止，
 线程内自检 deadline，无无界等待）。

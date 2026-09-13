@@ -17,6 +17,7 @@ enum class ConfigError
     TYPE_MISMATCH,     ///< 值类型与目标类型不符
     OUT_OF_RANGE,      ///< 整数值超出目标类型范围
     READ_FILE_FAILED,  ///< load_file 读取文件失败
+    LISTENER_FAILED,   ///< 值变更监听器回调抛出异常（该 key 值已应用，计入失败）
 };
 
 /// @brief 将 ConfigError 转为稳定的调试字符串。
@@ -37,14 +38,17 @@ inline const char* to_string(ConfigError error) noexcept
         return "integer value out of range";
     case ConfigError::READ_FILE_FAILED:
         return "read config file failed";
+    case ConfigError::LISTENER_FAILED:
+        return "config listener callback threw";
     }
     return "unknown config error";
 }
 
 /// @brief 带详情的错误值：code 供程序分支，message/keys 供诊断与测试断言。
 /// @note 作为 Config::load / Config::load_file 的 Result 错误类型；
-///       整体失败（解析失败/顶层非 object）时 keys 为空，部分失败（单 key 类型不匹配被
-///       跳过、其余 key 已生效）时 keys 列出被跳过的 key。
+///       整体失败（解析失败/顶层非 object）时 keys 为空；部分失败（单 key 类型不匹配/
+///       超范围被跳过、或该 key 的监听器回调抛出异常）时 keys 列出应用失败的 key，
+///       其余 key 照常生效。
 struct ConfigErrorInfo
 {
     /// 错误码。

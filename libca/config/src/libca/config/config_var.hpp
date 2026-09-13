@@ -6,6 +6,8 @@
 ///          变更监听器（锁外回调）以及与 JSON 的双向转换。
 ///          T 的约束：可默认构造、可拷贝、支持 operator==。
 
+#pragma once
+
 #include "libca/config/config_error.hpp"
 #include "libca/config/lexical_cast.hpp"
 
@@ -14,7 +16,6 @@
 
 #include "libca/json/json_document.hpp"
 #include "libca/json/json_value.hpp"
-#include "libca/str/utf8_string_arena.hpp"
 
 #include <functional>
 #include <map>
@@ -59,13 +60,10 @@ public:
     virtual std::type_index type() const noexcept = 0;
 
     /// @brief 序列化当前值为 JSON。
-    /// @return JsonValue；字符串引用内部 scratch arena，仅在本对象下一次 to_json()
-    ///         调用前、且无并发 to_json() 时有效。并发或需长持有用重载版本。
-    virtual ca::json::JsonValue to_json() const = 0;
-
-    /// @brief 序列化当前值为 JSON（显式生命周期版本）。
     /// @param document 调用方提供的文档：字符串 intern 到 document.arena()，
     ///                 返回的 JsonValue 生命周期跟随该 document。
+    /// @note 不提供无参便捷版本：对象内嵌去重池会让每个配置项常驻一块
+    ///       arena 内存（且历史值只增不减），短命序列化结果不值得这个代价。
     virtual ca::json::JsonValue to_json(ca::json::JsonDocument& document) const = 0;
 
     /// @brief 类型校验并从 JSON 赋值（内部走 set，值相等短路、监听器锁外触发）。
@@ -73,18 +71,9 @@ public:
     /// @return 类型不符/超范围返回对应 ConfigError；成功返回 Ok。
     virtual Result<void, ConfigError> set_from_json(const ca::json::JsonValue& value) = 0;
 
-protected:
-    /// @brief to_json() 专用 scratch 池。内部实现细节：由派生类的内部锁串行化访问。
-    ca::str::Utf8StringArena& json_arena() const noexcept
-    {
-        return json_arena_;
-    }
-
 private:
     std::string name_;
     std::string description_;
-    /// to_json() 返回的 JsonValue 中字符串的落点（惰性去重池）。
-    mutable ca::str::Utf8StringArena json_arena_;
 };
 
 /// @brief 强类型配置项。
@@ -165,14 +154,6 @@ public:
         return listeners_.erase(id) > 0;
     }
 
-    /// @brief 序列化当前值为 JSON（scratch arena 版本，生命周期约束见基类说明）。
-    ca::json::JsonValue to_json() const override
-    {
-        // 独占锁：需要向 scratch arena intern 字符串
-        std::unique_lock<std::shared_mutex> lock(mutex_);
-        return JsonCast<T>::to_json(value_, json_arena());
-    }
-
     /// @brief 序列化当前值为 JSON，字符串 intern 到调用方 document。
     ca::json::JsonValue to_json(ca::json::JsonDocument& document) const override
     {
@@ -197,7 +178,7 @@ public:
     }
 
 private:
-    /// 内部锁：保护 value_ / listeners_ / next_listener_id_ / scratch arena。
+    /// 内部锁：保护 value_ / listeners_ / next_listener_id_。
     mutable std::shared_mutex mutex_;
     T value_;
     /// 监听器表：id → 回调（有序表便于稳定遍历）。

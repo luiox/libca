@@ -24,14 +24,14 @@
 
 namespace ca::config {
 
-namespace details {
+namespace detail {
 
 /// 依赖模板参数的恒 false，供主模板 static_assert 使用（规避 MSVC 对恒假断言的误报）。
 template <typename T>
 struct dependent_false : std::false_type {
 };
 
-}  // namespace ca::config::details
+}  // namespace ca::config::detail
 
 /// @brief JsonValue 与 T 的双向转换 Traits。
 /// @tparam T 目标 C++ 类型。
@@ -44,7 +44,7 @@ struct dependent_false : std::false_type {
 ///       - 容器递归转换，任一元素失败则整体失败。
 template <typename T, typename Enable = void>
 struct JsonCast {
-    static_assert(details::dependent_false<T>::value,
+    static_assert(detail::dependent_false<T>::value,
                   "JsonCast<T>: 该类型未提供 JSON 转换，请在配置中使用受支持的类型");
 };
 
@@ -118,9 +118,16 @@ struct JsonCast<T, std::enable_if_t<std::is_integral<T>::value && !std::is_same<
     }
 
     /// @brief 整型序列化为 JSON Int。
+    /// @note u64 高于 i64 正域的值 JSON Int 装不下：降级为 Float 承载（与解析期
+    ///       该域降级 Float 的行为对称），避免 static_cast 回绕成负数造成静默值损坏。
     static ca::json::JsonValue to_json(const T& value, ca::str::Utf8StringArena& arena)
     {
         (void)arena;
+        if constexpr (sizeof(T) == sizeof(ca::i64) && !std::is_signed<T>::value) {
+            if (value > static_cast<T>(std::numeric_limits<ca::i64>::max())) {
+                return ca::json::JsonValue::make_float(static_cast<ca::f64>(value));
+            }
+        }
         return ca::json::JsonValue::make_int(static_cast<ca::i64>(value));
     }
 };

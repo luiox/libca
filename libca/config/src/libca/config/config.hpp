@@ -117,11 +117,14 @@ public:
     /// @return 成功返回 Ok。失败分两类：
     ///         - 整体失败（非法 JSON / 顶层非 object）：内部状态零变化，Err 的 code 为
     ///           PARSE_FAILED / ROOT_NOT_OBJECT，keys 为空；
-    ///         - 部分失败（单 key 类型不匹配/超范围）：跳过该 key、其余 key 照常生效，
-    ///           返回 Err（code=TYPE_MISMATCH），keys 列出被跳过的 key，message 带详情。
+    ///         - 部分失败（单 key 类型不匹配/超范围、或该 key 的监听器回调抛出异常）：
+    ///           其余 key 照常生效，返回 Err（code 为 TYPE_MISMATCH / LISTENER_FAILED，
+    ///           混合时为 TYPE_MISMATCH），keys 列出应用失败的 key，message 带详情。
     /// @note 部分失败仍返回 Err 是有意取舍：调用方需要显式感知"配置未完整生效"，
     ///       而哪些 key 生效了可以从 keys 的补集推知（见模块设计文档）。
-    /// @note 监听器回调在本函数持有注册表锁之外触发，回调中可安全再进 Config。
+    /// @note 监听器回调在本函数持有注册表锁之外触发，回调中可安全再进 Config；
+    ///       回调抛出的异常不会穿透本函数（捕获后计入失败 key），但该 key 的值
+    ///       此刻已应用、回调链中排在异常之后的监听器不会执行。
     static Result<void, ConfigErrorInfo> load(const std::string& json_text);
 
     /// @brief 从 JSON 文件加载配置（等价于读全文后调 load）。

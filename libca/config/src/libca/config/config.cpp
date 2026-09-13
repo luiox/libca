@@ -72,25 +72,37 @@ Result<void, ConfigErrorInfo> Config::load(const std::string& json_text)
 
     // 锁外应用：set_from_json 内部会触发监听器回调，回调可能再进 Config（lookup/visit），
     // 持注册表锁调用会自锁死。代价是并发 load 的应用顺序不保证（见设计文档）。
-    std::vector<std::string> failed_keys;
+    std::vector<std::string> failed_keys;       // 类型不符/超范围（set_from_json 返回 Err）
+    std::vector<std::string> listener_failed;   // 监听器回调抛异常（值已应用，监听被中断）
     for (const auto& apply : apply_list) {
-        const auto result = apply.first->set_from_json(*apply.second);
-        if (result.is_err()) {
-            failed_keys.push_back(apply.first->name());
+        try {
+            const auto result = apply.first->set_from_json(*apply.second);
+            if (result.is_err()) {
+                failed_keys.push_back(apply.first->name());
+            }
+        } catch (...) {
+            // 监听器是用户回调：异常不能穿透 Result 接口（调用方按错误都走 Err 编程）。
+            // 该 key 的值此刻已更新、排在前面的监听器已执行，仍计入失败并继续应用后续 key。
+            listener_failed.push_back(apply.first->name());
         }
     }
 
-    if (!failed_keys.empty()) {
+    if (!failed_keys.empty() || !listener_failed.empty()) {
         ConfigErrorInfo info;
-        info.code = ConfigError::TYPE_MISMATCH;
-        info.message = std::to_string(failed_keys.size()) + " 个配置项应用失败: ";
-        for (ca::usize i = 0; i < failed_keys.size(); ++i) {
+        info.code = failed_keys.empty() ? ConfigError::LISTENER_FAILED
+                                        : ConfigError::TYPE_MISMATCH;
+        info.keys = failed_keys;
+        info.keys.insert(info.keys.end(), listener_failed.begin(), listener_failed.end());
+        info.message = std::to_string(info.keys.size()) + " 个配置项应用失败: ";
+        for (ca::usize i = 0; i < info.keys.size(); ++i) {
             if (i > 0) {
                 info.message += ", ";
             }
-            info.message += "\"" + failed_keys[i] + "\"";
+            info.message += "\"" + info.keys[i] + "\"";
         }
-        info.keys = std::move(failed_keys);
+        if (!listener_failed.empty()) {
+            info.message += "（其中监听器回调抛出异常，值已应用）";
+        }
         return Err(std::move(info));
     }
     return Ok();

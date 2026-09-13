@@ -195,6 +195,26 @@ TEST_F(ConfigTest, JsonCastIntegerRangeCheck)
     EXPECT_EQ(std::move(i32_float).unwrap_err(), ConfigError::TYPE_MISMATCH);
 }
 
+// u64 整型序列化：i64 正域内输出 Int；超域降级 Float（不静默回绕成负数）。
+TEST_F(ConfigTest, JsonCastU64ToJsonOutOfRangeDegradesToFloat)
+{
+    ca::str::Utf8StringArena arena;
+    const ca::u64 in_range = 9223372036854775807ULL;  // i64 max
+    auto int_value = ca::config::JsonCast<ca::u64>::to_json(in_range, arena);
+    ASSERT_TRUE(int_value.is_int());
+    EXPECT_EQ(int_value.as_int(), 9223372036854775807LL);
+
+    const ca::u64 out_of_range = 9223372036854775808ULL;  // i64 max + 1
+    auto float_value = ca::config::JsonCast<ca::u64>::to_json(out_of_range, arena);
+    ASSERT_TRUE(float_value.is_float());
+    EXPECT_DOUBLE_EQ(float_value.as_float(), 9223372036854775808.0);
+
+    // 窄无符号类型不受影响，仍输出 Int
+    auto u32_value = ca::config::JsonCast<ca::u32>::to_json(ca::u32(4000000000ULL), arena);
+    ASSERT_TRUE(u32_value.is_int());
+    EXPECT_EQ(u32_value.as_int(), 4000000000LL);
+}
+
 // 浮点：Int 与 Float 都接受。
 TEST_F(ConfigTest, JsonCastFloatAcceptsIntAndFloat)
 {
@@ -300,12 +320,13 @@ TEST_F(ConfigTest, JsonCastNestedMapOfVectorRoundTrip)
     EXPECT_EQ(std::move(converted).unwrap(), source);
 }
 
-// to_json()（scratch arena 版本）：字符串内容正确。
-TEST_F(ConfigTest, ConfigVarToJsonScratchArena)
+// to_json（显式 document 版本）：字符串 intern 到调用方文档，内容正确。
+TEST_F(ConfigTest, ConfigVarToJsonExplicitDocument)
 {
     ConfigVar<std::vector<std::string>> var("direct/vec_str",
                                             std::vector<std::string>{"x", "y"});
-    ca::json::JsonValue value = var.to_json();
+    ca::json::JsonDocument document;
+    ca::json::JsonValue value = var.to_json(document);
     ASSERT_TRUE(value.is_array());
     ASSERT_EQ(value.size(), ca::usize(2));
     EXPECT_EQ(value.at(0).as_string().to_std_string(), "x");
@@ -453,6 +474,40 @@ TEST_F(ConfigTest, LoadSingleKeyMismatchSkipsAndReports)
     EXPECT_EQ(good->value(), 3);
     EXPECT_EQ(bad->value(), 0);
     EXPECT_EQ(bad_fire, 0);
+}
+
+// 监听器回调抛异常：不穿透 load（转 LISTENER_FAILED 错误），值已应用、其余 key 继续。
+TEST_F(ConfigTest, LoadListenerExceptionBecomesErrorAndContinues)
+{
+    auto exn = Config::lookup<ca::i32>("t2/exn", 0);
+    auto other = Config::lookup<ca::i32>("t2/other", 0);
+    exn->add_listener([](const ca::i32&, const ca::i32&) { throw std::runtime_error("boom"); });
+
+    const auto result = Config::load(R"({"t2/exn": 1, "t2/other": 2})");
+    ASSERT_TRUE(result.is_err());
+    const ca::config::ConfigErrorInfo info = std::move(result).unwrap_err();
+    EXPECT_EQ(info.code, ConfigError::LISTENER_FAILED);
+    ASSERT_EQ(info.keys.size(), ca::usize(1));
+    EXPECT_EQ(info.keys[0], "t2/exn");
+
+    // 监听器异常发生在 set 完成之后：值已应用；其余 key 不受影响
+    EXPECT_EQ(exn->value(), 1);
+    EXPECT_EQ(other->value(), 2);
+}
+
+// 混合失败：类型不匹配与监听器异常并存时 code 取 TYPE_MISMATCH，keys 收两类。
+TEST_F(ConfigTest, LoadMixedFailuresReportBothKeys)
+{
+    auto exn = Config::lookup<ca::i32>("t2/mix_exn", 0);
+    auto bad = Config::lookup<ca::i32>("t2/mix_bad", 0);
+    exn->add_listener([](const ca::i32&, const ca::i32&) { throw std::runtime_error("boom"); });
+
+    const auto result = Config::load(R"({"t2/mix_bad": "text", "t2/mix_exn": 1})");
+    ASSERT_TRUE(result.is_err());
+    const ca::config::ConfigErrorInfo info = std::move(result).unwrap_err();
+    EXPECT_EQ(info.code, ConfigError::TYPE_MISMATCH);
+    ASSERT_EQ(info.keys.size(), ca::usize(2));
+    EXPECT_NE(info.message.find("监听器"), std::string::npos);
 }
 
 // ==================== load_file / visit ====================
