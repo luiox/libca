@@ -13,6 +13,7 @@
 #include "libca/crypto/hmac.hpp"
 #include "libca/crypto/md5.hpp"
 #include "libca/crypto/murmur3.hpp"
+#include "libca/crypto/pbkdf2.hpp"
 #include "libca/crypto/random.hpp"
 #include "libca/crypto/rc4.hpp"
 #include "libca/crypto/sha1.hpp"
