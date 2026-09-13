@@ -55,12 +55,12 @@ ca::core::Bytes hmac_impl(ca::core::ByteSlice key, ca::core::ByteSlice data)
     ca::u8 result[DIGEST_SIZE];
     outer_hasher.get_hash(result);
 
-    // 密钥派生材料离场清零：key_block、inner_digest 与 ipad/opad 缓冲（inner/outer，
-    // BytesMut 只读视图经 const_cast 清零，底层是本函数栈上拥有的可写缓冲）
+    // 密钥派生材料离场清零：key_block、inner_digest 与 ipad/opad 缓冲
+    // （inner/outer 为本函数独占缓冲，fill 覆盖全部已写字节且抗死存储消除）。
     secure_zero(key_block, sizeof(key_block));
     secure_zero(inner_digest, sizeof(inner_digest));
-    secure_zero(const_cast<ca::u8*>(inner.as_ptr()), inner.len());
-    secure_zero(const_cast<ca::u8*>(outer.as_ptr()), outer.len());
+    inner.fill(0);
+    outer.fill(0);
     return ca::core::Bytes::copy_from_slice(result, DIGEST_SIZE);
 }
 

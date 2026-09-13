@@ -19,6 +19,11 @@ ca::core::Result<ca::core::Bytes, CryptoError> pbkdf2_hmac_sha256(
         return Err(CryptoError::INVALID_ARGUMENT);
 
     constexpr ca::usize HASH_LEN = SHA256::HashBytes;
+    // RFC 2898 5.2：dkLen ≤ (2^32 - 1) * hLen。显式拒绝同时也消除了
+    // 下方 block_count 计算中 dk_len + HASH_LEN - 1 的加法回绕路径。
+    if (dk_len > 0xFFFFFFFFULL * HASH_LEN)
+        return Err(CryptoError::INVALID_ARGUMENT);
+
     const ca::usize block_count = (dk_len + HASH_LEN - 1) / HASH_LEN;
 
     ca::core::BytesMut dk = ca::core::BytesMut::with_capacity(dk_len);

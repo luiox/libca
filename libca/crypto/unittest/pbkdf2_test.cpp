@@ -93,6 +93,20 @@ TEST(Pbkdf2HmacSha256Test, RejectsZeroDkLen)
     EXPECT_EQ(dk.unwrap_err(), CryptoError::INVALID_ARGUMENT);
 }
 
+// dk_len 超过 RFC 2898 5.2 上限 (2^32-1) * hLen 拒绝（也封死 block_count 的加法回绕路径）。
+// 上限内的巨型输出不实际执行（约 128GB），只验证越界拒绝。
+TEST(Pbkdf2HmacSha256Test, RejectsDkLenOverLimit)
+{
+    const auto dk = pbkdf2_hmac_sha256(bytes("passwd"), bytes("salt"), 1, 0xFFFFFFFFULL * 32 + 1);
+    EXPECT_TRUE(dk.is_err());
+    EXPECT_EQ(dk.unwrap_err(), CryptoError::INVALID_ARGUMENT);
+
+    // 极端 usize（回绕诱因）同样在入口被拒，不触碰 block_count 计算
+    const auto wrap = pbkdf2_hmac_sha256(bytes("passwd"), bytes("salt"), 1, ~ca::usize(0));
+    EXPECT_TRUE(wrap.is_err());
+    EXPECT_EQ(wrap.unwrap_err(), CryptoError::INVALID_ARGUMENT);
+}
+
 // 非整块长度走末块截断路径：dkLen=33（1 块 + 1 字节）结果必须是
 // c=1、dkLen=64 输出的前 33 字节（PBKDF2 前缀性质）。
 TEST(Pbkdf2HmacSha256Test, NonMultipleLengthIsPrefixOfFullOutput)

@@ -11,23 +11,6 @@ inline uint64_t rotate64(uint64_t a, int c) {
     return (a >> c) | (a << (64 - c));
 }
 
-inline uint64_t byteswap64(uint64_t x) {
-#if defined(_MSC_VER)
-    return _byteswap_uint64(x);
-#elif defined(__GNUC__) || defined(__clang__)
-    return __builtin_bswap64(x);
-#else
-    return (x >> 56) |
-          ((x >> 40) & 0x000000000000FF00ULL) |
-          ((x >> 24) & 0x0000000000FF0000ULL) |
-          ((x >>  8) & 0x00000000FF000000ULL) |
-          ((x <<  8) & 0x000000FF00000000ULL) |
-          ((x << 24) & 0x0000FF0000000000ULL) |
-          ((x << 40) & 0x00FF000000000000ULL) |
-           (x << 56);
-#endif
-}
-
 inline uint64_t sigma1(uint64_t e, uint64_t f, uint64_t g) {
     uint64_t term1 = rotate64(e, 14) ^ rotate64(e, 18) ^ rotate64(e, 41);
     uint64_t term2 = (e & f) ^ (~e & g);
@@ -116,6 +99,104 @@ void sha512_compress(uint64_t hash[8], const void* data) {
     hash[7] += h;
 }
 
+// SHA-512/SHA-384 共用的流式状态视图：绑定具体类的计数/缓冲/摘要成员。
+// 两类仅初始 IV 与输出截断不同，add 与终结逻辑据此共享（压缩函数也相同）。
+struct Sha512StateView {
+    uint64_t& num_bytes;
+    size_t& buffer_size;
+    uint8_t* buffer;
+    uint64_t* hash;
+};
+
+// 共用流式吸收：残留缓冲补齐 → 整块直吸收 → 余数入缓冲。
+void sha512_add(Sha512StateView s, const void* data, size_t num_bytes) {
+    const uint8_t* current = static_cast<const uint8_t*>(data);
+
+    if (s.buffer_size > 0) {
+        while (num_bytes > 0 && s.buffer_size < SHA512::BlockSize) {
+            s.buffer[s.buffer_size++] = *current++;
+            num_bytes--;
+        }
+    }
+
+    if (s.buffer_size == SHA512::BlockSize) {
+        sha512_compress(s.hash, s.buffer);
+        s.num_bytes += SHA512::BlockSize;
+        s.buffer_size = 0;
+    }
+
+    if (num_bytes == 0) return;
+
+    while (num_bytes >= SHA512::BlockSize) {
+        sha512_compress(s.hash, current);
+        current += SHA512::BlockSize;
+        s.num_bytes += SHA512::BlockSize;
+        num_bytes -= SHA512::BlockSize;
+    }
+
+    while (num_bytes > 0) {
+        s.buffer[s.buffer_size++] = *current++;
+        num_bytes--;
+    }
+}
+
+// 共用终结：填充 0x80 与零、写入 128 位大端长度字段并吸收残余缓冲。
+// 长度字段按字节展开，避免 64 位移位溢出。
+void sha512_finalize(Sha512StateView s) {
+    // 填充后总长 = buffer_size + 1(0x80) 向上对齐到 mod 128 == 112，
+    // 再留 16 字节长度字段凑满整数个分组。
+    size_t padded_len = s.buffer_size + 1;
+    size_t lower7bits = padded_len & 127;
+    if (lower7bits <= 112)
+        padded_len += 112 - lower7bits;
+    else
+        padded_len += 128 + 112 - lower7bits;
+
+    unsigned char extra[SHA512::BlockSize];
+
+    // sha512_add 保证 buffer_size 恒小于块长，0x80 必落在 buffer 内。
+    s.buffer[s.buffer_size] = 128;
+
+    size_t i;
+    for (i = s.buffer_size + 1; i < SHA512::BlockSize; i++)
+        s.buffer[i] = 0;
+    for (; i < padded_len; i++)
+        extra[i - SHA512::BlockSize] = 0;
+
+    // 消息位长（128 位大端）：总字节数 * 8。高 64 位 = 总字节数 >> 61，
+    // 低 64 位 = 总字节数 << 3（移位不丢信息，二者拼出完整 128 位）。
+    uint64_t total_bytes = s.num_bytes + s.buffer_size;
+    uint64_t high_bits = total_bytes >> 61;
+    uint64_t low_bits = total_bytes << 3;
+
+    unsigned char* add_length;
+    if (padded_len < SHA512::BlockSize)
+        add_length = s.buffer + padded_len;
+    else
+        add_length = extra + padded_len - SHA512::BlockSize;
+
+    *add_length++ = static_cast<unsigned char>((high_bits >> 56) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >> 48) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >> 40) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >> 32) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >> 24) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >> 16) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((high_bits >>  8) & 0xFF);
+    *add_length++ = static_cast<unsigned char>( high_bits        & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 56) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 48) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 40) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 32) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 24) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >> 16) & 0xFF);
+    *add_length++ = static_cast<unsigned char>((low_bits >>  8) & 0xFF);
+    *add_length   = static_cast<unsigned char>( low_bits        & 0xFF);
+
+    sha512_compress(s.hash, s.buffer);
+    if (padded_len > SHA512::BlockSize)
+        sha512_compress(s.hash, extra);
+}
+
 }  // namespace
 
 SHA512::SHA512() { reset(); }
@@ -149,186 +230,21 @@ void SHA384::reset() {
 
 SHA384::SHA384() { reset(); }
 
-void SHA512::process_block(const void* data) {
-    sha512_compress(hash_, data);
-}
-
-void SHA384::process_block(const void* data) {
-    sha512_compress(hash_, data);
-}
-
 void SHA512::add(const void* data, size_t num_bytes) {
-    const uint8_t* current = static_cast<const uint8_t*>(data);
-
-    if (buffer_size_ > 0) {
-        while (num_bytes > 0 && buffer_size_ < BlockSize) {
-            buffer_[buffer_size_++] = *current++;
-            num_bytes--;
-        }
-    }
-
-    if (buffer_size_ == BlockSize) {
-        process_block(buffer_);
-        num_bytes_ += BlockSize;
-        buffer_size_ = 0;
-    }
-
-    if (num_bytes == 0) return;
-
-    while (num_bytes >= BlockSize) {
-        process_block(current);
-        current += BlockSize;
-        num_bytes_ += BlockSize;
-        num_bytes -= BlockSize;
-    }
-
-    while (num_bytes > 0) {
-        buffer_[buffer_size_++] = *current++;
-        num_bytes--;
-    }
+    sha512_add(Sha512StateView{num_bytes_, buffer_size_, buffer_, hash_}, data, num_bytes);
 }
 
 void SHA384::add(const void* data, size_t num_bytes) {
-    // 与 SHA512::add 相同的缓冲逻辑，仅状态属于 SHA384。
-    const uint8_t* current = static_cast<const uint8_t*>(data);
-
-    if (buffer_size_ > 0) {
-        while (num_bytes > 0 && buffer_size_ < BlockSize) {
-            buffer_[buffer_size_++] = *current++;
-            num_bytes--;
-        }
-    }
-
-    if (buffer_size_ == BlockSize) {
-        process_block(buffer_);
-        num_bytes_ += BlockSize;
-        buffer_size_ = 0;
-    }
-
-    if (num_bytes == 0) return;
-
-    while (num_bytes >= BlockSize) {
-        process_block(current);
-        current += BlockSize;
-        num_bytes_ += BlockSize;
-        num_bytes -= BlockSize;
-    }
-
-    while (num_bytes > 0) {
-        buffer_[buffer_size_++] = *current++;
-        num_bytes--;
-    }
+    sha512_add(Sha512StateView{num_bytes_, buffer_size_, buffer_, hash_}, data, num_bytes);
 }
 
-// 填充并吸收残余缓冲。128 位长度字段按字节展开，避免 64 位移位溢出。
+// 填充并吸收残余缓冲；get_hash 取完结果后恢复状态。
 void SHA512::process_buffer() {
-    // 填充后总长 = buffer_size_ + 1(0x80) 向上对齐到 mod 128 == 112，
-    // 再留 16 字节长度字段凑满一个分组。
-    size_t padded_len = buffer_size_ + 1;
-    size_t lower7bits = padded_len & 127;
-    if (lower7bits <= 112)
-        padded_len += 112 - lower7bits;
-    else
-        padded_len += 128 + 112 - lower7bits;
-
-    unsigned char extra[BlockSize];
-
-    if (buffer_size_ < BlockSize)
-        buffer_[buffer_size_] = 128;
-    else
-        extra[0] = 128;
-
-    size_t i;
-    for (i = buffer_size_ + 1; i < BlockSize; i++)
-        buffer_[i] = 0;
-    for (; i < padded_len; i++)
-        extra[i - BlockSize] = 0;
-
-    // 消息位长（128 位大端）：总字节数 * 8。高 64 位 = 总字节数 >> 61，
-    // 低 64 位 = 总字节数 << 3（移位不丢信息，二者拼出完整 128 位）。
-    uint64_t total_bytes = num_bytes_ + buffer_size_;
-    uint64_t high_bits = total_bytes >> 61;
-    uint64_t low_bits = total_bytes << 3;
-
-    unsigned char* add_length;
-    if (padded_len < BlockSize)
-        add_length = buffer_ + padded_len;
-    else
-        add_length = extra + padded_len - BlockSize;
-
-    *add_length++ = static_cast<unsigned char>((high_bits >> 56) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 48) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 40) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 32) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 24) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 16) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >>  8) & 0xFF);
-    *add_length++ = static_cast<unsigned char>( high_bits        & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 56) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 48) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 40) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 32) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 24) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 16) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >>  8) & 0xFF);
-    *add_length   = static_cast<unsigned char>( low_bits        & 0xFF);
-
-    process_block(buffer_);
-    if (padded_len > BlockSize)
-        process_block(extra);
+    sha512_finalize(Sha512StateView{num_bytes_, buffer_size_, buffer_, hash_});
 }
 
 void SHA384::process_buffer() {
-    size_t padded_len = buffer_size_ + 1;
-    size_t lower7bits = padded_len & 127;
-    if (lower7bits <= 112)
-        padded_len += 112 - lower7bits;
-    else
-        padded_len += 128 + 112 - lower7bits;
-
-    unsigned char extra[BlockSize];
-
-    if (buffer_size_ < BlockSize)
-        buffer_[buffer_size_] = 128;
-    else
-        extra[0] = 128;
-
-    size_t i;
-    for (i = buffer_size_ + 1; i < BlockSize; i++)
-        buffer_[i] = 0;
-    for (; i < padded_len; i++)
-        extra[i - BlockSize] = 0;
-
-    uint64_t total_bytes = num_bytes_ + buffer_size_;
-    uint64_t high_bits = total_bytes >> 61;
-    uint64_t low_bits = total_bytes << 3;
-
-    unsigned char* add_length;
-    if (padded_len < BlockSize)
-        add_length = buffer_ + padded_len;
-    else
-        add_length = extra + padded_len - BlockSize;
-
-    *add_length++ = static_cast<unsigned char>((high_bits >> 56) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 48) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 40) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 32) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 24) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >> 16) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((high_bits >>  8) & 0xFF);
-    *add_length++ = static_cast<unsigned char>( high_bits        & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 56) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 48) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 40) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 32) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 24) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >> 16) & 0xFF);
-    *add_length++ = static_cast<unsigned char>((low_bits >>  8) & 0xFF);
-    *add_length   = static_cast<unsigned char>( low_bits        & 0xFF);
-
-    process_block(buffer_);
-    if (padded_len > BlockSize)
-        process_block(extra);
+    sha512_finalize(Sha512StateView{num_bytes_, buffer_size_, buffer_, hash_});
 }
 
 std::string SHA512::get_hash() {

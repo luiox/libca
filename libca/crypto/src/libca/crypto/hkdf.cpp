@@ -11,40 +11,59 @@ namespace ca::crypto {
 
 namespace {
 
-// HMAC 函数指针：expand 公共实现按算法分发到对应 hmac_shaXxx。
-using HmacFn = ca::core::Bytes (*)(ca::core::ByteSlice key, ca::core::ByteSlice data);
+// 按哈希类型分发到对应 HMAC 入口：与 HKDF 公共实现的缓冲容量同源编译期绑定，
+// 避免摘要长度（t_prev 定容）与分发目标脱节。
+template<typename HashT>
+ca::core::Bytes hmac_of(ca::core::ByteSlice key, ca::core::ByteSlice data);
+template<>
+ca::core::Bytes hmac_of<SHA1>(ca::core::ByteSlice key, ca::core::ByteSlice data)
+{
+    return hmac_sha1(key, data);
+}
+template<>
+ca::core::Bytes hmac_of<SHA256>(ca::core::ByteSlice key, ca::core::ByteSlice data)
+{
+    return hmac_sha256(key, data);
+}
+template<>
+ca::core::Bytes hmac_of<SHA512>(ca::core::ByteSlice key, ca::core::ByteSlice data)
+{
+    return hmac_sha512(key, data);
+}
 
 // HKDF-Expand 公共实现（RFC 5869 2.3）：
 //   T(0) = 空串
 //   T(i) = HMAC(PRK, T(i-1) | info | i)
 //   OKM  = T(1) | T(2) | ... 截取前 length 字节
+template<typename HashT>
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_expand_common(
-    ca::usize hash_len, HmacFn hmac, ca::core::ByteSlice prk, ca::core::ByteSlice info,
-    ca::usize length)
+    ca::core::ByteSlice prk, ca::core::ByteSlice info, ca::usize length)
 {
+    constexpr ca::usize HASH_LEN = HashT::HashBytes;
+
     // RFC 5869 2.3 约束：PRK 不少于 HashLen 字节；输出不超过 255 * HashLen 字节。
-    if (prk.size() < hash_len)
+    if (prk.size() < HASH_LEN)
         return Err(CryptoError::INVALID_ARGUMENT);
-    if (length > 255 * hash_len)
+    if (length > 255 * HASH_LEN)
         return Err(CryptoError::INVALID_ARGUMENT);
 
     ca::core::BytesMut okm = ca::core::BytesMut::with_capacity(length);
-    ca::u8 t_prev[64] = {};
-    ca::core::BytesMut t_input = ca::core::BytesMut::with_capacity(64 + info.size() + 1);
+    ca::u8 t_prev[HASH_LEN] = {};
+    ca::core::BytesMut t_input = ca::core::BytesMut::with_capacity(HASH_LEN + info.size() + 1);
 
     ca::usize produced = 0;
     ca::u8 counter = 1;
     while (produced < length) {
         t_input.clear();
         if (produced > 0)
-            t_input.put_slice(t_prev, hash_len);
+            t_input.put_slice(t_prev, HASH_LEN);
         t_input.put_slice(info.data(), info.size());
         t_input.put_u8(counter);
 
-        const auto t = hmac(prk, ca::core::ByteSlice(t_input.as_ptr(), t_input.len()));
-        const ca::usize take = (length - produced < hash_len) ? (length - produced) : hash_len;
+        const auto t = hmac_of<HashT>(prk, ca::core::ByteSlice(t_input.as_ptr(), t_input.len()));
+        const ca::usize take = (length - produced < HASH_LEN) ? (length - produced) : HASH_LEN;
         okm.put_slice(t.as_ptr(), take);
-        std::memcpy(t_prev, t.as_ptr(), hash_len);
+        std::memcpy(t_prev, t.as_ptr(), HASH_LEN);
         produced += take;
         ++counter;
     }
@@ -63,7 +82,7 @@ ca::core::Bytes hkdf_sha1_extract(ca::core::ByteSlice salt, ca::core::ByteSlice 
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha1_expand(
     ca::core::ByteSlice prk, ca::core::ByteSlice info, ca::usize length)
 {
-    return hkdf_expand_common(SHA1::HashBytes, &hmac_sha1, prk, info, length);
+    return hkdf_expand_common<SHA1>(prk, info, length);
 }
 
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha1_derive(
@@ -81,7 +100,7 @@ ca::core::Bytes hkdf_sha256_extract(ca::core::ByteSlice salt, ca::core::ByteSlic
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha256_expand(
     ca::core::ByteSlice prk, ca::core::ByteSlice info, ca::usize length)
 {
-    return hkdf_expand_common(SHA256::HashBytes, &hmac_sha256, prk, info, length);
+    return hkdf_expand_common<SHA256>(prk, info, length);
 }
 
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha256_derive(
@@ -99,7 +118,7 @@ ca::core::Bytes hkdf_sha512_extract(ca::core::ByteSlice salt, ca::core::ByteSlic
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha512_expand(
     ca::core::ByteSlice prk, ca::core::ByteSlice info, ca::usize length)
 {
-    return hkdf_expand_common(SHA512::HashBytes, &hmac_sha512, prk, info, length);
+    return hkdf_expand_common<SHA512>(prk, info, length);
 }
 
 ca::core::Result<ca::core::Bytes, CryptoError> hkdf_sha512_derive(

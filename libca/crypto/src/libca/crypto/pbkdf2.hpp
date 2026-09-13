@@ -9,9 +9,9 @@ namespace ca::crypto {
 /// @param password 口令字节。
 /// @param salt 盐值。
 /// @param iterations 迭代次数 c，必须 >= 1（RFC 2898 要求正整数）。
-/// @param dk_len 派生密钥长度，必须 >= 1 字节。
+/// @param dk_len 派生密钥长度，必须 >= 1 字节且 <= (2^32 - 1) * 32（RFC 2898 5.2）。
 /// @return dk_len 字节派生密钥。
-/// @note 错误：iterations == 0 或 dk_len == 0 时返回
+/// @note 错误：iterations == 0、dk_len == 0 或 dk_len 超过上限时返回
 ///       Err(CryptoError::INVALID_ARGUMENT)，不回退到默认值。
 ca::core::Result<ca::core::Bytes, CryptoError> pbkdf2_hmac_sha256(
     ca::core::ByteSlice password, ca::core::ByteSlice salt, ca::usize iterations,

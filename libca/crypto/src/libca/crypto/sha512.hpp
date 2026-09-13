@@ -27,7 +27,6 @@ public:
     void reset();
 
 private:
-    void process_block(const void* data);
     void process_buffer();
 
     uint64_t num_bytes_ = 0;
@@ -59,7 +58,6 @@ public:
     void reset();
 
 private:
-    void process_block(const void* data);
     void process_buffer();
 
     uint64_t num_bytes_ = 0;
