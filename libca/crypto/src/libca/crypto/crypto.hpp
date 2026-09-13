@@ -17,3 +17,4 @@
 #include "libca/crypto/sha1.hpp"
 #include "libca/crypto/sha256.hpp"
 #include "libca/crypto/sha3.h"
+#include "libca/crypto/sha512.hpp"
