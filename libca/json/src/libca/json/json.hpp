@@ -16,3 +16,4 @@
 #include "libca/json/json_reader.hpp"
 #include "libca/json/json_writer.hpp"
 #include "libca/json/json_schema.hpp"
+#include "libca/json/kv_store.hpp"
