@@ -24,6 +24,7 @@ enum class FsError
     NameTooLong,        ///< 路径或文件名过长
     TooManyOpenFiles,   ///< 进程/系统打开文件数超限
     Unknown,            ///< 未分类异常
+    PathOutsideBase,    ///< 词法归一化后路径逃逸出指定 base（含空路径、根不匹配等注入）
 };
 
 /// FsError 转人类可读字符串，便于打印日志。

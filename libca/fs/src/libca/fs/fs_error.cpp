@@ -20,6 +20,7 @@ std::string to_string(FsError e)
         case FsError::NameTooLong:      return "name too long";
         case FsError::TooManyOpenFiles: return "too many open files";
         case FsError::Unknown:          return "unknown error";
+        case FsError::PathOutsideBase:  return "path outside base";
     }
     return "unknown error";
 }

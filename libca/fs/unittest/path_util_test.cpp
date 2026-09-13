@@ -46,6 +46,124 @@ TEST(PathUtilTest, Normalize_TrailingSeparator)
     EXPECT_TRUE(result == "/a/b" || result == "/a/b/");
 }
 
+// ==================== normalizeWithin ====================
+
+TEST(PathUtilTest, NormalizeWithin_SubPathNormalized)
+{
+    // sub/.. 相互抵消，结果折回 base 直下
+    auto result = PathUtil::normalize_within("base/sub/../ok.txt", "base");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "base/ok.txt");
+}
+
+TEST(PathUtilTest, NormalizeWithin_DotSegmentsCollapsed)
+{
+    auto result = PathUtil::normalize_within("base/./sub/./x.txt", "base");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "base/sub/x.txt");
+}
+
+TEST(PathUtilTest, NormalizeWithin_TraversalRejected)
+{
+    auto result = PathUtil::normalize_within("base/../../escape.txt", "base");
+    EXPECT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::PathOutsideBase);
+}
+
+TEST(PathUtilTest, NormalizeWithin_DeepTraversalRejected)
+{
+    // sub/.. 折叠后仍向上逃逸出 base
+    auto result = PathUtil::normalize_within("/base/sub/../../escape.txt", "/base");
+    EXPECT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err(), FsError::PathOutsideBase);
+}
+
+TEST(PathUtilTest, NormalizeWithin_AbsolutePathInjectionRejected)
+{
+    auto result = PathUtil::normalize_within("/etc/passwd", "/var/www");
+    EXPECT_TRUE(result.is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_AbsoluteIntoRelativeBaseRejected)
+{
+    auto result = PathUtil::normalize_within("/tmp/evil", "base");
+    EXPECT_TRUE(result.is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_RelativeIntoAbsoluteBaseRejected)
+{
+    auto result = PathUtil::normalize_within("evil.txt", "/var/www");
+    EXPECT_TRUE(result.is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_BaseItselfAllowed)
+{
+    // 设计决定：path 归一化后等于 base 视为在 base 之内（含边界），返回规范化后的 base。
+    auto result = PathUtil::normalize_within("base", "base");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "base");
+
+    auto boundary = PathUtil::normalize_within("/var/www", "/var/www");
+    ASSERT_TRUE(boundary.is_ok());
+    EXPECT_EQ(std::move(boundary).unwrap(), "/var/www");
+}
+
+TEST(PathUtilTest, NormalizeWithin_SubDotDotFoldsToBase)
+{
+    // 词法归一化语义（lexically_normal）在 .. 被消费后保留 base 的尾分隔符
+    auto result = PathUtil::normalize_within("base/sub/..", "base");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "base/");
+}
+
+TEST(PathUtilTest, NormalizeWithin_EmptyPathRejected)
+{
+    EXPECT_TRUE(PathUtil::normalize_within("", "base").is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_EmptyBaseRejected)
+{
+    EXPECT_TRUE(PathUtil::normalize_within("base", "").is_err());
+    EXPECT_TRUE(PathUtil::normalize_within("", "").is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_BackslashesFolded)
+{
+    // 反斜杠先统一为 '/'，再词法归一化（sub/.. 相互抵消）
+    auto result = PathUtil::normalize_within("base\\sub\\..\\file.txt", "base");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "base/file.txt");
+}
+
+#ifdef _WIN32
+TEST(PathUtilTest, NormalizeWithin_WindowsDriveLetterCaseInsensitive)
+{
+    // 盘符大小写不参与逃逸判定：c:/ 与 C:/ 视为同一根；结果保留 path 原书写形式。
+    auto result = PathUtil::normalize_within("c:/data/sub/file.txt", "C:/data");
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(std::move(result).unwrap(), "c:/data/sub/file.txt");
+}
+
+TEST(PathUtilTest, NormalizeWithin_WindowsCaseSensitiveSegmentsConservative)
+{
+    // 目录段大小写按词法精确比较：对大小写不敏感文件系统宁可误拒、不可误放。
+    auto result = PathUtil::normalize_within("C:/data/../DATA/secret.txt", "C:/data");
+    EXPECT_TRUE(result.is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_WindowsDifferentDriveRejected)
+{
+    auto result = PathUtil::normalize_within("D:/somewhere/file.txt", "C:/data");
+    EXPECT_TRUE(result.is_err());
+}
+
+TEST(PathUtilTest, NormalizeWithin_WindowsBackslashTraversalRejected)
+{
+    auto result = PathUtil::normalize_within("C:\\data\\..\\..\\windows\\system32", "C:\\data");
+    EXPECT_TRUE(result.is_err());
+}
+#endif
+
 // ==================== toUnixSeparators ====================
 
 TEST(PathUtilTest, ToUnixSeparators_Basic)
