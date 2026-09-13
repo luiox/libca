@@ -152,5 +152,22 @@ TEST(LogMacroShortCircuitTest, ProbeRigDetectsEvaluationWhenEnabled)
     EXPECT_EQ(stream.str(), "probe");
 }
 
+// target 表达式只求值一次：宏内暂存后供 registry 查找与分发两处使用（防回归）。
+TEST(LogMacroShortCircuitTest, TargetExpressionEvaluatedOnce)
+{
+    RegistryGuard guard;
+    register_logger_with_level(Level::Trace);
+
+    int target_calls = 0;
+    auto target_name = [&target_calls] {
+        ++target_calls;
+        return "default";
+    };
+
+    CA_LOGT_INFO(target_name(), "value={}", 42);
+
+    EXPECT_EQ(target_calls, 1);
+}
+
 }  // namespace
 }  // namespace ca::log::test
