@@ -114,9 +114,11 @@ TEST(ObjectPoolTest, HookExceptionDestroysObjectInsteadOfPooling)
     std::atomic<bool> destroyed{false};
     std::atomic<int>  calls{0};
     ObjectPool<ResetBomb> pool(
-        [&calls] {
+        [&calls, &destroyed] {
             ++calls;
-            return std::make_unique<ResetBomb>();
+            auto bomb           = std::make_unique<ResetBomb>();
+            bomb->destroyed     = &destroyed;
+            return bomb;
         },
         [](ResetBomb&) { throw std::runtime_error("reset failed"); });
 
