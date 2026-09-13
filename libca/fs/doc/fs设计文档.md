@@ -1,6 +1,7 @@
 ---
-version: 2.1
+version: 2.2
 update:
+2026-09-13 - v2.2：模块新增 libca_str 依赖（read_all_text BOM 剥离）
 2026-07-06 - 补充原子写入、目录拷贝、glob、元数据与权限的设计说明；更新错误模型为 FsError
 2026-06-18 - 重写为设计文档（API 移至头文件）；对齐 snake_case；修正过时表述
 2026-05-29 - 首版
@@ -37,7 +38,7 @@ libca/fs/
 └── xmake.lua
 ```
 
-依赖：`FileUtil` 内部用 `PathUtil`（路径拼接/归一化）与 `std::filesystem`；模块依赖 `libca_core`（`datatype.hpp`、`bytes.hpp`、`result.hpp`）。命名空间 `ca::fs`。
+依赖：`FileUtil` 内部用 `PathUtil`（路径拼接/归一化）与 `std::filesystem`；模块依赖 `libca_core`（`datatype.hpp`、`bytes.hpp`、`result.hpp`）与 `libca_str`（`read_all_text` 的 BOM 剥离复用 str 模块 bom 接口，L2 fs → L1 str 方向合法）。命名空间 `ca::fs`。
 
 ## 3. 接口概览（详细签名见头文件）
 

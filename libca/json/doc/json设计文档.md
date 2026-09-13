@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-09-13 - v1.2：新增 KvStore 章节（持久化键值存储），模块新增对 fs 的单向依赖
 2026-07-19 - 首版，说明 JSON 模块的 SAX/DOM 双形态、ca::str 集成与错误模型
 2026-07-19 - v1.1：迁移到 Arena 架构，引入 JsonDocument，SAX/DOM 字符串统一 Utf8StringRef
 ---
@@ -18,7 +19,8 @@ update:
   适合随机访问和编辑。
 
 模块命名空间是 `ca::json`，构建目标是 `libca_json`，单元测试目标是 `libca_json_unittest`。
-依赖 `libca_core` 和 `libca_str`，不依赖其它 libca 模块。
+依赖 `libca_core` 和 `libca_str`；`KvStore`（kv_store.hpp）另依赖 `libca_fs`
+（读取与原子写复用 `fs::FileUtil`，json → fs 单向，方向合法）。
 
 ## 与 ca::str 的集成（Arena 架构）
 
@@ -174,3 +176,22 @@ JSON 规范不区分整数与浮点。本库按字面量形态判定：不含 `.
 - 递归下降而非 simd 向量化。
 - DOM 用 `std::variant` + `std::vector`；字符串统一经 `Utf8StringArena` 入池（去重 + 集中释放）。
 - 文件读取走 `std::ifstream`（与 csv/ini/toml 一致），不引入 fs 依赖。
+
+## KvStore（持久化键值存储）
+
+`kv_store.hpp` 提供 `ca::json::KvStore`：一层 JSON 对象的持久化键值存储（bool /
+int(i64) / double(f64) / string 四种标量，key 原样存储不做嵌套路径切分）。设计取舍：
+
+- **复用 DOM 而非自写序列化**：load 走 `JsonReader`（错误模型直接透传 `ParseError`），
+  save 用 `JsonDocument` + `JsonWriter` 组装（arena 临时构建、用完即弃），浮点经
+  `%.17g` 保证 round-trip。
+- **原子写复用 fs**：`save()` 调 `fs::FileUtil::atomic_write_text`（临时文件 + rename），
+  不在 json 内重写第二套原子写。由此 json 对 fs 引入单向依赖。
+- **值模型收窄**：文件里出现 null/array/object 视为不支持的存储内容，load 报错而非
+  静默丢弃——避免「加载→保存」循环悄悄删数据。JSON 重复 key 首个生效，与
+  `JsonValue::find()` 语义一致。
+- **一把 mutex 全程串行化**：状态小、写多读少是这类存储的主场景，粗粒度锁足够；
+  save 含文件 I/O 也整程持锁——否则 Windows 上并发 rename 替换同一目标会瞬时冲突。
+- 内部 `std::map`（key 字节序）让文件内容确定性强，便于 diff 与人工检查；
+  `std::mutex` 经 `unique_ptr<State>` 间接持有，使 KvStore 保持可移动（load 需要
+  按值返回）。
