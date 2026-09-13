@@ -437,4 +437,353 @@ TEST(ByteSliceTest, SubSliceOutOfRange) {
     EXPECT_THROW(s.sub_slice(3, 1), std::out_of_range);
 }
 
+// ==================== varint（LEB128）— put 精确字节序列 ====================
+// 期望字节序列由 python enc(n)（逐字节 n&0x7F、右移 7）现算核对后硬编码。
+
+namespace {
+
+// 把 value 编码进新缓冲并逐字节核对期望序列。
+void check_put_var_u32(u32 value, const u8* expect, usize len) {
+    BytesMut b;
+    b.put_var_u32(value);
+    ASSERT_EQ(b.len(), len);
+    for (usize i = 0; i < len; ++i) {
+        EXPECT_EQ(b.as_ptr()[i], expect[i]);
+    }
+}
+
+void check_put_var_u64(u64 value, const u8* expect, usize len) {
+    BytesMut b;
+    b.put_var_u64(value);
+    ASSERT_EQ(b.len(), len);
+    for (usize i = 0; i < len; ++i) {
+        EXPECT_EQ(b.as_ptr()[i], expect[i]);
+    }
+}
+
+} // namespace
+
+TEST(BytesMutTest, PutVarU32_BoundaryEncodings) {
+    static const u8 e0[]      = {0x00};
+    static const u8 e127[]    = {0x7F};
+    static const u8 e128[]    = {0x80, 0x01};
+    static const u8 e150[]    = {0x96, 0x01};
+    static const u8 e16383[]  = {0xFF, 0x7F};
+    static const u8 e16384[]  = {0x80, 0x80, 0x01};
+    static const u8 eumax[]   = {0xFF, 0xFF, 0xFF, 0xFF, 0x0F};
+    check_put_var_u32(0, e0, 1);
+    check_put_var_u32(127, e127, 1);
+    check_put_var_u32(128, e128, 2);
+    check_put_var_u32(150, e150, 2);
+    check_put_var_u32(16383, e16383, 2);
+    check_put_var_u32(16384, e16384, 3);
+    check_put_var_u32(UINT32_MAX, eumax, 5);
+}
+
+TEST(BytesMutTest, PutVarU64_BoundaryEncodings) {
+    static const u8 e32bit[]  = {0x80, 0x80, 0x80, 0x80, 0x10};             // 2^32
+    static const u8 e63bit[]  = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01}; // 2^63
+    static const u8 eumax[]   = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01}; // u64max
+    check_put_var_u64(4294967296ull, e32bit, 5);
+    check_put_var_u64(9223372036854775808ull, e63bit, 10);
+    check_put_var_u64(UINT64_MAX, eumax, 10);
+}
+
+TEST(BytesMutTest, PutVarU32_AutoGrow) {
+    auto b = BytesMut::with_capacity(2); // 容量不足，迫使 grow
+    b.put_var_u32(UINT32_MAX);
+    EXPECT_EQ(b.len(), 5u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), UINT32_MAX);
+}
+
+// ==================== varint — 合法读取（Bytes 与 BytesMut 两条通路） ====================
+
+TEST(BytesTest, GetVarU32_ReadsAndAdvancesCursor) {
+    u8 data[] = {0x96, 0x01, 0x80, 0x80, 0x01}; // 150、16384 连续排布
+    auto b = Bytes::from_static(data, 5);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 150u);
+    EXPECT_EQ(b.remaining(), 3u); // 前进 2 字节
+    EXPECT_EQ(b.get_var_u32().unwrap(), 16384u);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+TEST(BytesTest, GetVarU32_BoundaryValues) {
+    u8 data[] = {0x00, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F}; // 0、127、u32max
+    auto b = Bytes::from_static(data, 7);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 0u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 127u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), UINT32_MAX);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+TEST(BytesTest, GetVarU64_BoundaryValues) {
+    u8 data[] = {0x96, 0x01,
+                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01}; // 150、u64max
+    auto b = Bytes::from_static(data, sizeof(data));
+    EXPECT_EQ(b.get_var_u64().unwrap(), 150u);
+    EXPECT_EQ(b.get_var_u64().unwrap(), UINT64_MAX);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+TEST(BytesMutTest, GetVarU32_ReadsAndAdvancesCursor) {
+    auto b = BytesMut::with_capacity(8);
+    b.put_var_u32(0);
+    b.put_var_u32(150);
+    b.put_var_u32(UINT32_MAX);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 0u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 150u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), UINT32_MAX);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+TEST(BytesMutTest, GetVarU64_ReadsAndAdvancesCursor) {
+    auto b = BytesMut::with_capacity(16);
+    b.put_var_u64(9223372036854775808ull); // 2^63
+    b.put_var_u64(16384);
+    EXPECT_EQ(b.get_var_u64().unwrap(), 9223372036854775808ull);
+    EXPECT_EQ(b.get_var_u64().unwrap(), 16384u);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+TEST(BytesTest, VarRoundTrip_BoundaryAndZigzagNegatives) {
+    BytesMut src;
+    src.put_var_u32(0);
+    src.put_var_u32(UINT32_MAX);
+    src.put_var_u64(UINT64_MAX);
+    // zigzag 后的负数 round-trip：-1、i32/i64 两端的极值
+    const i32 i32_cases[] = {-1, INT32_MIN, INT32_MAX};
+    for (i32 v : i32_cases) {
+        src.put_var_u32(zigzag_encode32(v));
+    }
+    const i64 i64_cases[] = {-1, INT64_MIN, INT64_MAX};
+    for (i64 v : i64_cases) {
+        src.put_var_u64(zigzag_encode64(v));
+    }
+    Bytes b = src.freeze();
+    EXPECT_EQ(b.get_var_u32().unwrap(), 0u);
+    EXPECT_EQ(b.get_var_u32().unwrap(), UINT32_MAX);
+    EXPECT_EQ(b.get_var_u64().unwrap(), UINT64_MAX);
+    EXPECT_EQ(zigzag_decode32(b.get_var_u32().unwrap()), -1);
+    EXPECT_EQ(zigzag_decode32(b.get_var_u32().unwrap()), INT32_MIN);
+    EXPECT_EQ(zigzag_decode32(b.get_var_u32().unwrap()), INT32_MAX);
+    EXPECT_EQ(zigzag_decode64(b.get_var_u64().unwrap()), -1);
+    EXPECT_EQ(zigzag_decode64(b.get_var_u64().unwrap()), INT64_MIN);
+    EXPECT_EQ(zigzag_decode64(b.get_var_u64().unwrap()), INT64_MAX);
+    EXPECT_EQ(b.remaining(), 0u);
+}
+
+// ==================== varint — 截断 → Underflow 且游标不动 ====================
+
+TEST(BytesTest, GetVarU32_UnderflowKeepsCursor) {
+    u8 data[] = {0x7F, 0x80, 0x80, 0x80, 0x80}; // 127 正常，后 4 字节续位无终止
+    auto b = Bytes::from_static(data, 5);
+    EXPECT_EQ(b.get_var_u32().unwrap(), 127u);
+    EXPECT_EQ(b.remaining(), 4u);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::Underflow);
+    EXPECT_EQ(b.remaining(), 4u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU32_UnderflowOnEmpty) {
+    auto b = Bytes::from_static(nullptr, 0);
+    EXPECT_TRUE(b.get_var_u32().is_err());
+    EXPECT_TRUE(b.get_var_u64().is_err());
+}
+
+TEST(BytesTest, GetVarU64_UnderflowKeepsCursor) {
+    u8 data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}; // 9 字节续位，缺第 10 字节
+    auto b = Bytes::from_static(data, 9);
+    EXPECT_EQ(b.remaining(), 9u);
+    auto r = b.get_var_u64();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::Underflow);
+    EXPECT_EQ(b.remaining(), 9u); // 游标不动
+}
+
+TEST(BytesMutTest, GetVarU32_UnderflowKeepsCursor) {
+    BytesMut b;
+    b.put_u8(0x80); // 单个续位字节
+    EXPECT_EQ(b.remaining(), 1u);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::Underflow);
+    EXPECT_EQ(b.remaining(), 1u); // 游标不动
+}
+
+// ==================== varint — 非规范编码 → MalformedVarint 且游标不动 ====================
+
+TEST(BytesTest, GetVarU32_MalformedRedundantPadding) {
+    u8 data[] = {0x80, 0x00}; // 末字节 0x00 冗余填充（0 只该占 1 字节）
+    auto b = Bytes::from_static(data, 2);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 2u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU64_MalformedRedundantPadding) {
+    u8 data[] = {0xFF, 0x00}; // 终止字节 0x00：等价于 [7F]
+    auto b = Bytes::from_static(data, 2);
+    auto r = b.get_var_u64();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 2u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU32_MalformedTooLong) {
+    u8 data[] = {0x80, 0x80, 0x80, 0x80, 0x80}; // 5 字节仍带续位
+    auto b = Bytes::from_static(data, 5);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 5u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU32_MalformedFifthByteOutOfRange) {
+    u8 data[] = {0x80, 0x80, 0x80, 0x80, 0x10}; // 第 5 字节 0x10 > 0x0F，高位越界
+    auto b = Bytes::from_static(data, 5);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 5u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU64_MalformedTooLong) {
+    u8 data[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80}; // 11 字节
+    auto b = Bytes::from_static(data, 11);
+    auto r = b.get_var_u64();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 11u); // 游标不动
+}
+
+TEST(BytesTest, GetVarU64_MalformedTenthByteOutOfRange) {
+    u8 data[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x02}; // 第 10 字节只允许 0/1
+    auto b = Bytes::from_static(data, 10);
+    auto r = b.get_var_u64();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 10u); // 游标不动
+}
+
+TEST(BytesMutTest, GetVarU32_MalformedKeepsCursor) {
+    BytesMut b;
+    const u8 bytes[] = {0x80, 0x00};
+    b.put_slice(bytes, 2);
+    auto r = b.get_var_u32();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 2u); // 游标不动
+}
+
+TEST(BytesMutTest, GetVarU64_MalformedTooLongKeepsCursor) {
+    BytesMut b;
+    for (int i = 0; i < 11; ++i) {
+        b.put_u8(0x80);
+    }
+    auto r = b.get_var_u64();
+    EXPECT_TRUE(r.is_err());
+    EXPECT_EQ(r.unwrap_err(), BytesError::MalformedVarint);
+    EXPECT_EQ(b.remaining(), 11u); // 游标不动
+}
+
+// ==================== varint — 确定性伪随机 round-trip ====================
+
+TEST(BytesTest, VarRoundTrip_DeterministicPseudoRandom) {
+    // 固定种子 LCG（Numerical Recipes 参数），不引入随机模块。
+    u32 seed = 20240913u;
+    auto next_u32 = [&seed]() -> u32 {
+        seed = seed * 1664525u + 1013904223u;
+        return seed;
+    };
+    auto next_u64 = [&next_u32]() -> u64 {
+        const u64 hi = next_u32();
+        const u64 lo = next_u32();
+        return (hi << 32) | lo;
+    };
+
+    BytesMut src;
+    for (int i = 0; i < 1000; ++i) {
+        src.put_var_u32(next_u32());
+        src.put_var_u64(next_u64());
+        src.put_var_u32(zigzag_encode32(static_cast<i32>(next_u32())));
+        src.put_var_u64(zigzag_encode64(static_cast<i64>(next_u64())));
+    }
+    ASSERT_FALSE(src.is_empty());
+    Bytes b = src.freeze();
+
+    seed = 20240913u; // 重置种子，按相同顺序重现期望值
+    for (int i = 0; i < 1000; ++i) {
+        const u32 v32 = next_u32();
+        const u64 v64 = next_u64();
+        const i32 vi32 = static_cast<i32>(next_u32());
+        const i64 vi64 = static_cast<i64>(next_u64());
+
+        auto r1 = b.get_var_u32();
+        ASSERT_TRUE(r1.is_ok());
+        EXPECT_EQ(r1.unwrap(), v32);
+        auto r2 = b.get_var_u64();
+        ASSERT_TRUE(r2.is_ok());
+        EXPECT_EQ(r2.unwrap(), v64);
+        auto r3 = b.get_var_u32();
+        ASSERT_TRUE(r3.is_ok());
+        EXPECT_EQ(zigzag_decode32(r3.unwrap()), vi32);
+        auto r4 = b.get_var_u64();
+        ASSERT_TRUE(r4.is_ok());
+        EXPECT_EQ(zigzag_decode64(r4.unwrap()), vi64);
+    }
+    EXPECT_EQ(b.remaining(), 0u); // 恰好读完
+}
+
+// ==================== zigzag ====================
+
+TEST(ZigzagTest, Encode32_BoundaryValues) {
+    EXPECT_EQ(zigzag_encode32(0), 0u);
+    EXPECT_EQ(zigzag_encode32(-1), 1u);
+    EXPECT_EQ(zigzag_encode32(1), 2u);
+    EXPECT_EQ(zigzag_encode32(-2), 3u);
+    EXPECT_EQ(zigzag_encode32(-100), 199u);        // python 核对
+    EXPECT_EQ(zigzag_encode32(INT32_MIN), UINT32_MAX);
+    EXPECT_EQ(zigzag_encode32(INT32_MAX), 4294967294u);
+}
+
+TEST(ZigzagTest, Decode32_BoundaryValues) {
+    EXPECT_EQ(zigzag_decode32(0u), 0);
+    EXPECT_EQ(zigzag_decode32(1u), -1);
+    EXPECT_EQ(zigzag_decode32(2u), 1);
+    EXPECT_EQ(zigzag_decode32(3u), -2);
+    EXPECT_EQ(zigzag_decode32(UINT32_MAX), INT32_MIN);
+    EXPECT_EQ(zigzag_decode32(4294967294u), INT32_MAX);
+}
+
+TEST(ZigzagTest, Encode64_BoundaryValues) {
+    EXPECT_EQ(zigzag_encode64(0), 0u);
+    EXPECT_EQ(zigzag_encode64(-1), 1u);
+    EXPECT_EQ(zigzag_encode64(INT64_MIN), UINT64_MAX);
+    EXPECT_EQ(zigzag_encode64(INT64_MAX), 18446744073709551614ull);
+}
+
+TEST(ZigzagTest, Decode64_BoundaryValues) {
+    EXPECT_EQ(zigzag_decode64(0u), 0);
+    EXPECT_EQ(zigzag_decode64(1u), -1);
+    EXPECT_EQ(zigzag_decode64(UINT64_MAX), INT64_MIN);
+    EXPECT_EQ(zigzag_decode64(18446744073709551614ull), INT64_MAX);
+}
+
+TEST(ZigzagTest, RoundTrip32) {
+    const i32 cases[] = {0, 1, -1, 2, -2, 63, -64, 64, -65, 123456789, -123456789, INT32_MIN, INT32_MAX};
+    for (i32 v : cases) {
+        EXPECT_EQ(zigzag_decode32(zigzag_encode32(v)), v);
+    }
+}
+
+TEST(ZigzagTest, RoundTrip64) {
+    const i64 cases[] = {0, 1, -1, 2, -2, 63, -64, 64, -65,
+                         5000000000LL, -5000000000LL, INT64_MIN, INT64_MAX};
+    for (i64 v : cases) {
+        EXPECT_EQ(zigzag_decode64(zigzag_encode64(v)), v);
+    }
+}
+
 }} // namespace ca::core::test

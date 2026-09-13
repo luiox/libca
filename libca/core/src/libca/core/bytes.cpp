@@ -7,6 +7,7 @@ namespace ca::core {
 const char* to_cstr(BytesError e) noexcept {
     switch (e) {
         case BytesError::Underflow: return "Underflow";
+        case BytesError::MalformedVarint: return "MalformedVarint";
     }
     return "Unknown";
 }
@@ -142,6 +143,44 @@ Result<f64, BytesError> Bytes::get_f64_be() {
     return get_u64_be().map([](u64 bits) {
         f64 v; std::memcpy(&v, &bits, sizeof(f64)); return v;
     });
+}
+
+// ── varint 读（Bytes）。逐字节扫描，出错一律不前进游标。 ──
+
+Result<u32, BytesError> Bytes::get_var_u32() {
+    u32 result = 0;
+    for (usize i = 0; i < 5; ++i) {
+        // 用减法比较避免 pos_ + i 溢出回绕。
+        if (i >= len_ - pos_) return Err(BytesError::Underflow);
+        const u8 byte = ptr_[pos_ + i];
+        // 末字节为 0x00 的冗余填充（如 [80 00] 表示 0）：非规范。
+        if (i > 0 && byte == 0x00) return Err(BytesError::MalformedVarint);
+        // 第 5 字节只允许低 4 位（bits 28~31）：0x10~0x7F 高位越界，0x80+ 过长。
+        if (i == 4 && byte > 0x0F) return Err(BytesError::MalformedVarint);
+        result |= static_cast<u32>(byte & 0x7F) << (7 * i);
+        if ((byte & 0x80) == 0) {
+            pos_ += i + 1;
+            return Ok(result);
+        }
+    }
+    return Err(BytesError::MalformedVarint);
+}
+
+Result<u64, BytesError> Bytes::get_var_u64() {
+    u64 result = 0;
+    for (usize i = 0; i < 10; ++i) {
+        if (i >= len_ - pos_) return Err(BytesError::Underflow);
+        const u8 byte = ptr_[pos_ + i];
+        if (i > 0 && byte == 0x00) return Err(BytesError::MalformedVarint);
+        // 第 10 字节只允许 0x00/0x01（只剩 bit 63）：其余高位越界或过长。
+        if (i == 9 && byte > 0x01) return Err(BytesError::MalformedVarint);
+        result |= static_cast<u64>(byte & 0x7F) << (7 * i);
+        if ((byte & 0x80) == 0) {
+            pos_ += i + 1;
+            return Ok(result);
+        }
+    }
+    return Err(BytesError::MalformedVarint);
 }
 
 
@@ -283,6 +322,26 @@ void BytesMut::put_f64_be(f64 val) {
     put_u64_be(bits);
 }
 
+// ── varint 写（BytesMut）。一次预留最大字节数，循环产出最短编码。 ──
+
+void BytesMut::put_var_u32(u32 val) {
+    ensure_writable(5);
+    while (val >= 0x80) {
+        data_[len_++] = static_cast<u8>(val) | 0x80;
+        val >>= 7;
+    }
+    data_[len_++] = static_cast<u8>(val);
+}
+
+void BytesMut::put_var_u64(u64 val) {
+    ensure_writable(10);
+    while (val >= 0x80) {
+        data_[len_++] = static_cast<u8>(val) | 0x80;
+        val >>= 7;
+    }
+    data_[len_++] = static_cast<u8>(val);
+}
+
 // ── 类型化读（BytesMut） ──
 
 Result<u16, BytesError> BytesMut::get_u16_be() {
@@ -376,6 +435,44 @@ Result<f64, BytesError> BytesMut::get_f64_be() {
     return get_u64_be().map([](u64 bits) {
         f64 v; std::memcpy(&v, &bits, sizeof(f64)); return v;
     });
+}
+
+// ── varint 读（BytesMut）。逐字节扫描，出错一律不前进游标。 ──
+
+Result<u32, BytesError> BytesMut::get_var_u32() {
+    u32 result = 0;
+    for (usize i = 0; i < 5; ++i) {
+        // 用减法比较避免 pos_ + i 溢出回绕。
+        if (i >= len_ - pos_) return Err(BytesError::Underflow);
+        const u8 byte = data_[pos_ + i];
+        // 末字节为 0x00 的冗余填充（如 [80 00] 表示 0）：非规范。
+        if (i > 0 && byte == 0x00) return Err(BytesError::MalformedVarint);
+        // 第 5 字节只允许低 4 位（bits 28~31）：0x10~0x7F 高位越界，0x80+ 过长。
+        if (i == 4 && byte > 0x0F) return Err(BytesError::MalformedVarint);
+        result |= static_cast<u32>(byte & 0x7F) << (7 * i);
+        if ((byte & 0x80) == 0) {
+            pos_ += i + 1;
+            return Ok(result);
+        }
+    }
+    return Err(BytesError::MalformedVarint);
+}
+
+Result<u64, BytesError> BytesMut::get_var_u64() {
+    u64 result = 0;
+    for (usize i = 0; i < 10; ++i) {
+        if (i >= len_ - pos_) return Err(BytesError::Underflow);
+        const u8 byte = data_[pos_ + i];
+        if (i > 0 && byte == 0x00) return Err(BytesError::MalformedVarint);
+        // 第 10 字节只允许 0x00/0x01（只剩 bit 63）：其余高位越界或过长。
+        if (i == 9 && byte > 0x01) return Err(BytesError::MalformedVarint);
+        result |= static_cast<u64>(byte & 0x7F) << (7 * i);
+        if ((byte & 0x80) == 0) {
+            pos_ += i + 1;
+            return Ok(result);
+        }
+    }
+    return Err(BytesError::MalformedVarint);
 }
 
 // ── 冻结 ──
