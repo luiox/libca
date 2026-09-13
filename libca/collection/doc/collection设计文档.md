@@ -1,6 +1,7 @@
 ---
-version: 1.2
+version: 1.3
 update:
+2026-09-13 - 新增 LruCache 容量淘汰缓存（LRU 策略、命中统计与淘汰回调）
 2026-08-31 - Stream 重写为模板化惰性流水线（适配器可叠加），更新模块结构与性能边界
 2026-07-14 - 删除冗余英文摘要 design.md，本文成为 collection 唯一设计文档
 2026-07-06 - 首版，补充 collection 模块职责与模板组件边界
@@ -24,6 +25,7 @@ collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前
 - `immutable_list.hpp`：构造后不可修改的列表，支持范围 for、随机访问和追加生成新列表。
 - `stream.hpp`：基于容器迭代器范围的惰性流水线：`filter/map/take/skip` 适配器可任意叠加，
   `for_each/collect/count/reduce/any/all` 为终止操作。
+- `lru_cache.hpp`：容量受限的 LRU 缓存，`get`/`put` 均摊 O(1)，带命中统计与淘汰回调。
 - `collection.hpp`：聚合头文件。
 
 ## 设计原则
@@ -41,6 +43,11 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 以模板参数保存（非 `std::function`，无类型擦除开销）。节点是一次性的——调用适配器即
 移动消费上游，与 Rust 迭代器按值接管一致。性能敏感场景仍可直接使用 STL 算法。
 `ImmutableList::appended` 会复制原列表，适合小列表和配置型数据，不适合大规模追加循环。
+
+`LruCache` 用 `std::list`（节点地址稳定，迭代器可长期存放在哈希索引中）+ 
+`std::unordered_map` 实现，`get/put/remove` 均摊 O(1)。它是纯数据结构：内部不加锁，
+多线程使用由外层同步；淘汰语义刻意收紧——只有容量驱动的淘汰才计入 `evictions` 并触发
+`on_evict`，`remove`/`clear` 是显式所有权转移，不算淘汰，命中统计也不清零。
 
 ## 扩展方向
 
