@@ -138,6 +138,53 @@ TEST(FileUtilTest, ReadAllText_FileNotFound)
     EXPECT_EQ(result.unwrap_err(), FsError::FileNotFound);
 }
 
+// read_all_text BOM 剥离：默认（不带第二参）保持原样，strip_bom=true 时按字节剥离头部 BOM。
+TEST(FileUtilTest, ReadAllText_StripBom)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    // UTF-8 BOM + 文本
+    auto utf8_path = tmp.make_path("bom_utf8.txt");
+    EXPECT_TRUE(FileUtil::write_text(utf8_path, "\xEF\xBB\xBFHello, 世界!").is_ok());
+
+    auto keep = FileUtil::read_all_text(utf8_path);
+    ASSERT_TRUE(keep.is_ok());
+    EXPECT_EQ(keep.unwrap(), "\xEF\xBB\xBFHello, 世界!");  // 默认不剥离，现有行为不变
+
+    auto stripped = FileUtil::read_all_text(utf8_path, true);
+    ASSERT_TRUE(stripped.is_ok());
+    EXPECT_EQ(stripped.unwrap(), "Hello, 世界!");
+}
+
+TEST(FileUtilTest, ReadAllText_StripBomUtf16)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    // UTF-16LE BOM + 原始字节：read_all_text 返回原始字节，BOM 按字节剥离、不做编码转换。
+    auto utf16_path = tmp.make_path("bom_utf16le.bin");
+    const std::string content = std::string("\xFF\xFE", 2) + std::string("h\x00", 2);
+    EXPECT_TRUE(FileUtil::write_text(utf16_path, content).is_ok());
+
+    auto result = FileUtil::read_all_text(utf16_path, true);
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(result.unwrap(), std::string("h\x00", 2));
+}
+
+TEST(FileUtilTest, ReadAllText_StripBomWithoutBomUnchanged)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto path = tmp.make_path("no_bom.txt");
+    EXPECT_TRUE(FileUtil::write_text(path, "plain").is_ok());
+
+    auto result = FileUtil::read_all_text(path, true);
+    ASSERT_TRUE(result.is_ok());
+    EXPECT_EQ(result.unwrap(), "plain");
+}
+
 // ==================== writeText / writeBytes ====================
 
 TEST(FileUtilTest, WriteBytes_OverwriteDefault)
