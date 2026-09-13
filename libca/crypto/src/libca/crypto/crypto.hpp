@@ -9,6 +9,7 @@
 #include "libca/crypto/crypto_util.hpp"
 #include "libca/crypto/hash.hpp"
 #include "libca/crypto/hex.hpp"
+#include "libca/crypto/hkdf.hpp"
 #include "libca/crypto/hmac.hpp"
 #include "libca/crypto/md5.hpp"
 #include "libca/crypto/murmur3.hpp"
