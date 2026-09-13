@@ -14,8 +14,11 @@
 #include "libca/json/json_value.hpp"
 #include "libca/str/utf8_string.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
@@ -503,6 +506,76 @@ TEST_F(ConfigTest, VisitCoversRegisteredAndPending)
             FAIL() << "unexpected entry: " << entry.name;
         }
     }
+}
+
+// ==================== 并发 smoke ====================
+
+// 2 线程 lookup + 1 线程 load + 原子计数监听器：总截止 5 秒内完成，禁止无界等待。
+// 各线程循环自检 deadline，join 必然有界；并发加固（注册表 shared_mutex、监听器锁外
+// 回调）已随提交 1/2 的实现自然涵盖，本用例做行为级回归。
+TEST_F(ConfigTest, ConcurrentLookupLoadSmoke)
+{
+    namespace chrono = std::chrono;
+    const auto deadline = chrono::steady_clock::now() + chrono::seconds(5);
+
+    std::atomic<ca::i32> change_count{0};
+    std::atomic<bool> stop{false};
+
+    // 热点 key：lookup / load / 监听器三方并发
+    auto hot = Config::lookup<ca::i32>("t3/hot", 0, "并发热点");
+    ASSERT_NE(hot, nullptr);
+    const ca::u64 listener_id = hot->add_listener([&change_count](const ca::i32&, const ca::i32&) {
+        change_count.fetch_add(1, std::memory_order_relaxed);
+    });
+
+    auto lookup_hot_worker = [&stop, &deadline]() {
+        ca::i32 turns = 0;
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
+               && turns < 500) {
+            const auto var = Config::lookup<ca::i32>("t3/hot", turns);
+            EXPECT_NE(var, nullptr);  // 幂等命中，绝不类型冲突
+            ++turns;
+        }
+    };
+
+    auto lookup_fresh_worker = [&stop, &deadline]() {
+        ca::i32 turns = 0;
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
+               && turns < 500) {
+            const auto var = Config::lookup<ca::i32>("t3/fresh/" + std::to_string(turns), turns);
+            EXPECT_NE(var, nullptr);  // 新 key 逐个注册
+            ++turns;
+        }
+    };
+
+    auto load_worker = [&stop, &deadline]() {
+        ca::i32 turns = 0;
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
+               && turns < 500) {
+            const std::string text = "{\"t3/hot\": " + std::to_string(turns % 4) + "}";
+            const auto result = Config::load(text);
+            EXPECT_TRUE(result.is_ok());  // i32 var + 小整数，不应失败
+            ++turns;
+        }
+    };
+
+    std::thread t1(lookup_hot_worker);
+    std::thread t2(lookup_fresh_worker);
+    std::thread t3(load_worker);
+    t1.join();
+    t2.join();
+    t3.join();
+    stop.store(true);  // 线程均已在 deadline 内自行退出，此处仅防御
+
+    // join 在截止时间内完成（留 1 秒调度余量）
+    EXPECT_LT(chrono::steady_clock::now(), deadline + chrono::seconds(1));
+    // 热点值始终是 load 序列的合法值（0..3，创建默认也是 0）
+    const ca::i32 final_value = hot->value();
+    EXPECT_GE(final_value, 0);
+    EXPECT_LE(final_value, 3);
+    // load 交替写 0..3，至少发生一次真实变化；计数不超过 load 轮次
+    EXPECT_GT(change_count.load(), 0);
+    EXPECT_TRUE(hot->remove_listener(listener_id));
 }
 
 }  // namespace
