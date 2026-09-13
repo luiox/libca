@@ -342,6 +342,13 @@ void BytesMut::put_var_u64(u64 val) {
     data_[len_++] = static_cast<u8>(val);
 }
 
+void BytesMut::fill(u8 val) {
+    // volatile 逐字节写：敏感缓冲离场清零不能被编译器当死存储消除。
+    volatile u8* p = data_.get();
+    for (usize i = 0; i < len_; ++i)
+        p[i] = val;
+}
+
 // ── 类型化读（BytesMut） ──
 
 Result<u16, BytesError> BytesMut::get_u16_be() {

@@ -192,6 +192,11 @@ public:
     void put_var_u32(u32 val); ///< 把 u32 编码为 varint 追加写入（1~5 字节）
     void put_var_u64(u64 val); ///< 把 u64 编码为 varint 追加写入（1~10 字节）
 
+    /// @brief 用 val 填充全部已写字节 [0, len())（含读游标之前），不改变 len_/pos_。
+    /// @note volatile 逐字节写防止编译器死存储消除：主要用途是敏感缓冲离场清零
+    ///       （fill(0)），普通 memset 可能被优化掉。
+    void fill(u8 val);
+
     // ── 类型化读（前进游标）。剩余不足返回 Err(BytesError::Underflow)，游标不动。 ──
     Result<u8,  BytesError> get_u8();
     Result<u16, BytesError> get_u16_be();

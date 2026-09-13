@@ -786,4 +786,41 @@ TEST(ZigzagTest, RoundTrip64) {
     }
 }
 
+// ==================== fill：已写区域整体填充（敏感缓冲清零入口） ====================
+
+TEST(BytesMutTest, FillOverwritesAllWrittenBytes) {
+    auto b = BytesMut::with_capacity(16);
+    const u8 secret[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x13, 0x37};
+    b.put_slice(secret, 6);
+
+    b.fill(0);
+    EXPECT_EQ(b.len(), 6u);  // 长度与游标不受 fill 影响
+    for (usize i = 0; i < 6; ++i) {
+        EXPECT_EQ(b.get_u8().unwrap(), 0u);
+    }
+
+    // fill 后缓冲仍可继续写入
+    b.put_u8(0xAB);
+    EXPECT_EQ(b.get_u8().unwrap(), 0xAB);
+}
+
+TEST(BytesMutTest, FillCoversBytesBeforeReadCursor) {
+    auto b = BytesMut::with_capacity(8);
+    const u8 secret[] = {0x01, 0x02, 0x03, 0x04};
+    b.put_slice(secret, 4);
+    ASSERT_TRUE(b.advance(2).is_ok());  // 前 2 字节已读：fill 同样要清掉
+
+    b.fill(0);
+    EXPECT_EQ(b.remaining(), 2u);
+    for (usize i = 0; i < 2; ++i) {
+        EXPECT_EQ(b.get_u8().unwrap(), 0u);
+    }
+}
+
+TEST(BytesMutTest, FillEmptyIsNoop) {
+    BytesMut b;
+    b.fill(0xFF);  // 未分配缓冲不崩溃
+    EXPECT_EQ(b.len(), 0u);
+}
+
 }} // namespace ca::core::test
