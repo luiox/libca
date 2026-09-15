@@ -1,6 +1,7 @@
 ---
-version: 1.2
+version: 1.3
 update:
+2026-09-15 - 增补 §7：MessageLoop 的设计取舍与关闭语义
 2026-09-13 - 增补 §6：TimerManager / EventBus / ObjectPool 三个新组件的设计取舍
 2026-07-14 - 由 design.md 改名补 YAML 头，删除使用文档（并入 README），本文成为 thread 唯一设计文档
 ---
@@ -245,3 +246,76 @@ Running --shutdown(Drain)--------> ShuttingDownDrain --join()--> Joined
   不可信）。`shutdown()` 后 obtain 直接构造、归还改为销毁。
 - 有意不做空闲上限（idle 无界）：与「永不阻塞」配套的取舍，容量治理交给调用方
   （控制同时在借对象数）。后续如有真实需求再加 max_idle。
+
+## 7. MessageLoop（2026-09 增补）
+
+### 7.1 定位
+
+`MessageLoop` 是线程亲和任务循环：单个工作线程 + FIFO 任务队列，所有任务严格按提交
+顺序在同一线程执行。它是 event loop 的前身，为「单线程持有状态、其它线程投递工作」
+的异步化模型打地基（异步化路线第一块砖）。
+
+### 7.2 与 ThreadPool / TimerManager 的关系
+
+- 与 ThreadPool 复用同一套积木：worker 用 `Thread`（结构化 join 与异常隔离），任务
+  future 包装复用 `details::prepare_task`，共享停止令牌复用 `StopSource/StopToken`，
+  提交/关闭/join 的状态机与错误码约定对齐 ThreadPool（`FAILED_PRECONDITION` 表示
+  关闭后提交或未 stop 先 join）。
+- 关键差别：ThreadPool 靠多 worker 换吞吐，任务间没有顺序保证；MessageLoop 只有
+  一个 worker，把「顺序 + 亲和」作为核心承诺，因此不提供 worker 数、队列容量等
+  选项（构造即运行，队列无界）。
+- 与 TimerManager 的关系是**有意不复用**：`next_expiry()` 当初为将来 event loop
+  预留，但 MessageLoop 选择内部定时而非挂靠 TimerManager。原因：MessageLoop 的
+  本质是单线程亲和，为延迟任务引入第二个调度线程（每 loop 多一条线程 + 关停顺序
+  问题）得不偿失；内部实现只需一个按 `(到期时间, 序号)` 排序的 set + 条件变量
+  `wait_until`（与 TimerManager 的队首变化唤醒谓词同款）。两者的语义约定保持一致：
+  负延迟按 0 处理，到期时间 = 安排时刻 + delay。
+
+### 7.3 延迟任务的线程亲和
+
+延迟任务到期后**转投 loop 队尾**，与即时任务同一条 FIFO 队列串行执行，绝不跳过
+队列直接执行。由此得到：任何任务都在 loop 线程上执行（亲和不变式）；延迟任务可能
+被更早已入队的任务顺延（不抢占）。多任务是同一个工作线程，延迟任务本身不存在
+「在 timer 线程直接执行」的问题；若未来换成共享 TimerManager，到期回调里也只允许
+转投 loop 队列。
+
+### 7.4 结果递交：future 形态而非 reply 回调
+
+提供 `post_task_with_result(fn) -> StatusResult<std::future<R>>`：fn 在 loop 线程
+执行，返回值/异常存入 future，由调用方线程 `get()` 取得。没有采用
+`post_task_and_reply(fn, reply)` 回调形态，因为 reply 要求为「任意调用方线程」定义
+回投目标——普通线程没有自己的 loop 可以接收回调，最终只能退化为调用方阻塞等待；
+future 形态与 `ThreadPool::submit()` 同风格，等待时机由调用方决定（可用 `wait_for`
+轮询），并天然支持异常传播。
+
+### 7.5 关闭语义（写死的契约）
+
+```text
+Running --stop()------------> Stopping(Discard) --join()--> Joined
+        \--stop_and_drain()-> Stopping(Drain)    --join()--> Joined
+```
+
+| | stop() | stop_and_drain() |
+| --- | --- | --- |
+| 未执行的即时任务 | 全部丢弃 | 全部执行完 |
+| 未执行的延迟任务 | 全部丢弃（无论是否到期） | 全部废弃（无论是否到期） |
+| 正在执行的任务 | 不中断，执行完毕 | 不中断，执行完毕 |
+| 之后 post | 返回 FAILED_PRECONDITION | 返回 FAILED_PRECONDITION |
+
+- 两种停止都请求共享 `StopToken`，长任务可自愿观察提前退出，但不影响其它任务。
+- `stop()` / `stop_and_drain()` 幂等且不等待线程结束，可在 loop 任务内调用（不会
+  死锁）；`join()` 必须先停止，且 loop 线程内 join 自己返回 `FAILED_PRECONDITION`。
+- 提交与关闭竞争时任务要么成功入队（随后可能被 stop 丢弃），要么得到
+  `FAILED_PRECONDITION`，不会处于未归属状态（线性化点在状态锁内）。
+
+### 7.6 生命周期与其它取舍
+
+- 构造即运行，无独立 `start()`；create 后未投递任务直接析构安全。
+- 析构兜底执行 `stop_and_drain()` + `join()`（同 ThreadPool 的 Drain 兜底）；
+  任务可能长时间阻塞时应显式 stop + join。禁止在 loop 任务内析构 loop（join 自等
+  必然死锁）。
+- 队列**无界**（与 BoundedQueue 的有界背压取舍相反）：event loop 的典型消费方是
+  UI/IO 状态机，投递阻塞或拒绝都是错误语义，过载治理交给调用方（`pending_task_count()`
+  暴露积压）。`post_task` 永不阻塞，任务内继续 post 只会加深队列，不会递归调用栈。
+- fire-and-forget 任务异常被吞掉（与 TimerManager 一致）；需要观察异常用
+  `post_task_with_result`（异常存入 future）。

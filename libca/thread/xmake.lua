@@ -30,3 +30,17 @@ target("libca_thread_unittest")
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end
+
+-- 性能基准：手动构建运行（xmake build libca_thread_perf && xmake run libca_thread_perf），
+-- 不参与默认构建，也不接入 add_tests。
+target("libca_thread_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_thread", "libca_time")
+    add_files("perf/thread_perf.cpp")
+    add_includedirs("src")
+
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
