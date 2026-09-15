@@ -7,40 +7,12 @@
 #include "libca/str/detail/charset_builtin.hpp"
 
 #include "libca/str/conversion.hpp"
-#include "libca/str/format.hpp"
+#include "libca/str/detail/charset_internal.hpp"
 #include "libca/str/utf8_util.hpp"
 
 namespace ca::str::detail {
 
 namespace {
-
-// 统一的非法序列错误：带编码名与出错位置，方便定位坏数据。
-core::Status invalid_sequence(const char* charset, usize pos)
-{
-    return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
-                           ca::str::format_std("{}: invalid sequence at byte {}", charset, pos));
-}
-
-// 码点不合法（代理项 / >U+10FFFF / 超出目标编码可表示范围）。
-core::Status unrepresentable(const char* charset, u32 code_point)
-{
-    return core::ErrStatus(
-        core::StatusCode::INVALID_ARGUMENT,
-        ca::str::format_std("{}: code point U+{:04X} is not representable", charset,
-                            static_cast<unsigned long>(code_point)));
-}
-
-// ---------------------------------------------------------------------------
-// UTF-8 逐序列游标：返回当前序列长度，序列非法时返回 0。
-// 复用 utf8_util 的首字节长度 + 续字节校验，保证与全库 UTF-8 语义一致。
-// ---------------------------------------------------------------------------
-usize next_utf8_sequence(const u8* data, usize size, usize pos)
-{
-    const usize clen = utf8_code_point_bytes(data[pos]);
-    if (clen == 0 || pos + clen > size || !utf8_valid_continuation(data + pos, clen))
-        return 0;
-    return clen;
-}
 
 #if defined(_WIN32)
 // Windows：wchar_t 即 UTF-16 码元，直接复用 conversion.hpp 的 UTF-8 ↔ UTF-16 原语。
@@ -49,13 +21,13 @@ core::StatusResult<std::wstring> utf8_to_wide_via_utf16(std::string_view utf8)
     const usize units = utf8_to_utf16_length(reinterpret_cast<const u8*>(utf8.data()),
                                              utf8.size());
     if (units == 0 && !utf8.empty())
-        return core::Err(invalid_sequence("utf-8", 0));
+        return core::Err(charset_invalid_sequence("utf-8", 0));
 
     std::u16string units_buf(units, u16{0});
     if (utf8_to_utf16(reinterpret_cast<const u8*>(utf8.data()), utf8.size(),
                       reinterpret_cast<u16*>(units_buf.data()))
         == 0)
-        return core::Err(invalid_sequence("utf-8", 0));
+        return core::Err(charset_invalid_sequence("utf-8", 0));
 
     std::wstring wide;
     wide.reserve(units);
@@ -74,63 +46,48 @@ core::StatusResult<std::string> wide_to_utf8_via_utf16(std::wstring_view wide)
     const usize bytes = utf16_to_utf8_length(reinterpret_cast<const u16*>(units_buf.data()),
                                              units_buf.size());
     if (bytes == 0 && !units_buf.empty())
-        return core::Err(invalid_sequence("utf-16", 0));
+        return core::Err(charset_invalid_sequence("utf-16", 0));
 
     std::string utf8(bytes, '\0');
     if (utf16_to_utf8(reinterpret_cast<const u16*>(units_buf.data()), units_buf.size(),
                       reinterpret_cast<u8*>(utf8.data()))
         == 0)
-        return core::Err(invalid_sequence("utf-16", 0));
+        return core::Err(charset_invalid_sequence("utf-16", 0));
     return core::Ok<std::string>(std::move(utf8));
 }
 #else
-// POSIX：wchar_t 为 UCS-4，直接逐码点编解码，校验 Unicode 标量值范围。
+// POSIX：wchar_t 为 UCS-4，经码点序列互转（严格标量值校验）。
 core::StatusResult<std::wstring> utf8_to_wide_via_ucs4(std::string_view utf8)
 {
-    const u8*  data = reinterpret_cast<const u8*>(utf8.data());
-    const usize size = utf8.size();
+    const u8*    data = reinterpret_cast<const u8*>(utf8.data());
+    const usize  size = utf8.size();
 
     std::wstring wide;
     wide.reserve(size);
     usize pos = 0;
     while (pos < size) {
-        const usize clen = next_utf8_sequence(data, size, pos);
-        if (clen == 0)
-            return core::Err(invalid_sequence("utf-8", pos));
-        const u32 cp = utf8_decode_code_point(data + pos);
-        // 拒绝代理项码点（含 CESU-8 式 ED A0 80 编码），与 Windows 路径的
-        // utf8_to_utf16 校验口径一致。
-        if (cp >= 0xD800 && cp <= 0xDFFF)
-            return core::Err(invalid_sequence("utf-8", pos));
-        wide.push_back(static_cast<wchar_t>(cp));
-        pos += clen;
+        u32 cp = 0;
+        if (!utf8_next_code_point(data, size, pos, cp))
+            return core::Err(charset_invalid_sequence("utf-8", pos));
+        wide_push_code_point(wide, cp);
     }
     return core::Ok<std::wstring>(std::move(wide));
 }
 
 core::StatusResult<std::string> wide_to_utf8_via_ucs4(std::wstring_view wide)
 {
-    // 第一遍校验并统计 UTF-8 字节数，第二遍编码，保证只分配一次。
-    usize bytes = 0;
-    for (wchar_t ch : wide) {
-        const u32 cp = static_cast<u32>(ch);
-        if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
-            return core::Err(unrepresentable("wchar", cp));
-        if (cp <= 0x7F)
-            bytes += 1;
-        else if (cp <= 0x7FF)
-            bytes += 2;
-        else if (cp <= 0xFFFF)
-            bytes += 3;
-        else
-            bytes += 4;
-    }
+    auto cps = wide_to_code_points(wide);
+    if (cps.is_err())
+        return core::Err(cps.unwrap_err());
 
-    std::string utf8(bytes, '\0');
-    usize       pos = 0;
-    for (wchar_t ch : wide)
-        pos += utf8_encode_code_point(static_cast<u32>(ch),
-                                      reinterpret_cast<u8*>(utf8.data()) + pos);
+    // 第二遍编码：合法标量值编码必成功，总字节数 <= 4 * 码点数。
+    std::string utf8;
+    utf8.reserve(cps.unwrap().size() * 4);
+    u8 buf[4];
+    for (u32 cp : std::move(cps).unwrap()) {
+        const usize n = utf8_encode_code_point(cp, buf);
+        utf8.append(reinterpret_cast<const char*>(buf), n);
+    }
     return core::Ok<std::string>(std::move(utf8));
 }
 #endif
@@ -195,7 +152,7 @@ u8 cp1252_encode_high(u32 cp)
     return 0;
 }
 
-// 单字节编码（Latin-1 / Windows-1252 共用骨架）→ UTF-8：解码恒成功，无需 charset 名。
+// 单字节编码（Latin-1 / Windows-1252 共用骨架）→ UTF-8：解码恒成功。
 core::StatusResult<std::string> single_byte_to_utf8(std::string_view input)
 {
     std::string utf8;
@@ -226,21 +183,19 @@ core::StatusResult<std::string> utf8_to_single_byte(const char*      charset,
     out.reserve(size);
     usize pos = 0;
     while (pos < size) {
-        const usize clen = next_utf8_sequence(data, size, pos);
-        if (clen == 0)
-            return core::Err(invalid_sequence(charset, pos));
-        const u32 cp = utf8_decode_code_point(data + pos);
+        u32 cp = 0;
+        if (!utf8_next_code_point(data, size, pos, cp))
+            return core::Err(charset_invalid_sequence(charset, pos));
         if (cp <= 0x00FF) {
             out.push_back(static_cast<char>(static_cast<u8>(cp)));
         } else if (allow_cp1252_high) {
             const u8 b = cp1252_encode_high(cp);
             if (b == 0)
-                return core::Err(unrepresentable(charset, cp));
+                return core::Err(charset_unrepresentable(charset, cp));
             out.push_back(static_cast<char>(b));
         } else {
-            return core::Err(unrepresentable(charset, cp));
+            return core::Err(charset_unrepresentable(charset, cp));
         }
-        pos += clen;
     }
     return core::Ok<std::string>(std::move(out));
 }
@@ -309,7 +264,7 @@ core::StatusResult<std::string> wide_to_latin1(std::wstring_view wide)
     for (wchar_t ch : wide) {
         const u32 cp = static_cast<u32>(ch);
         if (cp > 0x00FF)
-            return core::Err(unrepresentable("iso-8859-1", cp));
+            return core::Err(charset_unrepresentable("iso-8859-1", cp));
         out.push_back(static_cast<char>(static_cast<u8>(cp)));
     }
     return core::Ok<std::string>(std::move(out));
@@ -353,7 +308,7 @@ core::StatusResult<std::string> wide_to_cp1252(std::wstring_view wide)
         } else {
             const u8 b = cp1252_encode_high(cp);
             if (b == 0)
-                return core::Err(unrepresentable("windows-1252", cp));
+                return core::Err(charset_unrepresentable("windows-1252", cp));
             out.push_back(static_cast<char>(b));
         }
     }

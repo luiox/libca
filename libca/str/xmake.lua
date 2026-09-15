@@ -13,6 +13,10 @@ target("libca_str")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+    if not has_config("with_iconv") then
+        -- 纯内置构建：POSIX 下不引用 iconv 头（详见 charset.cpp 分支注释）。
+        add_defines("LIBCA_STR_NO_ICONV")
+    end
     add_deps("libca_core")
     add_packages("fmt", {public = true})
 
