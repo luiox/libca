@@ -7,7 +7,7 @@ target("libca_net")
     add_deps("libca_io", "libca_str")
 
     if is_plat("windows", "mingw") then
-        add_syslinks("ws2_32")
+        add_syslinks("ws2_32", "iphlpapi")
         add_cxflags("/utf-8", {tools = "cl"})
     end
 

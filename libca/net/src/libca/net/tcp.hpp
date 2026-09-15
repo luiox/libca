@@ -7,6 +7,7 @@
 #include "libca/io/reader.hpp"
 #include "libca/io/writer.hpp"
 #include "libca/net/address.hpp"
+#include "libca/net/sock_util.hpp"
 #include "libca/net/socket.hpp"
 
 namespace ca::net {
@@ -49,6 +50,14 @@ public:
     io::IoResult<std::optional<std::chrono::milliseconds>> write_timeout() const;
     io::IoResult<void>                                     set_nodelay(bool enabled);
     io::IoResult<bool>                                     nodelay() const;
+
+    /// @brief 启用 SO_KEEPALIVE 并设置 keepalive 三参数。
+    /// @note Windows 的 SIO_KEEPALIVE_VALS 只支持 idle/interval 两参数，count 被忽略；
+    ///       且 Windows 上参数不可回读，只能通过 keepalive_enabled() 确认开关状态。
+    io::IoResult<void>                                     set_keepalive(const TcpKeepaliveConfig& config);
+
+    /// @brief 读取 SO_KEEPALIVE 开关状态。
+    io::IoResult<bool>                                     keepalive_enabled() const;
     io::IoResult<TcpStream>                                try_clone() const;
 
     bool               is_open() const noexcept;
