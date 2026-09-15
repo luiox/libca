@@ -138,8 +138,19 @@ public:
                 return ca::core::Ok();
             }
         }
-        auto connected =
-            net::TcpStream::connect_timeout(url.host(), url.port(), options.connect_timeout);
+        // 可选 DNS 缓存：仅新连接解析时生效；包装成 DnsResolveFn 借给 TCP 注入点。
+        const net::DnsResolveFn* injected = nullptr;
+        net::DnsResolveFn        cached_resolve;
+        if (options.dns_cache != nullptr) {
+            cached_resolve = [cache = options.dns_cache](const std::string& resolve_host, u16 resolve_port,
+                                                         net::AddressFamily family,
+                                                         net::SocketKind    kind) {
+                return cache->resolve(resolve_host, resolve_port, family, kind);
+            };
+            injected = &cached_resolve;
+        }
+        auto connected = net::TcpStream::connect_timeout(url.host(), url.port(),
+                                                         options.connect_timeout, injected);
         if (connected.is_err())
             return ca::core::Err(HttpError::from_io(connected.unwrap_err(), "connect HTTP origin"));
         auto stream  = std::move(connected).unwrap();

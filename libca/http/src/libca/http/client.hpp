@@ -7,6 +7,7 @@
 #include "libca/http/client_pool.hpp"
 #include "libca/http/message.hpp"
 #include "libca/http/url.hpp"
+#include "libca/net/dns_cache.hpp"
 
 namespace ca::http {
 
@@ -38,6 +39,9 @@ struct HttpClientOptions
     /// @brief 可选共享连接池；设置后请求完成时把仍可复用的 keep-alive 连接归还池中，
     /// 下次请求优先从池中借出（借出前做空闲超时与存活校验，失效即丢弃重建）。
     std::shared_ptr<HttpConnectionPool> pool;
+    /// @brief 可选 DNS 缓存；设置后新连接经它解析主机名（TTL + LRU，减少重复解析），
+    /// 不设置则行为不变（直接走系统解析）。多线程共享同一实例是安全的。
+    std::shared_ptr<net::CachedDnsResolver> dns_cache;
 };
 
 /// @brief 同步、单调用线程使用并复用同源 keep-alive 连接的 HTTP/HTTPS client。

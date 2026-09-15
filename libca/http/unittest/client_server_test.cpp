@@ -179,6 +179,76 @@ TEST(HttpClientServerTest, RoutesRequestsAndReusesSameOriginConnection)
     ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
 }
 
+TEST(HttpClientServerTest, OptionalDnsCacheServesRepeatConnectionsFromCache)
+{
+    HttpServerOptions server_options;
+    server_options.worker_threads = 2;
+    auto server                   = bind_server(server_options);
+    auto address_result           = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ASSERT_TRUE(server
+                    .route("GET",
+                           "/cache",
+                           [](const HttpServerRequestContext&) {
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(text_response(200, "cached")));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    // 注入计数 resolver 的共享 DNS 缓存：第一次解析下发底层，第二次命中缓存。
+    // resolver 忽略入参固定返回监听地址，不依赖本机对 "localhost" 的真实解析。
+    int               resolver_calls = 0;
+    const std::string expected_host  = "localhost";
+    net::DnsResolveFn counting =
+        [&resolver_calls, expected_host, address](const std::string& host, u16 port,
+                                                  net::AddressFamily family,
+                                                  net::SocketKind    kind) {
+            (void)port;
+            (void)family;
+            (void)kind;
+            EXPECT_EQ(host, expected_host);
+            resolver_calls += 1;
+            return ca::core::Ok(std::vector<net::SocketAddress>{address});
+        };
+    auto cache_result = net::CachedDnsResolver::create(std::move(counting));
+    ASSERT_TRUE(cache_result.is_ok()) << cache_result.unwrap_err().to_string();
+    auto cache =
+        std::make_shared<net::CachedDnsResolver>(std::move(cache_result).unwrap());
+
+    HttpClientOptions client_options;
+    client_options.dns_cache = cache;
+    auto created             = HttpClient::create(client_options);
+    ASSERT_TRUE(created.is_ok()) << created.unwrap_err().to_string();
+    auto client = std::move(created).unwrap();
+
+    const auto cache_url = HttpUrl::parse("http://localhost:" + std::to_string(address.port()) +
+                                          "/cache");
+    ASSERT_TRUE(cache_url.is_ok()) << cache_url.unwrap_err().to_string();
+
+    // 第一个 client 触发一次底层解析；第二个 client 共享同一缓存，
+    // 建新连接时直接命中缓存（同源 keep-alive 不会重复查缓存，故用两个 client）。
+    auto first = client.get(cache_url.unwrap());
+    ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
+    EXPECT_EQ(first.unwrap().status, 200);
+
+    auto second_client_result = HttpClient::create(client_options);
+    ASSERT_TRUE(second_client_result.is_ok()) << second_client_result.unwrap_err().to_string();
+    auto second_client = std::move(second_client_result).unwrap();
+    auto second        = second_client.get(cache_url.unwrap());
+    ASSERT_TRUE(second.is_ok()) << second.unwrap_err().to_string();
+    EXPECT_EQ(second.unwrap().status, 200);
+
+    EXPECT_EQ(resolver_calls, 1);
+    const auto stats = cache->stats();
+    EXPECT_EQ(stats.resolver_calls, 1U);
+    EXPECT_EQ(stats.hits, 1U);
+
+    auto finished = runner.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
 TEST(HttpClientServerTest, RunsMiddlewareBeforeRoutingAndCanShortCircuit)
 {
     auto server         = bind_server();

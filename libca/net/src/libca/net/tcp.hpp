@@ -7,6 +7,7 @@
 #include "libca/io/reader.hpp"
 #include "libca/io/writer.hpp"
 #include "libca/net/address.hpp"
+#include "libca/net/dns_cache.hpp"
 #include "libca/net/sock_util.hpp"
 #include "libca/net/socket.hpp"
 
@@ -29,6 +30,14 @@ public:
     /// @note 同步 DNS 解析不计入 timeout；timeout 只约束解析完成后的连接尝试。
     static io::IoResult<TcpStream> connect_timeout(const std::string& host, u16 port,
                                                    std::chrono::milliseconds timeout);
+
+    /// @brief 同上，但允许注入解析函数（DNS 缓存等装饰器经此接入）。
+    /// @param resolver 指向解析函数的指针；为空走默认 DnsResolver::resolve。
+    ///        指针只需在本次调用期间有效（不持有、不拷贝指向的 function）。
+    static io::IoResult<TcpStream> connect_timeout(const std::string&        host,
+                                                   u16                       port,
+                                                   std::chrono::milliseconds timeout,
+                                                   const DnsResolveFn*       resolver);
 
     TcpStream(const TcpStream&)                = delete;
     TcpStream& operator=(const TcpStream&)     = delete;

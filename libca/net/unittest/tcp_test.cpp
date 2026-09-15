@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #if defined(_WIN32)
 #    define WIN32_LEAN_AND_MEAN
@@ -119,6 +120,40 @@ TEST(TcpTest, HostnameConnectAndConnectTimeoutReachListener)
     auto invalid_host_timeout = TcpStream::connect_timeout("localhost", address.port(), 0ms);
     ASSERT_TRUE(invalid_host_timeout.is_err());
     EXPECT_EQ(invalid_host_timeout.unwrap_err().kind(), io::IoErrorKind::InvalidInput);
+}
+
+TEST(TcpTest, ConnectTimeoutUsesInjectedResolver)
+{
+    auto listener_result = TcpListener::bind(loopback_address());
+    ASSERT_TRUE(listener_result.is_ok()) << listener_result.unwrap_err().to_string();
+    auto       listener = std::move(listener_result).unwrap();
+    const auto address  = listener.local_address().unwrap();
+
+    // 计数解析器：记录调用后固定返回监听地址（不依赖本机对主机名的真实解析）。
+    int calls = 0;
+    net::DnsResolveFn fixed_resolver =
+        [&calls, address](const std::string& host, u16 port, AddressFamily family, SocketKind kind) {
+            (void)host;
+            (void)port;
+            (void)family;
+            (void)kind;
+            calls += 1;
+            return ca::core::Ok(std::vector<SocketAddress>{address});
+        };
+
+    auto connected =
+        TcpStream::connect_timeout("cached.test", address.port(), 2s, &fixed_resolver);
+    ASSERT_TRUE(connected.is_ok()) << connected.unwrap_err().to_string();
+    EXPECT_EQ(calls, 1);
+    auto injected_stream = std::move(connected).unwrap();
+    EXPECT_EQ(injected_stream.peer_address().unwrap().port(), address.port());
+    EXPECT_TRUE(listener.accept().is_ok());
+
+    // 空指针注入退回默认路径，连接仍可用（用数字地址避免本机主机名解析差异）。
+    auto defaulted = TcpStream::connect_timeout("127.0.0.1", address.port(), 2s, nullptr);
+    ASSERT_TRUE(defaulted.is_ok()) << defaulted.unwrap_err().to_string();
+    EXPECT_EQ(calls, 1);
+    EXPECT_TRUE(listener.accept().is_ok());
 }
 
 TEST(TcpTest, ConfiguresTimeoutNodelayNonblockingAndClone)
