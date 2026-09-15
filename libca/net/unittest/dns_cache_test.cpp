@@ -1,6 +1,7 @@
 #include <gmock/gmock.h>
 
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <future>
 #include <string>
@@ -274,7 +275,17 @@ TEST(DnsCacheTest, ExternalDnsSmokeIsSkippedOffline)
     ASSERT_TRUE(cached.is_ok()) << cached.unwrap_err().to_string();
     auto direct = DnsResolver::resolve("example.com", 80);
     ASSERT_TRUE(direct.is_ok()) << direct.unwrap_err().to_string();
-    EXPECT_EQ(cached.unwrap(), direct.unwrap());
+    // getaddrinfo 对多地址主机两次解析可能返回不同顺序（DNS 轮询 + RFC 6724 排序），
+    // 只比较地址集合是否一致，不比较顺序。
+    std::vector<std::string> cached_texts;
+    std::vector<std::string> direct_texts;
+    for (const auto& address : cached.unwrap())
+        cached_texts.push_back(address.to_string());
+    for (const auto& address : direct.unwrap())
+        direct_texts.push_back(address.to_string());
+    std::sort(cached_texts.begin(), cached_texts.end());
+    std::sort(direct_texts.begin(), direct_texts.end());
+    EXPECT_EQ(cached_texts, direct_texts);
 }
 
 }   // namespace
