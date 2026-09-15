@@ -1,111 +1,101 @@
-# libca
+# libca [![Core CI](https://github.com/luiox/libca/actions/workflows/core-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/core-ci.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[![Core CI](https://github.com/luiox/libca/actions/workflows/core-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/core-ci.yml)
+C++17 基础设施库：把 Rust 的核心语义带进现代 C++ —— `Result<T,E>`/`Option<T>` 错误处理、UTF-8 所有权字符串、Rust 风格容器，外加 JSON/HTTP/子进程/线程池/日志/ZIP 等 27 个开箱模块。
 
-C++17 桌面端基础设施库（Rust 语义对齐的现代 C++ 标准库补充）。
+## 特性
 
-原 `libca.em/`（C99 嵌入式 MCU 组件：驱动/总线/协议/shell）已拆分至独立仓库
-[luiox/libca-em](https://github.com/luiox/libca-em)，本仓库不再携带。
+* **Rust 语义**：`Result<T,E>` 替代异常，`Option<T>` 替代裸空值，错误处理强制显式
+* **全程 UTF-8**：`Utf8String`/`Utf8StringRef` 所有权字符串族，无隐式编码转换
+* **Rust 风格容器**：ArrayList/HashMap/HashSet/ImmutableList/Stream
+* **模块化分层**：单向依赖（core → str/fs → json/net/http → 业务），模块零耦合
+* **按需链接**：包消费可声明 `modules = "core,str,json"`，只链用到的子库
+* 全模块 Google Test 覆盖，CI 覆盖 Linux + Windows（MSVC/MinGW 双前端）
 
-## 状态与免责声明
+## 使用
 
-- 个人基础设施库，**代码由 AI 生成**，优先服务于作者个人项目；当前处于 **pre-1.0 阶段**：**不提供任何 API 兼容性 / 稳定性承诺**，任何版本都可能引入破坏性变更，升级前请查阅 CHANGELOG。
-- 本库按「现状」提供，**无可用性、稳定性、适用性等任何保证**（完整免责条款见 [LICENSE](LICENSE) 第 7、8 条）；是否用于生产环境请自行评估。
-- Issue 欢迎提，但**不承诺任何响应时效**：作者看到后会安排 AI 统一分诊处理，时间取决于个人安排，可能很快也可能长期搁置；feature 请求是否接受以作者自身项目需求为准。
+### 接入
 
-## 构建与测试
+xmake ≥ 2.8.3，包定义来自 [luiox-repo](https://github.com/luiox/luiox-repo)：
 
-xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于作为 submodule 被引用时不强拉 gtest）。
+```lua
+add_repositories("luiox-repo https://github.com/luiox/luiox-repo.git")
+add_requires("libca 0.0.7")   -- 默认链接除 test 外全部模块
+
+target("app")
+    set_kind("binary")
+    add_files("src/*.cpp")
+    add_packages("libca")
+```
+
+只链子集（依赖闭包自动补全，拼错直接报错）：
+
+```lua
+add_requires("libca 0.0.7", {configs = {modules = "core,str,json"}})
+```
+
+### 代码
+
+```cpp
+#include "libca/core/result.hpp"
+#include "libca/str/utf8_string.hpp"
+
+ca::core::Result<int, std::string> parse_port(const ca::str::Utf8String& text) {
+    if (text.byte_length() == 0) {
+        return ca::core::Err(std::string("empty"));
+    }
+    return ca::core::Ok(8080);
+}
+
+int main() {
+    ca::str::Utf8String s("你好，libca");
+    auto r = parse_port(s);
+    return r.is_ok() ? std::move(r).unwrap() : 1;
+}
+```
+
+API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得用法。
+
+## 模块
+
+| 模块 | 职责 |
+|------|------|
+| **core** | `Result`/`Option`/bytes（varint/zigzag）/类型转换，全库地基 |
+| **str** | UTF-8 所有权字符串族（`Utf8String`/`Utf8StringRef`/Arena） |
+| **collection** | Rust 风格容器：ArrayList/HashMap/HashSet/ImmutableList/Stream |
+| **json / toml / xml / yaml** | 四种格式的 DOM 解析与写出 |
+| **csv / ini** | CSV / INI 读写 |
+| **fs** | 文件与路径（封装 std::filesystem） |
+| **io** | Reader/Writer 抽象、buffer 与 native stream |
+| **net / http** | Socket/DNS/TCP/UDP；HTTP client/server（可选 OpenSSL） |
+| **thread** | 结构化并发：ThreadPool/StopToken/BoundedQueue/Timer/EventBus |
+| **process** | 子进程控制 + IPC（管道/共享内存/信号量/消息队列） |
+| **crypto** | SHA-1/2/3、MD5、HMAC/HKDF/PBKDF2、CRC、base64/base32 |
+| **log** | 日志门面，后端可插拔（可选 spdlog） |
+| **config** | 强类型配置中心：`ConfigVar<T>` 幂等注册与变更监听 |
+| **opt** | 命令行选项解析 |
+| **time** | 日期时间 / duration / timestamp |
+| **zip** | JVM ZipFile 语义 ZIP 读写 + 流式 gzip（可选 zlib） |
+| **ui** | Win32 窗口、控件、消息框（Windows） |
+| **random / uuid / env** | 随机数 / UUID / 环境变量 |
+| **resources / i18n** | 构建期资源嵌入 / `.lang` 消息国际化 |
+| **test** | 多项目测试布局与样本定位 |
+
+原内嵌的 C99 嵌入式组件（em）已拆分至独立仓库 [luiox/libca-em](https://github.com/luiox/libca-em)。
+
+## 构建（本仓库开发）
 
 ```bash
-xmake f -p windows -a x64 --with_tests=y --with_demo=n -y  # 配置(带测试)
-xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_demo=n -y  # 启用 HTTPS client
-xmake                          # 构建
-xmake test -g libs/test        # 跑全部 C++ 测试(对应 CI)
-xmake run libca_fs_unittest    # 跑单个模块测试
+xmake f -p windows -a x64 --with_tests=y -y   # Windows/MSVC
+xmake f -p linux --with_tests=y -y            # Linux
+xmake
+xmake test -g libs/test
 ```
 
-> Windows 上若 gtest 在 mingw 下安装失败，用 `-p windows -a x64` 走 msvc 工具链。
+## 说明
 
----
+* 本库**由 AI 生成**，优先服务于作者个人项目；pre-1.0 阶段无 API 兼容性与可用性保证，生产使用请自行评估（免责条款见 [LICENSE](LICENSE)）。
+* Issue 欢迎提：作者会安排 AI 分诊处理，但不承诺时效。
 
-# libca（桌面 C++）
+## License
 
-## 设计理念
-
-- **对齐 Rust 语义**：`Result<T,E>` 替代异常、`Ok/Err`、`Utf8String` 所有权模型。
-- **现代 C++17**，作为标准库的补充，不是替代。
-- **API 文档写在头文件**（Doxygen 注释）——查头文件即得「怎么用」。
-- **文档只做导航和设计说明**：总功能索引用来找模块；各模块设计文档只讲思想、类型组织和关键取舍，不维护接口清单。
-- **编码规范**：`prompt/code_rule.md`（libca C++ 唯一权威）。
-- **不做严格兼容承诺**：pre-1.0 阶段 API 随时可变（见「状态与免责声明」）；必要的不兼容改动通过 README、CHANGELOG 或模块文档通知下游。
-
-## 依赖分层
-
-单向依赖，禁止向上依赖、禁止同层循环：
-
-```
-L0  core              ← 地基，不依赖任何 libca 模块
-L1  str, collection   ← 仅依赖 core
-L2  fs, time, crypto  ← 依赖 L0/L1
-L3  业务 / 上层（如 config）
-```
-
-新增模块按此分层放置；改 L0 会连锁影响下游，需谨慎。
-
-## 模块一览
-
-遇到需求先查这张表：有没有现成的轮子、它在哪、查哪个头文件。
-
-| 模块 | 职责 | 关键类型 / 入口头文件 | 命名空间 | 阶段 | 设计文档 |
-|------|------|----------------------|----------|------|----------|
-| **core** | Result/Option/字节（含 varint/zigzag）/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
-| **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
-| **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
-| **crypto** | 哈希（SHA-1/256/384/512、SHA-3、MD5）/HMAC/HKDF/PBKDF2/CRC/base64/base32/murmur3 | `hash.hpp`、`sha256.hpp`、`sha512.hpp`、`md5.hpp`、`sha1.hpp`、`hmac.hpp`、`hkdf.hpp`、`pbkdf2.hpp`、`crc.hpp`、`base64.hpp`、`base32.hpp`、`murmur3.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
-| **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
-| **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
-| **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool/Timer/EventBus/ObjectPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp`、`timer.hpp`、`event_bus.hpp`、`object_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
-| **config** | 强类型配置中心：`ConfigVar<T>` 幂等注册、变更监听、JSON 增量加载 | `config.hpp`(`Config`)、`config_var.hpp`(`ConfigVar<T>`)、`lexical_cast.hpp`(`JsonCast<T>`) | `ca::config` | 主线 | `libca/config/doc/config设计文档.md` |
-| **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
-| **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
-| **json** / **toml** | JSON / TOML DOM、解析与写出 | `json.hpp`、`toml.hpp` | `ca::json` / `ca::toml` | 主线 | `json/doc/json设计文档.md` / `toml/doc/toml设计文档.md` |
-| **xml** / **yaml** | XML / YAML 配置子集读写 | `xml.hpp`、`yaml.hpp` | `ca::xml` / `ca::yaml` | 主线 | `xml/doc/xml设计文档.md` / `yaml/doc/yaml设计文档.md` |
-| **io** | Reader/Writer、buffer 与 native stream 抽象 | `io.hpp`、`reader.hpp`、`writer.hpp` | `ca::io` | 主线 | `libca/io/doc/io设计文档.md` |
-| **net** / **http** | Socket/DNS/TCP/UDP 与 HTTP client/server | `net.hpp`、`http.hpp` | `ca::net` / `ca::http` | 主线 | `net/doc/net设计文档.md` / `http/doc/http设计文档.md` |
-| **ui** | Win32 窗口、控件、消息框与防截屏 | `ui.hpp`、`window.hpp`、`capture_guard.hpp` | `ca::ui` | 可用（Windows） | `libca/ui/doc/ui设计文档.md` |
-| **env** | 环境变量读写 | `env.hpp` | `ca::env` | 可用 | — |
-| **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
-| **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
-| **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 主线 | `libca/opt/doc/opt设计文档.md` |
-| **zip** | 压缩与归档：JVM ZipFile 语义 ZIP 读写 + 流式 gzip | `file.hpp`(`ZipFile`)、`input_stream.hpp`、`output_stream.hpp`、`gzip_reader.hpp`、`gzip_writer.hpp` | `ca::zip` | 主线（zlib 可选，`--with_zip=n` 跳过） | — |
-| **resources** | 清单驱动 constexpr 目录树嵌入与只读查询 | `resources.hpp`(`Bundle`/`RawEntry`)；rule `libca.resources.embed` | `ca::resources` | 主线 | — |
-| **i18n** | .lang 构建期嵌入的 CLI 消息国际化（tr/trf 回退链） | `i18n.hpp`；rule `libca.i18n.embed-lang` | `ca::i18n` | 主线 | — |
-| **test** | `.project_root_file` 多项目测试布局与样本定位 | `test.hpp`(`setup`/`resource`/`project_resource`) | `ca::test` | 主线 | — |
-| **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
-| utility / reflect | 历史遗留，已从仓库移除 | — | — | 移除 | — |
-
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / config / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
-> 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
-
-## 目录约定
-
-每个模块统一布局：
-
-```
-libca/<mod>/
-├── doc/                       ← 设计文档（为什么这么设计）
-├── src/libca/<mod>/*.hpp|cpp  ← 声明+实现；API 文档在 .hpp 注释
-├── unittest/*_test.cpp        ← Google Test
-└── xmake.lua
-```
-
-头文件包含约定：项目内头文件一律引号形式 `#include "libca/<mod>/xxx.hpp"`；尖括号仅用于系统/第三方头（如 `<string>`、`<zlib.h>`）。
-
-## 许可证
-
-Copyright 2024-present Canrad (github.com/luiox)
-
-本项目以 [Apache License 2.0](LICENSE) 发布。
-
-
+[Apache-2.0](LICENSE) © Canrad
