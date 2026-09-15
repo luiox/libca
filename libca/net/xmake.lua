@@ -18,7 +18,7 @@ target("libca_net_unittest")
     add_tests("default")
     set_group("libs/test")
     add_deps("libca_net")
-    add_links("libca_net", "libca_io", "libca_core")
+    add_links("libca_net", "libca_io", "libca_core", "libca_str")
     add_packages("gtest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")
@@ -29,3 +29,16 @@ target("libca_net_unittest")
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end
+
+target("libca_net_sock_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_net", "libca_time")
+    add_links("libca_net", "libca_io", "libca_core", "libca_str", "libca_time")
+    add_files("perf/sock_perf.cpp")
+    add_includedirs("src")
+
+    if is_plat("windows", "mingw") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
