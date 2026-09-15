@@ -3,8 +3,13 @@
 #include "libca/str/format.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <limits>
+#include <thread>
 #include <utility>
 
 #if defined(_WIN32)
@@ -16,8 +21,9 @@
 #    include <cstring>
 #    include <fcntl.h>
 #    include <mqueue.h>
-#    include <sys/mman.h>
 #    include <semaphore.h>
+#    include <signal.h>
+#    include <sys/mman.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
 #    include <sys/un.h>
@@ -996,6 +1002,575 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
     result.resize(static_cast<usize>(count));
     return Ok(std::optional<std::string>(std::move(result)));
 #endif
+}
+
+// ============================================================================
+// ShmRingQueue —— 共享内存环形消息队列（写者探活 + 崩溃可恢复）
+// ============================================================================
+
+namespace {
+
+// 布局跨平台一致性依赖两件事：全部定宽字段（头部布局图见设计文档）+ lock-free 原子量。
+// lock-free（address-free）意味着原子操作不依赖对象地址，各进程映射到不同基址仍成立。
+static_assert(std::atomic<u64>::is_always_lock_free, "cross-process atomics must be lock-free");
+static_assert(std::atomic<u32>::is_always_lock_free, "cross-process atomics must be lock-free");
+static_assert(sizeof(detail::RingHeader) == 72, "RingHeader layout must stay frozen");
+static_assert(sizeof(detail::RingSlotHeader) == 16, "RingSlotHeader layout must stay frozen");
+static_assert(alignof(detail::RingHeader) == 8, "RingHeader must be 8-byte aligned");
+static_assert(alignof(detail::RingSlotHeader) == 8, "RingSlotHeader must be 8-byte aligned");
+static_assert(detail::kRingHeaderSize % 64 == 0, "header block must be cache-line aligned");
+
+// 进程身份：pid + 出生戳。出生戳用于抵御 pid 复用造成的存活误判。
+struct ProcessIdentity
+{
+    u64 pid;
+    u64 birth;
+};
+
+// 机器单调时钟毫秒（同机跨进程可比），作心跳与本地接收时限的统一时间源。
+u64 monotonic_millis()
+{
+#if defined(_WIN32)
+    return static_cast<u64>(GetTickCount64());
+#else
+    timespec now{};
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return static_cast<u64>(now.tv_sec) * 1000 + static_cast<u64>(now.tv_nsec) / 1000000;
+#endif
+}
+
+// 心跳是否已落后超过 timeout_ms。
+// 心跳为 0 视为从未刷新（超时）；时钟出现回拨/未来值时保守视为未超时。
+bool heartbeat_stale(u64 heartbeat, i64 timeout_ms)
+{
+    if (heartbeat == 0)
+        return true;
+    const u64 now = monotonic_millis();
+    if (now < heartbeat)
+        return false;
+    return static_cast<i64>(now - heartbeat) > timeout_ms;
+}
+
+#if defined(_WIN32)
+u64 filetime_to_u64(const FILETIME& value)
+{
+    return (static_cast<u64>(value.dwHighDateTime) << 32) | static_cast<u64>(value.dwLowDateTime);
+}
+
+u64 current_process_birth()
+{
+    FILETIME create_time{};
+    FILETIME exit_time{};
+    FILETIME kernel_time{};
+    FILETIME user_time{};
+    return GetProcessTimes(GetCurrentProcess(), &create_time, &exit_time, &kernel_time, &user_time)
+               ? filetime_to_u64(create_time)
+               : 0;
+}
+#else
+// 读 /proc/<pid>/stat 的 starttime（整体第 22 字段，clock tick）。comm 字段可含空格与
+// ')'，先定位最后一个 ')'，其后第 1 个字段是 state（整体第 3），第 20 个是 starttime。
+u64 read_process_birth(u64 pid)
+{
+    char path[64]{};
+    std::snprintf(path, sizeof(path), "/proc/%llu/stat", static_cast<unsigned long long>(pid));
+    std::FILE*  file = std::fopen(path, "r");
+    if (file == nullptr)
+        return 0;
+    char        buffer[1024]{};
+    const bool  read_ok = std::fgets(buffer, sizeof(buffer), file) != nullptr;
+    std::fclose(file);
+    if (!read_ok)
+        return 0;
+    const char* cursor = std::strrchr(buffer, ')');
+    if (cursor == nullptr)
+        return 0;
+    for (int field = 1; field <= 20; ++field) {
+        while (*cursor == ' ' || *cursor == '\t')
+            ++cursor;
+        if (*cursor == '\0')
+            return 0;
+        const char* token = cursor;
+        while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t' && *cursor != '\n')
+            ++cursor;
+        if (field == 20)
+            return std::strtoull(token, nullptr, 10);
+    }
+    return 0;
+}
+#endif
+
+ProcessIdentity current_process_identity()
+{
+#if defined(_WIN32)
+    return ProcessIdentity{static_cast<u64>(GetCurrentProcessId()), current_process_birth()};
+#else
+    const u64 pid = static_cast<u64>(::getpid());
+    return ProcessIdentity{pid, read_process_birth(pid)};
+#endif
+}
+
+// 判定「pid + 出生戳」是否仍是那个存活的原进程。
+// 返回 false 表示原写者进程已确认退出（含 pid 被复用的情况）。
+//       Windows：OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess
+//       判退出，GetProcessTimes 比对出生戳抵御 pid 复用；打开句柄被拒（ACCESS_DENIED）
+//       时保守视为存活，宁可推迟接管也不误接管。POSIX：kill(pid, 0) 判存在（EPERM 视
+//       为存在），/proc 出生戳比对抵御 pid 复用；/proc 不可读时出生戳记 0，存活判定
+//       退化为仅查 pid。
+bool process_identity_alive(u64 pid, u64 birth)
+{
+    if (pid < 2)   // 0/1 不是合法写者 pid（1 与接管哨兵冲突，见 kRingWriterElecting）
+        return false;
+#if defined(_WIN32)
+    HANDLE handle =
+        OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
+    if (handle == nullptr)
+        return GetLastError() == ERROR_ACCESS_DENIED;
+    FILETIME create_time{};
+    FILETIME exit_time{};
+    FILETIME kernel_time{};
+    FILETIME user_time{};
+    bool     alive = true;
+    if (GetProcessTimes(handle, &create_time, &exit_time, &kernel_time, &user_time) &&
+        birth != 0 && filetime_to_u64(create_time) != birth) {
+        CloseHandle(handle);
+        return false;   // 出生戳不符：pid 已被复用，原进程必然已退出
+    }
+    DWORD exit_code = 0;
+    alive = GetExitCodeProcess(handle, &exit_code) && exit_code == STILL_ACTIVE;
+    CloseHandle(handle);
+    return alive;
+#else
+    if (::kill(static_cast<pid_t>(pid), 0) != 0)
+        return errno != ESRCH;   // EPERM：进程存在但无权限，保守视为存活
+    if (birth != 0) {
+        const u64 now_birth = read_process_birth(pid);
+        if (now_birth != 0 && now_birth != birth)
+            return false;   // 出生戳不符：pid 已被复用
+    }
+    return true;
+#endif
+}
+
+Status validate_ring_options(const ShmRingQueue::Options& options)
+{
+    if (options.max_message_size == 0 || options.max_message_size > (usize{64} << 20))
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "max_message_size must be in [1, 64 MiB]");
+    if (options.slot_count == 0 || options.slot_count > 65536)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "slot_count must be in [1, 65536]");
+    if (options.heartbeat_interval.count() < 0)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "heartbeat_interval must be non-negative");
+    if (options.heartbeat_timeout.count() <= 0)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "heartbeat_timeout must be positive");
+    // 组合上限防溢出：段大小（头部 + 槽区）不得超过 1 GiB。
+    if (static_cast<u64>(options.slot_count) *
+            static_cast<u64>(detail::ring_slot_stride(options.max_message_size)) >
+        (u64{1} << 30))
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "ring queue segment size exceeds 1 GiB");
+    return OkStatus();
+}
+
+}   // namespace
+
+ShmRingQueue::ShmRingQueue(SharedMemory segment, const Options& options) noexcept
+    : segment_(std::move(segment))
+    , options_(options)
+{}
+ShmRingQueue::~ShmRingQueue()
+{
+    close();
+}
+ShmRingQueue::ShmRingQueue(ShmRingQueue&& other) noexcept
+    : segment_(std::move(other.segment_))
+    , options_(other.options_)
+    , reader_attached_(other.reader_attached_)
+    , reader_generation_(other.reader_generation_)
+    , reader_next_seq_(other.reader_next_seq_)
+    , writer_claimed_(other.writer_claimed_)
+    , writer_pid_(other.writer_pid_)
+    , writer_birth_(other.writer_birth_)
+    , last_heartbeat_ms_(other.last_heartbeat_ms_)
+{
+    other.reader_attached_  = false;
+    other.reader_generation_ = 0;
+    other.reader_next_seq_  = 0;
+    other.writer_claimed_   = false;
+    other.writer_pid_       = 0;
+    other.writer_birth_     = 0;
+    other.last_heartbeat_ms_ = 0;
+}
+ShmRingQueue& ShmRingQueue::operator=(ShmRingQueue&& other) noexcept
+{
+    if (this != &other) {
+        close();
+        segment_                 = std::move(other.segment_);
+        options_                 = other.options_;
+        reader_attached_         = other.reader_attached_;
+        reader_generation_       = other.reader_generation_;
+        reader_next_seq_         = other.reader_next_seq_;
+        writer_claimed_          = other.writer_claimed_;
+        writer_pid_              = other.writer_pid_;
+        writer_birth_            = other.writer_birth_;
+        last_heartbeat_ms_       = other.last_heartbeat_ms_;
+        other.reader_attached_   = false;
+        other.reader_generation_ = 0;
+        other.reader_next_seq_   = 0;
+        other.writer_claimed_    = false;
+        other.writer_pid_        = 0;
+        other.writer_birth_      = 0;
+        other.last_heartbeat_ms_ = 0;
+    }
+    return *this;
+}
+bool ShmRingQueue::is_open() const noexcept
+{
+    return segment_.is_open();
+}
+void ShmRingQueue::close() noexcept
+{
+    // 优雅释放写者身份：下个写者可立即走快路径认领，无需经历接管判定。
+    // 注意这只清空闲标识，真正的互斥由 pid + 出生戳 + 进程存活判定兜底。
+    if (segment_.is_open() && writer_claimed_) {
+        detail::RingHeader* head = header();
+        if (head->writer_slot.load() == writer_pid_ &&
+            head->writer_birth.load(std::memory_order_relaxed) == writer_birth_)
+            head->writer_slot.store(detail::kRingWriterFree);
+    }
+    writer_claimed_    = false;
+    writer_pid_        = 0;
+    writer_birth_      = 0;
+    last_heartbeat_ms_ = 0;
+    reader_attached_   = false;
+    reader_generation_ = 0;
+    reader_next_seq_   = 0;
+    segment_.close();
+}
+
+ipc::detail::RingHeader* ShmRingQueue::header() noexcept
+{
+    return static_cast<detail::RingHeader*>(segment_.data());
+}
+ipc::detail::RingSlotHeader* ShmRingQueue::slot_at(u64 sequence) noexcept
+{
+    // 槽区紧跟头部块，槽内偏移用头部记录的步长（open 时已校验其一致性）。
+    char* base = static_cast<char*>(segment_.data());
+    return reinterpret_cast<detail::RingSlotHeader*>(
+        base + detail::kRingHeaderSize + (sequence % header()->slot_count) * header()->slot_stride);
+}
+char* ShmRingQueue::slot_payload(detail::RingSlotHeader* slot) noexcept
+{
+    return reinterpret_cast<char*>(slot) + sizeof(detail::RingSlotHeader);
+}
+
+StatusResult<ShmRingQueue> ShmRingQueue::create(const std::string& name)
+{
+    return create(name, Options{});
+}
+
+StatusResult<ShmRingQueue> ShmRingQueue::create(const std::string& name, const Options& options)
+{
+    if (const Status valid = validate_ring_options(options); valid.is_err())
+        return Err(valid);
+    const usize size = detail::ring_segment_size(options.slot_count, options.max_message_size);
+    auto        segment = SharedMemory::create(name, size);
+    if (segment.is_err())
+        return Err(segment.unwrap_err());
+    ShmRingQueue        queue(std::move(segment).unwrap(), options);
+    detail::RingHeader* head = queue.header();
+    // 初始化顺序：magic 先行、format_version 最后发布。并发 open() 以版本号判断初始化
+    // 是否完成——未完成时 open 返回 FAILED_PRECONDITION，调用方稍后重试即可。
+    head->magic            = detail::kRingMagic;
+    head->slot_count       = static_cast<u32>(options.slot_count);
+    head->slot_stride      = detail::ring_slot_stride(options.max_message_size);
+    head->payload_capacity = options.max_message_size;
+    head->generation.store(1);
+    head->write_seq.store(0);
+    head->writer_slot.store(detail::kRingWriterFree);
+    head->writer_birth.store(0, std::memory_order_relaxed);
+    head->writer_heartbeat.store(0, std::memory_order_relaxed);
+    // 段本身保证零填充（Windows 新建映射 / POSIX ftruncate），这里显式清一遍槽头，
+    // 不依赖平台零化语义。
+    for (u32 index = 0; index < head->slot_count; ++index) {
+        detail::RingSlotHeader* slot = queue.slot_at(index);
+        slot->state.store(static_cast<u32>(detail::RingSlotState::Empty));
+        slot->length.store(0);
+        slot->sequence.store(0);
+    }
+    head->format_version = detail::kRingFormatVersion;   // 最后写入 = 就绪信号
+    return Ok(std::move(queue));
+}
+
+StatusResult<ShmRingQueue> ShmRingQueue::open(const std::string& name)
+{
+    return open(name, Options{});
+}
+
+StatusResult<ShmRingQueue> ShmRingQueue::open(const std::string& name, const Options& options)
+{
+    if (const Status valid = validate_ring_options(options); valid.is_err())
+        return Err(valid);
+    auto segment = SharedMemory::open(name);
+    if (segment.is_err())
+        return Err(segment.unwrap_err());
+    ShmRingQueue        queue(std::move(segment).unwrap(), options);
+    detail::RingHeader* head = queue.header();
+    if (head->magic != detail::kRingMagic)
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "segment is not a ShmRingQueue"));
+    if (head->format_version != detail::kRingFormatVersion)
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION,
+                             "ring queue is being initialized or uses an incompatible format"));
+    // 布局自描述：以头部记录为准做一致性校验，防止拿到被破坏的段。
+    if (head->slot_count == 0 || head->slot_count > 65536 || head->payload_capacity == 0 ||
+        head->payload_capacity > (usize{64} << 20) ||
+        head->slot_stride < sizeof(detail::RingSlotHeader) + head->payload_capacity)
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "ring queue header is corrupted"));
+    return Ok(std::move(queue));
+}
+
+Status ShmRingQueue::ensure_writer_claimed()
+{
+    const ProcessIdentity self    = current_process_identity();
+    const i64             timeout = options_.heartbeat_timeout.count();
+    writer_pid_                   = self.pid;
+    writer_birth_                 = self.birth;
+    for (;;) {
+        detail::RingHeader* head = header();
+        const u64           held = head->writer_slot.load();
+        if (held == self.pid) {
+            if (head->writer_birth.load(std::memory_order_relaxed) == self.birth) {
+                writer_claimed_ = true;   // 本进程已持有（可能来自同进程其它队列对象）
+                return OkStatus();
+            }
+            // pid 相同但出生戳不符（异常残留）：清成空闲后重读。
+            u64 expected = held;
+            head->writer_slot.compare_exchange_strong(expected, detail::kRingWriterFree);
+            continue;
+        }
+        if (held == detail::kRingWriterFree) {
+            u64 expected = detail::kRingWriterFree;
+            if (head->writer_slot.compare_exchange_strong(expected, self.pid)) {
+                const u64 now = monotonic_millis();
+                head->writer_birth.store(self.birth, std::memory_order_relaxed);
+                head->writer_heartbeat.store(now, std::memory_order_relaxed);
+                last_heartbeat_ms_ = now;
+                writer_claimed_    = true;
+                return OkStatus();
+            }
+            continue;   // 与其它进程竞争认领，重读状态
+        }
+        if (held == detail::kRingWriterElecting)
+            return ErrStatus(StatusCode::UNAVAILABLE,
+                             "another process is taking over the ring queue");
+        // 其它 pid 持有：仅当「心跳超时且进程已退出」才允许接管。进程活着（哪怕心跳
+        // 停更，如写者卡死）绝不接管——双写者会破坏环形槽协议。
+        if (!heartbeat_stale(head->writer_heartbeat.load(std::memory_order_relaxed), timeout))
+            return ErrStatus(StatusCode::UNAVAILABLE,
+                             "another writer is active and its heartbeat is fresh");
+        if (process_identity_alive(held, head->writer_birth.load(std::memory_order_relaxed)))
+            return ErrStatus(StatusCode::UNAVAILABLE, "another writer is active");
+        // 选举：CAS 抢占 ELECTING，同一时刻只允许一个接管者进重置流程。
+        u64 expected = held;
+        if (head->writer_slot.compare_exchange_strong(expected, detail::kRingWriterElecting)) {
+            reset_ring(self.pid, self.birth, true);
+            reader_attached_ = false;   // 世代已变，本对象的读者游标需重新接入
+            return OkStatus();
+        }
+        // CAS 失败：占用状态并发变化（释放/其它进程接管），重读。
+    }
+}
+
+void ShmRingQueue::reset_ring(u64 pid, u64 birth, bool claim) noexcept
+{
+    detail::RingHeader* head = header();
+    // 先抬世代：并发的旧读者在下一次世代校验时立即感知并报错退出（保证见设计文档）。
+    head->generation.fetch_add(1);
+    for (u32 index = 0; index < head->slot_count; ++index) {
+        detail::RingSlotHeader* slot = slot_at(index);
+        slot->state.store(static_cast<u32>(detail::RingSlotState::Empty));
+        slot->length.store(0);
+        slot->sequence.store(0);
+    }
+    head->write_seq.store(0);
+    const u64 now = monotonic_millis();
+    if (claim) {
+        head->writer_birth.store(birth, std::memory_order_relaxed);
+        head->writer_heartbeat.store(now, std::memory_order_relaxed);
+        head->writer_slot.store(pid);
+        writer_claimed_    = true;
+        last_heartbeat_ms_ = now;
+    } else {
+        head->writer_birth.store(0, std::memory_order_relaxed);
+        head->writer_heartbeat.store(0, std::memory_order_relaxed);
+        head->writer_slot.store(detail::kRingWriterFree);
+    }
+}
+
+Status ShmRingQueue::send(const void* data, usize length)
+{
+    if (!segment_.is_open())
+        return ErrStatus(StatusCode::FAILED_PRECONDITION, "send on a closed ring queue");
+    if (data == nullptr && length != 0)
+        return ErrStatus(StatusCode::INVALID_ARGUMENT, "message data must not be null");
+    if (length > options_.max_message_size)
+        return ErrStatus(StatusCode::OUT_OF_RANGE, "message exceeds slot payload capacity");
+    if (const Status claimed = ensure_writer_claimed(); claimed.is_err())
+        return claimed;
+    detail::RingHeader* head     = header();
+    const u64           sequence = head->write_seq.load();
+    detail::RingSlotHeader* slot = slot_at(sequence);
+    // 发布协议：先置 Writing 占槽（此后任一时刻崩溃，读者看到的都是可识别的撕裂槽），
+    // 再写 payload/length/sequence，最后以 Committed 发布。读者 acquire 到 Committed 后，
+    // 其余字段必然完整可见——撕裂只可能停留在 Writing 态，可检测、可跳过。
+    slot->state.store(static_cast<u32>(detail::RingSlotState::Writing));
+    if (length != 0)
+        std::memcpy(slot_payload(slot), data, length);
+    slot->length.store(static_cast<u32>(length));
+    slot->sequence.store(sequence);
+    slot->state.store(static_cast<u32>(detail::RingSlotState::Committed));
+    head->write_seq.fetch_add(1);
+    refresh_heartbeat();   // 写操作顺带心跳（按 interval 节流）
+    return OkStatus();
+}
+Status ShmRingQueue::send(const std::string& data)
+{
+    return send(data.data(), data.size());
+}
+
+void ShmRingQueue::attach_reader() noexcept
+{
+    detail::RingHeader* head   = header();
+    reader_generation_         = head->generation.load();
+    // 从「最旧的保留消息」接入：保留窗为 [write_seq - slot_count, write_seq)，读者落在
+    // 窗口起点即接到最旧的未覆盖消息；若写者继续套圈把窗口起点覆盖，receive_for 以
+    // DATA_LOSS 显式暴露而不是静默丢消息。
+    const u64 written   = head->write_seq.load();
+    const u64 retained  = head->slot_count;
+    reader_next_seq_    = written > retained ? written - retained : 0;
+    reader_attached_    = true;
+}
+
+StatusResult<std::optional<std::string>> ShmRingQueue::receive_for(
+    std::chrono::milliseconds timeout)
+{
+    if (!segment_.is_open())
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "receive on a closed ring queue"));
+    if (!reader_attached_)
+        attach_reader();
+    detail::RingHeader* head          = header();
+    const i64 deadline = static_cast<i64>(monotonic_millis()) + std::max<i64>(0, timeout.count());
+    u64         spin_count = 0;
+    for (;;) {
+        // 世代校验：接管/重置使世代 +1，旧读者显式报错（文档化选择：报错不重同步）。
+        if (head->generation.load() != reader_generation_)
+            return Err(ErrStatus(StatusCode::FAILED_PRECONDITION,
+                                 "ring queue was reset by a takeover; reopen the queue"));
+        detail::RingSlotHeader* slot  = slot_at(reader_next_seq_);
+        const u32               state = slot->state.load();
+        if (state == static_cast<u32>(detail::RingSlotState::Committed)) {
+            const u64 sequence = slot->sequence.load();
+            if (sequence == reader_next_seq_) {
+                const u32 length = slot->length.load();
+                if (length > head->payload_capacity)
+                    return Err(ErrStatus(StatusCode::DATA_LOSS, "ring slot length is corrupted"));
+                std::string message(length, '\0');
+                if (length != 0)
+                    std::memcpy(&message[0], slot_payload(slot), length);
+                reader_next_seq_ += 1;
+                return Ok(std::optional<std::string>(std::move(message)));
+            }
+            // 槽内序号与期望不符：写者套圈覆盖了未读消息，明确报数据丢失而非静默跳读。
+            return Err(ErrStatus(
+                StatusCode::DATA_LOSS,
+                ca::str::format_std("ring reader fell behind: slot sequence {} but expected {}",
+                                    sequence,
+                                    reader_next_seq_)));
+        }
+        // Writing / Empty：写者正在写（或死于写中），或尚无新消息。
+        const u64 held = head->writer_slot.load();
+        if (held != detail::kRingWriterFree && held != detail::kRingWriterElecting &&
+            !process_identity_alive(held, head->writer_birth.load(std::memory_order_relaxed))) {
+            if (state == static_cast<u32>(detail::RingSlotState::Writing)) {
+                // 撕裂槽：写者死于写中。跳过并修复读指针，绝不读出撕裂内容。
+                reader_next_seq_ += 1;
+                continue;
+            }
+            // Empty + 写者已退出：消息已排空，给读者一个明确终止条件。
+            return Err(
+                ErrStatus(StatusCode::UNAVAILABLE, "writer process is dead and the queue is drained"));
+        }
+        if (static_cast<i64>(monotonic_millis()) >= deadline)
+            return Ok(std::optional<std::string>{});
+        // 等待策略：先短暂自旋让步（覆盖本机 ping-pong 的时延敏感路径），再进入短睡眠
+        // （覆盖跨进程低频流，避免空转烧 CPU）。
+        if (spin_count < 64)
+            std::this_thread::yield();
+        else
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        ++spin_count;
+    }
+}
+
+StatusResult<std::string> ShmRingQueue::receive()
+{
+    for (;;) {
+        auto pending = receive_for(std::chrono::milliseconds(20));
+        if (pending.is_err())
+            return Err(pending.unwrap_err());
+        std::optional<std::string> message = std::move(pending).unwrap();
+        if (message.has_value())
+            return Ok(std::move(*message));
+    }
+}
+
+StatusResult<bool> ShmRingQueue::reset_if_writer_dead()
+{
+    if (!segment_.is_open())
+        return Err(ErrStatus(StatusCode::FAILED_PRECONDITION, "reset on a closed ring queue"));
+    const ProcessIdentity self = current_process_identity();
+    for (;;) {
+        detail::RingHeader* head = header();
+        const u64           held = head->writer_slot.load();
+        if (held == detail::kRingWriterFree || held == detail::kRingWriterElecting ||
+            held == self.pid)
+            return Ok(false);
+        // 接管门槛与写者认领同口径：心跳超时 且 进程确认退出。
+        if (!heartbeat_stale(head->writer_heartbeat.load(std::memory_order_relaxed),
+                             options_.heartbeat_timeout.count()))
+            return Ok(false);
+        if (process_identity_alive(held, head->writer_birth.load(std::memory_order_relaxed)))
+            return Ok(false);
+        u64 expected = held;
+        if (head->writer_slot.compare_exchange_strong(expected, detail::kRingWriterElecting)) {
+            reset_ring(self.pid, self.birth, false);   // 只重置，不占写者身份
+            reader_attached_ = false;   // 重置后本对象重新接入新流
+            return Ok(true);
+        }
+        // CAS 失败：占用状态并发变化（释放/其它进程接管），重读。
+    }
+}
+
+bool ShmRingQueue::is_writer_alive()
+{
+    if (!segment_.is_open())
+        return false;
+    detail::RingHeader* head = header();
+    const u64           held = head->writer_slot.load();
+    if (held == detail::kRingWriterFree || held == detail::kRingWriterElecting)
+        return false;
+    return process_identity_alive(held, head->writer_birth.load(std::memory_order_relaxed));
+}
+
+void ShmRingQueue::refresh_heartbeat()
+{
+    if (!writer_claimed_ || !segment_.is_open())
+        return;
+    const u64 now = monotonic_millis();
+    if (now < last_heartbeat_ms_)
+        last_heartbeat_ms_ = now;   // 时钟回拨防御（单调时钟上不应发生）
+    if (static_cast<i64>(now - last_heartbeat_ms_) < options_.heartbeat_interval.count())
+        return;
+    header()->writer_heartbeat.store(now, std::memory_order_relaxed);
+    last_heartbeat_ms_ = now;
 }
 
 // ============================================================================
