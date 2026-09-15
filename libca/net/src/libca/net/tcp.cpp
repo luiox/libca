@@ -462,6 +462,20 @@ io::IoResult<bool> TcpStream::nodelay() const
         socket_.get(), IPPROTO_TCP, TCP_NODELAY, "getsockopt(TCP_NODELAY)");
 }
 
+io::IoResult<void> TcpStream::set_keepalive(const TcpKeepaliveConfig& config)
+{
+    if (!is_open())
+        return ca::core::Err(detail::closed_socket_error("TCP set_keepalive"));
+    return set_tcp_keepalive(socket_.get(), config);
+}
+
+io::IoResult<bool> TcpStream::keepalive_enabled() const
+{
+    if (!is_open())
+        return ca::core::Err(detail::closed_socket_error("TCP keepalive_enabled"));
+    return tcp_keepalive_enabled(socket_.get());
+}
+
 io::IoResult<TcpStream> TcpStream::try_clone() const
 {
     auto duplicated = socket_.duplicate();
