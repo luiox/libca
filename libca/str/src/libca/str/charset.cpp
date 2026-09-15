@@ -1,11 +1,18 @@
 //
-// @brief 代码页字符编码转换实现（Windows: Win32 API / POSIX: iconv）
+// @brief 字符编码转换门面实现（Tier 1 内置算法 / Windows 代码页 / POSIX iconv）
 // @author Canrad
 // @date 2026/07/20
 //
+// 分层：UTF-8 ↔ wide、Latin-1、Windows-1252 走 detail/charset_builtin.hpp 的
+// 内置纯算法实现（消除对系统代码页 / iconv 的隐性依赖）；本地 ANSI 代码页与
+// GBK 系列暂沿用系统实现——Windows 基于 Win32 `MultiByteToWideChar` /
+// `WideCharToMultiByte`，POSIX 基于 iconv（GBK 用 "GBK" 转换器，本地代码页取
+// 当前 locale 的 codeset，wchar 用 "WCHAR_T"）。转换对不被系统支持时返回
+// `UNIMPLEMENTED`（如裁剪过的 glibc 缺 GBK gconv 模块）。
 
 #include "charset.hpp"
 
+#include "libca/str/detail/charset_builtin.hpp"
 #include "libca/str/format.hpp"
 
 #if defined(_WIN32)
@@ -124,12 +131,14 @@ core::StatusResult<std::string> wide_to_multi_byte(unsigned int code_page, std::
 
 core::StatusResult<std::wstring> CharsetConverter::utf8_to_wide(std::string_view utf8)
 {
-    return multi_byte_to_wide(CP_UTF8, utf8);
+    // 内置纯算法：UTF-8 → UTF-16，不再经 Win32 代码页转换。
+    return detail::utf8_to_wide(utf8);
 }
 
 core::StatusResult<std::string> CharsetConverter::wide_to_utf8(std::wstring_view wide)
 {
-    return wide_to_multi_byte(CP_UTF8, wide);
+    // 内置纯算法：UTF-16 → UTF-8，不再经 Win32 代码页转换。
+    return detail::wide_to_utf8(wide);
 }
 
 core::StatusResult<std::wstring> CharsetConverter::local_to_wide(std::string_view local)
@@ -171,13 +180,54 @@ core::StatusResult<std::string> CharsetConverter::wide_to_gbk(std::wstring_view 
     return wide_to_multi_byte(936, wide);
 }
 
+core::StatusResult<std::string> CharsetConverter::latin1_to_utf8(std::string_view latin1)
+{
+    return detail::latin1_to_utf8(latin1);
+}
+
+core::StatusResult<std::string> CharsetConverter::utf8_to_latin1(std::string_view utf8)
+{
+    return detail::utf8_to_latin1(utf8);
+}
+
+core::StatusResult<std::wstring> CharsetConverter::latin1_to_wide(std::string_view latin1)
+{
+    return detail::latin1_to_wide(latin1);
+}
+
+core::StatusResult<std::string> CharsetConverter::wide_to_latin1(std::wstring_view wide)
+{
+    return detail::wide_to_latin1(wide);
+}
+
+core::StatusResult<std::string> CharsetConverter::cp1252_to_utf8(std::string_view cp1252)
+{
+    return detail::cp1252_to_utf8(cp1252);
+}
+
+core::StatusResult<std::string> CharsetConverter::utf8_to_cp1252(std::string_view utf8)
+{
+    return detail::utf8_to_cp1252(utf8);
+}
+
+core::StatusResult<std::wstring> CharsetConverter::cp1252_to_wide(std::string_view cp1252)
+{
+    return detail::cp1252_to_wide(cp1252);
+}
+
+core::StatusResult<std::string> CharsetConverter::wide_to_cp1252(std::wstring_view wide)
+{
+    return detail::wide_to_cp1252(wide);
+}
+
 #else  // !defined(_WIN32)
 
-// POSIX 实现：iconv。代码页语义映射——本地 ANSI（Windows CP_ACP）对应当前
-// locale 的 codeset（nl_langinfo(CODESET)），GBK 用 glibc 的 "GBK" 转换器，
-// wchar 用 iconv 的 "WCHAR_T"（Linux 上为 UCS-4）。错误语义与 Windows 分支
-// 对齐：非法/残缺多字节序列返回 INVALID_ARGUMENT；转换对不被系统支持
-// （如裁剪过的 gconv 库缺 GBK）返回 UNIMPLEMENTED。
+// POSIX 实现：UTF 家族与 Latin-1 / Windows-1252 走内置纯算法；本地代码页与
+// GBK 走 iconv。代码页语义映射——本地 ANSI（Windows CP_ACP）对应当前 locale
+// 的 codeset（nl_langinfo(CODESET)），GBK 用 glibc 的 "GBK" 转换器，wchar 用
+// iconv 的 "WCHAR_T"（Linux 上为 UCS-4）。错误语义与 Windows 分支对齐：
+// 非法/残缺多字节序列返回 INVALID_ARGUMENT；转换对不被系统支持（如裁剪过的
+// gconv 库缺 GBK）返回 UNIMPLEMENTED。
 
 namespace {
 
@@ -278,16 +328,15 @@ usize wide_input_size(std::wstring_view wide)
 
 core::StatusResult<std::wstring> CharsetConverter::utf8_to_wide(std::string_view utf8)
 {
-    auto bytes = iconv_convert("WCHAR_T", "UTF-8", utf8.data(), utf8.size());
-    if (bytes.is_err())
-        return core::Err(bytes.unwrap_err());
-    return bytes_to_wide(std::move(bytes).unwrap());
+    // 内置纯算法：UTF-8 → UCS-4，不再经 iconv（glibc 接受超 Unicode 上限码点的
+    // 差异就此消除，见单测 InvalidWideCodePointRejected）。
+    return detail::utf8_to_wide(utf8);
 }
 
 core::StatusResult<std::string> CharsetConverter::wide_to_utf8(std::wstring_view wide)
 {
-    return iconv_convert("UTF-8", "WCHAR_T", wide_input_bytes(wide.data()),
-                         wide_input_size(wide));
+    // 内置纯算法：UCS-4 → UTF-8，不再经 iconv。
+    return detail::wide_to_utf8(wide);
 }
 
 core::StatusResult<std::wstring> CharsetConverter::local_to_wide(std::string_view local)
@@ -325,6 +374,46 @@ core::StatusResult<std::string> CharsetConverter::wide_to_gbk(std::wstring_view 
 {
     return iconv_convert("GBK", "WCHAR_T", wide_input_bytes(wide.data()),
                          wide_input_size(wide));
+}
+
+core::StatusResult<std::string> CharsetConverter::latin1_to_utf8(std::string_view latin1)
+{
+    return detail::latin1_to_utf8(latin1);
+}
+
+core::StatusResult<std::string> CharsetConverter::utf8_to_latin1(std::string_view utf8)
+{
+    return detail::utf8_to_latin1(utf8);
+}
+
+core::StatusResult<std::wstring> CharsetConverter::latin1_to_wide(std::string_view latin1)
+{
+    return detail::latin1_to_wide(latin1);
+}
+
+core::StatusResult<std::string> CharsetConverter::wide_to_latin1(std::wstring_view wide)
+{
+    return detail::wide_to_latin1(wide);
+}
+
+core::StatusResult<std::string> CharsetConverter::cp1252_to_utf8(std::string_view cp1252)
+{
+    return detail::cp1252_to_utf8(cp1252);
+}
+
+core::StatusResult<std::string> CharsetConverter::utf8_to_cp1252(std::string_view utf8)
+{
+    return detail::utf8_to_cp1252(utf8);
+}
+
+core::StatusResult<std::wstring> CharsetConverter::cp1252_to_wide(std::string_view cp1252)
+{
+    return detail::cp1252_to_wide(cp1252);
+}
+
+core::StatusResult<std::string> CharsetConverter::wide_to_cp1252(std::wstring_view wide)
+{
+    return detail::wide_to_cp1252(wide);
 }
 
 #endif  // defined(_WIN32)
