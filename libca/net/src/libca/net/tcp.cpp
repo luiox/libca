@@ -285,12 +285,23 @@ io::IoResult<TcpStream> TcpStream::connect_timeout(const SocketAddress&      add
 io::IoResult<TcpStream> TcpStream::connect_timeout(const std::string& host, u16 port,
                                                    std::chrono::milliseconds timeout)
 {
+    return connect_timeout(host, port, timeout, nullptr);
+}
+
+io::IoResult<TcpStream> TcpStream::connect_timeout(const std::string&        host,
+                                                   u16                       port,
+                                                   std::chrono::milliseconds timeout,
+                                                   const DnsResolveFn*       resolver)
+{
     auto validated = validate_connect_timeout(timeout);
     if (validated.is_err())
         return ca::core::Err(validated.unwrap_err());
 
-    auto resolved =
-        DnsResolver::resolve(host, port, AddressFamily::Unspecified, SocketKind::Stream);
+    // 解析注入点：上层（如 http 的 CachedDnsResolver）经此提供带缓存的解析；为空走默认。
+    auto resolved = (resolver != nullptr)
+                        ? (*resolver)(host, port, AddressFamily::Unspecified, SocketKind::Stream)
+                        : DnsResolver::resolve(host, port, AddressFamily::Unspecified,
+                                               SocketKind::Stream);
     if (resolved.is_err())
         return ca::core::Err(resolved.unwrap_err());
 
