@@ -114,6 +114,10 @@ bool iconv_supports(std::string_view charset)
 
 bool CharsetConverter::supported(std::string_view charset)
 {
+    // 空名在任何平台都不算受支持：glibc 的 iconv_open 对空 tocode 会回落到当前
+    // locale 字符集而成功，探测路径因此必须先行排除（否则 Windows/POSIX 口径分叉）。
+    if (charset.empty())
+        return false;
     if (lookup_builtin_charset(charset) != nullptr)
         return true;
 #if !defined(_WIN32) && !defined(LIBCA_STR_NO_ICONV)
