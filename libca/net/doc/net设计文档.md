@@ -23,9 +23,9 @@ update:
 libca_core <- libca_io <- libca_net
 ```
 
-首版不包含 TLS、HTTP、WebSocket、异步 reactor 或事件循环。TLS 应作为独立扩展模块，
-通过包装 `TcpStream` 并实现 `Reader` / `Writer` 接入，不能把证书、握手和加密状态塞进
-基础 socket API。
+首版不包含 HTTP、WebSocket、异步 reactor 或事件循环。TLS 以独立的 `TlsStream` 适配层
+接入（见第 11 节）：包装任意双向 `Reader` / `Writer`（不限于 `TcpStream`），不把证书、
+握手和加密状态塞进基础 socket API。
 
 ## 2. 错误模型
 
@@ -326,4 +326,92 @@ public:
 - loopback TCP bind/connect/accept、Reader/Writer、EOF、地址查询和 clone。
 - TCP 连接超时参数校验、读写 timeout 配置、TCP_NODELAY 和非阻塞 listener。
 - loopback UDP send_to/receive_from、connected send/receive、零长度数据报和 broadcast 配置。
-- Windows 本地测试和 Linux Core CI 使用同一套 Google Test。
+- TlsStream：内存自环真实握手（见第 11 节），单测不起网络。
+- Windows 本地测试和 Linux Core CI 使用同一套 Google Test。CI 另有独立 job
+  "build & test HTTP (linux, OpenSSL 3)" 作为 TLS/HTTPS 回归兜底。
+
+## 11. TLS（TlsStream）
+
+### 11.1 定位与结构
+
+`TlsStream` 是 net 内的可选 TLS 适配层（`with_openssl=y` 才有实质实现，OpenSSL 3.x
+为主、兼容 1.1.1 的点用条件编译最小化）。核心是一对 OpenSSL memory BIO：
+
+```text
+明文侧（io::Reader / io::Writer）
+    SSL_read / SSL_write
+        rbio（mem） ←── 底层流 io::Reader（对端密文灌入）
+        wbio（mem） ──→ 底层流 io::Writer（密文刷出，write_all）
+对端密文方向
+```
+
+- 读：`SSL_read` 返回 `WANT_READ` 时从底层流读一块密文（≤16KB）灌入 rbio 后重试；
+  底层流返回 EOF 且 SSL 仍在等数据 = 对端未发 close_notify 即断开。
+- 写：`SSL_write` 成功后立即把 wbio 密文 `write_all` 到底层流；`WANT_READ` 出现在
+  renegotiation，同样透明处理。
+- 握手（`connect` / `accept`）与 renegotiation 的 `WANT_READ` / `WANT_WRITE` 重试
+  循环全部封闭在 TlsStream 内部，调用方只见阻塞语义。
+- TlsStream **不拥有**底层流（借用 `io::Reader&` + `io::Writer&`，需保证存活期），
+  这样 http 层可以继续持有 `TcpStream` 并暴露 `tcp_stream()`（socket 级超时、
+  连接池探针都依赖它）；实现细节经 PIMPL 隐藏，公开头文件不出现 OpenSSL 类型。
+- OpenSSL 句柄只有一个 `SSL*`（`SSL_set_bio` 后两个 mem BIO 由 SSL 接管），
+  `SSL_CTX` 归 `TlsServerContext` 持有，多连接共享只读。
+- 握手总期限在每个重试迭代边界检查；`TlsHandshakeControl::before_retry` 钩子供
+  调用方在每次重试前收紧底层 socket 超时或检查协作停止标记（http server 的
+  stop 轮询、client 的剩余期限收紧都走它）。没有超时能力的底层流（内存流）
+  只能受迭代边界约束。
+
+### 11.2 安全默认值
+
+- **证书校验默认开启**（`verify_peer=true`）：`SSL_VERIFY_PEER` + `SSL_set1_host` /
+  IP SAN 校验（`X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS`）。显式置 `false` 同时关闭
+  证书链与主机名校验，Doxygen 以 @warning 高亮中间人风险。
+- **SNI 默认 = host**；host 为 IP 字面量时不发 SNI（对齐主流 client 语义）。
+- **最低版本 TLS 1.2** 硬编码（与原 http 实现一致，无收紧项遗留）。
+- **信任库**：`ca_file` / `ca_directory` 任一非空走自定义信任，否则 OpenSSL 默认
+  trust paths。
+- **mTLS**：`TlsServerOptions::verify_client=true` 时要求并校验客户端证书
+  （`SSL_VERIFY_FAIL_IF_NO_PEER_CERT`）。
+- **ALPN**：client 侧可选提供协议列表，`alpn_selected()` 返回协商结果；server 侧
+  暂不配置选择回调（保持 http 行为等价）。
+
+### 11.3 错误分类
+
+统一映射为 `IoErrorKind`，调用方可判别：
+
+| 场景 | kind | 说明 |
+|------|------|------|
+| 证书校验失败 | `InvalidData` | 消息含 "certificate verification failed" 与 X509 原因串 |
+| TLS 协议错误（alert/记录层） | `InvalidData` | 消息含 OpenSSL 错误文本 |
+| 对端未发 close_notify 即断开 | `UnexpectedEof` | 含握手阶段 |
+| 干净关闭（close_notify） | read 返回 0 | Rust EOF 语义 |
+| 底层流错误 | 原样透传 | 保留 kind 与原生错误码（`TimedOut`/`WouldBlock` 等） |
+| 配置/加载失败（证书文件等） | `InvalidInput` | |
+| 未启用 with_openssl | `Unsupported` | stub 降级 |
+
+`shutdown()` 发送 close_notify 后立即刷出，单向不等待对端；析构不隐式关闭
+（对齐原 http 行为，由调用方决定是否干净关闭）。
+
+### 11.4 无 OpenSSL 降级
+
+`with_openssl=n`（默认）时整个实现编译为 stub：`tls_stream_supported()` 返回
+false，`connect` / `accept` / `load` 返回 `Unsupported`，公开头文件不引入任何
+OpenSSL 依赖，net 默认构建不拉取 openssl3 包（学 core/minidump 的平台 stub 模式）。
+
+### 11.5 测试与性能参考
+
+单测不起网络：一对内存双工流（`libca/net/test/mem_duplex.hpp`，阻塞/非阻塞两种
+读模式）让 client / server 两个 TlsStream 经 mem-BIO 自环完成真实 TLS 握手；
+`libca/net/test/` 内预置自签测试证书（CA + CN=localhost/SAN=DNS:localhost 的
+服务端证书与私钥 + 一个不受信任对照 CA，文件头注明仅供测试），使证书校验、
+主机名验证、SNI 被真实 exercised。用例覆盖：握手、双向 echo、4MiB 分片传输
+（FNV-1a 校验防损坏）、对端提前断开（握手中/握手后）、主机名不匹配默认拒绝、
+显式关闭校验放行、错误分类断言；无 OpenSSL 构建验证 stub 降级。
+
+性能基准 target `libca_net_perf`（`set_group("libs/perf")`、默认不构建、不注册
+add_tests；Stopwatch 计时、热身 + 多轮取中位数、FNV-1a 校验和防空转）：
+
+| 指标 | 参考值 | 环境 |
+|------|--------|------|
+| mem-BIO 自环明文吞吐 | ~40 MiB/s | x64 MSVC 2022 release，OpenSSL 3.6.3，8MiB/轮 |
+| 完整 TLS 握手 | ~390 次/秒 | 同上（client/server 双线程并发驱动） |
