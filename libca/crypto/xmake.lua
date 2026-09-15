@@ -9,6 +9,11 @@ target("libca_crypto")
     add_includedirs("src", {public = true})
     add_deps("libca_core")
 
+    if has_config("with_openssl") then
+        add_defines("LIBCA_CRYPTO_HAS_OPENSSL")
+        add_packages("openssl3", {public = true})
+    end
+
     if is_plat("windows", "mingw") then
         add_cxflags("/utf-8", {tools = "cl"})
         add_syslinks("bcrypt")
@@ -27,6 +32,11 @@ target("libca_crypto_unittest")
     add_files("unittest/*_test.cpp")
     add_includedirs("src")
     set_rundir("$(projectdir)")
+
+    if has_config("with_openssl") then
+        add_defines("LIBCA_CRYPTO_HAS_OPENSSL")
+    end
+
     if is_plat("windows", "mingw") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
