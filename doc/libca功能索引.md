@@ -112,7 +112,7 @@ UTF-8 字符串与所有权模型模块。
 - `NativeStream`：基于原生 handle/fd 的 Reader、Writer 和 Seek 实现。
 
 设计与使用文档：
-- `libca/io/doc/design.md`
+- `libca/io/doc/io设计文档.md`
 - `libca/io/README.md`（快速示例）
 
 ## ini
@@ -341,7 +341,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展。
 
 设计与使用文档：
-- `libca/net/doc/design.md`
+- `libca/net/doc/net设计文档.md`
 - `libca/net/README.md`（快速示例）
 
 ## http
@@ -377,7 +377,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - 严格拒绝 CL/TE 冲突、冲突 Content-Length、裸 LF、obs-fold、重复 Host 和超限报文。
 
 设计与使用文档：
-- `libca/http/doc/design.md`
+- `libca/http/doc/http设计文档.md`
 - `libca/http/README.md`（快速示例）
 
 ## crypto
@@ -593,6 +593,70 @@ UUID v4 生成与校验（不做 v1/v3/v5）。底层随机源复用系统 CSPRN
 - `v4`：生成随机 UUID v4（36 字符小写十六进制）。
 - `nil`：空 UUID。
 - `is_valid`：格式校验，可选严格校验 v4 variant/version。
+
+## zip
+
+JVM `java.util.zip.ZipFile` 语义的 ZIP 读写模块。zlib 经 xrepo 引入，根开关
+`--with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分构建）。
+
+入口头文件：
+- `<libca/zip/file.hpp>`（只读访问器 `ZipFile`）
+- `<libca/zip/input_stream.hpp>` / `<libca/zip/output_stream.hpp>`（流式读写）
+- `<libca/zip/entry.hpp>`（条目元数据 `ZipEntry`）
+- `<libca/zip/checksum.hpp>`（CRC）
+
+功能：
+- `ZipFile`：磁盘/内存镜像打开并立即解析的只读访问器；以最后一条合法 EOCD 为准，
+  支持前缀拼接（自提取类）与 ZIP64；错误抛 `std::runtime_error`。
+- `ZipInputStream` / `ZipOutputStream`：条目流式读写，支持 DD（数据描述符）条目。
+- `ZipEntry`：名称、大小、时间等方法信息面的只读元数据。
+
+## resources
+
+清单驱动的 constexpr 目录树嵌入与只读查询（header-only）。配套构建 rule
+`libca.resources.embed` 在构建期把挂载目录树生成为 constexpr 头嵌入二进制，
+单 exe 分发零文件依赖。
+
+入口头文件：
+- `<libca/resources/resources.hpp>`（`Bundle` / `RawEntry`）
+
+功能：
+- `Bundle`：按挂载名注册的只读目录树；include 生成头即完成自注册（`mount`）。
+- `get` / `exists`：Java 式 UTF-8 相对路径（`/` 开头、大小写敏感）的二分查找。
+- `under`：按目录前缀过滤的连续区间迭代；`all` 全量遍历。
+- 字节经 `ca::core::ByteSlice` 暴露，纯内存视图，无写盘接口。
+- constexpr 方案单文件上限 1 MiB，更大文件待 obj 嵌入方案。
+
+## i18n
+
+嵌入式 CLI 消息国际化（header-only）。配套构建 rule `libca.i18n.embed-lang` 从
+`translations/*.lang`（UTF-8 properties 风格）生成 constexpr 头嵌入二进制。
+
+入口头文件：
+- `<libca/i18n/i18n.hpp>`
+
+功能：
+- `init`：注册语言表并按环境变量序列选定初始语言。
+- `apply_lang_from_argv`：命令行 `--lang` 预扫描（优先级高于环境变量）。
+- `set_lang` / `current_lang`：运行期语言切换与查询（仅启动阶段调用）。
+- `tr(key)`：当前语言 → zh_CN → key 原样的回退查询（渐进迁移友好）。
+- `trf(key, args)`：`{0}` `{1}` 占位符格式化（可乱序/重复），返回 `Utf8String`。
+- 构建期校验：key 命名约定与 zh_CN 超集（其他语言缺 key 会报错）。
+
+## test
+
+基于 `.project_root_file` 标记文件的多项目测试布局与样本定位（header-only），
+解决多子项目仓库中测试资源与输出路径的硬编码问题。
+
+入口头文件：
+- `<libca/test/test.hpp>`
+
+功能：
+- `setup(project)`：自 CWD 递归扫描 `.project_root_file` 建立 name → 根路径映射。
+- `resource` / `resource_path` / `has_resource`：当前项目 `test_resource/` 样本定位。
+- `project_resource`：按名字跨项目取样本；`project_path` / `has_project` 项目根查询。
+- 输出统一写 `<顶层仓根>/test/`，环境变量 `LIBCA_TEST_OUT_ROOT` 可覆盖。
+- 测试 target 需 `set_rundir("$(projectdir)")` 使 CWD 为顶层仓根。
 
 ## log
 

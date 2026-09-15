@@ -2,7 +2,7 @@
 
 统一 IO 抽象：Reader / Writer / Seek 接口、缓冲读写、原生 handle/fd RAII。命名空间 `ca::io`。
 
-> 设计与选型见 `doc/design.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
+> 设计与选型见 `doc/io设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 读取字节流
 

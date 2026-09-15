@@ -3,7 +3,7 @@
 同步 HTTP/1.0/1.1 codec、client 与 server 模块，命名空间 `ca::http`。
 
 HTTPS client 与 HTTPS server 是默认关闭的可选能力，启用时由 OpenSSL 3 提供 TLS transport；HTTP codec
-与公开接口不暴露 OpenSSL 类型。设计边界见 `doc/design.md`，接口签名以头文件 Doxygen 注释为准。
+与公开接口不暴露 OpenSSL 类型。设计边界见 `doc/http设计文档.md`，接口签名以头文件 Doxygen 注释为准。
 
 ```bash
 xmake f --with_core=y --with_openssl=y -y
