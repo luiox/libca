@@ -2,6 +2,7 @@
 
 #include "libca/net/address.hpp"
 #include "libca/net/dns.hpp"
+#include "libca/net/dns_cache.hpp"
 #include "libca/net/socket.hpp"
 #include "libca/net/sock_util.hpp"
 #include "libca/net/tcp.hpp"
