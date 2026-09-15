@@ -17,6 +17,12 @@ int main(int argc, char** argv)
         std::this_thread::sleep_for(std::chrono::seconds(5));
         return 0;
     }
+    if (argc == 2 && std::strcmp(argv[1], "--subprocess-partial-output") == 0) {
+        std::cout << "partial" << std::flush;
+        std::cerr << "oops" << std::flush;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        return 0;
+    }
     if (argc == 2 && std::strcmp(argv[1], "--subprocess-failure") == 0) {
         return 7;
     }

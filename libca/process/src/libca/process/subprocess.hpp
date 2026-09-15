@@ -30,6 +30,7 @@
 
 namespace ca::process {
 
+class Child;
 class Command;
 
 namespace ipc {
@@ -66,9 +67,15 @@ private:
     explicit PipeReader(std::intptr_t native_handle) noexcept;
     std::intptr_t release() noexcept;
 
+    /// @brief 非阻塞读取当前已到达的数据，不等待新数据。
+    /// @details 管道暂无数据返回空 optional；写端全部关闭返回 0（EOF）。仅由 Child
+    ///          的超时排空循环使用：阻塞读在超时后无法安全中止，增量读可以。
+    ca::core::StatusResult<std::optional<usize>> read_available(void* buffer, usize capacity);
+
     std::intptr_t native_handle_{-1};
 
     friend class ::ca::process::Command;
+    friend class ::ca::process::Child;
     friend ca::core::StatusResult<AnonymousPipe> create_anonymous_pipe();
 };
 
@@ -166,10 +173,20 @@ struct Output
     std::string stderr_data;
 };
 
+/// @brief Command::output() 的选项。
+struct OutputOptions
+{
+    /// @brief 等待子进程退出的时限；零表示不限时（等同 output()）。
+    std::chrono::milliseconds timeout{0};
+    /// @brief 超时后是否终止并回收子进程（默认）；false 时遗弃子进程：标准流端随
+    ///        Child 关闭、进程继续运行，调用方拿到 DEADLINE_EXCEEDED。
+    bool kill_on_timeout{true};
+};
+
 /// @brief 拥有一个子进程的 move-only 句柄。
 /// @details 析构会关闭它持有的标准流端和原生进程句柄，但不会终止仍在运行的子进程；
-///          需要终止须显式调用 kill()。wait_with_output() 会先关闭 stdin 再并发排空
-///          stdout/stderr，避免管道写满导致死锁。
+///          需要终止须显式调用 kill()。wait_with_output() 会先关闭 stdin，等待期间
+///          循环排空 stdout/stderr，避免管道写满导致死锁。
 class Child
 {
 public:
@@ -198,13 +215,22 @@ public:
     std::optional<ChildStdout>     take_stdout();
     /// @brief 取出子进程标准错误读端；未配置 piped 返回空。
     std::optional<ChildStderr>     take_stderr();
-    /// @brief 关闭 stdin 后并发排空 stdout/stderr，阻塞到子进程退出，返回全部输出。
+    /// @brief 关闭 stdin 后增量排空 stdout/stderr，阻塞到子进程退出，返回全部输出。
     ca::core::StatusResult<Output> wait_with_output();
+    /// @brief 同 wait_with_output()，最多等待 timeout；超时不杀子进程。
+    /// @details 超时返回 DEADLINE_EXCEEDED，子进程保持运行；stdout/stderr 端与超时前已
+    ///          排空的数据都留在 Child，再次调用 wait_with_output()/wait_with_output_for()
+    ///          （通常在 kill() 之后）会接着累积并连同退出状态一并返回，不丢数据。若改用
+    ///          take_* 自行读管道，已排空的部分不在管道里。
+    ca::core::StatusResult<Output> wait_with_output_for(std::chrono::milliseconds timeout);
 
 private:
     Child(std::intptr_t native_process, u64 process_id, std::optional<ChildStdin> stdin,
           std::optional<ChildStdout> stdout, std::optional<ChildStderr> stderr) noexcept;
     void close_process() noexcept;
+    /// @brief 排空实现主体；timeout 为空表示等到子进程退出为止。
+    ca::core::StatusResult<Output> wait_with_output_until(
+        std::optional<std::chrono::milliseconds> timeout);
 
     std::intptr_t              native_process_{-1};
     u64                        process_id_{0};
@@ -212,6 +238,9 @@ private:
     std::optional<ChildStdin>  stdin_;
     std::optional<ChildStdout> stdout_;
     std::optional<ChildStderr> stderr_;
+    /// @brief wait_with_output 系列已排空但尚未随 Output 交出的数据（超时续接用）。
+    std::string                collected_stdout_;
+    std::string                collected_stderr_;
 
     friend class Command;
 };
@@ -247,6 +276,9 @@ public:
     ca::core::StatusResult<ExitStatus> status() const;
     /// @brief 启动子进程、收集 stdout/stderr 并返回 Output。
     ca::core::StatusResult<Output>     output() const;
+    /// @brief 同 output()，按 options.timeout 限时：超时报 DEADLINE_EXCEEDED，默认
+    ///        终止并回收子进程（见 OutputOptions::kill_on_timeout）。
+    ca::core::StatusResult<Output>     output(const OutputOptions& options) const;
 
 private:
     std::string                program_;

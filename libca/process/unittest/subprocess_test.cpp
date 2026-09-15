@@ -138,6 +138,78 @@ TEST(ChildTest, WaitForThenKillAndReap)
     EXPECT_FALSE(status.unwrap().success());
 }
 
+TEST(ChildTest, WaitWithOutputForCollectsOutputBeforeDeadline)
+{
+    auto command = child_command("--subprocess-success");
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
+
+    auto child  = std::move(spawned).unwrap();
+    auto result = child.wait_with_output_for(std::chrono::seconds(10));
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    const auto output = result.unwrap();
+    EXPECT_TRUE(output.status.success());
+    EXPECT_EQ(output.stdout_data, "stdout");
+    EXPECT_EQ(output.stderr_data, "stderr");
+}
+
+TEST(ChildTest, WaitWithOutputForTimesOutThenResumesWithoutLosingOutput)
+{
+    auto command = child_command("--subprocess-partial-output");
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_ok()) << spawned.unwrap_err().to_string();
+
+    auto child   = std::move(spawned).unwrap();
+    auto pending = child.wait_with_output_for(std::chrono::milliseconds(50));
+    ASSERT_TRUE(pending.is_err());
+    EXPECT_EQ(pending.unwrap_err().code(), ca::core::StatusCode::DEADLINE_EXCEEDED);
+
+    // 超时不杀子进程：仍在运行，由调用方决定 kill。
+    auto alive = child.try_wait();
+    ASSERT_TRUE(alive.is_ok()) << alive.unwrap_err().to_string();
+    EXPECT_FALSE(alive.unwrap().has_value());
+    ASSERT_TRUE(child.kill().is_ok());
+
+    // kill 后续接：超时前已排空的输出与退出状态一并返回，不丢数据。
+    auto result = child.wait_with_output();
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    const auto output = result.unwrap();
+    EXPECT_FALSE(output.status.success());
+    EXPECT_EQ(output.stdout_data, "partial");
+    EXPECT_EQ(output.stderr_data, "oops");
+}
+
+TEST(CommandTest, OutputWithTimeoutKillsHungChild)
+{
+    auto command = child_command("--subprocess-timeout");
+    auto result  = command.output(OutputOptions{std::chrono::milliseconds(100), true});
+
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err().code(), ca::core::StatusCode::DEADLINE_EXCEEDED);
+}
+
+TEST(CommandTest, OutputWithTimeoutCanLeaveChildRunning)
+{
+    auto command = child_command("--subprocess-timeout");
+    auto result  = command.output(OutputOptions{std::chrono::milliseconds(100), false});
+
+    ASSERT_TRUE(result.is_err());
+    EXPECT_EQ(result.unwrap_err().code(), ca::core::StatusCode::DEADLINE_EXCEEDED);
+}
+
+TEST(CommandTest, OutputWithZeroTimeoutBehavesLikeOutput)
+{
+    auto command = child_command("--subprocess-success");
+    auto result  = command.output(OutputOptions{});
+
+    ASSERT_TRUE(result.is_ok()) << result.unwrap_err().to_string();
+    EXPECT_TRUE(result.unwrap().status.success());
+    EXPECT_EQ(result.unwrap().stdout_data, "stdout");
+    EXPECT_EQ(result.unwrap().stderr_data, "stderr");
+}
+
 TEST(ChildTest, WaitReturnsCachedStatusAfterTryWaitReapsChild)
 {
     auto command = child_command("--subprocess-success");
