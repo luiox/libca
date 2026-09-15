@@ -1,17 +1,11 @@
 # libca
 
 [![Core CI](https://github.com/luiox/libca/actions/workflows/core-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/core-ci.yml)
-[![EM CI](https://github.com/luiox/libca/actions/workflows/em-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/em-ci.yml)
 
-C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
+C++17 桌面端基础设施库（Rust 语义对齐的现代 C++ 标准库补充）。
 
-| 部分 | 语言 | 面向 | 入口 |
-|------|------|------|------|
-| **`libca/`** | C++17 | 桌面端基础设施（Rust 语义对齐的现代 C++ 标准库补充） | 本文档 §libca |
-| **`libca.em/`** | C99 | 嵌入式 MCU 组件（驱动/总线/协议/shell） | `libca.em/README.md` |
-
-> 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` 开关解耦，可单独构建；`with_demo` 控制 em 外部集成示例。
-> 本 README 的详细部分聚焦 **libca**（桌面 C++）。嵌入式见 `libca.em/README.md`。
+原 `libca.em/`（C99 嵌入式 MCU 组件：驱动/总线/协议/shell）已拆分至独立仓库
+[luiox/libca-em](https://github.com/luiox/libca-em)，本仓库不再携带。
 
 ## 状态与免责声明
 
@@ -23,8 +17,8 @@ C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
 xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于作为 submodule 被引用时不强拉 gtest）。
 
 ```bash
-xmake f -p windows -a x64 --with_tests=y --with_em=n --with_demo=n -y  # 配置(带测试,仅C++)
-xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_em=n --with_demo=n -y  # 启用 HTTPS client
+xmake f -p windows -a x64 --with_tests=y --with_demo=n -y  # 配置(带测试)
+xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_demo=n -y  # 启用 HTTPS client
 xmake                          # 构建
 xmake test -g libs/test        # 跑全部 C++ 测试(对应 CI)
 xmake run libca_fs_unittest    # 跑单个模块测试

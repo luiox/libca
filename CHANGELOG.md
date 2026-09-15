@@ -7,6 +7,18 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
 
+## [0.0.7] - 未发布
+
+### 全局
+
+- **[不兼容]** `libca.em/`（C99 嵌入式组件）整体拆分至独立仓库
+  <https://github.com/luiox/libca-em>（git subtree split 保留完整提交历史）：
+  - 本仓库删除 `libca.em/`、`xmake/modules/`（源码包管理器随迁）、`with_em`
+    构建选项与 em 专用 CI 工作流；
+  - 消费方迁移：`import("libca.em")` 命名空间不变，仅需把 `em.setup` 的
+    `root` 与 `add_moduledirs` 指向 libca-em 仓库；
+  - 源码包机制规范随迁为 libca-em 仓库 `doc/源码包规范.md`。
+
 ## [0.0.1] - 未发布
 
 - 初始骨架：libca（C++17）+ libca.em（C99）双部分仓库，xmake 构建。
