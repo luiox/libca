@@ -6,7 +6,7 @@ HTTPS client 与 HTTPS server 是默认关闭的可选能力，启用时由 Open
 与公开接口不暴露 OpenSSL 类型。设计边界见 `doc/http设计文档.md`，接口签名以头文件 Doxygen 注释为准。
 
 ```bash
-xmake f --with_core=y --with_em=n --with_openssl=y -y
+xmake f --with_core=y --with_openssl=y -y
 ```
 
 ## 读写报文

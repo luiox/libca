@@ -143,6 +143,6 @@ kind：Null / Boolean / Integer / Float / String / IntOverflow / FloatOverflow�
    不能写 `'line1\n\nline2'`（初版测试踩过，已改）。
 5. **块标量保真回退**：首行以空白开头的多行串写成 `|` 块标量后读回缩进会误判，writer 检测到
    这种不可保真情形回退双引号——写测试断言时要照顾这条分支。
-6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y --with_em=n`，不指定平台
+6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y`，不指定平台
    会回落 mingw、gtest 编译失败。单目标构建用 `xmake build libca_yaml_unittest`（xmake
    一次只接受一个目标），全量测试用 `xmake test -g libs/test`。

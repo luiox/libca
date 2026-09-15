@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-09-13 - 增补 §6：TimerManager / EventBus / ObjectPool 三个新组件的设计取舍
 2026-07-14 - 由 design.md 改名补 YAML 头，删除使用文档（并入 README），本文成为 thread 唯一设计文档
 ---
 
@@ -204,3 +205,43 @@ Running --shutdown(Drain)--------> ShuttingDownDrain --join()--> Joined
 
 测试不得依赖长时间 sleep 判定正确性；同步点优先使用条件变量、promise/future 和
 明确的截止时间。
+
+## 6. Timer / EventBus / ObjectPool（2026-09 增补）
+
+三个组件与既有的 ThreadPool/BoundedQueue 同属并发设施，均不依赖其它 libca 模块
+（仅 core 定长类型），延续「回调在锁外执行、异常不逃出」的模块纪律。
+
+### 6.1 TimerManager
+
+- 单调度线程 + `(expiry, id)` 有序 set；条件变量谓词校验「队首是否变化」，新任务
+  成为最近到期者时立即唤醒重算等待时长。`next_expiry()` 供将来 event loop 计算等待。
+- 重复定时器取**固定延迟语义**（上次回调结束 + period），长回调顺延后续触发，
+  换取实现简单与「回调不重叠」的强保证。
+- 取消语义：句柄 cancel 只把任务移出队列后立即返回，不中断已开始的回调；回调内
+  自取消 / 安排新任务均安全（回调执行期间不持有内部锁）。续期前复查 cancelled，
+  取消与触发的线性化点在「出队」。
+- 回调异常视为返回 false（重复任务停止续期），不逃出调度线程。
+- 析构 = 取消全部未到期任务 + join 调度线程（等待进行中回调返回）。
+
+### 6.2 EventBus
+
+- 字符串事件名 → 监听器表；`emit` 在锁内拷贝快照、锁外逐个同步调用。由此得到
+  三条保证：回调内 subscribe/unsubscribe/emit 其它事件不死锁；本轮快照固定
+  （过程中注销者本轮仍被调用，文档明示）；单个监听器异常被隔离，其余照常执行。
+- 句柄持 `weak_ptr<State>`：总线销毁后注销退化为空操作。空事件表及时清理，
+  避免长期运行时监听表无限增长。
+- 明确不做：负载路由（回调自带 lambda 捕获）、异步投递（需要时显式 post 到
+  ThreadPool / TimerManager）。回调内同步 emit **同一事件**会无限递归，头注释禁止。
+
+### 6.3 ObjectPool
+
+- 借还式语义完全由 `shared_ptr` 自定义 deleter 表达：最后一次引用释放时对象回池，
+  调用方无感知。
+- 快路径 `try_lock`：抢到锁走池化路径；锁竞争、池空或已关闭时**直接构造新对象，
+  永不阻塞**（ZLToolKit ResourcePool 同款取舍：高并发下池化退化为普通分配）。
+- deleter 持 `weak_ptr<State>`：借出对象可以比池活得久，池析构后归还的对象直接
+  销毁，不泄漏不悬垂。
+- `on_recycle` 重置钩子抛异常时吞掉异常并销毁对象、不入池（重置失败的对象状态
+  不可信）。`shutdown()` 后 obtain 直接构造、归还改为销毁。
+- 有意不做空闲上限（idle 无界）：与「永不阻塞」配套的取舍，容量治理交给调用方
+  （控制同时在借对象数）。后续如有真实需求再加 max_idle。

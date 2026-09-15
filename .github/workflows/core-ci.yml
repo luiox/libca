@@ -1,7 +1,7 @@
-# libca Core CI（Linux + Windows，不含 libca.em）
+# libca Core CI（Linux + Windows）
 #
 # 范围：core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http}）+ 其 unittest。
-# Linux job 不含 Windows-only 的 libca/ui；Windows job（msvc）全量编译含 ui。不编译 libca.em。
+# Linux job 不含 Windows-only 的 libca/ui；Windows job（msvc）全量编译含 ui。
 #
 # 历史背景：仓库早期存在旧的 libca.core/（带点目录，桌面端 legacy 代码），
 # 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）。
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   build-and-test-core:
-    name: build & test (linux, no em)
+    name: build & test (linux)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -67,11 +67,11 @@ jobs:
       - name: Configure (core + tests, no em)
         run: |
           # -p linux：显式指定平台，避免歧义。
-          # --with_core=y --with_em=n：只编 core 族，排除 em。
+          # --with_core=y：只编 core 族，排除 em。
           # --with_tests=y：启用 *_unittest target 并拉取 gtest。
           # --with_demo=n：不编 demo。
           # -y：xrepo 安装 gtest 的交互确认自动通过。
-          xmake f -p linux --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+          xmake f -p linux --with_core=y --with_demo=n --with_tests=y -y
 
       - name: Build C++ libraries
         run: xmake build -g libs -v
@@ -111,7 +111,7 @@ jobs:
 
       - name: Configure HTTP with OpenSSL 3
         run: |
-          xmake f -p linux --with_core=y --with_em=n --with_demo=n --with_tests=y --with_openssl=y -y
+          xmake f -p linux --with_core=y --with_demo=n --with_tests=y --with_openssl=y -y
 
       - name: Build and test HTTP with OpenSSL 3
         run: |
@@ -150,12 +150,12 @@ jobs:
       - name: Configure (core + tests, no em, msvc)
         if: matrix.toolchain == 'msvc'
         # -p windows -a x64：走 runner 预装的 MSVC 工具链；cmake/ninja 已预装，gtest 由 xrepo 编译。
-        run: xmake f -p windows -a x64 --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+        run: xmake f -p windows -a x64 --with_core=y --with_demo=n --with_tests=y -y
 
       - name: Configure (core + tests, no em, mingw-gcc)
         if: matrix.toolchain == 'mingw'
         # -p mingw：runner 预装的 MinGW-w64 gcc（PATH 可见），xmake 自动探测。
-        run: xmake f -p mingw -a x86_64 --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+        run: xmake f -p mingw -a x86_64 --with_core=y --with_demo=n --with_tests=y -y
 
       - name: Build C++ libraries
         run: xmake build -g libs

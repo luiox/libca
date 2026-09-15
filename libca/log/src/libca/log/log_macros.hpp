@@ -15,6 +15,9 @@
 /// @brief 用户入口：日志宏 + 编译期/运行期过滤。命名空间 `ca::log`。
 /// @note 用法：`#include "libca/log/log_macros.hpp"` 然后 `CA_LOG_INFO("hello {}", name)`。
 ///       编译期级别由 `CA_COMPILE_LOG_LEVEL` 宏控制（默认 Info），低于该级别的宏不生成调用。
+/// @note 短路求值保证：编译期被裁剪的级别（if constexpr 整体丢弃）与运行期级别不满足
+///       （未注册 target 或 should_log 为 false）时，格式化实参 **零求值**——实参中的
+///       函数调用、临时对象构造等副作用均不会发生。运行期检查在宏内、实参求值之前完成。
 
 namespace ca::log {
 
@@ -32,21 +35,21 @@ constexpr bool should_compile(Level level) noexcept
 
 namespace detail {
 
-/// @brief 门面分发入口：按 target 查 Logger，运行期过滤后调后端。
-/// @note FmtArgsHolder 是 view：实参来自调用方栈帧，在本函数同步调用 backend->log() 期间
+/// @brief 门面分发入口：按已通过过滤的 Logger 直接调后端。
+/// @note 级别过滤（编译期 + 运行期）已在宏内完成——这是"级别不满足时实参零求值"的
+///       前提：若把运行期检查留到本函数内，实参早在进入函数前就被求值了。因此本函数
+///       假定 logger 非 nullptr 且 should_log 已通过，直接分发。
+///       FmtArgsHolder 是 view：实参来自调用方栈帧，在本函数同步调用 backend->log() 期间
 ///       存活，安全。严禁把 holder 异步入队（会悬空）。
 template<typename... Args>
-inline void log_with_source(Level              level,
-                            std::string_view   target,
-                            std::string_view   file,
-                            int                line,
+inline void log_with_source(Logger*              logger,
+                            Level                level,
+                            std::string_view     target,
+                            std::string_view     file,
+                            int                  line,
                             fmt::format_string<Args...> fmt_str,
                             Args&&... args)
 {
-    auto* logger = LoggerRegistry::get(target);
-    if (logger == nullptr || !logger->should_log(level))
-        return;
-
     // make_format_args 要求实参为左值（fmt 10.x+ 禁止临时量，见 fmt issue #3589）。
     // 函数参数 args... 本身是左值，直接传入即可；不要 std::forward（那会得到右值引用）。
     // store 是本栈帧上的临时量，但在同一全表达式内同步调用 backend->log()，实参仍在栈上，
@@ -69,7 +72,14 @@ inline void log_with_source(Level              level,
 #define CA_LOG_LEVEL(level, target, ...)                                                           \
     do {                                                                                           \
         if constexpr (::ca::log::should_compile(level)) {                                          \
-            ::ca::log::detail::log_with_source(level, target, __FILE__, __LINE__, __VA_ARGS__);    \
+            /* 运行期检查必须在实参求值前完成：get/should_log 通过后才展开 __VA_ARGS__，  */        \
+            /* 级别不满足时实参零求值（短路求值）。target 只求值一次，暂存后两处使用。   */        \
+            const std::string_view ca_log_target = (target);                                       \
+            auto* ca_log_logger = ::ca::log::LoggerRegistry::get(ca_log_target);                   \
+            if (ca_log_logger != nullptr && ca_log_logger->should_log(level)) {                    \
+                ::ca::log::detail::log_with_source(                                                \
+                    ca_log_logger, level, ca_log_target, __FILE__, __LINE__, __VA_ARGS__);         \
+            }                                                                                      \
         }                                                                                          \
     } while (0)
 

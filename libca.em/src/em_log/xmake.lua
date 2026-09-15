@@ -1,7 +1,0 @@
--- 嵌入式日志库
--- target("libca.em_log")
---     set_kind("static")
---     set_group("em")
---     add_files("log.c")
---     add_files("simple_logger.c")
---     add_deps("libca.em_base")

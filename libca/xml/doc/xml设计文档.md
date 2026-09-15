@@ -122,6 +122,6 @@ peek/advance/fail 模式），不需要 yaml 那套行预扫。
    会绕过 u32。代理区 `0xD800..0xDFFF` 在 `encode_utf8` 里额外拒绝。
 5. **名字放行 `>=0x80` 字节**支持 Unicode 元素名，但不做完整 Name 校验；这是配置子集的
    有意取舍，不是 bug。
-6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y --with_em=n`，不指定平台会
+6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y`，不指定平台会
    回落 mingw、gtest 编译失败。单目标构建 `xmake build libca_xml_unittest`（xmake 一次只接受
    一个目标），全量测试 `xmake test -g libs/test`。

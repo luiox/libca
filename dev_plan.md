@@ -64,12 +64,9 @@ UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu 
 - `[待办]` 补设计文档：zip（EOCD 扫描/前缀恢复/ZIP64 取舍）、resources 与 i18n
   （构建期 rule 设计）优先；env/random/uuid/test 可接受没有。
 - `[待办]` 删除 `core/wrapper.hpp` 的 deprecated Singleton（关联 issue #123，库内零使用）。
-- `[待办]` libca.em：icm20948 补 .lua/.md（当前四件套不齐，不参与 em_driver 构建）。
-- `[待办]` libca.em README 滞后：承诺 12 个模块章节只写了 4 节；总览表漏
-  em_crypto/em_dstream/em_format/em_motion/em_mpool；驱动表漏 3 个且 24/28 未实物验证。
-- `[待办]` libca.em 测试缺口：em_bus、em_driver 无单测。突破口是把 `em_platform/vhil.h`
-  （目前只有 GPIO/I2C typedef、无实现）补成可用仿真层，驱动做寄存器级仿真测试。
-- `[待办]` 已知功能缺口（代码内已声明，按需排期）：ymodem 发送方向、soft_i2c 从机模式。
+- `[已迁出]` libca.em 相关待办（icm20948 四件套、README 滞后、em_bus/em_driver
+  测试缺口、ymodem 发送方向与 soft_i2c 从机模式等功能缺口）随 2026-09 拆分
+  移至独立仓库 <https://github.com/luiox/libca-em>，在本仓库追踪已无意义。
 
 ## 低优先级 / 路线图
 
