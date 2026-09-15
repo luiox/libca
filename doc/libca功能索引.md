@@ -345,7 +345,8 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选；`CachedDnsResolver`
   带 TTL 的线程安全缓存（可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计）。
 - `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时、非阻塞与
-  `set_keepalive`（keepalive 三参数，Windows 仅两参可配）。
+  `set_keepalive`（keepalive 三参数，Windows 仅两参可配）；`connect_timeout` 提供
+  可注入 `DnsResolveFn` 的重载（DNS 缓存等装饰器经此接入，为空走默认解析）。
 - `TcpListener`：TCP bind、accept、临时端口、非阻塞和 clone。
 - `UdpSocket`：保留数据报边界的 send/receive API、超时、非阻塞和 broadcast。
 - `SocketError`：原生 socket 错误码归一化（WSA/errno 双路），可桥接 `IoErrorKind`。
@@ -387,6 +388,8 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `Http1ChunkedBodyWriter`：逐 chunk 写入与显式 flush/finalize，支持 SSE 等低延迟输出。
 - `HttpClient`：HTTP/HTTPS 完整缓冲 response、同源 keep-alive、TLS verification、1xx 与分阶段总 deadline。
 - `HttpConnectionPool`：按 host 复用 keep-alive 连接（空闲超时、借出探活），经 `HttpClientOptions.pool` 注入。
+- `HttpClientOptions.dns_cache`：可选共享 `CachedDnsResolver`（TTL + LRU，线程安全可跨
+  client 共享），设置后新连接经其解析主机名；不注入行为不变。
 - `HttpServer`：method/path 精确路由、有界 worker/排队、keep-alive、stop-aware IO。
 - `HttpServerResponse`：handler 返回 buffered response 或 chunked producer。
 - `HttpLimits` / `HttpError`：start-line、header count/bytes、body 上限与结构化协议错误。
@@ -417,6 +420,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/crypto/random.hpp>`
 - `<libca/crypto/chacha20.hpp>`
 - `<libca/crypto/rc4.hpp>`
+- `<libca/crypto/aes.hpp>`
 - `<libca/crypto/murmur3.hpp>`
 - `<libca/crypto/base32.hpp>`
 
@@ -430,6 +434,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `murmur3_32`：非加密哈希（HashMap 键哈希/布隆过滤器用）。
 - 随机数辅助。
 - ChaCha20、RC4 等流式算法。
+- AES（ECB/CBC/CTR，128/192/256）：`AesBackend` 后端选择（Builtin/OpenSsl/Cng/Auto）。
+  Builtin 为参考实现、任何构建可用但不承诺常量时间；防时序攻击场景显式选
+  OpenSSL/CNG。**AES-GCM 仅外部后端提供**（内置请求返回 `UNSUPPORTED_ALGORITHM`）。
 
 设计文档：
 - `libca/crypto/doc/crypto设计文档.md`
@@ -494,6 +501,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/thread/timer.hpp>`
 - `<libca/thread/event_bus.hpp>`
 - `<libca/thread/object_pool.hpp>`
+- `<libca/thread/message_loop.hpp>`
 
 功能：
 - `StopSource` / `StopToken`：共享、幂等的协作停止状态，支持等待停止请求。
@@ -505,6 +513,8 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `TimerManager`：steady_clock 定时器调度（一次性/重复、句柄取消、回调在调度线程串行执行）。
 - `EventBus`：进程内按事件名发布/订阅（快照语义、异常隔离、句柄注销）。
 - `ObjectPool<T>`：借还式对象池（shared_ptr 归还进池、try-lock 快路径、高竞争退化为直接构造）。
+- `MessageLoop`：单线程任务循环（FIFO `post_task`、`post_task_with_result` 返回
+  `std::future`、steady_clock 定时的 `post_delay_task`、`stop` / `stop_and_drain`）。
 
 设计与使用文档：
 - `libca/thread/doc/thread设计文档.md`
@@ -526,6 +536,9 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。
 - `ipc::NamedSemaphore`：命名信号量。
 - `ipc::MessageQueue`：消息队列（Windows mailslot / Linux POSIX mqueue）。
+- `ipc::ShmRingQueue`：无内核对象的共享内存环形队列（128B 头 + 环形槽位），写者活性
+  经心跳 + 出生时间戳判定、支持代际接管（写者崩溃后可恢复），适合高频小消息
+  同机通信；与 `MessageQueue` 并存不互替。
 
 相关文档：
 - `libca/process/doc/process设计文档.md`
