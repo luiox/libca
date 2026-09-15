@@ -1,6 +1,7 @@
 ---
-version: 1.4
+version: 1.5
 update:
+2026-09-15 - 5.x 新增编码内置化章节：三级查找结构、GB18030 表生成流程、iconv 开关、CP_936 差异钉死与性能参考数字（路线图批次 3）
 2026-08-10 - 9.6 节更新：stdin/stdout/stderr 宏陷阱的解法从 subprocess.cpp include 顺序改为约束内聚到 subprocess.hpp 内部，任何 include 顺序安全
 2026-08-09 - 新增格式化设施 format 章节（fmt 提升为 str public 依赖，提供 format/format_to/format_runtime 门面）
 2026-07-20 - 新增代码页转换工具章节（CharsetConverter，从 libca.core 迁移并去 iconv）
@@ -154,6 +155,52 @@ bug（iconv 失败判断用 `== 0` 而非 `==(iconv_t)-1`、固定 255 字节栈
 
 GBK 等中文遗留码页是 Windows 概念，新库不打算为它引入跨平台依赖。如果未来确有跨平台
 中文转码需求，应基于 ICU 或平台原生 API 单独设计，而不是复活 libiconv 路径。
+
+### 5.1 编码内置化（2026-09，路线图批次 3）
+
+上面"基于 ICU 或平台原生 API"的结论被推翻：ICU 太重，平台 API 行为随系统漂移
+（裁剪 glibc 缺 GBK gconv 模块直接 `UNIMPLEMENTED`；Windows 代码页随区域设置变）。
+实际方案是**零依赖内置**（见 `doc/加密与编码内置化方案.md` §一），`CharsetConverter`
+实现改为三级查找：
+
+```
+内置表（Tier 1/2）→ iconv 回落（Tier 3，仅 POSIX，--with_iconv 可关）→ UNSUPPORTED
+```
+
+- **Tier 1 纯算法**（`detail/charset_builtin.cpp`）：UTF-8 ↔ wchar（复用
+  `conversion.hpp` / `utf8_util.hpp` 原语）、Latin-1 直映射、Windows-1252
+  （= Latin-1 + 0x80-0x9F 的 27 项 WHATWG index-windows-1252 差异表，硬编码）。
+  Windows 的 `utf8_to_wide` 不再经系统代码页。
+- **Tier 2 表驱动**（`detail/charset_gb18030.cpp` + `gb18030_tables.inc`）：
+  GB18030 双字节解码表（23940 项）+ 编码表（码点升序二分）+ 四字节线性区间表
+  （207 段）。GBK/GB2312 是 GB18030 双字节子集，`gbk_*` 与 `gb18030_*` 统一走
+  这条路径，不再依赖 gconv / CP_936。
+- **Tier 3 长尾**：iconv 只剩本地代码页（`local_*`）与长尾编码回落；
+  `--with_iconv=n` 可纯内置构建（POSIX 下完全不引 iconv 头，本地 codeset 仅
+  UTF-8/ASCII/Latin-1 可用）。
+
+**表生成流程**：`tools/gen_charset_tables.py` 以 python 内置 codec 为源（与
+WHATWG encoding 标准 index 同源），对抽样向量断言 WHATWG 一致后全量自洽校验
+（四字节 1,087,996 个码点的编码方向 + 1,587,600 个指针位置的解码方向逐一对拍），
+生成 `.inc` 入库——构建不依赖 python 与网络。脚本参数化支持 big5 / shift_jis /
+euc-kr（本批只入库 gb18030，其余留开关）。两个关键坑已固化在脚本注释里：四字节
+指针空间在**每个码点空洞**处断段（双字节映射也算洞，如 U+00A4），以及保留指针洞
+[39420, 188999]（BMP 块与增补平面块之间，解码必须拒绝而非线性插值）。
+
+**与 CP_936 的差异钉死**：GB18030 中单字节 0x80 是非法字节（CP_936 映射欧元
+U+20AC），欧元编码是双字节 A2 E3；CP_936 对不可表示码点做 best-fit 替换，内置
+路径一律 `INVALID_ARGUMENT` 不替换。这些边角连同 glibc 差异（iconv 曾接受超
+Unicode 上限的 wide 码点，见 commit 2d005cb）全部以固定向量钉在
+`charset_builtin_test.cpp`，内置路径下跨平台行为完全确定。
+
+**能力查询**：`supported(charset)`（大小写不敏感；POSIX + iconv 启用时对长尾
+按 iconv_open 探测）与 `list_supported()`（内置覆盖 + 别名，跨平台一致）。
+
+**性能参考数字**（`libca_str_perf`，Windows/MSVC release，2 MB 中文样本，
+5 轮中位）：utf8→gb18030 约 78-90 MB/s，gb18030→utf8 约 80-95 MB/s，
+utf8→utf16 约 270-300 MB/s，utf8→cp1252 约 150-175 MB/s。基准不入 CI 测试组
+（`set_default(false)`，无 add_tests），构建 `xmake build -P . libca_str_perf`
+后直接跑产物。
 
 ## 6. 依赖与错误模型
 
