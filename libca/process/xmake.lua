@@ -12,6 +12,19 @@ target("libca_process")
         add_syslinks("pthread", "rt")
     end
 
+target("libca_process_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_process", "libca_time")
+    add_links("libca_process", "libca_time", "libca_core")
+    add_files("perf/process_perf.cpp")
+    add_includedirs("src")
+
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
+
 if has_config("with_tests") then
 target("libca_process_unittest")
     set_kind("binary")
