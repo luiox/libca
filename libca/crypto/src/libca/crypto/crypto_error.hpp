@@ -12,6 +12,10 @@ enum class CryptoError
     RANDOM_FAILED,
     // 为后续 OpenSSL/CNG 等后端适配预留：算法不被当前后端支持。
     UNSUPPORTED_ALGORITHM,
+    // AEAD（AES-GCM 等）解密认证标签校验失败。
+    AUTHENTICATION_FAILED,
+    // 外部后端（OpenSSL/CNG）调用在参数合法的前提下失败。
+    BACKEND_FAILED,
 };
 
 /// @brief 将 CryptoError 转为稳定的调试字符串。
@@ -32,6 +36,10 @@ inline const char* to_string(CryptoError error) noexcept
         return "secure random generation failed";
     case CryptoError::UNSUPPORTED_ALGORITHM:
         return "unsupported algorithm";
+    case CryptoError::AUTHENTICATION_FAILED:
+        return "authentication failed";
+    case CryptoError::BACKEND_FAILED:
+        return "backend operation failed";
     }
     return "unknown crypto error";
 }
