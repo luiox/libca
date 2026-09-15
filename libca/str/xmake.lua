@@ -13,6 +13,10 @@ target("libca_str")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+    if not has_config("with_iconv") then
+        -- 纯内置构建：POSIX 下不引用 iconv 头（详见 charset.cpp 分支注释）。
+        add_defines("LIBCA_STR_NO_ICONV")
+    end
     add_deps("libca_core")
     add_packages("fmt", {public = true})
 
@@ -32,6 +36,10 @@ target("libca_str_unittest")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+    if not has_config("with_iconv") then
+        -- 与 libca_str 保持一致，测试用 #ifdef 感知构建形态。
+        add_defines("LIBCA_STR_NO_ICONV")
+    end
 
 -- 性能基准：独立 main，不依赖 gtest，不注册进 xmake test（不默认构建）。
 -- 用 `xmake build libca_str_benchmark && xmake run libca_str_benchmark`。
@@ -42,6 +50,22 @@ target("libca_str_benchmark")
     add_deps("libca_str")
     add_links("libca_str", "libca_core")
     add_files("benchmark/*.cpp")
+    add_includedirs("src")
+    set_rundir("$(projectdir)")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
+
+-- 编码转换吞吐基准（编码内置化配套）：独立 main，不依赖 gtest，不注册进
+-- xmake test（不默认构建）。构建：`xmake build -P . libca_str_perf`，
+-- 直接跑产物。用 time 模块 Stopwatch 计时。
+target("libca_str_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_str", "libca_time")
+    add_links("libca_str", "libca_time", "libca_core")
+    add_files("perf/*.cpp")
     add_includedirs("src")
     set_rundir("$(projectdir)")
     if is_plat("windows") then

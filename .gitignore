@@ -29,3 +29,4 @@ mcp/GDB-MCP/
 .codebuddy/
 .agent/
 mcp/mcp.txt
+__pycache__/
