@@ -4,4 +4,5 @@
 #include "libca/net/dns.hpp"
 #include "libca/net/socket.hpp"
 #include "libca/net/tcp.hpp"
+#include "libca/net/tls_stream.hpp"
 #include "libca/net/udp.hpp"
