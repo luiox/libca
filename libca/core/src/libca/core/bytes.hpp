@@ -13,6 +13,8 @@
 /// @note 错误模型分两类，对齐全库 Result：
 ///       - **读游标类**（get_*/advance/copy_to_slice）：输入截断是解析的正常预期，
 ///         返回 `Result<T, BytesError>`，剩余不足时得到 `Err(BytesError::Underflow)`，不抛异常。
+///       - varint（LEB128）读取遇非规范编码（过长、冗余填充、末字节越界）时
+///         得到 `Err(BytesError::MalformedVarint)`，同样不前进游标。
 ///       - **索引越界类**（slice/sub_slice 给了非法下标）：属调用方编程错误，仍抛 std::out_of_range。
 ///       - 分配尺寸溢出（reserve/ensure_writable）：抛 std::length_error（极端防御，正常不可达）。
 
@@ -20,9 +22,10 @@ namespace ca::core {
 
 class BytesMut;
 
-/// @brief 字节读取错误。目前只有一种：剩余字节不足以完成本次读取。
+/// @brief 字节读取错误。
 enum class BytesError {
-    Underflow,  ///< 剩余可读字节不足（输入被截断）
+    Underflow,       ///< 剩余可读字节不足（输入被截断）
+    MalformedVarint, ///< 非规范 varint：过长、超长或末字节非法
 };
 
 /// FsError 风格：转可读字符串，便于日志。
@@ -105,6 +108,16 @@ public:
     Result<f32, BytesError> get_f32_be();
     Result<f64, BytesError> get_f64_be();
 
+    // ── varint 读（LEB128 小端 base-128，仅接受规范编码） ──
+    /// @brief 读一个无符号 varint（LEB128）。最多消费 5 字节。
+    /// @return 截断返回 Err(Underflow)；非规范编码（超过 5 字节、末字节 0x00 冗余填充、
+    ///         第 5 字节高位超出 u32 范围）返回 Err(MalformedVarint)。出错时游标不动。
+    Result<u32, BytesError> get_var_u32();
+    /// @brief 读一个无符号 varint（LEB128）。最多消费 10 字节。
+    /// @return 截断返回 Err(Underflow)；非规范编码（超过 10 字节、末字节 0x00 冗余填充、
+    ///         第 10 字节高位超出 u64 范围）返回 Err(MalformedVarint)。出错时游标不动。
+    Result<u64, BytesError> get_var_u64();
+
     // ── 批量读 ──
     /// @brief 复制 len 字节到 dst 并前进游标。剩余不足返回 Err(Underflow)，不复制、游标不动。
     Result<void, BytesError> copy_to_slice(u8* dst, usize len);
@@ -175,6 +188,15 @@ public:
     void put_f32_be(f32 val);
     void put_f64_be(f64 val);
 
+    // ── varint 写（LEB128 小端 base-128，总是产出规范/最短编码） ──
+    void put_var_u32(u32 val); ///< 把 u32 编码为 varint 追加写入（1~5 字节）
+    void put_var_u64(u64 val); ///< 把 u64 编码为 varint 追加写入（1~10 字节）
+
+    /// @brief 用 val 填充全部已写字节 [0, len())（含读游标之前），不改变 len_/pos_。
+    /// @note volatile 逐字节写防止编译器死存储消除：主要用途是敏感缓冲离场清零
+    ///       （fill(0)），普通 memset 可能被优化掉。
+    void fill(u8 val);
+
     // ── 类型化读（前进游标）。剩余不足返回 Err(BytesError::Underflow)，游标不动。 ──
     Result<u8,  BytesError> get_u8();
     Result<u16, BytesError> get_u16_be();
@@ -191,6 +213,16 @@ public:
     Result<i64, BytesError> get_i64_le();
     Result<f32, BytesError> get_f32_be();
     Result<f64, BytesError> get_f64_be();
+
+    // ── varint 读（LEB128 小端 base-128，仅接受规范编码） ──
+    /// @brief 读一个无符号 varint（LEB128）。最多消费 5 字节。
+    /// @return 截断返回 Err(Underflow)；非规范编码（超过 5 字节、末字节 0x00 冗余填充、
+    ///         第 5 字节高位超出 u32 范围）返回 Err(MalformedVarint)。出错时游标不动。
+    Result<u32, BytesError> get_var_u32();
+    /// @brief 读一个无符号 varint（LEB128）。最多消费 10 字节。
+    /// @return 截断返回 Err(Underflow)；非规范编码（超过 10 字节、末字节 0x00 冗余填充、
+    ///         第 10 字节高位超出 u64 范围）返回 Err(MalformedVarint)。出错时游标不动。
+    Result<u64, BytesError> get_var_u64();
 
     // ── 冻结为不可变 Bytes ──
     /// @brief 转为不可变 Bytes，转移所有权；调用后本对象清空。
@@ -211,6 +243,33 @@ private:
     usize capacity_{0};
     usize pos_{0};
 };
+
+
+/// @name zigzag 编解码
+/// 把有符号整数一一映射到无符号整数（0, -1, 1, -2, 2 … → 0, 1, 2, 3, 4 …），
+/// 使 varint 对小负数也高效——否则 -1 会被 LEB128 编码成满长的全 1 序列。
+/// 配套用法：`put_var_u32(zigzag_encode32(val))` 写、`get_var_u32()` 后 decode 读。
+/// @{
+/// 把 i32 映射到 u32。
+inline u32 zigzag_encode32(i32 val) noexcept {
+    return (static_cast<u32>(val) << 1) ^ static_cast<u32>(val >> 31);
+}
+
+/// 把 u32 还原为 i32（zigzag_encode32 的逆变换）。
+inline i32 zigzag_decode32(u32 val) noexcept {
+    return static_cast<i32>(val >> 1) ^ -static_cast<i32>(val & 1);
+}
+
+/// 把 i64 映射到 u64。
+inline u64 zigzag_encode64(i64 val) noexcept {
+    return (static_cast<u64>(val) << 1) ^ static_cast<u64>(val >> 63);
+}
+
+/// 把 u64 还原为 i64（zigzag_encode64 的逆变换）。
+inline i64 zigzag_decode64(u64 val) noexcept {
+    return static_cast<i64>(val >> 1) ^ -static_cast<i64>(val & 1);
+}
+/// @}
 
 
 // ============================================================================

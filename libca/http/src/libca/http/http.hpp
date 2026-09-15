@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libca/http/client.hpp"
+#include "libca/http/client_pool.hpp"
 #include "libca/http/headers.hpp"
 #include "libca/http/http1_codec.hpp"
 #include "libca/http/http_error.hpp"

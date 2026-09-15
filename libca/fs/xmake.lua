@@ -6,7 +6,8 @@ target("libca_fs")
     add_files("src/libca/fs/*.cpp")
     add_headerfiles("src/(libca/fs/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core")
+    -- read_all_text 的 BOM 剥离复用 str 模块接口（L2 fs → L1 str，方向合法）
+    add_deps("libca_core", "libca_str")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
@@ -29,7 +30,7 @@ target("libca_fs_unittest")
     add_tests("default")
     set_group("libs/test")
     add_deps("libca_fs")
-    add_links("libca_fs", "libca_core")
+    add_links("libca_fs", "libca_str", "libca_core")
     add_packages("gtest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")

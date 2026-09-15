@@ -1,5 +1,7 @@
 #include "file_util.hpp"
 
+#include "libca/str/bom.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
@@ -8,6 +10,7 @@
 #include <sstream>
 #include <iterator>
 #include <stdexcept>
+#include <string_view>
 
 #ifdef _WIN32
 #include <io.h>
@@ -220,7 +223,7 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
     }
 }
 
-Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
+Result<std::string, FsError> FileUtil::read_all_text(const std::string& path, bool strip_bom)
 {
     try {
         std::ifstream file;
@@ -240,6 +243,16 @@ Result<std::string, FsError> FileUtil::read_all_text(const std::string& path)
             }
         }
         file.close();
+
+        // BOM 剥离：复用 str 模块的字节级检测（fs→str 依赖方向合法）。
+        // 只在显式要求且确实检测到 BOM 时擦除前缀，默认行为与旧版完全一致。
+        if (strip_bom && !buffer.empty()) {
+            const auto type = ca::str::detect_bom(
+                std::string_view(buffer.data(), buffer.size()));
+            if (type != ca::str::BomType::None) {
+                buffer.erase(0, static_cast<std::size_t>(ca::str::bom_byte_length(type)));
+            }
+        }
 
         return Ok(std::move(buffer));
     } catch (const std::filesystem::filesystem_error& e) {

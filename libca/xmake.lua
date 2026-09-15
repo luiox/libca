@@ -1,3 +1,4 @@
+includes("config")
 includes("core")
 includes("crypto")
 includes("csv")

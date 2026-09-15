@@ -14,6 +14,7 @@
 
 #include "libca/net/detail/socket_platform.hpp"
 #include "libca/net/dns.hpp"
+#include "libca/net/socket_error.hpp"
 
 namespace ca::net {
 namespace {
@@ -53,11 +54,13 @@ bool connect_is_in_progress(i64 code) noexcept
 {
 #if defined(_WIN32)
     // 必须把 WSAEINVAL 算作"连接进行中"——某些 WinSock 版本在非阻塞 socket 首次 connect
-    // 时返回 WSAEINVAL 而非 WSAEWOULDBLOCK。
-    return code == WSAEWOULDBLOCK || code == WSAEINPROGRESS || code == WSAEINVAL;
-#else
-    return code == EINPROGRESS || code == EALREADY;
+    // 时返回 WSAEINVAL 而非 WSAEWOULDBLOCK。EINVAL 归一化后是 Unknown，需在此特判。
+    if (code == WSAEINVAL)
+        return true;
 #endif
+    // 其余码经归一化映射判断：EINPROGRESS/EALREADY/WSAEWOULDBLOCK/WSAEINPROGRESS
+    // 均归入 WouldBlock。
+    return from_native(code) == SocketError::WouldBlock;
 }
 
 io::IoResult<void> connect_native(RawSocket socket, const SocketAddress& address)

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "utf8_util.hpp"
+#include "bom.hpp"
 #include "utf8_string.hpp"
 #include "utf16_string.hpp"
 #include "cstring.hpp"

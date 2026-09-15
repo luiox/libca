@@ -1,17 +1,11 @@
 # libca
 
 [![Core CI](https://github.com/luiox/libca/actions/workflows/core-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/core-ci.yml)
-[![EM CI](https://github.com/luiox/libca/actions/workflows/em-ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/em-ci.yml)
 
-C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
+C++17 桌面端基础设施库（Rust 语义对齐的现代 C++ 标准库补充）。
 
-| 部分 | 语言 | 面向 | 入口 |
-|------|------|------|------|
-| **`libca/`** | C++17 | 桌面端基础设施（Rust 语义对齐的现代 C++ 标准库补充） | 本文档 §libca |
-| **`libca.em/`** | C99 | 嵌入式 MCU 组件（驱动/总线/协议/shell） | `libca.em/README.md` |
-
-> 二者构建上由根 `xmake.lua` 的 `with_core` / `with_em` 开关解耦，可单独构建；`with_demo` 控制 em 外部集成示例。
-> 本 README 的详细部分聚焦 **libca**（桌面 C++）。嵌入式见 `libca.em/README.md`。
+原 `libca.em/`（C99 嵌入式 MCU 组件：驱动/总线/协议/shell）已拆分至独立仓库
+[luiox/libca-em](https://github.com/luiox/libca-em)，本仓库不再携带。
 
 ## 状态与免责声明
 
@@ -23,8 +17,8 @@ C/C++ 基础设施库集合。一个仓库，两个相对独立的部分：
 xmake 构建。测试 target 受 `with_tests` 开关守护（默认关，便于作为 submodule 被引用时不强拉 gtest）。
 
 ```bash
-xmake f -p windows -a x64 --with_tests=y --with_em=n --with_demo=n -y  # 配置(带测试,仅C++)
-xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_em=n --with_demo=n -y  # 启用 HTTPS client
+xmake f -p windows -a x64 --with_tests=y --with_demo=n -y  # 配置(带测试)
+xmake f -p windows -a x64 --with_tests=y --with_openssl=y --with_demo=n -y  # 启用 HTTPS client
 xmake                          # 构建
 xmake test -g libs/test        # 跑全部 C++ 测试(对应 CI)
 xmake run libca_fs_unittest    # 跑单个模块测试
@@ -53,7 +47,7 @@ xmake run libca_fs_unittest    # 跑单个模块测试
 L0  core              ← 地基，不依赖任何 libca 模块
 L1  str, collection   ← 仅依赖 core
 L2  fs, time, crypto  ← 依赖 L0/L1
-L3  业务 / 上层
+L3  业务 / 上层（如 config）
 ```
 
 新增模块按此分层放置；改 L0 会连锁影响下游，需谨慎。
@@ -64,13 +58,14 @@ L3  业务 / 上层
 
 | 模块 | 职责 | 关键类型 / 入口头文件 | 命名空间 | 阶段 | 设计文档 |
 |------|------|----------------------|----------|------|----------|
-| **core** | Result/Option/字节/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
+| **core** | Result/Option/字节（含 varint/zigzag）/类型转换/定长类型，全库地基 | `result.hpp`(`Result<T,E>`)、`option.hpp`(`Option<T>`)、`bytes.hpp`、`cast.hpp`、`tag_cast.hpp`、`any.hpp`、`datatype.hpp` | `ca` / `ca::core` | 主线 | `libca/core/doc/core设计文档.md` |
 | **str** | UTF-8 字符串与所有权类型族 | `utf8_string.hpp`(`Utf8String`/`Utf8StringRef`)、`utf8_string_arena.hpp`、`cstring.hpp`、`wstring.hpp` | `ca::str` | 主线 | `libca/str/doc/str设计文档.md` |
 | **fs** | 文件/路径操作（封装 std::filesystem） | `file_util.hpp`(`FileUtil`)、`path_util.hpp`(`PathUtil`) | `ca::fs` | 主线 | `libca/fs/doc/fs设计文档.md` |
-| **crypto** | 哈希/CRC/base64 | `hash.hpp`、`sha256.hpp`、`md5.hpp`、`sha1.hpp`、`crc.hpp`、`base64.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
+| **crypto** | 哈希（SHA-1/256/384/512、SHA-3、MD5）/HMAC/HKDF/PBKDF2/CRC/base64/base32/murmur3 | `hash.hpp`、`sha256.hpp`、`sha512.hpp`、`md5.hpp`、`sha1.hpp`、`hmac.hpp`、`hkdf.hpp`、`pbkdf2.hpp`、`crc.hpp`、`base64.hpp`、`base32.hpp`、`murmur3.hpp` | `ca::crypto` | 主线 | `libca/crypto/doc/crypto设计文档.md` |
 | **time** | 日期时间 | `datetime.hpp`(`DateTime`)、`duration.hpp`、`timestamp.hpp` | `ca::time` | 可用（薄） | `libca/time/doc/time设计文档.md` |
 | **collection** | Rust-like 容器（ArrayList/HashMap/HashSet/不可变列表/流） | `array_list.hpp`、`hash_map.hpp`、`hash_set.hpp`、`immutable_list.hpp`、`stream.hpp` | `ca::collection` | 主线 | `libca/collection/doc/collection设计文档.md` |
-| **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
+| **thread** | 结构化并发（Thread/StopToken/BoundedQueue/ThreadPool/Timer/EventBus/ObjectPool） | `thread.hpp`、`stop_token.hpp`、`bounded_queue.hpp`、`thread_pool.hpp`、`timer.hpp`、`event_bus.hpp`、`object_pool.hpp` | `ca::thread` | 主线 | `libca/thread/doc/thread设计文档.md` |
+| **config** | 强类型配置中心：`ConfigVar<T>` 幂等注册、变更监听、JSON 增量加载 | `config.hpp`(`Config`)、`config_var.hpp`(`ConfigVar<T>`)、`lexical_cast.hpp`(`JsonCast<T>`) | `ca::config` | 主线 | `libca/config/doc/config设计文档.md` |
 | **process** | 子进程控制 + IPC（命名管道/共享内存/信号量/消息队列） | `subprocess.hpp`、`ipc.hpp` | `ca::process` | 主线 | `libca/process/doc/process设计文档.md` |
 | **csv** / **ini** | CSV / INI 文本读写 | `csv.hpp`、`ini.hpp` | `ca::csv` / `ca::ini` | 主线 | `csv/doc/csv设计文档.md` / `ini/doc/ini设计文档.md` |
 | **json** / **toml** | JSON / TOML DOM、解析与写出 | `json.hpp`、`toml.hpp` | `ca::json` / `ca::toml` | 主线 | `json/doc/json设计文档.md` / `toml/doc/toml设计文档.md` |
@@ -82,14 +77,14 @@ L3  业务 / 上层
 | **random** | 随机数生成 | `random.hpp` | `ca::random` | 可用 | — |
 | **uuid** | UUID 生成与解析 | `uuid.hpp` | `ca::uuid` | 可用 | — |
 | **opt** | 命令行选项解析 | `opt.hpp`(`Parser`/`ParseResult`) | `ca::opt` | 主线 | `libca/opt/doc/opt设计文档.md` |
-| **zip** | JVM ZipFile 语义 ZIP 读写（只读访问器/流式读写/CRC） | `file.hpp`(`ZipFile`)、`input_stream.hpp`、`output_stream.hpp`、`entry.hpp` | `ca::zip` | 主线（zlib 可选，`--with_zip=n` 跳过） | — |
+| **zip** | 压缩与归档：JVM ZipFile 语义 ZIP 读写 + 流式 gzip | `file.hpp`(`ZipFile`)、`input_stream.hpp`、`output_stream.hpp`、`gzip_reader.hpp`、`gzip_writer.hpp` | `ca::zip` | 主线（zlib 可选，`--with_zip=n` 跳过） | — |
 | **resources** | 清单驱动 constexpr 目录树嵌入与只读查询 | `resources.hpp`(`Bundle`/`RawEntry`)；rule `libca.resources.embed` | `ca::resources` | 主线 | — |
 | **i18n** | .lang 构建期嵌入的 CLI 消息国际化（tr/trf 回退链） | `i18n.hpp`；rule `libca.i18n.embed-lang` | `ca::i18n` | 主线 | — |
 | **test** | `.project_root_file` 多项目测试布局与样本定位 | `test.hpp`(`setup`/`resource`/`project_resource`) | `ca::test` | 主线 | — |
 | **log** | 日志门面与可插拔后端（spdlog 可选） | `log_macros.hpp`、`logger.hpp`、`logger_registry.hpp` | `ca::log` | 主线 | `libca/log/doc/log设计文档.md` |
 | utility / reflect | 历史遗留，已从仓库移除 | — | — | 移除 | — |
 
-> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
+> 接入构建的模块见 `libca/xmake.lua`（当前：core / str / fs / time / crypto / collection / config / thread / io / net / http / process / ini / resources / json / csv / toml / xml / yaml / env / random / uuid / opt / i18n / test / log / ui；zip 由根 `with_zip` 开关控制）。
 > 更详细的功能导航见 `doc/libca功能索引.md`；具体 API 以对应头文件 Doxygen 注释为准。
 
 ## 目录约定

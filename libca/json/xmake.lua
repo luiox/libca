@@ -6,7 +6,8 @@ target("libca_json")
     add_files("src/libca/json/*.cpp")
     add_headerfiles("src/(libca/json/*.hpp)")
     add_includedirs("src", {public = true})
-    add_deps("libca_core", "libca_str")
+    -- KvStore 持久化复用 fs::FileUtil 的原子写/读取入口（json → fs，单向依赖合法）
+    add_deps("libca_core", "libca_str", "libca_fs")
 
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
@@ -19,7 +20,7 @@ target("libca_json_unittest")
     add_tests("default")
     set_group("libs/test")
     add_deps("libca_json")
-    add_links("libca_json", "libca_str", "libca_core")
+    add_links("libca_json", "libca_fs", "libca_str", "libca_core")
     add_packages("gtest")
     add_files("unittest/main.cpp")
     add_files("unittest/*_test.cpp")

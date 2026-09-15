@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-09-13 - 新增 Stopwatch 单调秒表与 ScopeTiming RAII 耗时打点
 2026-07-14 - 删除冗余英文摘要 design.md，本文成为 time 唯一设计文档
 2026-07-06 - 首版，补充 time 模块职责、Duration/Timestamp 值语义与 chrono 边界
 ---
@@ -17,6 +18,9 @@ update:
 
 - **Duration / Timestamp**：轻量纯值类型，适合程序内部计算。
 - **Date / Time / DateTime**：面向日历展示和简单解析的旧接口。
+
+此外还提供两个基于 `TimeUtil::nano_time()`（steady_clock）的测量入口：
+`Stopwatch` 单调秒表与 `ScopeTiming` RAII 耗时打点，见第 8 节。
 
 ## 2. Duration
 
@@ -85,6 +89,20 @@ time 模块接受 `std::chrono` 作为 C++ 标准库互操作层，但不直接�
 
 这些类型不承载时区、闰秒、日历系统转换等复杂语义，也不应替代 `Timestamp` 表达绝对时间点。
 
-## 8. 新人阅读顺序
+## 8. Stopwatch 与 ScopeTiming
+
+`Stopwatch` 与 `ScopeTiming` 是两个只测相对耗时的测量入口，统一走 `TimeUtil::nano_time()`
+（steady_clock），不引入 wall clock，避免系统对时干扰测量。
+
+- `Stopwatch` 是纯表示类：构造即启动，只保存一个起点。`restart()` 把起点移到当前时刻
+  重新计时；`reset()` 进入停表态，`elapsed()` 冻结为 0 直到下次 `restart()`。不提供
+  start/stop 累计语义，保持“测一段代码耗时”的最小用法。
+- `ScopeTiming` 是 RAII guard：构造登记名字并取起点，析构把耗时累计进注册表。聚合
+  统计（`count/total/max`）放在 `ScopeTimingRegistry`，以 std::mutex 保护，guard 本身
+  不加锁。全局默认注册表是进程级单例，测试注入独立注册表即可精确断言、互不污染。
+
+溢出策略与 Duration 一致：不做运行时检查，高频路径保持轻量。
+
+## 9. 新人阅读顺序
 
 建议先看 `duration.hpp` 和 `timestamp.hpp` 理解纯值时间模型，再看 `datetime.hpp` 理解旧的日历展示接口。对应测试位于 `libca/time/unittest/duration_timestamp_test.cpp` 和 `libca/time/unittest/datetime_test.cpp`。
