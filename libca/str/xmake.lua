@@ -55,4 +55,20 @@ target("libca_str_benchmark")
     if is_plat("windows") then
         add_cxflags("/utf-8", {tools = "cl"})
     end
+
+-- 编码转换吞吐基准（编码内置化配套）：独立 main，不依赖 gtest，不注册进
+-- xmake test（不默认构建）。构建：`xmake build -P . libca_str_perf`，
+-- 直接跑产物。用 time 模块 Stopwatch 计时。
+target("libca_str_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_str", "libca_time")
+    add_links("libca_str", "libca_time", "libca_core")
+    add_files("perf/*.cpp")
+    add_includedirs("src")
+    set_rundir("$(projectdir)")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
 end
