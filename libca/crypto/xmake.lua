@@ -41,3 +41,20 @@ target("libca_crypto_unittest")
         add_cxflags("/utf-8", {tools = "cl"})
     end
 end
+
+-- 加密性能基准（手动运行：xmake build -P . libca_crypto_perf）。
+target("libca_crypto_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libs/perf")
+    add_deps("libca_crypto", "libca_time")
+    add_files("perf/crypto_perf.cpp")
+    add_includedirs("src")
+
+    if has_config("with_openssl") then
+        add_defines("LIBCA_CRYPTO_HAS_OPENSSL")
+    end
+
+    if is_plat("windows", "mingw") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
