@@ -19,6 +19,9 @@
 #else
 #    include <ifaddrs.h>
 #    include <net/if.h>
+// TCP_KEEPIDLE/TCP_KEEPINTVL/TCP_KEEPCNT 在 glibc 定义于 netinet/tcp.h（Linux 特有
+// 选项；macOS 等价选项见 set_tcp_keepalive 内的宏守卫）。
+#    include <netinet/tcp.h>
 #endif
 
 namespace ca::net {
@@ -171,6 +174,12 @@ io::IoResult<void> set_tcp_keepalive(RawSocket socket, const TcpKeepaliveConfig&
     if (idle_option == 0)
         return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::Unsupported,
                                                     "TCP keepalive idle option is not available"));
+    // interval/count 选项与 idle 同理并非所有 POSIX 都有：任一缺失则整体 Unsupported，
+    // 不做部分设置（三参数要么全生效要么全不动，与 Windows 两参受限的口径一致）。
+#    if !defined(TCP_KEEPINTVL) || !defined(TCP_KEEPCNT)
+    return ca::core::Err(io::IoError::from_kind(io::IoErrorKind::Unsupported,
+                                                "TCP keepalive interval/count options are not available"));
+#    endif
 
     const int idle_seconds     = idle_value.unwrap();
     const int interval_seconds = interval_value.unwrap();
