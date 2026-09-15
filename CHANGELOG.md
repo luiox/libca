@@ -105,6 +105,26 @@
     （此前配置为 Allman 风/100 列，与 AGENTS.md 冲突导致存量合规代码报违规）；
     不做存量代码重排。
 
+- **2026-09 第四批**（分支 `feat/batch-4`，全部为新增能力，详见各头文件 Doxygen）：
+  - **[thread] MessageLoop**：单线程任务循环（FIFO `post_task`、`post_task_with_result`
+    返回 `std::future`、内部 steady_clock 定时的 `post_delay_task`、`stop` /
+    `stop_and_drain`）。性能参考：post ~7.4M op/s，跨线程 ping-pong rtt ~582K op/s。
+  - **[process] ShmRingQueue**：无内核对象的共享内存环形队列（128B 头 + 环形槽位），
+    写者活性经心跳 + 出生时间戳判定、支持代际接管（进程崩溃后新写者可恢复队列）。
+    与既有 `ipc::MessageQueue`（内核对象队列）并存，不改既有接口。性能参考：
+    ~1.7M op/s（同场景内核消息队列 ~366K op/s）。
+  - **[crypto] AES**：内置实现 ECB/CBC/CTR（128/192/256）+ `AesBackend` 后端选择
+    （`Builtin`/`OpenSsl`/`Cng`/`Auto`，Auto 按 availability 回落）。**口径：AES-GCM
+    仅由外部后端（OpenSSL/CNG）提供**——内置实现无侧信道承诺，不提供 GCM；
+    内置路径请求 GCM 返回 `UNSUPPORTED_ALGORITHM`。性能参考：Builtin ~17 MB/s、
+    OpenSSL ~620 MB/s、CNG ~322 MB/s（AES-256-CBC，本机）。crypto 由此新增
+    `with_openssl` 可选依赖（与 net 一致，默认关）。
+  - **[net/http] DNS 缓存接线**：`TcpStream::connect_timeout` 新增可注入
+    `DnsResolveFn` 的重载（指针仅当次调用有效，为空走默认解析，既有调用不受影响）；
+    `HttpClientOptions` 新增 `dns_cache`（可选共享 `CachedDnsResolver`，线程安全可跨
+    client 共享；不注入行为不变）。批次 3 预告的 http 接入方式就此落地。
+  - **排期说明**：zip 异常模型收敛**未列入本批**，移入批次 5（见路线图）。
+
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
 - **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物
