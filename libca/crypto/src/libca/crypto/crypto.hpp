@@ -2,6 +2,7 @@
 /// @brief libca_crypto 聚合头，引入全部哈希、编码、HMAC 与流密码组件。
 #pragma once
 
+#include "libca/crypto/aes.hpp"
 #include "libca/crypto/base32.hpp"
 #include "libca/crypto/base64.hpp"
 #include "libca/crypto/chacha20.hpp"
