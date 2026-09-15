@@ -78,6 +78,33 @@
     监听器回调抛异常不穿透 load，转 `LISTENER_FAILED` 计入失败 key）。
     config 依赖 core/json/fs。
 
+- **2026-09 第三批**（分支 `feat/batch-3`，痛点清除）：
+  - **[str] 编码内置化**：`CharsetConverter` 改三级查找——内置表（Tier1/2）→
+    iconv 回落（Tier3 长尾）→ UNSUPPORTED。Tier1 纯算法内置 UTF 家族/Latin-1/
+    CP1252（新增 `latin1_*`/`cp1252_*` 门面方法）；GB18030（含 GBK/GB2312）经
+    `tools/gen_charset_tables.py` 生成 WHATWG 同源表入库（`gb18030_tables.inc`，
+    构建不依赖 python/网络），新增 `gb18030_*` 四方向与 `supported()` /
+    `list_supported()`；根 xmake 新增 `with_iconv` option（默认开，关得纯内置构建）。
+    **行为变更**：GBK 路径按 GB18030 严格语义——单字节 0x80 由"映射欧元"
+    （Windows CP_936 旧行为）改为报错（GB18030 编码欧元 = `A2 E3`）；`utf8→gbk`
+    对增补平面字符从 best-fit 替换改为输出四字节 GB18030 序列。裁剪 glibc 环境
+    GBK 不再依赖 gconv 模块，固定向量跨平台一致。
+  - **[net] TlsStream**：从 http 层抽出全部 OpenSSL 逻辑为独立适配层
+    （memory-BIO 解耦，包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；
+    握手/renegotiation/WANT_READ 重试封死在内部）。安全默认值：证书校验与主机名
+    验证默认开（opt-out 显式）、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。
+    http client/server 切换到 TlsStream，行为等价（回归 76/76）。无 OpenSSL 构建
+    编译为 stub（`Unsupported`）。**net 由此新增 with_openssl 可选依赖**。
+  - **[net] SockUtil 与 DNS 缓存**：`get_local_ip`（UDP connect 探路由，离线回落
+    loopback）、TCP keepalive 三参数（`TcpStream::set_keepalive`，Windows 经
+    SIO_KEEPALIVE_VALS 只支持两参，文档注明）、`interface_list()`（getifaddrs /
+    GetAdaptersAddresses）；`CachedDnsResolver` 带 TTL 的线程安全 DNS 缓存
+    （可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计；http 接入方式见
+    net 设计文档 12.1，本批未改 http）。
+  - **[global] `.clang-format` 对齐规则口径**：K&R Attach 大括号、ColumnLimit 120
+    （此前配置为 Allman 风/100 列，与 AGENTS.md 冲突导致存量合规代码报违规）；
+    不做存量代码重排。
+
 - 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
   `opt`（命令行选项解析）。
 - **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物
