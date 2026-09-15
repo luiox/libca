@@ -86,7 +86,7 @@ public:
             std::lock_guard<std::mutex> lock(mutex());
             const auto found = factories().find(key);
             if (found == factories().end()) {
-                return ErrStatus(StatusCode::NOT_FOUND, "registry key not found");
+                return Err(ErrStatus(StatusCode::NOT_FOUND, "registry key not found"));
             }
             factory = found->second;
         }

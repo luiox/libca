@@ -1,5 +1,0 @@
-target("libca.em_motion")
-    set_kind("static")
-    set_group("em")
-    add_files("*.c")
-    add_deps("libca.em_base")

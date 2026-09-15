@@ -26,6 +26,8 @@
 - `Result<T, E>`：用返回值表达成功/失败，提供 `Ok`、`Err`、链式处理和错误传播辅助。
 - `Option<T>`：Rust 语义可空值（`Some`/`None`），与 `Result` 经 `ok_or`/`ok`/`err` 互转。
 - `Bytes` / `BytesMut` / `ByteSlice`：字节缓冲、字节视图和协议解析辅助。
+- varint（LEB128）与 zigzag：`put_var_u32/u64`、`get_var_u32/u64`（非规范编码报
+  `BytesError::MalformedVarint`）、`zigzag_encode/decode` 有符号映射。
 - 类型转换：精确动态类型匹配、类型判断和安全转换辅助。
 - `Any`：轻量类型擦除，适合需要运行时保存少量异构值的边界。
 - 平台检测、导出宏、栈追踪等基础工具。
@@ -386,10 +388,13 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/crypto/crypto.hpp>`
 - `<libca/crypto/hash.hpp>`
 - `<libca/crypto/sha256.hpp>`
+- `<libca/crypto/sha512.hpp>`
 - `<libca/crypto/sha1.hpp>`
 - `<libca/crypto/md5.hpp>`
 - `<libca/crypto/sha3.h>`
 - `<libca/crypto/hmac.hpp>`
+- `<libca/crypto/hkdf.hpp>`
+- `<libca/crypto/pbkdf2.hpp>`
 - `<libca/crypto/crc.hpp>`
 - `<libca/crypto/base64.hpp>`
 - `<libca/crypto/hex.hpp>`
@@ -400,8 +405,10 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/crypto/base32.hpp>`
 
 功能：
-- SHA-1、SHA-256、SHA-3、MD5 等 hash。
-- HMAC。
+- SHA-1、SHA-256、SHA-384/SHA-512、SHA-3、MD5 等 hash。
+- HMAC-SHA1 / HMAC-SHA256 / HMAC-SHA512。
+- HKDF（RFC 5869）：`hkdf_sha{1,256,512}_extract/_expand/_derive`。
+- PBKDF2-HMAC-SHA256（RFC 7914）。
 - CRC、Base64、Hex 编解码。
 - Base32 编解码（RFC 4648）。
 - `murmur3_32`：非加密哈希（HashMap 键哈希/布隆过滤器用）。
@@ -506,6 +513,30 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 相关文档：
 - `libca/process/doc/process设计文档.md`
+
+## config
+
+强类型配置中心（sylar 风格适配 libca 现代风格），配置格式为 JSON（复用 json 模块解析器）。
+
+入口头文件：
+- `<libca/config/config.hpp>`
+- `<libca/config/config_var.hpp>`
+- `<libca/config/lexical_cast.hpp>`
+
+功能：
+- `ConfigVar<T>`：具名强类型配置项。`Config::lookup<T>(name, default)` 幂等（已存在
+  同类型返回同一实例）；同名不同类型冲突返回 nullptr。
+- `set` 值相等短路，真实变化才触发监听器；监听器回调在内部锁外执行。
+- `Config::load(text)` / `load_file(path)`：JSON 增量加载。已有配置项按 `JsonCast<T>`
+  转换赋值并触发变更监听；未注册 key 延迟物化（后续 lookup 时用已加载值）。
+  非法 JSON 整体拒绝、状态零变化；单 key 类型不匹配跳过该 key 并经
+  `ConfigErrorInfo` 报告详情。
+- `JsonCast<T>`：JsonValue ↔ T 双向转换链，支持 bool/字符串/各定长整数（带范围
+  检查）/浮点，及 `vector<T>`、`unordered_map<string, T>` 递归嵌套。
+- `Config::visit`：遍历全部已注册配置项（快照，锁外渲染）。
+
+相关文档：
+- `libca/config/doc/config设计文档.md`
 
 ## opt
 

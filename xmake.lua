@@ -8,12 +8,6 @@ option("with_core")
     set_description("Enable libca (C++ core) targets")
 option_end()
 
-option("with_em")
-    set_default(true)
-    set_showmenu(true)
-    set_description("Enable libca.em targets")
-option_end()
-
 option("with_demo")
     set_default(true)
     set_showmenu(true)
@@ -64,12 +58,7 @@ if has_config("with_zip") then
     add_requires("zlib")
 end
 
-if is_plat("windows") then
-    -- Xmake maps c99 to /TP for MSVC; C11 keeps em sources in C mode.
-    set_languages("c11", "cxx17")
-else
-    set_languages("c99", "cxx17")
-end
+set_languages("cxx17")
 
 add_rules("mode.debug", "mode.release", "mode.coverage")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = "."})
@@ -113,12 +102,6 @@ on_load(function (target)
         target:add("defines", "COVERAGE_BUILD")
     end
 end)
-
-includes("xmake/modules/libca/tool/logger.lua")
-
-if has_config("with_em") then
-    includes("libca.em")
-end
 
 if has_config("with_core") then
     includes("libca")

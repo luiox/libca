@@ -43,7 +43,7 @@ jobs:
           libca-xrepo-coverage-linux-x64-xmake309-
 
     - name: Configure (core coverage mode)
-      run: xmake f -m coverage --with_core=y --with_em=n --with_demo=n --with_tests=y -y
+      run: xmake f -m coverage --with_core=y --with_demo=n --with_tests=y -y
 
     - name: Build core tests
       run: xmake build -g libs

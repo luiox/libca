@@ -100,25 +100,39 @@ TEST(ObjectPoolTest, ShutdownMakesObtainConstructAndRecycleDestroy)
 
 TEST(ObjectPoolTest, HookExceptionDestroysObjectInsteadOfPooling)
 {
-    std::atomic<int> calls{0};
-    ObjectPool<PooledObject> pool(
-        [&calls] {
+    // 用析构标志观察销毁，不比较指针地址：delete 后的地址可能被下一个分配立刻
+    // 复用（glibc 常见），EXPECT_NE(new.get(), raw) 属于对悬垂指针的不可靠断言。
+    struct ResetBomb
+    {
+        std::atomic<bool>* destroyed;
+        ~ResetBomb()
+        {
+            if (destroyed != nullptr)
+                destroyed->store(true);
+        }
+    };
+    std::atomic<bool> destroyed{false};
+    std::atomic<int>  calls{0};
+    ObjectPool<ResetBomb> pool(
+        [&calls, &destroyed] {
             ++calls;
-            return std::make_unique<PooledObject>();
+            auto bomb           = std::make_unique<ResetBomb>();
+            bomb->destroyed     = &destroyed;
+            return bomb;
         },
-        [](PooledObject&) { throw std::runtime_error("reset failed"); });
+        [](ResetBomb&) { throw std::runtime_error("reset failed"); });
 
-    PooledObject* raw = nullptr;
     {
         auto object = pool.obtain();
-        raw = object.get();
-        EXPECT_NO_THROW(object.reset());  // 钩子异常被吞掉，不逃出 deleter
+        EXPECT_EQ(calls.load(), 1);
+        EXPECT_NO_THROW(object.reset());   // 钩子异常被吞掉，不逃出 deleter
+        EXPECT_TRUE(destroyed.load());     // 坏对象被销毁而非回池
     }
-    EXPECT_EQ(calls.load(), 1);
 
     auto next = pool.obtain();
-    EXPECT_EQ(calls.load(), 2);           // 坏对象已销毁，重新构造
-    EXPECT_NE(next.get(), raw);
+    destroyed.store(false);                // 两颗炸弹共用标志：清掉第一颗的痕迹再观察第二颗
+    EXPECT_EQ(calls.load(), 2);            // 坏对象未入池，重新构造
+    EXPECT_FALSE(destroyed.load());        // 新对象存活
 }
 
 TEST(ObjectPoolTest, ObjectOutlivingPoolIsDestroyedNotLeaked)
