@@ -18,14 +18,12 @@ on:
     paths:
       - "libca/**"
       - "xmake.lua"
-      - "xmake/**"
       - ".github/workflows/core-ci.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "libca/**"
       - "xmake.lua"
-      - "xmake/**"
       - ".github/workflows/core-ci.yml"
 
 concurrency:
