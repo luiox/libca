@@ -54,6 +54,7 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/str/os_string.hpp>`
 - `<libca/str/format.hpp>`
 - `<libca/str/bom.hpp>`
+- `<libca/str/charset.hpp>`
 
 功能：
 - `Utf8String`：拥有所有权的 UTF-8 字符串，移动语义，显式 `clone()`。
@@ -64,7 +65,13 @@ UTF-8 字符串与所有权模型模块。
 - `Utf8StringBuilder`：可变构建器，用于多次追加后生成字符串。
 - `format` / `format_to` / `format_runtime`：基于 fmt 的 `{}`-style 格式化门面，返回 `Utf8String` 或追加到 builder/std::string（对标 Rust `format!`）。fmt 以 str 的 public 依赖提供，下游模块通过 `add_deps("libca_str")` 间接拿到。
 - `OsString` / `OsStr`：平台原生编码字符串载体（Windows UTF-16 / POSIX UTF-8），用于与 OS API 边界交互。
-- C 字符串、宽字符串、编码转换、字符分类和字符串工具函数。
+- `CharsetConverter` 编码转换，三级查找：内置表 → iconv 回落（Tier3 长尾）→ UNSUPPORTED。
+  - 内置：UTF-8/16/32 纯算法互转、Latin-1（`latin1_*`）、CP1252（`cp1252_*`，
+    WHATWG index-windows-1252 差异表）、GB18030（`gb18030_*` 四方向，含 GBK/GB2312，
+    WHATWG 同源表构建期生成入库，四字节序列纯算法）；`supported()` / `list_supported()`
+    能力查询。
+  - 裁剪 glibc 环境 GBK 不依赖 gconv 模块，固定向量跨平台一致。
+- C 字符串、宽字符串、字符分类和字符串工具函数。
 - `detect_bom` / `strip_bom`：UTF BOM 检测与剥离（UTF-8/16/32，最长匹配优先）。
 
 设计文档：
@@ -325,20 +332,29 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/net/address.hpp>`
 - `<libca/net/socket.hpp>`
 - `<libca/net/dns.hpp>`
+- `<libca/net/dns_cache.hpp>`
 - `<libca/net/tcp.hpp>`
 - `<libca/net/udp.hpp>`
 - `<libca/net/socket_error.hpp>`
+- `<libca/net/sock_util.hpp>`
+- `<libca/net/tls_stream.hpp>`
 
 功能：
 - `IpAddress` / `SocketAddress`：IPv4、IPv6、端口、flow info 和 scope id 值类型。
 - `OwnedSocket`：Windows SOCKET 或 POSIX socket fd 的 move-only RAII 所有者。
-- `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选。
-- `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时和非阻塞。
+- `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选；`CachedDnsResolver`
+  带 TTL 的线程安全缓存（可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计）。
+- `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时、非阻塞与
+  `set_keepalive`（keepalive 三参数，Windows 仅两参可配）。
 - `TcpListener`：TCP bind、accept、临时端口、非阻塞和 clone。
 - `UdpSocket`：保留数据报边界的 send/receive API、超时、非阻塞和 broadcast。
 - `SocketError`：原生 socket 错误码归一化（WSA/errno 双路），可桥接 `IoErrorKind`。
-
-TLS 不属于基础 socket API，后续应作为包装 TcpStream 的独立扩展。
+- `sock_util`：`get_local_ip`（UDP connect 探路由，离线回落 loopback）、
+  `set_tcp_keepalive`、`interface_list`（本机接口与地址枚举）。
+- `TlsStream`：TLS 适配层（可选 OpenSSL，`with_openssl` 开关；未启用时为 stub）。
+  memory-BIO 包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；证书校验
+  与主机名验证默认开启、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。
+  TLS 协议本身永远不内置，只做成熟后端适配。
 
 设计与使用文档：
 - `libca/net/doc/net设计文档.md`

@@ -7,6 +7,7 @@
 #include "libca/io/reader.hpp"
 #include "libca/io/writer.hpp"
 #include "libca/net/tcp.hpp"
+#include "libca/net/tls_stream.hpp"
 #include "libca/thread/stop_token.hpp"
 
 namespace ca::http {
@@ -56,9 +57,9 @@ private:
 };
 
 /// @brief 长期持有的 server 端 TLS 配置上下文。
-/// @details 包装 OpenSSL 的 SSL_CTX(只在启用 with_openssl 时有实质实现)。
-/// 在 server 启动时构造一次,后续所有 accept 出的连接共享此上下文做 TLS 握手。
-/// 不透明句柄,实现细节见 tls_server.cpp。
+/// @details 实质实现是 net::TlsServerContext（包装 OpenSSL SSL_CTX，只在启用
+/// with_openssl 时有效）。server 启动时构造一次，后续所有 accept 出的连接共享
+/// 此上下文做 TLS 握手。
 class ServerTlsContext
 {
 public:
@@ -76,8 +77,11 @@ public:
     /// @brief 内部 SSL_CTX 句柄(未启用 with_openssl 时返回 nullptr)。
     void* native_handle() const noexcept;
 
+    /// @brief 内部 net 层上下文(detail 内部握手入口使用)。
+    const net::TlsServerContext& net_context() const noexcept;
+
 private:
-    void* impl_{nullptr};   // 实际类型为 SSL_CTX*,存 void* 避免头文件依赖 OpenSSL。
+    net::TlsServerContext context_;   // TLS 实质配置见 libca/net/tls_stream.hpp。
 };
 
 /// @brief 判断当前构建是否包含可选 OpenSSL HTTPS server transport。

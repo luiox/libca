@@ -60,13 +60,13 @@ API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得�
 | 模块 | 职责 |
 |------|------|
 | **core** | `Result`/`Option`/bytes（varint/zigzag）/类型转换，全库地基 |
-| **str** | UTF-8 所有权字符串族（`Utf8String`/`Utf8StringRef`/Arena） |
+| **str** | UTF-8 所有权字符串族 + 内置编码转换（GBK/GB18030/CP1252/Latin-1，iconv 仅长尾回落） |
 | **collection** | Rust 风格容器：ArrayList/HashMap/HashSet/ImmutableList/Stream |
 | **json / toml / xml / yaml** | 四种格式的 DOM 解析与写出 |
 | **csv / ini** | CSV / INI 读写 |
 | **fs** | 文件与路径（封装 std::filesystem） |
 | **io** | Reader/Writer 抽象、buffer 与 native stream |
-| **net / http** | Socket/DNS/TCP/UDP；HTTP client/server（可选 OpenSSL） |
+| **net / http** | Socket/DNS（带 TTL 缓存）/TCP/UDP/TLS 适配层/SockUtil；HTTP client/server（可选 OpenSSL） |
 | **thread** | 结构化并发：ThreadPool/StopToken/BoundedQueue/Timer/EventBus |
 | **process** | 子进程控制 + IPC（管道/共享内存/信号量/消息队列） |
 | **crypto** | SHA-1/2/3、MD5、HMAC/HKDF/PBKDF2、CRC、base64/base32 |

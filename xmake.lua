@@ -42,6 +42,14 @@ option("with_zip")
     set_description("Enable libca.zip module (pulls zlib via xrepo; disable on envs without it)")
 option_end()
 
+-- iconv 兜底后端（仅影响 POSIX）：str 的长尾编码与本地代码页回落 iconv。
+-- n = 纯内置构建（内置表覆盖 UTF 家族/Latin-1/CP1252/GB18030，不引用 iconv 头）。
+option("with_iconv")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Enable iconv fallback backend for libca.str on POSIX (n = pure builtin build)")
+option_end()
+
 if has_config("with_spdlog") then
     add_requires("spdlog", { configs = { header_only = true, fmt_external = true } })
 end
