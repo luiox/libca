@@ -10,6 +10,8 @@
 #    include <winsock2.h>
 #    include <ws2tcpip.h>
 #else
+// IPPROTO_TCP 定义于 netinet/in.h；TCP_KEEPIDLE/INTVL/CNT 定义于 netinet/tcp.h。
+#    include <netinet/in.h>
 #    include <netinet/tcp.h>
 #    include <sys/socket.h>
 #endif
@@ -73,8 +75,8 @@ TEST(SockUtilTest, KeepaliveRoundTripReadsBackWhatPlatformSupports)
     // 平台差异按编译期分支处理：这里只断言 SO_KEEPALIVE 开关，避免对拿不到的
     // 参数做误报断言。
 #else
-    // POSIX 三参数完整可回读，逐一与设置值比对。
-    const auto native   = detail::to_native_socket(client.native_socket());
+    // POSIX 三参数完整可回读，逐一与设置值比对。（RawSocket 是 uintptr_t，fd 转回 int）
+    const int native = static_cast<int>(client.native_socket());
     int        idle     = 0;
     int        interval = 0;
     int        count    = 0;
