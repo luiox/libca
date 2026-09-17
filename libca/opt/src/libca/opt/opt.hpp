@@ -163,6 +163,54 @@ struct Command
 ///        位置参数与子命令摘要不受过滤影响。
 std::string help_text(const Command& cmd, const std::vector<std::string>& groups = {});
 
+/// @brief Two-column help row table: computes the name column width at render
+///        time and pads rows automatically, replacing hand-aligned spaces
+///        (issue luiox/morpher#890).
+/// @details Use case: compact "name column + description column" layouts such
+///          as subcommand lists. i18n resources carry plain text only (name
+///          and description each as one segment, no alignment spaces);
+///          alignment happens at render time. Column width counts UTF-8
+///          codepoints -- names are expected to be ASCII identifiers; wider
+///          (e.g. CJK) descriptions are not measured, they just follow the
+///          padding.
+class HelpTable
+{
+public:
+    /// @brief Append one row. An empty description renders the name only
+    ///        (no trailing whitespace).
+    void add(std::string name, std::string description);
+
+    /// @brief Number of appended rows.
+    std::size_t size() const noexcept { return rows_.size(); }
+
+    /// @brief True when no rows were appended.
+    bool empty() const noexcept { return rows_.empty(); }
+
+    /// @brief Relative rendering: each row is `<indent><name><padding><description>\n`.
+    /// @details padding = gap + (longest name codepoints - current name codepoints),
+    ///          at least 1 space; rows with an empty description get no padding
+    ///          (no trailing whitespace). An empty table renders to an empty string.
+    std::string render(std::size_t indent = 2, std::size_t gap = 3) const;
+
+    /// @brief Absolute column rendering: aligns the description column at a fixed
+    ///        position (for migrating legacy hand-aligned text).
+    /// @details padding = description_column - indent - name codepoints, at least
+    ///          1 space; an overlong name (less than 1 space left) degrades to a
+    ///          single-space separator with the description shifted right, never
+    ///          truncated. description_column <= indent behaves like a 1-space
+    ///          separator.
+    std::string render_to_column(std::size_t indent, std::size_t description_column) const;
+
+private:
+    struct Row
+    {
+        std::string name;
+        std::string description;
+    };
+    std::vector<Row> rows_;
+    std::size_t      max_name_codepoints_ = 0;
+};
+
 /// @brief 选项值的来源。区分「命令行显式给值 / 注入初值 / 静态默认」；
 ///        替代下游常见的 *Selected 标志族模式（显式覆盖告警、注入条件判定等）。
 enum class ValueSource

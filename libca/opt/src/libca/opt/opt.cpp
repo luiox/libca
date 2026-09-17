@@ -511,6 +511,71 @@ std::string help_text(const Command& cmd, const std::vector<std::string>& groups
     return render_help(cmd, {cmd.name}, &groups);
 }
 
+// ---- HelpTable: two-column help row table (issue luiox/morpher#890) ----
+
+namespace {
+
+// UTF-8 codepoint count: every non-continuation byte ((c & 0xC0) != 0x80)
+// starts one codepoint.
+std::size_t help_utf8_codepoint_count(std::string_view text) noexcept
+{
+    std::size_t count = 0;
+    for (const char ch : text) {
+        const auto c = static_cast<unsigned char>(ch);
+        if ((c & 0xC0) != 0x80) ++count;
+    }
+    return count;
+}
+
+// Single row: indent + name + padding + description + newline char; padding
+// is at least 1 space (omitted entirely when the description is empty -- the
+// row ends at the name). pad_to is the target column measured from the line
+// start; a name already past the column (delta < 1) degrades to a
+// single-space separator.
+void help_append_row(std::string& out, std::size_t indent, std::string_view name,
+                     std::size_t name_width, std::size_t pad_to, std::string_view description)
+{
+    out.append(indent, ' ');
+    out.append(name);
+    if (description.empty()) {
+        out.push_back('\n');
+        return;
+    }
+    const std::size_t used  = indent + name_width;
+    const std::size_t pad   = pad_to > used ? pad_to - used : 1;
+    out.append(pad, ' ');
+    out.append(description);
+    out.push_back('\n');
+}
+
+}   // namespace
+
+void HelpTable::add(std::string name, std::string description)
+{
+    const std::size_t width = help_utf8_codepoint_count(name);
+    if (width > max_name_codepoints_) max_name_codepoints_ = width;
+    rows_.push_back(Row{std::move(name), std::move(description)});
+}
+
+std::string HelpTable::render(const std::size_t indent, const std::size_t gap) const
+{
+    // Description column = indent + longest name width + gap.
+    return render_to_column(indent, indent + max_name_codepoints_ + gap);
+}
+
+std::string HelpTable::render_to_column(const std::size_t indent,
+                                        const std::size_t description_column) const
+{
+    std::string out;
+    for (const Row& row : rows_) {
+        help_append_row(out, indent, row.name,
+                        help_utf8_codepoint_count(row.name), description_column,
+                        row.description);
+    }
+    return out;
+}
+
+
 StatusCode to_status_code(ParseErrorCategory category) noexcept
 {
     switch (category) {

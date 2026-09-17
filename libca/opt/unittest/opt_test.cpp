@@ -11,6 +11,7 @@ namespace {
 
 using ca::opt::Arg;
 using ca::opt::Command;
+using ca::opt::HelpTable;
 using ca::opt::MutexGroup;
 using ca::opt::OptKind;
 using ca::opt::ParseErrorCategory;
@@ -1665,6 +1666,76 @@ TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
         EXPECT_EQ(r.unwrap().get("level"), "debug");
         EXPECT_EQ(r.unwrap().source_of("level"), ValueSource::Default);
     }
+}
+
+
+// ---- HelpTable: two-column help row table (issue luiox/morpher#890) ----
+
+TEST(HelpTableTest, RendersRelativeColumnsWithAutoWidth)
+{
+    HelpTable table;
+    table.add("jar fix", "repair");
+    table.add("jar extract <path>", "extract");
+    const std::string text = table.render(2, 3);
+    // Name column width = 18 (longest name); description column = 2 + 18 + 3 = 23.
+    EXPECT_EQ(text,
+              "  jar fix              repair\n"
+              "  jar extract <path>   extract\n"
+);
+}
+
+TEST(HelpTableTest, AbsoluteColumnMatchesLegacyHandPaddedOutput)
+{
+    // Legacy hand-padded baseline (mjt.cmd.jar.help): description column starts at 26.
+    HelpTable table;
+    table.add("jar list", "list entries");
+    table.add("jar extract <path>", "extract entries");
+    const std::string text = table.render_to_column(2, 26);
+    EXPECT_EQ(text,
+              "  jar list                list entries\n"
+              "  jar extract <path>      extract entries\n"
+);
+}
+
+TEST(HelpTableTest, EmptyDescriptionOmitsTrailingPadding)
+{
+    HelpTable table;
+    table.add("bare", "");
+    table.add("x", "desc");
+    const std::string text = table.render(0, 0);
+    EXPECT_EQ(text, "bare\nx   desc\n");
+}
+
+TEST(HelpTableTest, OverlongNameDegradesToSingleSpace)
+{
+    HelpTable table;
+    table.add("a-very-long-command-name-beyond-column", "desc");
+    const std::string text = table.render_to_column(2, 10);
+    // Name is 40 codepoints, already past column 10: degrade to a single-space
+    // separator with the description shifted right, no truncation.
+    EXPECT_EQ(text, "  a-very-long-command-name-beyond-column desc\n");
+}
+
+TEST(HelpTableTest, Utf8NameCountsCodepointsNotBytes)
+{
+    HelpTable table;
+    table.add("\xe5\xad\x90" "\xe5\x91\xbd" "\xe4\xbb\xa4", "desc");   // 3 codepoints / 9 bytes
+    table.add("ab", "d2");
+    const std::string text = table.render(0, 5);
+    // Longest name = 3 codepoints -> description column = 0 + 3 + 5 = 8:
+    // the CJK name (width 3) pads 5 spaces, "ab" (width 2) pads 6 spaces.
+    EXPECT_EQ(text,
+              "\xe5\xad\x90" "\xe5\x91\xbd" "\xe4\xbb\xa4" "     desc\n"
+              "ab      d2\n"
+);
+}
+
+TEST(HelpTableTest, EmptyTableRendersEmptyString)
+{
+    HelpTable table;
+    EXPECT_TRUE(table.empty());
+    EXPECT_EQ(table.size(), 0u);
+    EXPECT_EQ(table.render(), "");
 }
 
 }   // namespace
