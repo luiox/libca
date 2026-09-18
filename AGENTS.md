@@ -50,7 +50,7 @@ L3  业务 / 上层
 
 ## Git 与 PR 工作流
 
-- 禁止直接推 `main`；功能分支用 `codex/xxx` 或 `feat/xxx`，提交信息带范围前缀（`[libca]` / `[global]`）
+- 禁止直接推 `main`；功能分支用 `feat/xxx`、`fix/xxx`，提交信息带范围前缀（`[libca]` / `[global]`）
 - 合入 main 多为 squash/rebase：合并后远端分支通常被删除，本地分支的提交 hash 不会出现在 main（`git cherry`/patch-id 对不上是正常的，不代表未合并）
 - 清理本地分支前先用 `gh` 确认：`gh pr list --head <branch> --state merged` 或 `gh pr view <PR>`。PR 已合并、或远端分支仍存在（可恢复）才删除：`git branch -D <branch>`
 - 判断 squash 后是否真的合入，看内容：对应类/文件是否在 main、`git diff origin/main <branch>` 是否为空或只增不减

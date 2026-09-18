@@ -1,16 +1,24 @@
-# libca Core CI（Linux + Windows）
+# libca CI（Linux + Windows，全模块）
 #
-# 范围：core 子库（libca/{core,str,fs,crypto,time,collection,process,thread,io,net,http}）+ 其 unittest。
-# Linux job 不含 Windows-only 的 libca/ui；Windows job（msvc）全量编译含 ui。
+# 范围：libca/ 下全部模块（config/core/crypto/csv/env/fs/http/i18n/ini/io/json/log/
+# net/opt/process/random/resources/str/test/thread/time/toml/ui/uuid/xml/yaml/zip）。
+# 根 xmake.lua 的 with_core 开关现在等价于"编入全部模块"（includes("libca")），
+# "core" 只是其中一个普通模块，不再是子库集合，故本文件不再沿用 core-ci 命名。
+#
+# 平台差异：
+# - Linux job 不含 Windows-only 的 libca/ui（Win32 GUI）；
+# - Windows job（msvc + mingw 矩阵）全量编译含 ui；
+# - crypto 在 Windows 走内置后端 + CNG（bcrypt 无条件链接），OpenSSL 变体由
+#   openssl job 单独覆盖（linux/windows 各一）；
+# - log 的 spdlog 后端（with_spdlog，默认关）由 spdlog job 单独覆盖。
 #
 # 历史背景：仓库早期存在旧的 libca.core/（带点目录，桌面端 legacy 代码），
 # 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）。
-# 本 CI 现在只覆盖新 libca/，path filter 已指向 libca/**。
 #
 # 注：暂不含 clang-format job。libca 现有代码尚未按 .clang-format 整体格式化，
 # 一次性开启会全红。待全库格式化落地后再加。
 
-name: Core CI
+name: CI
 
 on:
   push:
@@ -18,20 +26,20 @@ on:
     paths:
       - "libca/**"
       - "xmake.lua"
-      - ".github/workflows/core-ci.yml"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "libca/**"
       - "xmake.lua"
-      - ".github/workflows/core-ci.yml"
+      - ".github/workflows/ci.yml"
 
 concurrency:
-  group: core-ci-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test-core:
+  build-and-test-linux:
     name: build & test (linux)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -62,10 +70,10 @@ jobs:
           restore-keys: |
             libca-xrepo-linux-x64-xmake309-
 
-      - name: Configure (core + tests, no em)
+      - name: Configure (all modules + tests)
         run: |
           # -p linux：显式指定平台，避免歧义。
-          # --with_core=y：只编 core 族，排除 em。
+          # --with_core=y：现等价于编入全部 libca 模块。
           # --with_tests=y：启用 *_unittest target 并拉取 gtest。
           # --with_demo=n：不编 demo。
           # -y：xrepo 安装 gtest 的交互确认自动通过。
@@ -77,7 +85,7 @@ jobs:
       - name: Run unit tests
         run: xmake test -g libs/test -v
 
-  build-and-test-http-openssl:
+  build-and-test-http-openssl-linux:
     name: build & test HTTP (linux, OpenSSL 3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -103,9 +111,9 @@ jobs:
           path: |
             ~/.xmake/packages
             ~/.local/share/xmake
-          key: libca-http-openssl3-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          key: libca-xrepo-http-openssl3-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
           restore-keys: |
-            libca-http-openssl3-linux-x64-xmake309-
+            libca-xrepo-http-openssl3-linux-x64-xmake309-
 
       - name: Configure HTTP with OpenSSL 3
         run: |
@@ -116,7 +124,7 @@ jobs:
           xmake build libca_http_unittest
           xmake run libca_http_unittest
 
-  build-and-test-core-windows:
+  build-and-test-windows:
     name: build & test (windows, ${{ matrix.toolchain }})
     runs-on: windows-latest
     timeout-minutes: 45
@@ -145,12 +153,12 @@ jobs:
           restore-keys: |
             libca-xrepo-windows-${{ matrix.toolchain }}-x64-xmake309-
 
-      - name: Configure (core + tests, no em, msvc)
+      - name: Configure (all modules + tests, msvc)
         if: matrix.toolchain == 'msvc'
         # -p windows -a x64：走 runner 预装的 MSVC 工具链；cmake/ninja 已预装，gtest 由 xrepo 编译。
         run: xmake f -p windows -a x64 --with_core=y --with_demo=n --with_tests=y -y
 
-      - name: Configure (core + tests, no em, mingw-gcc)
+      - name: Configure (all modules + tests, mingw-gcc)
         if: matrix.toolchain == 'mingw'
         # -p mingw：runner 预装的 MinGW-w64 gcc（PATH 可见），xmake 自动探测。
         run: xmake f -p mingw -a x86_64 --with_core=y --with_demo=n --with_tests=y -y
@@ -160,3 +168,84 @@ jobs:
 
       - name: Run unit tests
         run: xmake test -g libs/test
+
+  build-and-test-openssl-windows:
+    name: build & test OpenSSL (windows, msvc)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v3.0.9
+          actions-cache-folder: '.xmake-cache'
+
+      - name: Cache xrepo packages
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/.xmake/packages
+          # 与默认 Windows 缓存隔离：含 openssl3 包，体积差异大。
+          key: libca-xrepo-windows-openssl3-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          restore-keys: |
+            libca-xrepo-windows-openssl3-x64-xmake309-
+
+      - name: Configure with OpenSSL 3
+        # Windows 上 xrepo 的 openssl3 若无预编译包会源码编译（需 perl/nasm，
+        # xmake 自动拉起）；首轮较慢，命中缓存后恢复。
+        run: xmake f -p windows -a x64 --with_core=y --with_demo=n --with_tests=y --with_openssl=y -y
+
+      - name: Build OpenSSL-variant unittests
+        # OpenSSL 变体影响 crypto（EVP 后端）与 http（TLS），两者一并验证。
+        run: |
+          xmake build libca_crypto_unittest
+          xmake build libca_http_unittest
+
+      - name: Run OpenSSL-variant unittests
+        run: |
+          xmake run libca_crypto_unittest
+          xmake run libca_http_unittest
+
+  build-and-test-spdlog-linux:
+    name: build & test log (linux, spdlog backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v3.0.9
+          actions-cache-folder: '.xmake-cache'
+
+      - name: Cache xrepo packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.xmake/packages
+            ~/.local/share/xmake
+          key: libca-xrepo-spdlog-linux-x64-xmake309-${{ hashFiles('xmake.lua') }}
+          restore-keys: |
+            libca-xrepo-spdlog-linux-x64-xmake309-
+
+      - name: Configure log with spdlog backend
+        # with_spdlog=y 时 libca_log 追加编译 spdlog 后端源文件，
+        # 且 unittest 才包含 spdlog_backend_test.cpp（默认构建会排除）。
+        run: |
+          xmake f -p linux --with_core=y --with_demo=n --with_tests=y --with_spdlog=y -y
+
+      - name: Build and test log with spdlog backend
+        run: |
+          xmake build libca_log_unittest
+          xmake run libca_log_unittest

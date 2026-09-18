@@ -1,17 +1,18 @@
-name: Core Coverage
+name: Coverage
 
 # 仅手动触发（Actions 页面 → Run workflow）。
+# 范围：libca 全部模块（with_core 现等价于编入全部模块）。
 # 覆盖率收集使用 gcovr：单次调用同时产出 Cobertura XML（供 Codecov）、
 # 终端摘要与行覆盖率阈值门禁（>=60%，低于即失败），不再依赖 lcov 工具链版本。
 on:
   workflow_dispatch:
 
 concurrency:
-  group: core-coverage-${{ github.ref }}
+  group: coverage-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  coverage-core:
+  coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -42,13 +43,13 @@ jobs:
         restore-keys: |
           libca-xrepo-coverage-linux-x64-xmake309-
 
-    - name: Configure (core coverage mode)
+    - name: Configure (coverage mode)
       run: xmake f -m coverage --with_core=y --with_demo=n --with_tests=y -y
 
-    - name: Build core tests
+    - name: Build tests
       run: xmake build -g libs
 
-    - name: Run core tests
+    - name: Run tests
       run: xmake test -g libs/test
 
     - name: Collect coverage & threshold gate (lines >= 60%)
@@ -57,19 +58,19 @@ jobs:
           --filter 'libca/' \
           --exclude '.*third_party.*' \
           --print-summary \
-          --xml-pretty -o core-coverage.xml \
+          --xml-pretty -o coverage.xml \
           --fail-under-line 60
 
     - name: Upload coverage report artifact
       uses: actions/upload-artifact@v4
       with:
-        name: core-coverage-report
-        path: core-coverage.xml
+        name: coverage-report
+        path: coverage.xml
 
-    - name: Upload core coverage to Codecov
+    - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        files: ./core-coverage.xml
+        files: ./coverage.xml
         flags: core
         fail_ci_if_error: false
         verbose: true
