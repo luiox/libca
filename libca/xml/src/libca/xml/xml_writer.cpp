@@ -93,8 +93,24 @@ void emit_leaf_inline(Writer& w, const XmlNode& node) {
             w.emit_text_escaped(node.value().data(), node.value().byte_length());
             break;
         case XmlNodeType::Cdata:
+            // CDATA 内不允许出现 "]]>"，按标准惯用法拆成两段：
+            // "]]>" → "]]]]><![CDATA[>"，保证任意值都能产出合法 XML。
             w.emit("<![CDATA[");
-            w.emit_bytes(node.value().data(), node.value().byte_length());
+            {
+                const auto& v = node.value();
+                const ca::usize len = v.byte_length();
+                const u8* data = v.data();
+                ca::usize run = 0;
+                for (ca::usize i = 0; i < len; ++i) {
+                    if (i + 2 < len && data[i] == ']' && data[i + 1] == ']' && data[i + 2] == '>') {
+                        w.emit_bytes(data + run, i - run + 2);  // 输出 "]]"
+                        w.emit("]]><![CDATA[>");
+                        i += 2;  // 跳过 "]]"，'>' 由下一段 CDATA 输出
+                        run = i + 1;
+                    }
+                }
+                w.emit_bytes(data + run, len - run);
+            }
             w.emit("]]>");
             break;
         case XmlNodeType::Comment:

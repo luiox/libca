@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -12,6 +13,27 @@
 namespace ca::toml {
 
 namespace {
+
+// 时间部分统一格式化：HH:MM:SS[.fraction]，小数部分去掉尾随 0。
+// 秒与纳秒分别按整数格式化：不可对 "second + nanos/1e9" 的浮点值做
+// "%09.9f" 宽度格式化——宽度 9 小于 "S.SSSSSSSSS" 的实际长度，个位秒会
+// 丢失前导零（产出违反 TOML time-second = 2DIGIT 的非法输出），且
+// double 相加本身有精度风险。
+int format_hms(char* out, size_t cap, unsigned hour, unsigned minute,
+               unsigned second, ca::u32 nanos) {
+    if (nanos == 0) {
+        return std::snprintf(out, cap, "%02u:%02u:%02u", hour, minute, second);
+    }
+    char buf[32];
+    int m = std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%09u",
+                          hour, minute, second, nanos);
+    if (m <= 0) return m;
+    // 裁掉小数部分尾随 0（本分支纳秒非 0，小数点必保留）。
+    int end = m;
+    while (end > 0 && buf[end - 1] == '0') --end;
+    std::memcpy(out, buf, static_cast<size_t>(end));
+    return end;
+}
 
 // ============================================================================
 // 输出缓冲
@@ -83,60 +105,25 @@ public:
                                   static_cast<unsigned>(dt.day));
                 break;
             case TomlDatetimeKind::LocalTime:
-                if (dt.nanos == 0) {
-                    n = std::snprintf(buf, sizeof(buf), "%02u:%02u:%02u",
-                                      static_cast<unsigned>(dt.hour),
-                                      static_cast<unsigned>(dt.minute),
-                                      static_cast<unsigned>(dt.second));
-                } else {
-                    double sec = dt.second + dt.nanos / 1e9;
-                    n = std::snprintf(buf, sizeof(buf), "%02u:%02u:%09.9f",
-                                      static_cast<unsigned>(dt.hour),
-                                      static_cast<unsigned>(dt.minute),
-                                      sec);
-                    // 截断到合理位数
-                }
+                n = format_hms(buf, sizeof(buf),
+                               static_cast<unsigned>(dt.hour),
+                               static_cast<unsigned>(dt.minute),
+                               static_cast<unsigned>(dt.second),
+                               dt.nanos);
                 break;
             case TomlDatetimeKind::LocalDateTime:
             case TomlDatetimeKind::OffsetDatetime: {
                 // 日期 + 时间
-                if (dt.nanos == 0) {
-                    n = std::snprintf(buf, sizeof(buf), "%04d-%02u-%02uT%02u:%02u:%02u",
-                                      static_cast<int>(dt.year),
-                                      static_cast<unsigned>(dt.month),
-                                      static_cast<unsigned>(dt.day),
-                                      static_cast<unsigned>(dt.hour),
-                                      static_cast<unsigned>(dt.minute),
-                                      static_cast<unsigned>(dt.second));
-                } else {
-                    // 带小数秒：把纳秒规范化为去掉末尾 0 的十进制小数。
-                    // 直接拼装：sec.sssssssss 形式，但要去掉末尾 0。
-                    // 为简单，用 %.9f 后裁剪尾 0。
-                    double sec = dt.second + dt.nanos / 1e9;
-                    char tmp[64];
-                    int m = std::snprintf(tmp, sizeof(tmp), "%02u:%02u:%.9f",
-                                          static_cast<unsigned>(dt.hour),
-                                          static_cast<unsigned>(dt.minute),
-                                          sec);
-                    // 裁剪 tmp 中 . 之后尾随的 0
-                    if (m > 0) {
-                        // 找到 '.' 位置
-                        int dot = -1;
-                        for (int i = 0; i < m; ++i) {
-                            if (tmp[i] == '.') { dot = i; break; }
-                        }
-                        if (dot >= 0) {
-                            int end = m;
-                            while (end - 1 > dot && tmp[end-1] == '0') --end;
-                            if (end - 1 == dot) end = dot;  // 整数秒：去掉小数点
-                            m = end;
-                        }
-                    }
-                    n = std::snprintf(buf, sizeof(buf), "%04d-%02u-%02uT%.*s",
-                                      static_cast<int>(dt.year),
-                                      static_cast<unsigned>(dt.month),
-                                      static_cast<unsigned>(dt.day),
-                                      m, tmp);
+                n = std::snprintf(buf, sizeof(buf), "%04d-%02u-%02uT",
+                                  static_cast<int>(dt.year),
+                                  static_cast<unsigned>(dt.month),
+                                  static_cast<unsigned>(dt.day));
+                if (n > 0) {
+                    n += format_hms(buf + n, sizeof(buf) - static_cast<size_t>(n),
+                                    static_cast<unsigned>(dt.hour),
+                                    static_cast<unsigned>(dt.minute),
+                                    static_cast<unsigned>(dt.second),
+                                    dt.nanos);
                 }
                 if (dt.kind == TomlDatetimeKind::OffsetDatetime && dt.has_tz) {
                     // 追加时区
@@ -322,7 +309,6 @@ bool is_table_like(const TomlValue& v) {
 void write_table(Writer& w, const TomlValue& tbl,
                  const std::vector<ca::str::Utf8StringRef>& path) {
     // 1) 先输出本表的"非子表"成员（标量/数组/inline table）为 key = value。
-    bool wrote_kv = false;
     for (const auto& m : tbl.as_table()) {
         if (is_table_like(m.second)) continue;
         w.indent_to(path.size());
@@ -330,7 +316,6 @@ void write_table(Writer& w, const TomlValue& tbl,
         w.emit(" = ");
         write_inline_value(w, m.second);
         w.newline();
-        wrote_kv = true;
     }
     // 2) 输出本表的子表：递归。
     //    对子表（非 array-of-tables）：[a.b]
@@ -340,11 +325,7 @@ void write_table(Writer& w, const TomlValue& tbl,
         std::vector<ca::str::Utf8StringRef> sub_path = path;
         sub_path.push_back(m.first);
         if (m.second.is_table()) {
-            // 标准 sub-table
-            if (wrote_kv || path.empty()) {
-                // 已经有 KV 或子表分段时插入空行分隔；root 直接子表也空行分隔。
-                // （但仅当不是本表的第一个输出时）
-            }
+            // 标准 sub-table：与前面的 KV 段之间无条件空一行分隔。
             w.newline();
             w.indent_to(path.size());
             w.emit("[");

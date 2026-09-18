@@ -948,8 +948,16 @@ StatusResult<Child> Command::spawn() const
     std::vector<wchar_t> mutable_line(text.begin(), text.end());
     mutable_line.push_back(L'\0');
     PROCESS_INFORMATION info{};
-    const DWORD creation_flags =
-        env_.empty() ? CREATE_NO_WINDOW : CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT;
+    // CREATE_NO_WINDOW 只在三个 stdio 均非 Inherit 时加：inherit 的语义是子进程
+    // 复用父进程控制台，无条件加该标志会让 GUI 进程派生的 inherit 子进程没有任何
+    // 控制台，继承的标准句柄写入直接失败（对齐 Rust std 的处理）。
+    const bool any_inherit = stdin_.mode_ == Stdio::Mode::Inherit ||
+                             stdout_.mode_ == Stdio::Mode::Inherit ||
+                             stderr_.mode_ == Stdio::Mode::Inherit;
+    DWORD creation_flags = env_.empty() ? 0 : CREATE_UNICODE_ENVIRONMENT;
+    if (!any_inherit) {
+        creation_flags |= CREATE_NO_WINDOW;
+    }
     if (!CreateProcessW(nullptr,
                         mutable_line.data(),
                         nullptr,
@@ -960,6 +968,16 @@ StatusResult<Child> Command::spawn() const
                         working_ptr,
                         &startup,
                         &info)) {
+        // 程序不存在的典型错误码映射为 NOT_FOUND，与 POSIX execvp(ENOENT) 的
+        // 语义对齐（Rust std 同样映射为 ErrorKind::NotFound）；其余走通用错误。
+        const DWORD last_error = GetLastError();
+        if (last_error == ERROR_FILE_NOT_FOUND || last_error == ERROR_PATH_NOT_FOUND ||
+            last_error == ERROR_BAD_EXE_FORMAT) {
+            cleanup();
+            return Err(ErrStatus(StatusCode::NOT_FOUND,
+                                 ca::str::format_std("CreateProcessW failed with Windows error {}",
+                                                     static_cast<unsigned long>(last_error))));
+        }
         const auto error = system_error("CreateProcessW");
         cleanup();
         return Err(error);

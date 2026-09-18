@@ -6,8 +6,6 @@
 ///          变更监听器（锁外回调）以及与 JSON 的双向转换。
 ///          T 的约束：可默认构造、可拷贝、支持 operator==。
 
-#pragma once
-
 #include "libca/config/config_error.hpp"
 #include "libca/config/lexical_cast.hpp"
 

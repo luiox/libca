@@ -210,33 +210,33 @@ TEST(StringUtilTest, urlComponentUsesPlusForSpace) {
     EXPECT_EQ(decoded.unwrap(), "a b+c");
 }
 
-TEST(StringUtilTest, base64UrlEncodeDecodeWithoutPadding) {
-    EXPECT_EQ(StringUtil::base64UrlEncode(""), "");
-    EXPECT_EQ(StringUtil::base64UrlEncode("f"), "Zg");
-    EXPECT_EQ(StringUtil::base64UrlEncode("fo"), "Zm8");
-    EXPECT_EQ(StringUtil::base64UrlEncode("foo"), "Zm9v");
-    EXPECT_EQ(StringUtil::base64UrlEncode("\xfb\xff", false), "-_8");
+TEST(StringUtilTest, Base64UrlEncodeDecodeWithoutPadding) {
+    EXPECT_EQ(StringUtil::base64_url_encode(""), "");
+    EXPECT_EQ(StringUtil::base64_url_encode("f"), "Zg");
+    EXPECT_EQ(StringUtil::base64_url_encode("fo"), "Zm8");
+    EXPECT_EQ(StringUtil::base64_url_encode("foo"), "Zm9v");
+    EXPECT_EQ(StringUtil::base64_url_encode("\xfb\xff", false), "-_8");
 
-    auto decoded = StringUtil::base64UrlDecode("-_8");
+    auto decoded = StringUtil::base64_url_decode("-_8");
     ASSERT_TRUE(decoded.is_ok()) << decoded.unwrap_err();
     EXPECT_EQ(decoded.unwrap(), std::string("\xfb\xff", 2));
 }
 
-TEST(StringUtilTest, base64UrlSupportsPaddingAndRejectsInvalidInput) {
-    EXPECT_EQ(StringUtil::base64UrlEncode("f", true), "Zg==");
+TEST(StringUtilTest, Base64UrlSupportsPaddingAndRejectsInvalidInput) {
+    EXPECT_EQ(StringUtil::base64_url_encode("f", true), "Zg==");
 
-    auto padded = StringUtil::base64UrlDecode("Zg==");
+    auto padded = StringUtil::base64_url_decode("Zg==");
     ASSERT_TRUE(padded.is_ok()) << padded.unwrap_err();
     EXPECT_EQ(padded.unwrap(), "f");
 
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Z").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zh").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm9").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg===").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zg=A").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm=v").is_err());
-    EXPECT_TRUE(StringUtil::base64UrlDecode("Zm9v!").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Z").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zh").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zm9").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zg=").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zg===").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zg=A").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zm=v").is_err());
+    EXPECT_TRUE(StringUtil::base64_url_decode("Zm9v!").is_err());
 }
 
 // ============================================================

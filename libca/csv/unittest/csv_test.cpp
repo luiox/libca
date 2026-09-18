@@ -68,6 +68,35 @@ TEST(CsvReaderTest, ReportsUnterminatedQuotedField) {
     EXPECT_NE(msg.find("unterminated quoted field"), std::string::npos);
 }
 
+TEST(CsvReaderTest, TrimUnquotedSpaceOptionControlsWhitespaceTrimming) {
+    // trim_unquoted_space = false（默认）：未引号字段的首尾空白原样保留。
+    auto keep = CsvReader::read(R("a, b ,c"));
+    ASSERT_TRUE(keep.is_ok());
+    auto keep_doc = std::move(keep).unwrap();
+    ASSERT_EQ(keep_doc.rows().size(), 1u);
+    EXPECT_EQ(keep_doc.rows()[0][0], "a");
+    EXPECT_EQ(keep_doc.rows()[0][1], " b ");
+    EXPECT_EQ(keep_doc.rows()[0][2], "c");
+
+    // trim_unquoted_space = true：未引号字段修剪两侧 ASCII 空白。
+    CsvReaderOptions options;
+    options.trim_unquoted_space = true;
+    auto trimmed = CsvReader::read(R("a, b ,c"), options);
+    ASSERT_TRUE(trimmed.is_ok());
+    auto trimmed_doc = std::move(trimmed).unwrap();
+    ASSERT_EQ(trimmed_doc.rows().size(), 1u);
+    EXPECT_EQ(trimmed_doc.rows()[0][0], "a");
+    EXPECT_EQ(trimmed_doc.rows()[0][1], "b");
+    EXPECT_EQ(trimmed_doc.rows()[0][2], "c");
+
+    // 引号字段不受该选项影响：引号内空白是数据。
+    auto quoted = CsvReader::read(R("\" padded \",\" k \""), options);
+    ASSERT_TRUE(quoted.is_ok());
+    auto quoted_doc = std::move(quoted).unwrap();
+    EXPECT_EQ(quoted_doc.rows()[0][0], " padded ");
+    EXPECT_EQ(quoted_doc.rows()[0][1], " k ");
+}
+
 TEST(CsvReaderTest, KeepsTrailingEmptyQuotedField) {
     auto single = CsvReader::read(R("\"\""));
     ASSERT_TRUE(single.is_ok());

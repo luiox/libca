@@ -407,13 +407,18 @@ public:
     }
 
     Utf8Iterator& operator++() noexcept {
+        // 步进后钳制到 end_：截断/非规范输入（如尾字节声称多字节但已到末尾）
+        // 会让 pos_ 越过 end_，导致 range-for 不终止与越界解码。安全版本按
+        // 单字节回退步进，配合钳制保证有界收敛。
         pos_ += utf8_code_point_bytes_safe(*pos_);
+        if (pos_ > end_) pos_ = end_;
         return *this;
     }
 
     Utf8Iterator operator++(int) noexcept {
         Utf8Iterator tmp = *this;
         pos_ += utf8_code_point_bytes_safe(*pos_);
+        if (pos_ > end_) pos_ = end_;
         return tmp;
     }
 

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -55,6 +56,24 @@ TEST(ZipOutputStreamTest, WriteReadDeflated)
     for (int i = 0; i < 1000; i++) {
         EXPECT_EQ(result[i], static_cast<ca::u8>(i % 256));
     }
+}
+
+TEST(ZipOutputStreamTest, RejectsMoreThanUint16Entries)
+{
+    // 回归：EOCD 条目数字段为 u16，无 ZIP64 写路径时第 65536 条起计数回绕，
+    // 会产出目录损坏却"看似成功"的归档；改为显式失败。
+    const auto outPath = temp_path("zos_entry_overflow.zip");
+    ZipOutputStream zos(outPath.string());
+    const std::string content = "x";
+    for (int i = 0; i < 65535; ++i) {
+        zos.put_next_entry(ZipEntry("e" + std::to_string(i) + ".txt", 0,
+                                    static_cast<ca::u32>(content.size()), 0, 0, 0));
+        zos.write(reinterpret_cast<const ca::u8*>(content.data()), content.size());
+        zos.close_entry();
+    }
+    zos.put_next_entry(ZipEntry("overflow.txt", 0, 1, 0, 0, 0));
+    zos.write(reinterpret_cast<const ca::u8*>(content.data()), 1);
+    EXPECT_THROW(zos.close_entry(), std::runtime_error);
 }
 
 TEST(ZipOutputStreamTest, MultipleEntries)
