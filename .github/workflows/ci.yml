@@ -1,19 +1,18 @@
 # libca CI（Linux + Windows，全模块）
 #
 # 范围：libca/ 下全部模块（config/core/crypto/csv/env/fs/http/i18n/ini/io/json/log/
-# net/opt/process/random/resources/str/test/thread/time/toml/ui/uuid/xml/yaml/zip）。
+# net/opt/process/random/resources/str/test/thread/time/toml/uuid/xml/yaml/zip）。
 # 根 xmake.lua 的 with_core 开关现在等价于"编入全部模块"（includes("libca")），
 # "core" 只是其中一个普通模块，不再是子库集合，故本文件不再沿用 core-ci 命名。
 #
 # 平台差异：
-# - Linux job 不含 Windows-only 的 libca/ui（Win32 GUI）；
-# - Windows job（msvc + mingw 矩阵）全量编译含 ui；
 # - crypto 在 Windows 走内置后端 + CNG（bcrypt 无条件链接），OpenSSL 变体由
 #   openssl job 单独覆盖（linux/windows 各一）；
 # - log 的 spdlog 后端（with_spdlog，默认关）由 spdlog job 单独覆盖。
 #
 # 历史背景：仓库早期存在旧的 libca.core/（带点目录，桌面端 legacy 代码），
-# 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）。
+# 已于 2026-07 删除，有价值的能力迁移到 libca/str（CharsetConverter）和 libca/ui（Win32 GUI）；
+# libca/ui 亦已于 2026-09 整体移除（GUI 能力由独立 uikit 仓库承担）。
 #
 # 注：暂不含 clang-format job。libca 现有代码尚未按 .clang-format 整体格式化，
 # 一次性开启会全红。待全库格式化落地后再加。

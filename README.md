@@ -1,6 +1,6 @@
 # libca [![CI](https://github.com/luiox/libca/actions/workflows/ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-C++17 基础设施库：把 Rust 的核心语义带进现代 C++ —— `Result<T,E>`/`Option<T>` 错误处理、UTF-8 所有权字符串、Rust 风格容器，外加 JSON/HTTP/子进程/线程池/日志/ZIP 等 27 个开箱模块。
+C++17 基础设施库：把 Rust 的核心语义带进现代 C++ —— `Result<T,E>`/`Option<T>` 错误处理、UTF-8 所有权字符串、Rust 风格容器，外加 JSON/HTTP/子进程/线程池/日志/ZIP 等 26 个开箱模块。
 
 ## 特性
 
