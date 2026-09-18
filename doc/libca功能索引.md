@@ -711,22 +711,6 @@ JVM `java.util.zip.ZipFile` 语义的 ZIP 读写模块。zlib 经 xrepo 引入�
 设计文档：
 - `libca/log/doc/log设计文档.md`
 
-## ui
-
-Win32 桌面 GUI 薄封装，仅 Windows 平台可用。
-
-入口头文件：
-- `<libca/ui/ui.hpp>`（聚合头）
-
-功能：
-- `Window`：顶层窗口，窗口类注册、消息循环与子控件生命周期管理。
-- `Button`：按钮控件，builder 风格链式配置后 `create()` 落地。
-- `MessageDialog`：`MessageBoxW` 薄包装。
-- `CaptureGuard`：把类名匹配的顶级窗口标记为不可捕获（防截屏）。
-
-设计文档：
-- `libca/ui/doc/ui设计文档.md`
-
 ## zip
 
 压缩与归档模块：JVM `ZipFile` 语义 ZIP 读写 + 流式 gzip。zlib 经 xrepo 提供，
@@ -753,7 +737,8 @@ Win32 桌面 GUI 薄封装，仅 Windows 平台可用。
 - libca/utility/、libca/reflect/：历史遗留代码，已从仓库移除。
 
 > 历史上的旧 `libca.core/` 目录已删除。其中有价值的能力已迁移到 `libca/str`（`CharsetConverter`，
-> 代码页转换）和 `libca/ui`（Win32 GUI）。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
+> 代码页转换）和 `libca/ui`（Win32 GUI）；`libca/ui` 后于 2026-09 整体移除，GUI 能力由
+> 独立的 uikit 仓库承担。剩余的 `database` / `event` / `Timer` / `Zip` / `tensor`
 > 等空壳或占位实现未迁移；如有重新设计需求再行立项。
 
 ## 变更策略

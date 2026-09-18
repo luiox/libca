@@ -7,6 +7,19 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
 
+## [0.0.9] - 未发布
+
+### 全局
+
+- **[不兼容]** 移除 `libca/ui` 模块（Windows-only Win32 GUI 薄封装：`Window`/
+  `WindowManager`、`Control`/`Button`、`MessageDialog`、`CaptureGuard`）：
+  - 模块定位游离于本库"基础设施"主线之外，GUI 能力由独立 uikit 仓库承担；
+  - 本仓库删除 `libca/ui/` 目录与 `includes("ui")`，libca 内部无其他模块依赖它；
+  - **消费方迁移**：使用了 `modules = "...ui..."` 或依赖 `ca::ui` 的下游需自行
+    承接（可将原四个组件源码拷走或改用 uikit）；未使用 ui 的下游无需任何改动；
+  - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除
+    `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
+
 ## [0.0.7] - 未发布
 
 ### 全局
