@@ -7,6 +7,33 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
 
+## [0.0.9] - 未发布
+
+### libca
+
+- **[str] UTF-8 校验收紧为 Unicode 标准严格模式**：`Utf8String::from_data` 等入口
+  （及 utf8_count_code_points/utf8_is_valid 公共地基，json/xml/yaml/toml/ini 各
+  parser 入口随之一致）此前放过 overlong 表达（`C0 80`）、UTF-16 代理区
+  （`ED A0 80`）与超出 U+10FFFF 的序列（`F4 90 80 80`），现一律拒绝。
+  另修复 `Utf8Iterator` 在非规范/截断输入下步进越过 end 的越界读。
+- **[str]** `StringUtil::base64UrlEncode/base64UrlDecode` 命名违反 snake_case 约定，
+  新增 `base64_url_encode/base64_url_decode`，旧名标记 `[[deprecated]]` 保留转调。
+- **[time]** `Date::from_string`/`Time::from_string` 从"只查前缀格式"收紧为严格
+  校验：恰好 10/8 字符（拒绝尾部脏字符），并校验字段范围（真实日历含闰年、
+  时 0-23、分/秒 0-59）。
+- **[toml]** 修复 writer 小数秒输出：`%09.9f` 宽度不足导致个位秒丢前导零
+  （产出 `07:32:5.5` 非法 TOML），改为秒/纳秒独立整数格式化；
+  `TomlValue::as_integer_or` 对 NaN/Inf/超 i64 范围浮点不再 UB cast，回落 fallback。
+- **[xml]** 修复 writer CDATA 值含 `]]>` 时产出非法 XML：按标准惯用法拆分。
+- **[process]** 修复 Linux `/proc/<pid>/stat` 出生戳解析差一（cursor 未跳过 `)`，
+  第 20 个 token 取到恒为 0 的 itrealvalue，pid 复用防御失效）；
+  Windows `CREATE_NO_WINDOW` 改为仅在三路 stdio 均非 Inherit 时加（不再破坏
+  `Stdio::inherit()`）；Windows 找不到可执行文件统一映射 `NOT_FOUND`（对齐 POSIX
+  与 Rust ErrorKind::NotFound，此前为通用 INTERNAL）。
+- **[zip]** `ZipOutputStream` 第 65536 条起此前计数回绕产出目录损坏的归档，
+  现显式报错（无 ZIP64 写路径上限 65535 条）。
+- **[config]** 清理 `config_var.hpp` 重复的 `#pragma once`。
+
 ## [0.0.7] - 未发布
 
 ### 全局

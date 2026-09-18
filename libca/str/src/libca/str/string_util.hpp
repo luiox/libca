@@ -120,13 +120,25 @@ public:
     /// @param input 原始字节串。
     /// @param padding true 时补齐 '='，false 时输出无 padding 形式。
     /// @return Base64url 文本，不插入换行。
-    static std::string base64UrlEncode(const std::string& input, bool padding = false);
+    static std::string base64_url_encode(const std::string& input, bool padding = false);
 
     /// @brief Base64url 解码，接受无 padding 或带 '=' padding 的输入。
     /// @param input Base64url 文本。
     /// @return 成功返回原始字节串；非法字符、非法长度、非法 padding 或非零尾部填充位返回错误说明。
     /// @note 解码是严格模式，会拒绝 `Zh` / `Zm9` 这类尾部填充位非零的输入。
-    static ca::core::Result<std::string, std::string> base64UrlDecode(const std::string& input);
+    static ca::core::Result<std::string, std::string> base64_url_decode(const std::string& input);
+
+    /// @deprecated 命名违反仓库 snake_case 约定，请改用 base64_url_encode。
+    [[deprecated("use base64_url_encode")]]
+    static std::string base64UrlEncode(const std::string& input, bool padding = false) {
+        return base64_url_encode(input, padding);
+    }
+
+    /// @deprecated 命名违反仓库 snake_case 约定，请改用 base64_url_decode。
+    [[deprecated("use base64_url_decode")]]
+    static ca::core::Result<std::string, std::string> base64UrlDecode(const std::string& input) {
+        return base64_url_decode(input);
+    }
 
     // ==================== 前缀/后缀/包含 ====================
     static bool starts_with(const std::string& input, const std::string& prefix);

@@ -122,6 +122,46 @@ TEST(Utf8UtilTest, IsValid) {
     EXPECT_FALSE(utf8_is_valid(invalid, 3));
 }
 
+TEST(Utf8UtilTest, IsValid_RejectsOverlong) {
+    // C0 80（overlong NUL）与 E0 80 80（overlong U+0000）：形状合法但码点值非法。
+    u8 overlong2[] = {0xC0, 0x80};
+    EXPECT_FALSE(utf8_is_valid(overlong2, 2));
+    EXPECT_EQ(utf8_count_code_points(overlong2, 2, nullptr), 0);
+
+    u8 overlong3[] = {0xE0, 0x80, 0x80};
+    EXPECT_FALSE(utf8_is_valid(overlong3, 3));
+}
+
+TEST(Utf8UtilTest, IsValid_RejectsSurrogates) {
+    // ED A0 80 = UTF-16 代理项 U+D800 的 UTF-8 表达，标准要求拒绝。
+    u8 surrogate[] = {0xED, 0xA0, 0x80};
+    EXPECT_FALSE(utf8_is_valid(surrogate, 3));
+    EXPECT_EQ(utf8_count_code_points(surrogate, 3, nullptr), 0);
+}
+
+TEST(Utf8UtilTest, IsValid_RejectsBeyondU10FFFF) {
+    // F4 90 80 80 = U+110000，超出 Unicode 上限。
+    u8 beyond[] = {0xF4, 0x90, 0x80, 0x80};
+    EXPECT_FALSE(utf8_is_valid(beyond, 4));
+    // U+10FFFF 本身合法（F4 8F BF BF）。
+    u8 max_cp[] = {0xF4, 0x8F, 0xBF, 0xBF};
+    EXPECT_TRUE(utf8_is_valid(max_cp, 4));
+    EXPECT_EQ(utf8_count_code_points(max_cp, 4, nullptr), 1);
+}
+
+TEST(Utf8UtilTest, IteratorTerminatesOnTruncatedTail) {
+    // 回归：from_data 不校验输入，截断的尾序列（0xC3 声称 2 字节但只剩 1）
+    // 会让迭代器步进越过 end；钳制后 range-for 必须有界终止。
+    u8 data[] = {0x41, 0xC3};
+    Utf8StringRef ref(data, 2, 2);
+    usize count = 0;
+    for (u32 cp [[maybe_unused]] : ref) {
+        ++count;
+        ASSERT_LT(count, 16u) << "iterator failed to terminate";
+    }
+    EXPECT_EQ(count, 2u);
+}
+
 // ============================================================================
 // Utf8StringRef 测试
 // ============================================================================

@@ -389,7 +389,7 @@ ca::core::Result<std::string, std::string> StringUtil::url_decode_component(
     return percent_decode(input, true);
 }
 
-std::string StringUtil::base64UrlEncode(const std::string& input, bool padding) {
+std::string StringUtil::base64_url_encode(const std::string& input, bool padding) {
     std::string output;
     output.reserve(((input.size() + 2) / 3) * 4);
 
@@ -415,7 +415,7 @@ std::string StringUtil::base64UrlEncode(const std::string& input, bool padding) 
     return output;
 }
 
-ca::core::Result<std::string, std::string> StringUtil::base64UrlDecode(
+ca::core::Result<std::string, std::string> StringUtil::base64_url_decode(
     const std::string& input) {
     std::string output;
     output.reserve((input.size() * 3) / 4);

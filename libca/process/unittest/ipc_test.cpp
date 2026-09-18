@@ -31,6 +31,18 @@ u64 current_process_id()
 
 // ---- SharedMemory ----
 
+#if defined(__linux__)
+TEST(ProcessBirthTest, ReadProcessBirthParsesSelfStat)
+{
+    // 回归：解析 /proc/<pid>/stat 时 cursor 曾停在 ')' 上未跳过，第 20 个
+    // token 取到恒为 0 的 itrealvalue，出生戳永远为 0，pid 复用防御失效。
+    // starttime 是系统启动以来的 tick 数，存活进程必大于 0。
+    const u64 birth = ipc::detail::read_process_birth(current_process_id());
+    EXPECT_GT(birth, 0u);
+    EXPECT_EQ(ipc::detail::read_process_birth(0), 0u);   // 不存在的 pid 安全回落
+}
+#endif
+
 TEST(SharedMemoryTest, CreateAndOpenShareMappedBytes)
 {
     const std::string name    = "libca_process_shm_" + std::to_string(current_process_id());
