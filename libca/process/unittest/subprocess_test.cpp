@@ -51,6 +51,36 @@ TEST(CommandTest, OutputCapturesBothStreams)
     EXPECT_EQ(output.stderr_data, "stderr");
 }
 
+TEST(CommandTest, SpawnMissingProgramReportsNotFound)
+{
+    // exec 失败同步管道路径：POSIX execvp(ENOENT) 与 Windows
+    // CreateProcessW(ERROR_FILE_NOT_FOUND/PATH_NOT_FOUND/BAD_EXE_FORMAT)
+    // 统一映射 NOT_FOUND，两平台语义一致（对齐 Rust ErrorKind::NotFound）。
+    Command command("libca-no-such-binary-8f3c2d");
+    auto    spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_err());
+    EXPECT_EQ(spawned.unwrap_err().code(), ca::core::StatusCode::NOT_FOUND);
+}
+
+TEST(CommandTest, SpawnRejectsInvalidEnvKey)
+{
+    auto command = child_command("--subprocess-success");
+    command.env("BAD=KEY", "value");
+    auto spawned = command.spawn();
+    ASSERT_TRUE(spawned.is_err());
+    EXPECT_EQ(spawned.unwrap_err().code(), ca::core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(CommandTest, SpawnWithMissingWorkingDirFails)
+{
+    // current_dir 指向不存在的目录：POSIX chdir 失败走 exec 错误管道，
+    // Windows CreateProcessW 返回 ERROR_DIRECTORY，两者都必须失败而非静默忽略。
+    auto command = child_command("--subprocess-success");
+    command.current_dir("libca-no-such-working-dir-8f3c2d");
+    auto spawned = command.spawn();
+    EXPECT_TRUE(spawned.is_err());
+}
+
 TEST(CommandTest, ChildExposesInteractiveStandardPipes)
 {
     auto command = child_command("--subprocess-echo");

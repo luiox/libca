@@ -48,6 +48,33 @@ bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept {
     return true;
 }
 
+namespace {
+
+// 解出 len 个字节的码点值；调用方须已保证 len 与首字节形状匹配、续字节合法。
+u32 utf8_sequence_value(const u8* data, usize len) noexcept {
+    switch (len) {
+        case 1:  return data[0];
+        case 2:  return (u32(data[0] & 0x1F) << 6) | u32(data[1] & 0x3F);
+        case 3:  return (u32(data[0] & 0x0F) << 12) | (u32(data[1] & 0x3F) << 6) | u32(data[2] & 0x3F);
+        default: return (u32(data[0] & 0x07) << 18) | (u32(data[1] & 0x3F) << 12) |
+                        (u32(data[2] & 0x3F) << 6) | u32(data[3] & 0x3F);
+    }
+}
+
+// Unicode 标准合法性（W3C/UTF-8 要求拒绝）：overlong 表达、UTF-16 代理区
+// （U+D800~U+DFFF）与超出 U+10FFFF 的码点均不合法。
+bool utf8_sequence_valid(u32 cp, usize len) noexcept {
+    if (len == 2 && cp < 0x80) return false;                       // overlong，如 C0 80
+    if (len == 3) {
+        if (cp < 0x800) return false;                              // overlong，如 E0 80 80
+        if (cp >= 0xD800 && cp <= 0xDFFF) return false;            // 代理项，如 ED A0 80
+    }
+    if (len == 4 && (cp < 0x10000 || cp > 0x10FFFF)) return false; // 超范围，如 F4 90 80 80
+    return true;
+}
+
+}  // namespace
+
 usize utf8_encode_code_point(u32 cp, u8* out) noexcept {
     // 排除非法码点：代理项 (U+D800~U+DFFF) 和超出范围的值
     if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
@@ -97,6 +124,12 @@ usize utf8_count_code_points(const u8* data, usize byte_length,
                 return 0;
             }
         }
+        // 码点值级合法性：overlong / 代理区 / 超出 U+10FFFF
+        if (!utf8_sequence_valid(utf8_sequence_value(data + pos, len), len)) {
+            if (invalid_pos)
+                *invalid_pos = pos;
+            return 0;
+        }
         pos += len;
         ++count;
     }
@@ -114,6 +147,8 @@ bool utf8_is_valid(const u8* data, usize byte_length) noexcept {
             if ((data[pos + i] & 0xC0) != 0x80)
                 return false;
         }
+        if (!utf8_sequence_valid(utf8_sequence_value(data + pos, len), len))
+            return false;
         pos += len;
     }
     return true;

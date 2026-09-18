@@ -237,6 +237,12 @@ inline usize ring_segment_size(usize slot_count, usize payload_capacity) noexcep
     return kRingHeaderSize + slot_count * ring_slot_stride(payload_capacity);
 }
 
+#if !defined(_WIN32)
+/// @brief 读 /proc/<pid>/stat 的 starttime（clock tick）作为进程出生戳。
+///        打开或读取失败返回 0。仅供 ShmRingQueue 实现与测试使用，不属于稳定 API。
+u64 read_process_birth(u64 pid);
+#endif
+
 }   // namespace detail
 
 /// @brief 共享内存环形消息队列：单写者、多读者、写者崩溃可恢复，move-only。

@@ -195,6 +195,46 @@ TEST(TomlWriterTest, RoundTripDatetime) {
     EXPECT_TRUE(v->as_offset_datetime().has_tz);
 }
 
+TEST(TomlWriterTest, LocalTimeFractionalKeepsTwoDigitSecond) {
+    // 回归：个位秒 + 小数秒此前经 "%09.9f" 浮点宽度格式化会丢前导零，
+    // 产出 "07:32:5.5" 这类违反 TOML time-second = 2DIGIT 的非法输出。
+    TomlDocument doc;
+    TomlDatetime dt;
+    dt.hour = 7; dt.minute = 32; dt.second = 5; dt.nanos = 500000000;
+    doc.root().set(R("t"), TomlValue::make_local_time(dt));
+
+    Utf8String out = write_str(doc);
+    EXPECT_NE(out.index_of(R("07:32:05.5")), ca::usize(-1))
+        << "output: " << out.c_str();
+
+    auto r = TomlReader::read(out.ref());
+    ASSERT_TRUE(r.is_ok());
+    TomlDocument back = std::move(r).unwrap();
+    auto* v = back.root().find(R("t"));
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->as_local_time().second, 5);
+    EXPECT_EQ(v->as_local_time().nanos, 500000000u);
+}
+
+TEST(TomlWriterTest, LocalDateTimeFractionalTrimsTrailingZeros) {
+    // 小数部分尾零裁剪：.100000000 → .1；个位秒保持两位。
+    TomlDocument doc;
+    TomlDatetime dt;
+    dt.year = 2026; dt.month = 9; dt.day = 19;
+    dt.hour = 1; dt.minute = 2; dt.second = 3; dt.nanos = 100000000;
+    doc.root().set(R("t"), TomlValue::make_local_datetime(dt));
+
+    Utf8String out = write_str(doc);
+    EXPECT_NE(out.index_of(R("2026-09-19T01:02:03.1")), ca::usize(-1))
+        << "output: " << out.c_str();
+
+    auto r = TomlReader::read(out.ref());
+    ASSERT_TRUE(r.is_ok());
+    auto* v = std::move(r).unwrap().root().find(R("t"));
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->as_local_datetime().nanos, 100000000u);
+}
+
 // ============================================================================
 // Builder 自定义构造 + Writer round-trip 集成
 // ============================================================================

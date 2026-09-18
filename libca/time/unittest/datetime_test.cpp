@@ -28,6 +28,24 @@ TEST(DateTest, fromStringRejectsInvalid) {
     EXPECT_TRUE(Date::from_string("20a6-05-31").is_err());
 }
 
+TEST(DateTest, fromStringRejectsOutOfRange) {
+    // 字段范围：月份与日在真实日历下校验（含闰年）。
+    EXPECT_TRUE(Date::from_string("2026-13-01").is_err());   // 月 13
+    EXPECT_TRUE(Date::from_string("2026-00-10").is_err());   // 月 0
+    EXPECT_TRUE(Date::from_string("2026-04-31").is_err());   // 4 月只有 30 天
+    EXPECT_TRUE(Date::from_string("2026-02-29").is_err());   // 平年无 2/29
+    EXPECT_TRUE(Date::from_string("2024-02-29").is_ok());    // 闰年有 2/29
+    EXPECT_TRUE(Date::from_string("2000-02-29").is_ok());    // 世纪闰年
+    EXPECT_TRUE(Date::from_string("1900-02-29").is_err());   // 世纪非闰年
+    EXPECT_TRUE(Date::from_string("2026-01-00").is_err());   // 日 0
+}
+
+TEST(DateTest, fromStringRejectsTrailingGarbage) {
+    // 严格长度：尾部脏字符不再被前缀匹配放过。
+    EXPECT_TRUE(Date::from_string("2026-01-01XYZ").is_err());
+    EXPECT_TRUE(Date::from_string("2026-01-011").is_err());
+}
+
 TEST(DateTest, toString) {
     Date d(2026, 1, 2);
     EXPECT_EQ(d.to_string(), "2026-01-02");
@@ -62,6 +80,12 @@ TEST(TimeTest, fromStringRejectsInvalid) {
     EXPECT_TRUE(Time::from_string("14:30").is_err());
     EXPECT_TRUE(Time::from_string("14-30-00").is_err());
     EXPECT_TRUE(Time::from_string("1a:30:00").is_err());
+    // 字段范围与严格长度。
+    EXPECT_TRUE(Time::from_string("24:00:00").is_err());
+    EXPECT_TRUE(Time::from_string("23:60:00").is_err());
+    EXPECT_TRUE(Time::from_string("23:59:60").is_err());
+    EXPECT_TRUE(Time::from_string("14:30:00XYZ").is_err());
+    EXPECT_TRUE(Time::from_string("23:59:59").is_ok());
 }
 
 TEST(TimeTest, toString) {

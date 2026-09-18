@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <utility>
 
 using namespace ca;
@@ -115,6 +116,21 @@ TEST(TomlValueTest, AsFloatOrConvertsInteger) {
 TEST(TomlValueTest, AsIntegerOrTruncatesFloat) {
     TomlValue f = TomlValue::make_float(3.9);
     EXPECT_EQ(f.as_integer_or(0), 3);
+}
+
+TEST(TomlValueTest, AsIntegerOrFallsBackOnNonFiniteAndOutOfRange) {
+    // NaN/Inf/超 i64 范围的浮点转整数是 UB，必须回落 fallback。
+    TomlValue nan_v = TomlValue::make_float(std::numeric_limits<double>::quiet_NaN());
+    EXPECT_EQ(nan_v.as_integer_or(-7), -7);
+    TomlValue inf_v = TomlValue::make_float(std::numeric_limits<double>::infinity());
+    EXPECT_EQ(inf_v.as_integer_or(-7), -7);
+    TomlValue big = TomlValue::make_float(9.3e18);   // > INT64_MAX
+    EXPECT_EQ(big.as_integer_or(-7), -7);
+    TomlValue small = TomlValue::make_float(-9.3e18);  // < INT64_MIN
+    EXPECT_EQ(small.as_integer_or(-7), -7);
+    // 边界内的正常值不受影响。
+    TomlValue ok = TomlValue::make_float(-9.0e18);
+    EXPECT_EQ(ok.as_integer_or(-7), static_cast<i64>(-9.0e18));
 }
 
 // ============================================================================

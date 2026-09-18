@@ -135,6 +135,39 @@ TEST(XmlWriterTest, CdataAndComment) {
     EXPECT_NE(out.find("<![CDATA[if (a<b) {}]]>"), std::string::npos) << out;
 }
 
+TEST(XmlWriterTest, CdataContainingCdataEndTokenSplits) {
+    // 回归：CDATA 值含 "]]>" 时原样输出会产出自身解析器都拒收的非法 XML；
+    // 按 XSLT 规范惯用法拆分 "]]>" → "]]]]><![CDATA[>"。拆分后读回是两个
+    // 相邻 CDATA 节点（解析器不合并相邻段），内容拼接须还原原值。
+    XmlDocument doc;
+    auto& a = doc.arena();
+    doc.root() = XmlNode::make_element(a.intern("r"));
+    doc.root().append_child(XmlNode::make_cdata(a.intern("x ]]> y")));
+    const std::string out = S(XmlWriter::write(doc));
+    EXPECT_NE(out.find("<![CDATA[x ]]]]><![CDATA[> y]]>"), std::string::npos) << out;
+
+    auto r = XmlReader::read(Utf8StringRef::from_string_view(out));
+    ASSERT_TRUE(r.is_ok());
+    XmlDocument back = std::move(r).unwrap();
+    ASSERT_EQ(back.root().child_count(), 2u);
+    EXPECT_TRUE(back.root().children()[0].value() == a.intern("x ]]"));
+    EXPECT_TRUE(back.root().children()[1].value() == a.intern("> y"));
+}
+
+TEST(XmlWriterTest, CdataEndingWithEndTokenStillRoundTrips) {
+    // 边界：值以 "]]>" 结尾，拆分后读回同样是两个相邻 CDATA 节点。
+    XmlDocument doc;
+    auto& a = doc.arena();
+    doc.root() = XmlNode::make_element(a.intern("r"));
+    doc.root().append_child(XmlNode::make_cdata(a.intern("end]]>")));
+    auto r = XmlReader::read(Utf8StringRef::from_string_view(S(XmlWriter::write(doc))));
+    ASSERT_TRUE(r.is_ok());
+    XmlDocument back = std::move(r).unwrap();
+    ASSERT_EQ(back.root().child_count(), 2u);
+    EXPECT_TRUE(back.root().children()[0].value() == a.intern("end]]"));
+    EXPECT_TRUE(back.root().children()[1].value() == a.intern(">"));
+}
+
 // ============================================================================
 // 声明
 // ============================================================================

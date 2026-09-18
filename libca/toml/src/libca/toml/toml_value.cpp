@@ -1,7 +1,9 @@
 #include "libca/toml/toml_value.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 #include <utility>
 
 namespace ca::toml {
@@ -259,7 +261,16 @@ ca::f64 TomlValue::as_float_or(ca::f64 fallback) const noexcept {
 
 ca::i64 TomlValue::as_integer_or(ca::i64 fallback) const noexcept {
     if (type_ == TomlType::Integer) return std::get<ca::i64>(data_);
-    if (type_ == TomlType::Float)   return static_cast<ca::i64>(std::get<ca::f64>(data_));
+    if (type_ == TomlType::Float) {
+        // 浮点 → 整数：NaN/Inf 及超出 i64 表示范围的值做 static_cast 是 UB，
+        // 一律回落 fallback，不做截断猜测。
+        const ca::f64 v = std::get<ca::f64>(data_);
+        if (std::isnan(v) || std::isinf(v)) return fallback;
+        constexpr ca::f64 kMin = static_cast<ca::f64>(std::numeric_limits<ca::i64>::min());
+        constexpr ca::f64 kMax = static_cast<ca::f64>(std::numeric_limits<ca::i64>::max());
+        if (v < kMin || v >= kMax) return fallback;
+        return static_cast<ca::i64>(v);
+    }
     return fallback;
 }
 
