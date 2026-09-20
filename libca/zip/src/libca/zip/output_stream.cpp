@@ -1,5 +1,6 @@
 #include "libca/zip/output_stream.hpp"
 
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 
@@ -11,23 +12,29 @@ namespace ca::zip {
 
 namespace {
 
-constexpr ca::u32 kLocSig = 0x04034b50;
-constexpr ca::u32 kCenSig = 0x02014b50;
-constexpr ca::u32 kEndSig = 0x06054b50;
+constexpr ca::u32 kLocSig            = 0x04034b50;
+constexpr ca::u32 kCenSig            = 0x02014b50;
+constexpr ca::u32 kEndSig            = 0x06054b50;
 constexpr ca::u32 kDataDescriptorSig = 0x08074b50;
 
-void write_u16(ca::u8* p, ca::u16 v)
-{
+void write_u16(ca::u8* p, ca::u16 v) {
     p[0] = static_cast<ca::u8>(v);
     p[1] = static_cast<ca::u8>(v >> 8);
 }
 
-void write_u32(ca::u8* p, ca::u32 v)
-{
+void write_u32(ca::u8* p, ca::u32 v) {
     p[0] = static_cast<ca::u8>(v);
     p[1] = static_cast<ca::u8>(v >> 8);
     p[2] = static_cast<ca::u8>(v >> 16);
     p[3] = static_cast<ca::u8>(v >> 24);
+}
+
+// 构造路径保留异常（见 ZipOutputStream 头文件注释）：把 open 的错误转为
+// std::runtime_error。
+void throw_if_err(Result<void, ZipErrorInfo> result) {
+    if (result.is_err()) {
+        throw std::runtime_error(std::move(result).unwrap_err().message);
+    }
 }
 
 }   // anonymous namespace
@@ -39,20 +46,19 @@ struct ZipOutputStream::Impl {
 
     bool        entry_open = false;
     std::string entry_name;
-    ca::u16     entry_method             = 0;
-    ca::u32     current_crc32            = 0;
-    ca::u32     current_compressed_size  = 0;
+    ca::u16     entry_method              = 0;
+    ca::u32     current_crc32             = 0;
+    ca::u32     current_compressed_size   = 0;
     ca::u32     current_uncompressed_size = 0;
-    ca::u32     current_loc_offset       = 0;
-    ca::u16     entry_flags              = 0;
-    void*       zstream                  = nullptr;
+    ca::u32     current_loc_offset        = 0;
+    ca::u16     entry_flags               = 0;
+    void*       zstream                   = nullptr;
     Crc32       crc32_;
 
     std::vector<ca::u8> cen_data;
     ca::u16             total_entries = 0;
 
-    ~Impl()
-    {
+    ~Impl() {
         if (zstream) {
             ::deflateEnd(static_cast<z_stream*>(zstream));
             delete static_cast<z_stream*>(zstream);
@@ -62,11 +68,10 @@ struct ZipOutputStream::Impl {
         }
     }
 
-    // 收尾 deflate 流并归还资源；失败时抛异常前先释放，避免句柄泄漏。
-    void finish_and_release_zstream()
-    {
-        auto* stream = static_cast<z_stream*>(zstream);
-        int   ret;
+    // 收尾 deflate 流并归还资源；失败时返回 Err 前先释放，避免句柄泄漏。
+    Result<void, ZipErrorInfo> finish_and_release_zstream() {
+        auto*  stream = static_cast<z_stream*>(zstream);
+        int    ret;
         ca::u8 buffer[8192];
         do {
             stream->next_in   = nullptr;
@@ -78,7 +83,7 @@ struct ZipOutputStream::Impl {
                 ::deflateEnd(stream);
                 delete static_cast<z_stream*>(zstream);
                 zstream = nullptr;
-                throw std::runtime_error("deflate stream error on finish");
+                return Err(ZipErrorInfo{ZipError::ZLIB_ERROR, "deflate stream error on finish"});
             }
             const size_t have = sizeof(buffer) - stream->avail_out;
             if (have > 0) {
@@ -86,7 +91,7 @@ struct ZipOutputStream::Impl {
                     ::deflateEnd(stream);
                     delete static_cast<z_stream*>(zstream);
                     zstream = nullptr;
-                    throw std::runtime_error("Failed to write final deflated data");
+                    return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write final deflated data"});
                 }
                 current_compressed_size += static_cast<ca::u32>(have);
             }
@@ -95,68 +100,65 @@ struct ZipOutputStream::Impl {
         ::deflateEnd(stream);
         delete static_cast<z_stream*>(zstream);
         zstream = nullptr;
+        return Ok();
     }
 };
 
 ZipOutputStream::ZipOutputStream()
-    : impl_(std::make_unique<Impl>())
-{}
+    : impl_(std::make_unique<Impl>()) {}
 
 ZipOutputStream::ZipOutputStream(const std::string& path)
-    : impl_(std::make_unique<Impl>())
-{
-    open(path);
+    : impl_(std::make_unique<Impl>()) {
+    throw_if_err(open(path));
 }
 
-ZipOutputStream::~ZipOutputStream()
-{
+ZipOutputStream::~ZipOutputStream() {
     if (impl_->opened) {
-        try {
-            close();
-        } catch (...) {
-            // 析构函数不抛异常
-        }
+        // 析构函数不抛异常：收尾失败只能静默（磁盘满等场景由 close 的
+        // Result 返回值向调用方报告）。
+        (void)close();
     }
 }
 
-void ZipOutputStream::open(const std::string& path)
-{
+Result<void, ZipErrorInfo> ZipOutputStream::open(const std::string& path) {
     if (impl_->opened) {
-        throw std::runtime_error("ZipOutputStream already open");
+        return Err(ZipErrorInfo{ZipError::INVALID_STATE, "ZipOutputStream already open"});
     }
     FILE* fp = nullptr;
 #ifdef _MSC_VER
-    if (::fopen_s(&fp, path.c_str(), "wb") != 0) fp = nullptr;
+    if (::fopen_s(&fp, path.c_str(), "wb") != 0)
+        fp = nullptr;
 #else
     fp = std::fopen(path.c_str(), "wb");
 #endif
     if (!fp) {
-        throw std::runtime_error("Failed to open file for writing: " + path);
+        return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to open file for writing: " + path});
     }
     impl_->file   = fp;
     impl_->opened = true;
+    return Ok();
 }
 
-bool ZipOutputStream::is_open() const
-{
+bool ZipOutputStream::is_open() const {
     return impl_->opened;
 }
 
-void ZipOutputStream::close()
-{
+Result<void, ZipErrorInfo> ZipOutputStream::close() {
     if (!impl_->opened) {
-        return;
+        return Ok();
     }
     if (impl_->entry_open) {
-        close_entry();
+        auto closed = close_entry();
+        if (closed.is_err()) {
+            return Err(std::move(closed).unwrap_err());
+        }
     }
 
     const ca::u32 cenOffset = static_cast<ca::u32>(::ftell(impl_->file));
 
     if (!impl_->cen_data.empty()) {
-        if (::fwrite(impl_->cen_data.data(), 1, impl_->cen_data.size(), impl_->file) !=
-            impl_->cen_data.size()) {
-            throw std::runtime_error("Failed to write CEN entries");
+        if (::fwrite(impl_->cen_data.data(), 1, impl_->cen_data.size(), impl_->file) != impl_->cen_data.size()) {
+            return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write CEN entries"});
         }
     }
     const ca::u32 cenSize = static_cast<ca::u32>(impl_->cen_data.size());
@@ -172,7 +174,7 @@ void ZipOutputStream::close()
     write_u16(eocd + 20, 0);
 
     if (::fwrite(eocd, 1, 22, impl_->file) != 22) {
-        throw std::runtime_error("Failed to write EOCD");
+        return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write EOCD"});
     }
 
     ::fclose(impl_->file);
@@ -182,17 +184,23 @@ void ZipOutputStream::close()
     impl_->cen_data.clear();
     impl_->cen_data.shrink_to_fit();
     impl_->total_entries = 0;
+    return Ok();
 }
 
-void ZipOutputStream::put_next_entry(const ZipEntry& entry)
-{
+Result<void, ZipErrorInfo> ZipOutputStream::put_next_entry(const ZipEntry& entry) {
+    if (!impl_->opened) {
+        return Err(ZipErrorInfo{ZipError::INVALID_STATE, "ZipOutputStream is not open"});
+    }
     if (impl_->entry_open) {
-        close_entry();
+        auto closed = close_entry();
+        if (closed.is_err()) {
+            return Err(std::move(closed).unwrap_err());
+        }
     }
 
-    impl_->entry_name     = entry.name();
-    impl_->entry_method   = entry.compression_method();
-    impl_->current_crc32  = 0;
+    impl_->entry_name    = entry.name();
+    impl_->entry_method  = entry.compression_method();
+    impl_->current_crc32 = 0;
     impl_->crc32_.reset();
     impl_->current_compressed_size   = 0;
     impl_->current_uncompressed_size = 0;
@@ -214,42 +222,41 @@ void ZipOutputStream::put_next_entry(const ZipEntry& entry)
     write_u16(loc + 28, 0);
 
     if (::fwrite(loc, 1, 30, impl_->file) != 30) {
-        throw std::runtime_error("Failed to write LOC header");
+        return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write LOC header"});
     }
     if (!impl_->entry_name.empty()) {
-        if (::fwrite(impl_->entry_name.data(), 1, impl_->entry_name.size(), impl_->file) !=
-            impl_->entry_name.size()) {
-            throw std::runtime_error("Failed to write entry name");
+        if (::fwrite(impl_->entry_name.data(), 1, impl_->entry_name.size(), impl_->file) != impl_->entry_name.size()) {
+            return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write entry name"});
         }
     }
 
     if (entry.is_deflated()) {
-        auto* zs  = new z_stream {};
-        const int ret =
-            ::deflateInit2(zs, impl_->level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+        auto*     zs  = new z_stream{};
+        const int ret = ::deflateInit2(zs, impl_->level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
         if (ret != Z_OK) {
             delete zs;
-            throw std::runtime_error("deflateInit2 failed");
+            return Err(ZipErrorInfo{ZipError::ZLIB_ERROR, "deflateInit2 failed"});
         }
         impl_->zstream = zs;
     }
 
     impl_->entry_open = true;
+    return Ok();
 }
 
-void ZipOutputStream::write(const ca::u8* data, size_t size)
-{
+Result<void, ZipErrorInfo> ZipOutputStream::write(const ca::u8* data, size_t size) {
     if (!impl_->entry_open) {
-        throw std::runtime_error("No entry to write to");
+        return Err(ZipErrorInfo{ZipError::INVALID_STATE, "No entry to write to"});
     }
-    if (size == 0) return;
+    if (size == 0)
+        return Ok();
 
     impl_->crc32_.update(data, size);
     impl_->current_uncompressed_size += static_cast<ca::u32>(size);
 
     if (impl_->entry_method == 0) {
         if (::fwrite(data, 1, size, impl_->file) != size) {
-            throw std::runtime_error("Failed to write stored data");
+            return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write stored data"});
         }
         impl_->current_compressed_size += static_cast<ca::u32>(size);
     } else {
@@ -263,32 +270,34 @@ void ZipOutputStream::write(const ca::u8* data, size_t size)
             stream->avail_out = sizeof(buffer);
             const int ret     = ::deflate(stream, Z_NO_FLUSH);
             if (ret == Z_STREAM_ERROR) {
-                throw std::runtime_error("deflate stream error");
+                return Err(ZipErrorInfo{ZipError::ZLIB_ERROR, "deflate stream error"});
             }
             const size_t have = sizeof(buffer) - stream->avail_out;
             if (have > 0) {
                 if (::fwrite(buffer, 1, have, impl_->file) != have) {
-                    throw std::runtime_error("Failed to write deflated data");
+                    return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write deflated data"});
                 }
                 impl_->current_compressed_size += static_cast<ca::u32>(have);
             }
         } while (stream->avail_out == 0);
     }
+    return Ok();
 }
 
-void ZipOutputStream::write(const std::vector<ca::u8>& data)
-{
-    write(data.data(), data.size());
+Result<void, ZipErrorInfo> ZipOutputStream::write(const std::vector<ca::u8>& data) {
+    return write(data.data(), data.size());
 }
 
-void ZipOutputStream::close_entry()
-{
+Result<void, ZipErrorInfo> ZipOutputStream::close_entry() {
     if (!impl_->entry_open) {
-        return;
+        return Ok();
     }
 
     if (impl_->entry_method == 8) {
-        impl_->finish_and_release_zstream();
+        auto finished = impl_->finish_and_release_zstream();
+        if (finished.is_err()) {
+            return Err(std::move(finished).unwrap_err());
+        }
     }
 
     impl_->current_crc32 = impl_->crc32_.value();
@@ -300,7 +309,7 @@ void ZipOutputStream::close_entry()
     write_u32(dd + 12, impl_->current_uncompressed_size);
 
     if (::fwrite(dd, 1, 16, impl_->file) != 16) {
-        throw std::runtime_error("Failed to write data descriptor");
+        return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to write data descriptor"});
     }
 
     ca::u8 cen[46] = {};
@@ -324,31 +333,30 @@ void ZipOutputStream::close_entry()
 
     impl_->cen_data.insert(impl_->cen_data.end(), cen, cen + 46);
     if (!impl_->entry_name.empty()) {
-        impl_->cen_data.insert(
-            impl_->cen_data.end(),
-            reinterpret_cast<const ca::u8*>(impl_->entry_name.data()),
-            reinterpret_cast<const ca::u8*>(impl_->entry_name.data()) +
-                impl_->entry_name.size());
+        impl_->cen_data.insert(impl_->cen_data.end(),
+                               reinterpret_cast<const ca::u8*>(impl_->entry_name.data()),
+                               reinterpret_cast<const ca::u8*>(impl_->entry_name.data()) + impl_->entry_name.size());
     }
 
     impl_->total_entries++;
 
-    impl_->entry_open                 = false;
+    impl_->entry_open = false;
     impl_->entry_name.clear();
-    impl_->entry_method               = 0;
-    impl_->current_crc32              = 0;
-    impl_->current_compressed_size    = 0;
-    impl_->current_uncompressed_size  = 0;
-    impl_->current_loc_offset         = 0;
-    impl_->entry_flags                = 0;
+    impl_->entry_method              = 0;
+    impl_->current_crc32             = 0;
+    impl_->current_compressed_size   = 0;
+    impl_->current_uncompressed_size = 0;
+    impl_->current_loc_offset        = 0;
+    impl_->entry_flags               = 0;
+    return Ok();
 }
 
-void ZipOutputStream::set_level(int level)
-{
+Result<void, ZipErrorInfo> ZipOutputStream::set_level(int level) {
     if (level < -1 || level > 9) {
-        throw std::runtime_error("Invalid compression level: " + std::to_string(level));
+        return Err(ZipErrorInfo{ZipError::INVALID_ARGUMENT, "Invalid compression level: " + std::to_string(level)});
     }
     impl_->level = level;
+    return Ok();
 }
 
 }   // namespace ca::zip
