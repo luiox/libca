@@ -87,6 +87,10 @@ public:
     /// @brief 判断当前 incoming body 是否已经读到消息边界。
     bool body_finished() const noexcept;
 
+    /// @brief 最近一次成功解析的 request 行中的 method（跨报文保留，供协议错误
+    ///        响应判定 HEAD 帧规则）；尚未解析过任何请求行时为空。
+    const std::string& last_head_method() const noexcept { return last_head_method_; }
+
     /// @brief 在 body 完成后取出 trailers，并允许读取下一条报文。
     HttpResult<HttpHeaders> finish_body();
 
@@ -142,6 +146,7 @@ private:
     usize                used_header_bytes_{0};
     usize                used_header_count_{0};
     HttpHeaders          body_trailers_;
+    std::string          last_head_method_;
 };
 
 /// @brief 把完整缓冲或 chunked streaming HTTP/1 request/response 写入同步 Writer。

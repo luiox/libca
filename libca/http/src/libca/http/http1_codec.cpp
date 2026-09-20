@@ -402,6 +402,9 @@ HttpResult<std::optional<HttpRequestHead>> Http1Reader::read_request_head()
     if (!HttpHeaders::valid_name(request.method) || !valid_request_target(request.target))
         return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidMessage,
                                                   "HTTP request method or target is invalid"));
+    // 请求行合法后即记录 method：后续 headers/body 阶段失败（431/413 等）时，
+    // 服务端协议错误响应仍能判定 HEAD 帧规则（issue #228）。
+    last_head_method_ = request.method;
     auto version = parse_http_version(std::string_view(request_line).substr(second_space + 1));
     if (version.is_err())
         return ca::core::Err(version.unwrap_err());

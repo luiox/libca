@@ -541,14 +541,20 @@ private:
 
     void send_protocol_error(const HttpError& error, detail::ServerTransport& transport,
                              detail::DeadlineReader& deadline_reader, Http1Writer& writer,
-                             detail::DeadlineWriter& deadline_writer)
+                             detail::DeadlineWriter& deadline_writer, Http1Reader& reader)
     {
         if (!error_allows_response(error))
             return;
         auto response = protocol_error_response(error);
         response.headers.set("Connection", "close");
         deadline_writer.start(options_.response_write_timeout);
-        auto sent = writer.write_response(response, "GET");
+        // 按"请求行已解析出的 method"决定响应帧规则：HEAD 请求失败（431/413 等）
+        // 时不发送 body 字节，否则 body 会被客户端下一响应解析器吞掉（issue #228）。
+        // method 尚未解析（请求行就非法）时按 GET 处理。
+        const std::string& head_method = reader.last_head_method();
+        const std::string_view request_method =
+            head_method.empty() ? std::string_view("GET") : std::string_view(head_method);
+        auto sent = writer.write_response(response, request_method);
         if (sent.is_err() || transport.tcp_stream().shutdown(net::Shutdown::Write).is_err())
             return;
 
@@ -615,7 +621,7 @@ private:
                 const auto& error = request_result.unwrap_err();
                 if (error.kind() != HttpErrorKind::InvalidState)
                     send_protocol_error(error, *transport, deadline_reader, writer,
-                                        deadline_writer);
+                                        deadline_writer, reader);
                 break;
             }
             auto       request            = std::move(request_result).unwrap();

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
 #include <utility>
 
 #include "libca/core/bytes.hpp"
@@ -190,9 +191,14 @@ public:
         HttpResponseHead head;
         usize            informational_count = 0;
         bool             stale_close         = false;
+        // stale 判定若源于 reset 类错误（EPIPE/RST），保留首个原始错误：
+        // 不可重试请求最终报错时把底层诊断带上，不再被笼统的
+        // "closed before response head" 吞掉（issue #228）。
+        std::optional<HttpError> stale_reset_error;
         for (usize attempt = 0;; ++attempt) {
             stale_close         = false;
             informational_count = 0;
+            stale_reset_error.reset();
             connection->deadline_writer.start(options.request_write_timeout);
             auto written = connection->codec_writer.write_request(request);
             if (written.is_err()) {
@@ -200,6 +206,7 @@ public:
                 // 与读到 EOF 同样是 stale 连接而非请求本身的问题。
                 if (!is_reset_error(written.unwrap_err()))
                     return fail(std::move(written).unwrap_err());
+                stale_reset_error = std::move(written).unwrap_err();
                 stale_close = true;
             }
 
@@ -212,6 +219,7 @@ public:
                         // 与读到 EOF 同样是 stale 连接而非协议错误。
                         if (!is_reset_error(received.unwrap_err()))
                             return fail(std::move(received).unwrap_err());
+                        stale_reset_error = std::move(received).unwrap_err();
                         stale_close = true;
                         break;
                     }
@@ -248,9 +256,16 @@ public:
             if (reconnected.is_err())
                 return ca::core::Err(reconnected.unwrap_err());
         }
-        if (stale_close)
+        if (stale_close) {
+            if (stale_reset_error.has_value()) {
+                auto original = std::move(*stale_reset_error);
+                return fail(HttpError::from_kind(
+                    HttpErrorKind::InvalidMessage,
+                    "HTTP connection closed before response head: " + original.message()));
+            }
             return fail(HttpError::from_kind(HttpErrorKind::InvalidMessage,
                                              "HTTP connection closed before response head"));
+        }
 
         const HttpBodyInfo   body_info          = connection->codec_reader.body_info();
         const usize          expected_body_size = body_info.kind == HttpBodyKind::ContentLength
