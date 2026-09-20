@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cstdarg>
 #include <cstring>
 #include <iterator>
@@ -77,46 +78,101 @@ std::string StringUtil::capitalize(const std::string& input) {
 
 // ==================== 字符串转数值 ====================
 
-char StringUtil::to_char(const std::string& input) {
-    char c = 0;
-    std::istringstream ss(input);
-    ss >> c;
-    return c;
-}
+namespace {
 
-short StringUtil::to_short(const std::string& input) {
-    short s = 0;
-    std::istringstream ss(input);
-    ss >> s;
-    return s;
-}
-
-int StringUtil::to_int(const std::string& input) {
-    int i = 0;
-    std::istringstream ss(input);
-    ss >> i;
+// 跳过前导 ASCII 空白（宽松版 to_* 的历史语义：istringstream >> 会跳过）。
+std::string::size_type skip_leading_ws(const std::string& input) {
+    std::string::size_type i = 0;
+    while (i < input.size() &&
+           (input[i] == ' ' || input[i] == '\t' || input[i] == '\n' || input[i] == '\v' ||
+            input[i] == '\f' || input[i] == '\r')) {
+        ++i;
+    }
     return i;
 }
 
+// 严格版共用：from_chars 全串消费，失败返回带原因的错误消息。
+template<typename T>
+ca::core::Result<T, std::string> parse_with_from_chars(const std::string& input) {
+    T value{};
+    const char* first = input.data();
+    const char* last = first + input.size();
+    auto result = std::from_chars(first, last, value);
+    if (result.ec == std::errc::invalid_argument) {
+        return ca::core::Err(std::string("not a valid number: '") + input + "'");
+    }
+    if (result.ec == std::errc::result_out_of_range) {
+        return ca::core::Err(std::string("number out of range: '") + input + "'");
+    }
+    if (result.ptr != last) {
+        return ca::core::Err(std::string("trailing characters after number: '") + input + "'");
+    }
+    return ca::core::Ok(value);
+}
+
+}  // namespace
+
+ca::core::Result<short, std::string> StringUtil::parse_short(const std::string& input) {
+    return parse_with_from_chars<short>(input);
+}
+
+ca::core::Result<int, std::string> StringUtil::parse_int(const std::string& input) {
+    return parse_with_from_chars<int>(input);
+}
+
+ca::core::Result<long, std::string> StringUtil::parse_long(const std::string& input) {
+    return parse_with_from_chars<long>(input);
+}
+
+ca::core::Result<float, std::string> StringUtil::parse_float(const std::string& input) {
+    return parse_with_from_chars<float>(input);
+}
+
+ca::core::Result<double, std::string> StringUtil::parse_double(const std::string& input) {
+    return parse_with_from_chars<double>(input);
+}
+
+char StringUtil::to_char(const std::string& input) {
+    auto begin = skip_leading_ws(input);
+    return begin < input.size() ? input[begin] : static_cast<char>(0);
+}
+
+// 宽松版统一走 from_chars：跳过前导空白、容忍尾部非数字、失败返 0——历史语义
+// 保持不变，但不再每次构造 istringstream（省分配 + locale 查询）。
+
+short StringUtil::to_short(const std::string& input) {
+    auto begin = skip_leading_ws(input);
+    short value = 0;
+    std::from_chars(input.data() + begin, input.data() + input.size(), value);
+    return value;
+}
+
+int StringUtil::to_int(const std::string& input) {
+    auto begin = skip_leading_ws(input);
+    int value = 0;
+    std::from_chars(input.data() + begin, input.data() + input.size(), value);
+    return value;
+}
+
 long StringUtil::to_long(const std::string& input) {
-    long l = 0;
-    std::istringstream ss(input);
-    ss >> l;
-    return l;
+    auto begin = skip_leading_ws(input);
+    long value = 0;
+    std::from_chars(input.data() + begin, input.data() + input.size(), value);
+    return value;
 }
 
 float StringUtil::to_float(const std::string& input) {
-    float f = 0.0f;
-    std::istringstream ss(input);
-    ss >> f;
-    return f;
+    auto begin = skip_leading_ws(input);
+    float value = 0.0f;
+    std::from_chars(input.data() + begin, input.data() + input.size(), value);
+    return value;
 }
 
 double StringUtil::to_double(const std::string& input) {
-    double d = 0.0;
-    std::istringstream ss(input);
-    ss >> d;
-    return d;
+    auto begin = skip_leading_ws(input);
+    double value = 0.0;
+    std::from_chars(input.data() + begin, input.data() + input.size(), value);
+    return value;
 }
 
 // ==================== 数值转字符串 ====================
@@ -206,17 +262,23 @@ void StringUtil::split(std::vector<std::string>& output, const std::string& inpu
 }
 
 void StringUtil::split(std::vector<std::string>& output, const std::string& input, char separator) {
+    // 下标扫描，保留空段（含首尾），与 Utf8StringRef::split 语义一致（issue #229）。
     output.clear();
-    std::stringstream ss(input);
-    std::string item;
-    while (std::getline(ss, item, separator)) {
-        output.push_back(item);
+    if (input.empty()) return;
+    size_t last = 0;
+    for (size_t i = 0; i <= input.size(); ++i) {
+        if (i == input.size() || input[i] == separator) {
+            output.push_back(input.substr(last, i - last));
+            last = i + 1;
+        }
     }
 }
 
 void StringUtil::split(std::vector<std::string>& output, const std::string& input,
                        const std::string& separators) {
+    // 同上：末尾必收一段（可能是空串），不再丢尾部空段。
     output.clear();
+    if (input.empty()) return;
     size_t last = 0;
     size_t index = input.find_first_of(separators, last);
     while (index != std::string::npos) {
@@ -224,9 +286,7 @@ void StringUtil::split(std::vector<std::string>& output, const std::string& inpu
         last = index + 1;
         index = input.find_first_of(separators, last);
     }
-    if (last < input.length()) {
-        output.push_back(input.substr(last));
-    }
+    output.push_back(input.substr(last));
 }
 
 std::string StringUtil::join(const std::vector<std::string>& input) {

@@ -168,6 +168,12 @@ public:
     bool insert(const T& value) { return add(value); }
     bool insert(T&& value) { return add(std::move(value)); }
 
+    /// @brief 插入元素（add 兼容别名，丢弃去重结果）。
+    /// @details 集合无尾部概念，仅满足 Stream::collect<Container> 对 push_back
+    ///          的要求，使 `stream(v).collect<HashSet<T>>()` 可用。
+    void push_back(const T& value) { add(value); }
+    void push_back(T&& value) { add(std::move(value)); }
+
     /// @brief 从连续数组批量插入元素。
     /// @throws std::invalid_argument 当 length 非 0 且 data 为空。
     void extend_from_slice(const T* data, ca::usize length)

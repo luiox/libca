@@ -24,12 +24,22 @@ public:
     static std::string capitalize(const std::string& input);
 
     // ==================== 字符串转数值 ====================
+    // 宽松版：跳过前导空白、容忍尾部非数字，失败一律返 0（历史语义，无法区分
+    // "解析失败"与"恰好为 0"；新代码请用下方 parse_* 严格版）。
     static char   to_char(const std::string& input);
     static short  to_short(const std::string& input);
     static int    to_int(const std::string& input);
     static long   to_long(const std::string& input);
     static float  to_float(const std::string& input);
     static double to_double(const std::string& input);
+
+    // 严格版（基于 std::from_chars）：不接受前导空白与 '+' 号，要求全串消费，
+    // 失败返回带原因的错误消息（错误通道对齐 percent_decode 的 Result<std::string>）。
+    static ca::core::Result<short, std::string>  parse_short(const std::string& input);
+    static ca::core::Result<int, std::string>    parse_int(const std::string& input);
+    static ca::core::Result<long, std::string>   parse_long(const std::string& input);
+    static ca::core::Result<float, std::string>  parse_float(const std::string& input);
+    static ca::core::Result<double, std::string> parse_double(const std::string& input);
 
     // ==================== 数值转字符串 ====================
     static std::string to_string(char c);
@@ -53,6 +63,9 @@ public:
     static std::string trim(const std::string& input, const char* trims);
 
     // ==================== 拆分与合并 ====================
+    // whitespace 版按连续空白切分、不产生空段（对标 Rust split_whitespace）。
+    // char/separators 版保留空段（含首尾），与 Utf8StringRef::split 语义一致
+    // （此前 getline/find_first_of 实现会丢弃尾部空段，0.0.9 起统一）。
     static void split(std::vector<std::string>& output, const std::string& input);
     static void split(std::vector<std::string>& output, const std::string& input, char separator);
     static void split(std::vector<std::string>& output, const std::string& input,

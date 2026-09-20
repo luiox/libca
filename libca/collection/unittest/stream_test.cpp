@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 
+#include "libca/collection/array_list.hpp"
+#include "libca/collection/hash_set.hpp"
 #include "libca/collection/stream.hpp"
 
 using namespace ca::collection;
@@ -186,4 +188,28 @@ TEST(StreamTest, anyAndAllOnEmptyStream) {
     std::vector<int> vec;
     EXPECT_FALSE(stream(vec).any([](int x) { return x > 0; }));
     EXPECT_TRUE(stream(vec).all([](int x) { return x > 0; }));  // 空流上的 all 为真
+}
+
+// 库内容器收集（issue #230）：ArrayList/HashSet 提供 push_back 兼容别名后，
+// Stream::collect 可直接收集到自家容器。
+TEST(StreamTest, collectToArrayListAndHashSet) {
+    std::vector<int> vec = {1, 2, 3, 4, 5};
+    auto list = stream(vec).collect<ArrayList<int>>();
+    ASSERT_EQ(list.size(), 5);
+    EXPECT_EQ(list[0], 1);
+    EXPECT_EQ(list[4], 5);
+
+    auto filtered = stream(vec)
+                        .filter([](int x) { return x % 2 == 0; })
+                        .collect<ArrayList<int>>();
+    ASSERT_EQ(filtered.size(), 2);
+    EXPECT_EQ(filtered[0], 2);
+    EXPECT_EQ(filtered[1], 4);
+
+    std::vector<int> dup = {1, 2, 2, 3, 3, 3};
+    auto set = stream(dup).collect<HashSet<int>>();
+    EXPECT_EQ(set.size(), 3);
+    EXPECT_TRUE(set.contains(1));
+    EXPECT_TRUE(set.contains(2));
+    EXPECT_TRUE(set.contains(3));
 }

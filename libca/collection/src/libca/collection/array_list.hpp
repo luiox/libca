@@ -131,6 +131,12 @@ public:
     void push(const T& value) { add(value); }
     void push(T&& value) { add(std::move(value)); }
 
+    /// @brief 追加一个元素到末尾（add 兼容别名）。
+    /// @details 满足 Stream::collect<Container> 对 push_back 的要求，使
+    ///          `stream(v).collect<ArrayList<T>>()` 可用。
+    void push_back(const T& value) { add(value); }
+    void push_back(T&& value) { add(std::move(value)); }
+
     /// @brief 从连续数组追加元素。
     /// @throws std::invalid_argument 当 length 非 0 且 data 为空。
     void extend_from_slice(const T* data, ca::usize length)

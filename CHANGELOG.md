@@ -20,6 +20,24 @@
   - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除
     `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
 
+### libca
+
+- **[str] `StringUtil::split`（char/separators 重载）统一为保留空段**：此前
+  getline/find_first_of 实现会丢弃尾部空段（`"a,"` → `["a"]`），与
+  `Utf8StringRef::split`（`"a,"` → `["a",""]`）同名不同义；现统一为 Rust
+  `split` 语义（`"a,"` → `["a",""]`），whitespace 重载保持 split_whitespace
+  语义不变。依赖"丢尾部空段"旧行为的调用方需适配。
+- **[str]** 数值转换补严格版 `parse_short/int/long/float/double`（基于
+  `std::from_chars`，全串消费、失败走 `Result<T, std::string>` 错误通道）；
+  宽松版 `to_*` 历史语义不变（失败返 0、容忍尾部非数字），实现同样改
+  from_chars（不再逐次构造 istringstream）。
+- **[str]** `ZUtf8StringRef::from_static` 缓存命中路径改 `shared_mutex` 读锁
+  （多线程热路径不再串行化），缓存加 4096 条上限（封顶后未命中仅计算不缓存，
+  不再按地址无界增长），新增 `clear_static_cache()` 出口。
+- **[collection]** `ArrayList`/`HashSet` 补 `push_back` 兼容别名：
+  `stream(v).collect<ArrayList<T>>()` / `collect<HashSet<T>>()` 此前编译失败，
+  现可用。
+
 ## [0.0.7] - 未发布
 
 ### 全局

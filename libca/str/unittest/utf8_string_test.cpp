@@ -1428,4 +1428,22 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity) {
     EXPECT_TRUE(n1 != a1);
 }
 
+
+// from_static 缓存治理（issue #229）：clear_static_cache 出口 + 容量上限后的
+// 行为不变（未命中仅计算不缓存，返回值始终正确）。
+TEST(ZUtf8StringRef, FromStaticCacheClearKeepsCorrectness)
+{
+    auto before = ZUtf8StringRef::from_static("cache_clear_probe");
+    EXPECT_STREQ(before.c_str(), "cache_clear_probe");
+    EXPECT_EQ(before.byte_length(), 17);
+
+    ZUtf8StringRef::clear_static_cache();
+
+    // 清空后同一字面量再次构造，值仍正确（地址相同，重新入表）。
+    auto after = ZUtf8StringRef::from_static("cache_clear_probe");
+    EXPECT_STREQ(after.c_str(), "cache_clear_probe");
+    EXPECT_EQ(after.byte_length(), 17);
+    EXPECT_EQ(after.length(), 17);
+}
+
 }  // namespace ca::str
