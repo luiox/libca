@@ -131,5 +131,46 @@ TEST(UdpSocketTest, ConfiguresTimeoutBroadcastNonblockingAndClone)
     EXPECT_TRUE(cloned_socket.is_open());
 }
 
+
+// set_ttl/ttl 往返一致（issue #226）：IPv4 loopback 上设置任意合法 hop 数后读回同值。
+TEST(UdpSocketTest, TtlRoundTrip)
+{
+    auto socket_result = UdpSocket::bind(udp_loopback_address());
+    ASSERT_TRUE(socket_result.is_ok());
+    auto socket = std::move(socket_result).unwrap();
+
+    auto initial = socket.ttl();
+    ASSERT_TRUE(initial.is_ok()) << initial.unwrap_err().to_string();
+    EXPECT_GE(initial.unwrap(), 1);
+
+    auto set = socket.set_ttl(42);
+    ASSERT_TRUE(set.is_ok()) << set.unwrap_err().to_string();
+    auto roundtrip = socket.ttl();
+    ASSERT_TRUE(roundtrip.is_ok());
+    EXPECT_EQ(roundtrip.unwrap(), 42);
+
+    auto set_default_like = socket.set_ttl(64);
+    ASSERT_TRUE(set_default_like.is_ok());
+    auto roundtrip_default_like = socket.ttl();
+    ASSERT_TRUE(roundtrip_default_like.is_ok());
+    EXPECT_EQ(roundtrip_default_like.unwrap(), 64);
+}
+
+// IPv6 往返（issue #226）：走 IPV6_UNICAST_HOPS；环境无 IPv6 时跳过。
+TEST(UdpSocketTest, TtlRoundTripIpv6)
+{
+    const SocketAddress v6_loopback(IpAddress::localhost_v6(), 0);
+    auto socket_result = UdpSocket::bind(v6_loopback);
+    if (socket_result.is_err())
+        GTEST_SKIP() << "IPv6 loopback unavailable: " << socket_result.unwrap_err().to_string();
+    auto socket = std::move(socket_result).unwrap();
+
+    auto set = socket.set_ttl(43);
+    ASSERT_TRUE(set.is_ok()) << set.unwrap_err().to_string();
+    auto roundtrip = socket.ttl();
+    ASSERT_TRUE(roundtrip.is_ok());
+    EXPECT_EQ(roundtrip.unwrap(), 43);
+}
+
 }   // namespace
 }   // namespace ca::net::test

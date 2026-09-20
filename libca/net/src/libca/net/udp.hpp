@@ -44,9 +44,14 @@ public:
     io::IoResult<void>          set_write_timeout(std::optional<std::chrono::milliseconds> timeout);
     io::IoResult<std::optional<std::chrono::milliseconds>> read_timeout() const;
     io::IoResult<std::optional<std::chrono::milliseconds>> write_timeout() const;
-    io::IoResult<void>                                     set_broadcast(bool enabled);
-    io::IoResult<bool>                                     broadcast() const;
-    io::IoResult<UdpSocket>                                try_clone() const;
+    io::IoResult<void>          set_broadcast(bool enabled);
+    io::IoResult<bool>          broadcast() const;
+    /// @brief 设置单播 TTL（IPv4 为 IP_TTL，IPv6 为 hop limit）。
+    /// @param hops 1-255。发现/公告类 UDP 场景常用；组播 TTL 不在此列。
+    io::IoResult<void>          set_ttl(u8 hops);
+    /// @brief 读取当前单播 TTL（与 set_ttl 同一选项，往返一致）。
+    io::IoResult<u8>            ttl() const;
+    io::IoResult<UdpSocket>     try_clone() const;
 
     bool        is_open() const noexcept;
     RawSocket   native_socket() const noexcept;

@@ -64,6 +64,9 @@ io::IoResult<std::optional<std::chrono::milliseconds>> get_timeout(RawSocket soc
 io::IoResult<void> set_bool_option(RawSocket socket, int level, int option, bool enabled,
                                    const char* operation);
 io::IoResult<bool> get_bool_option(RawSocket socket, int level, int option, const char* operation);
+io::IoResult<void> set_int_option(RawSocket socket, int level, int option, int value,
+                                  const char* operation);
+io::IoResult<int>  get_int_option(RawSocket socket, int level, int option, const char* operation);
 
 io::IoError closed_socket_error(const char* operation);
 io::IoError invalid_buffer_error(const char* operation);

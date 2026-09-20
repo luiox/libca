@@ -20,6 +20,11 @@
   - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除
     `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
 
+### libca
+
+- **[net]** `UdpSocket` 补 `set_ttl/ttl`（IPv4 走 IP_TTL，IPv6 走
+  IPV6_UNICAST_HOPS，往返一致）；组播成员管理暂不提供，待后续单独立项。
+
 ## [0.0.7] - 未发布
 
 ### 全局
