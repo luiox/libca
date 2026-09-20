@@ -4,6 +4,9 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
+#include <mutex>
+#include <thread>
+#include <utility>
 
 #include "libca/fs/file_util.hpp"
 
@@ -861,6 +864,90 @@ TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
     EXPECT_EQ(to_string(FsError::DirectoryNotEmpty), "directory not empty");
     EXPECT_EQ(to_string(FsError::NameTooLong), "name too long");
     EXPECT_EQ(to_string(FsError::TooManyOpenFiles), "too many open files");
+}
+
+
+// CREATE_NEW 原子性（issue #227）：并发独占创建只有一者成功，胜者内容完整，
+// 其余全部 AlreadyExists——旧的 exists()+trunc TOCTOU 下后开者会截断先者数据。
+TEST(FileUtilTest, WriteBytes_CreateNew_ConcurrentSingleWinner)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    const auto filePath = tmp.make_path("create_new_race.txt");
+    constexpr int kWriters = 8;
+    std::vector<std::pair<int, FsError>> outcomes;  // (writer id, result)
+    std::mutex outcomes_mutex;
+    std::vector<std::thread> writers;
+    for (int i = 0; i < kWriters; ++i) {
+        writers.emplace_back([&, i]() {
+            const std::string payload = "writer-" + std::to_string(i);
+            auto result = FileUtil::write_bytes(filePath,
+                ca::core::ByteSlice(reinterpret_cast<const ca::u8*>(payload.data()),
+                                    payload.size()),
+                FileMode::CREATE_NEW);
+            std::lock_guard<std::mutex> lock(outcomes_mutex);
+            if (result.is_ok()) {
+                outcomes.emplace_back(i, FsError::Ok);
+            } else {
+                outcomes.emplace_back(i, std::move(result).unwrap_err());
+            }
+        });
+    }
+    for (auto& w : writers) w.join();
+
+    ASSERT_EQ(outcomes.size(), static_cast<size_t>(kWriters));
+    const auto winners = std::count_if(outcomes.begin(), outcomes.end(),
+                                       [](const auto& o) { return o.second == FsError::Ok; });
+    EXPECT_EQ(winners, 1) << "exactly one CREATE_NEW writer must win";
+    const bool all_others_already_exists = std::all_of(
+        outcomes.begin(), outcomes.end(), [](const auto& o) {
+            return o.second == FsError::Ok || o.second == FsError::AlreadyExists;
+        });
+    EXPECT_TRUE(all_others_already_exists);
+
+    // 胜者内容完整，未被后来的打开截断。
+    auto content = FileUtil::read_all_text(filePath);
+    ASSERT_TRUE(content.is_ok());
+    EXPECT_EQ(std::move(content).unwrap().substr(0, 7), "writer-");
+}
+
+// *_ex 错误通道（issue #227）：copy/move/remove 的失败原因不再被吞成 false。
+TEST(FileUtilTest, CopyMoveRemoveEx_ReportErrors)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    // 源不存在 → FileNotFound。
+    EXPECT_EQ(FileUtil::copy_ex(tmp.make_path("no_src.txt"),
+                                tmp.make_path("dst.txt"), true).unwrap_err(),
+              FsError::FileNotFound);
+    EXPECT_EQ(FileUtil::move_ex(tmp.make_path("no_src.txt"),
+                                tmp.make_path("dst.txt"), true).unwrap_err(),
+              FsError::FileNotFound);
+
+    // 不覆盖且目标已存在 → AlreadyExists。
+    const auto src = tmp.make_path("ex_src.txt");
+    const auto dst = tmp.make_path("ex_dst.txt");
+    ASSERT_TRUE(FileUtil::write_text(src, "src").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(dst, "dst").is_ok());
+    EXPECT_EQ(FileUtil::move_ex(src, dst, false).unwrap_err(), FsError::AlreadyExists);
+    EXPECT_TRUE(FileUtil::exists(src));  // 源未被动过
+
+    // remove_ex：Ok(false) 表示原本不存在。
+    auto removed = FileUtil::remove_ex(tmp.make_path("never_existed.txt"));
+    ASSERT_TRUE(removed.is_ok());
+    EXPECT_FALSE(std::move(removed).unwrap());
+    ASSERT_TRUE(FileUtil::write_text(dst, "data").is_ok());
+    removed = FileUtil::remove_ex(dst);
+    ASSERT_TRUE(removed.is_ok());
+    EXPECT_TRUE(std::move(removed).unwrap());
+    EXPECT_FALSE(FileUtil::exists(dst));
+
+    // remove_all_ex：不存在 → Ok(false)。
+    auto wiped = FileUtil::remove_all_ex(tmp.make_path("never_dir"));
+    ASSERT_TRUE(wiped.is_ok());
+    EXPECT_FALSE(std::move(wiped).unwrap());
 }
 
 }}}  // namespace ca::fs::test

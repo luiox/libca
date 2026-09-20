@@ -12,9 +12,13 @@
 #include <stdexcept>
 #include <string_view>
 
+#include <fcntl.h>   // _O_WRONLY/_O_CREAT/_O_EXCL/_O_BINARY（独占创建）
 #ifdef _WIN32
 #include <io.h>
 #include <wchar.h>   // _waccess（宽字符版 access，配合 path::wstring() 无损 Unicode）
+#include <sys/stat.h> // _S_IREAD/_S_IWRITE（_wopen 模式参数）
+#else
+#include <unistd.h>
 #endif
 
 namespace ca { namespace fs {
@@ -49,6 +53,54 @@ void remove_if_exists(const std::filesystem::path& path) noexcept
 {
     std::error_code ec;
     std::filesystem::remove(path, ec);
+}
+
+// CREATE_NEW 独占创建写入：O_CREAT|O_EXCL 让"存在性检查+创建"由内核单步完成，
+// 消除 exists()+trunc 的 TOCTOU 窗口——并发双开时后到者拿到 EEXIST，不再截断
+// 先者的写入（atomic_write_bytes 的临时文件依赖该语义）。
+Result<void, FsError> write_exclusive_create(const std::filesystem::path& p,
+                                             const ca::core::ByteSlice& content)
+{
+#ifdef _WIN32
+    const int fd = _wopen(p.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY,
+                          _S_IREAD | _S_IWRITE);
+#else
+    const int fd = ::open(p.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0644);
+#endif
+    if (fd < 0) {
+        return Err(classify_fs_error(std::error_code(errno, std::generic_category())));
+    }
+    const char* data = reinterpret_cast<const char*>(content.data());
+    ca::usize remaining = content.size();
+    constexpr ca::usize kMaxChunk = ca::usize{1} << 30;  // _write 参数上限保护
+    while (remaining > 0) {
+        const ca::usize chunk = remaining < kMaxChunk ? remaining : kMaxChunk;
+#ifdef _WIN32
+        const int written = _write(fd, data, static_cast<unsigned>(chunk));
+#else
+        const ssize_t written = ::write(fd, data, chunk);
+#endif
+        if (written <= 0) {
+#ifndef _WIN32
+            if (errno == EINTR) continue;
+#endif
+            const std::error_code ec(errno, std::generic_category());
+#ifdef _WIN32
+            _close(fd);
+#else
+            ::close(fd);
+#endif
+            return Err(classify_fs_error(ec));
+        }
+        data += written;
+        remaining -= static_cast<ca::usize>(written);
+    }
+#ifdef _WIN32
+    if (_close(fd) != 0) return Err(FsError::WriteFailed);
+#else
+    if (::close(fd) != 0) return Err(FsError::WriteFailed);
+#endif
+    return Ok();
 }
 
 // read_all_bytes/read_all_text 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
@@ -268,12 +320,14 @@ Result<void, FsError> FileUtil::write_bytes(const std::string& path,
     try {
         auto p = std::filesystem::u8path(path);
 
-        if ((mode & FileMode::CREATE_NEW) && std::filesystem::exists(p)) {
-            return Err(FsError::AlreadyExists);
-        }
-
         if (p.has_parent_path()) {
             std::filesystem::create_directories(p.parent_path());
+        }
+
+        if (mode & FileMode::CREATE_NEW) {
+            // 独占创建走内核原子路径（O_CREAT|O_EXCL），不做先 exists() 再 trunc 的
+            // TOCTOU 检查——并发写者后到者报 AlreadyExists，而非截断先者数据。
+            return write_exclusive_create(p, content);
         }
 
         std::ios::openmode openMode = std::ios::binary;
@@ -451,7 +505,9 @@ Result<std::vector<std::string>, FsError> FileUtil::list_files(const std::string
 
         std::vector<std::string> files;
         if (recursive) {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(p))
+            // skip_permission_denied：树上无权限子目录跳过而非整体失败，与 glob 口径一致。
+            const auto options = std::filesystem::directory_options::skip_permission_denied;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(p, options))
                 if (entry.is_regular_file()) files.push_back(entry.path().generic_u8string());
         } else {
             for (const auto& entry : std::filesystem::directory_iterator(p))
@@ -485,12 +541,13 @@ Result<std::vector<std::string>, FsError> FileUtil::list_entries(const std::stri
 
 // ==================== 拷贝 / 移动 ====================
 
-bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwrite)
+Result<void, FsError> FileUtil::copy_ex(const std::string& src, const std::string& dst,
+                                        bool overwrite)
 {
     try {
         auto srcPath = std::filesystem::u8path(src);
         auto dstPath = std::filesystem::u8path(dst);
-        if (!std::filesystem::exists(srcPath)) return false;
+        if (!std::filesystem::exists(srcPath)) return Err(FsError::FileNotFound);
 
         auto opts = overwrite
             ? std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive
@@ -498,33 +555,54 @@ bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwri
 
         if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
         std::filesystem::copy(srcPath, dstPath, opts);
-        return true;
-    } catch (const std::exception&) { return false; }
+        return Ok();
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
 }
 
-bool FileUtil::move(const std::string& src, const std::string& dst, bool overwrite)
+bool FileUtil::copy(const std::string& src, const std::string& dst, bool overwrite)
+{
+    return copy_ex(src, dst, overwrite).is_ok();
+}
+
+Result<void, FsError> FileUtil::move_ex(const std::string& src, const std::string& dst,
+                                        bool overwrite)
 {
     try {
         auto srcPath = std::filesystem::u8path(src);
         auto dstPath = std::filesystem::u8path(dst);
-        if (!std::filesystem::exists(srcPath)) return false;
+        if (!std::filesystem::exists(srcPath)) return Err(FsError::FileNotFound);
 
         // 防止 src == dst 时先删除源文件导致数据丢失
         if (std::filesystem::exists(dstPath) &&
             std::filesystem::equivalent(srcPath, dstPath)) {
-            return true;
+            return Ok();
         }
 
         if (dstPath.has_parent_path()) std::filesystem::create_directories(dstPath.parent_path());
         // 不预删目标：rename 在两平台都会原子替换已存在的普通文件目标
         //（POSIX rename(2)；MSVC 经 MoveFileExW+MOVEFILE_REPLACE_EXISTING）。
         // 此前的 remove_all-then-rename 在 rename 失败时目标已被整棵删光。
-        // 目标是已存在目录时 rename 拒绝（返回 false），不再删除目录换移动成功。
+        // 目标是已存在目录时 rename 拒绝（返回错误），不再删除目录换移动成功。
         if (!overwrite && std::filesystem::exists(dstPath))
-            return false;  // 不覆盖模式：目标存在即失败，不再静默替换
-        std::filesystem::rename(srcPath, dstPath);
-        return true;
-    } catch (const std::exception&) { return false; }
+            return Err(FsError::AlreadyExists);  // 不覆盖模式：目标存在即失败，不再静默替换
+        std::error_code ec;
+        std::filesystem::rename(srcPath, dstPath, ec);
+        if (ec) return Err(classify_fs_error(ec));
+        return Ok();
+    } catch (const std::filesystem::filesystem_error& e) {
+        return Err(classify_fs_error(e.code()));
+    } catch (const std::exception&) {
+        return Err(FsError::Unknown);
+    }
+}
+
+bool FileUtil::move(const std::string& src, const std::string& dst, bool overwrite)
+{
+    return move_ex(src, dst, overwrite).is_ok();
 }
 
 Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::string& dst,
@@ -544,11 +622,13 @@ Result<void, FsError> FileUtil::copy_dir(const std::string& src, const std::stri
         }
 
         std::filesystem::create_directories(dstPath);
+        // skip_permission_denied：源树上无权限子目录跳过而非整体失败，与 glob 口径一致。
+        auto it_opts = std::filesystem::directory_options::skip_permission_denied;
         auto opts = overwrite
             ? std::filesystem::copy_options::overwrite_existing
             : std::filesystem::copy_options::none;
-
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(srcPath)) {
+        for (const auto& entry :
+             std::filesystem::recursive_directory_iterator(srcPath, it_opts)) {
             auto rel = std::filesystem::relative(entry.path(), srcPath);
             auto target = dstPath / rel;
             if (entry.is_directory()) {
@@ -625,18 +705,36 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
 
 // ==================== 删除 ====================
 
-bool FileUtil::remove(const std::string& path)
+Result<bool, FsError> FileUtil::remove_ex(const std::string& path)
 {
     std::error_code ec;
-    return std::filesystem::remove(std::filesystem::u8path(path), ec);
+    const bool removed = std::filesystem::remove(std::filesystem::u8path(path), ec);
+    if (ec) return Err(classify_fs_error(ec));
+    return Ok(removed);
+}
+
+bool FileUtil::remove(const std::string& path)
+{
+    return remove_ex(path).unwrap_or(false);
+}
+
+Result<bool, FsError> FileUtil::remove_all_ex(const std::string& path)
+{
+    std::error_code ec;
+    auto p = std::filesystem::u8path(path);
+    if (!std::filesystem::exists(p, ec)) {
+        if (ec) return Err(classify_fs_error(ec));
+        return Ok(false);  // 本来就不存在：无内容被删，Ok(false) 区分于出错
+    }
+    const auto count = std::filesystem::remove_all(p, ec);
+    if (ec) return Err(classify_fs_error(ec));
+    return Ok(count > 0);
 }
 
 bool FileUtil::remove_all(const std::string& path)
 {
-    std::error_code ec;
-    auto p = std::filesystem::u8path(path);
-    if (!std::filesystem::exists(p, ec)) return true;  // 不存在视为已删除
-    return std::filesystem::remove_all(p, ec) > 0;
+    // 历史语义：不存在视为成功（true），只有出错才 false。
+    return remove_all_ex(path).is_ok();
 }
 
 // ==================== 创建 ====================
