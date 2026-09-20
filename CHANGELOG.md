@@ -20,6 +20,17 @@
   - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除
     `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
 
+### libca
+
+- **[http]** `HttpClient` 新增流式收发能力（此前响应体一律全量缓冲、请求体必须
+  全量持有，大文件 / SSE 在客户端侧不可行）：`request_streaming()` 返回
+  `HttpStreamingResponse`（head 就绪即返回，body 逐块消费）；`begin_chunked()`
+  返回 `HttpChunkedRequest`（chunked 请求体逐块上传，接通 codec 已有的
+  `begin_chunked_request`）。流式路径不做 stale 重试、消费完成后连接归池或关闭
+  （不再保留为本 client 复用连接），`max_body_bytes` 在流式下语义不变
+  （Content-Length 超限 head 阶段报错；chunked/close-delimited 累计超限报错），
+  大 body 流式消费需按需调高该上限。
+
 ## [0.0.7] - 未发布
 
 ### 全局
