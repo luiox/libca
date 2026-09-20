@@ -117,6 +117,11 @@ bool Thread::request_stop() noexcept
 
 ca::core::Status Thread::join()
 {
+    // 全程持锁串行化并发 join（issue #231）：二次 native_.join() 会抛 system_error，
+    // joined_/join_status_ 的检查-写入也需与首调互斥。后来者等待首调完成后走幂等
+    // 缓存路径。析构路径 finish_noexcept() 不取该锁——销毁与 join 并发本就是对象
+    // 生命周期层面的竞争，不属于此处守卫范围。
+    std::lock_guard<std::mutex> lock(join_mutex_);
     if (!started_)
         return ca::core::ErrStatus(ca::core::StatusCode::FAILED_PRECONDITION,
                                    "join on an empty Thread");

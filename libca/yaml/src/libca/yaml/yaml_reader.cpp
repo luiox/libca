@@ -29,13 +29,19 @@ ParseError make_open_error(const ca::str::Utf8StringRef& path) {
     return error;
 }
 
+// Reader 选项 → parser 选项（对齐 xml_reader 的 to_parser_options 模式）。
+YamlParserOptions to_parser_options(const YamlReaderOptions& o) {
+    YamlParserOptions p;
+    p.max_depth = o.max_depth;
+    return p;
+}
+
 }  // namespace
 
 ca::Result<YamlDocument, ParseError> YamlReader::read(const ca::str::Utf8StringRef& input,
                                                       const YamlReaderOptions& options) {
-    (void)options;
     YamlDocument document;
-    YamlParser parser(document, input);
+    YamlParser parser(document, input, to_parser_options(options));
     if (!parser.run()) {
         return ca::Err(clone_error(parser.last_error()));
     }

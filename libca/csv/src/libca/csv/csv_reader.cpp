@@ -44,6 +44,17 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     if (options.delimiter == options.quote) {
         return ca::Err(make_error(1, 1, "CSV delimiter and quote must be different"));
     }
+    // 换行符作 delimiter/quote 会使记录边界即字段边界、解析状态自相矛盾；NUL 会
+    // 截断 C 字符串路径上的字段。三者一律在入口拒绝。
+    auto is_reserved_char = [](char c) {
+        return c == '\r' || c == '\n' || c == '\0';
+    };
+    if (is_reserved_char(options.delimiter)) {
+        return ca::Err(make_error(1, 1, "CSV delimiter must not be CR, LF or NUL"));
+    }
+    if (is_reserved_char(options.quote)) {
+        return ca::Err(make_error(1, 1, "CSV quote must not be CR, LF or NUL"));
+    }
 
     CsvDocument document;
     auto& arena = document.arena();

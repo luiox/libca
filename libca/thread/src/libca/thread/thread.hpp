@@ -3,6 +3,7 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -121,6 +122,8 @@ public:
     /// @brief 等待线程结束并返回缓存的完成状态。
     ///
     /// 线程入口异常转换为 INTERNAL。对已经成功 join 的 Thread 重复调用会返回同一状态。
+    /// 同一实例的 join() 可并发调用（内部串行化：后来的调用者等待首次 join 完成后
+    /// 取同一份缓存状态，不会触发 std::thread::join 的二次 join system_error）。
     ca::core::Status join();
 
 private:
@@ -133,6 +136,7 @@ private:
     std::thread                                 native_;
     std::optional<StopSource>                   stop_source_;
     std::shared_ptr<details::ThreadCompletion> completion_;
+    mutable std::mutex                          join_mutex_;
     bool                                        started_{false};
     bool                                        joined_{false};
     ca::core::Status                            join_status_;
