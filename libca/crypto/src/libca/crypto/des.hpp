@@ -7,6 +7,8 @@
 
 namespace ca::crypto {
 
+/// @warning DES 仅 56 位有效密钥，已被现代密码学视为不安全：本模块仅用于
+///          legacy 数据兼容与混淆场景，勿用于新安全设计。
 constexpr ca::usize DES_BLOCK_SIZE = 8;
 constexpr ca::usize DES_KEY_SIZE = 8;
 
