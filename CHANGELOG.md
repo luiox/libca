@@ -67,6 +67,8 @@
 - **[collection]** `ArrayList`/`HashSet` 补 `push_back` 兼容别名：
   `stream(v).collect<ArrayList<T>>()` / `collect<HashSet<T>>()` 此前编译失败，
   现可用。
+- **[net]** `UdpSocket` 补 `set_ttl/ttl`（IPv4 走 IP_TTL，IPv6 走
+  IPV6_UNICAST_HOPS，往返一致）；组播成员管理暂不提供，待后续单独立项。
 
 ## [0.0.7] - 未发布
 

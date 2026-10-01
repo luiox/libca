@@ -303,6 +303,35 @@ io::IoResult<bool> UdpSocket::broadcast() const
         socket_.get(), SOL_SOCKET, SO_BROADCAST, "getsockopt(SO_BROADCAST)");
 }
 
+io::IoResult<void> UdpSocket::set_ttl(u8 hops)
+{
+    if (!is_open())
+        return ca::core::Err(detail::closed_socket_error("UDP set_ttl"));
+    const int value = static_cast<int>(hops);
+    // IPv4 走 IP_TTL，IPv6 走 IPV6_UNICAST_HOPS：不做地址族预判（未绑定 socket
+    // 上 getsockname 行为因平台而异），先试 IP_TTL，失败再试 IPv6 hop limit。
+    auto v4 = detail::set_int_option(socket_.get(), IPPROTO_IP, IP_TTL, value,
+                                     "setsockopt(IP_TTL)");
+    if (v4.is_ok())
+        return v4;
+    return detail::set_int_option(socket_.get(), IPPROTO_IPV6, IPV6_UNICAST_HOPS, value,
+                                  "setsockopt(IPV6_UNICAST_HOPS)");
+}
+
+io::IoResult<u8> UdpSocket::ttl() const
+{
+    if (!is_open())
+        return ca::core::Err(detail::closed_socket_error("UDP ttl"));
+    auto v4 = detail::get_int_option(socket_.get(), IPPROTO_IP, IP_TTL, "getsockopt(IP_TTL)");
+    if (v4.is_ok())
+        return ca::core::Ok(static_cast<u8>(v4.unwrap()));
+    auto v6 = detail::get_int_option(socket_.get(), IPPROTO_IPV6, IPV6_UNICAST_HOPS,
+                                     "getsockopt(IPV6_UNICAST_HOPS)");
+    if (v6.is_err())
+        return ca::core::Err(v6.unwrap_err());
+    return ca::core::Ok(static_cast<u8>(v6.unwrap()));
+}
+
 io::IoResult<UdpSocket> UdpSocket::try_clone() const
 {
     auto duplicated = socket_.duplicate();

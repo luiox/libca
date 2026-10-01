@@ -348,6 +348,36 @@ io::IoResult<bool> get_bool_option(RawSocket socket, int level, int option, cons
     return ca::core::Ok(value != 0);
 }
 
+io::IoResult<void> set_int_option(RawSocket socket, int level, int option, int value,
+                                  const char* operation)
+{
+#if defined(_WIN32)
+    if (setsockopt(to_native_socket(socket),
+                   level,
+                   option,
+                   reinterpret_cast<const char*>(&value),
+                   sizeof(value)) != 0)
+#else
+    if (setsockopt(to_native_socket(socket), level, option, &value, sizeof(value)) != 0)
+#endif
+        return ca::core::Err(last_socket_error(operation));
+    return ca::core::Ok();
+}
+
+io::IoResult<int> get_int_option(RawSocket socket, int level, int option, const char* operation)
+{
+    int                 value  = 0;
+    NativeAddressLength length = static_cast<NativeAddressLength>(sizeof(value));
+#if defined(_WIN32)
+    if (getsockopt(
+            to_native_socket(socket), level, option, reinterpret_cast<char*>(&value), &length) != 0)
+#else
+    if (getsockopt(to_native_socket(socket), level, option, &value, &length) != 0)
+#endif
+        return ca::core::Err(last_socket_error(operation));
+    return ca::core::Ok(value);
+}
+
 io::IoError closed_socket_error(const char* operation)
 {
     return io::IoError::from_kind(io::IoErrorKind::InvalidInput,
