@@ -43,7 +43,7 @@ struct ConfigState {
 /// @brief 全局单例状态（函数级 static，规避静态初始化顺序问题）。
 ConfigState& config_state();
 
-}  // namespace ca::config::detail
+}   // namespace detail
 
 /// @brief visit 遍历到的条目快照。
 struct ConfigEntry {
@@ -70,11 +70,13 @@ public:
     /// @note 若 name 在此前的 load 中出现过（未物化），本次 lookup 用已加载值物化：
     ///       转换成功以加载值为初值；转换失败/类型不符退回本次 default。
     /// @note 线程安全：与 load / visit / 其它 lookup 可并发调用。
-    template <typename T>
+    /// @deprecated 类型冲突时返回空指针、易被解引用（issue #224）。新代码请用
+    ///             lookup_checked（类型冲突走 Result 错误通道）；本接口过渡期保留。
+    template<typename T>
+    [[deprecated("type conflict returns nullptr; use lookup_checked instead")]]
     static std::shared_ptr<ConfigVar<T>> lookup(const std::string& name, const T& default_value,
-                                                const std::string& description = "")
-    {
-        detail::ConfigState& state = detail::config_state();
+                                                const std::string& description = "") {
+        detail::ConfigState&                state = detail::config_state();
         std::unique_lock<std::shared_mutex> lock(state.mutex);
 
         // 已注册：类型一致 → 幂等返回现有实例（忽略 default）；不一致 → 类型冲突
@@ -87,12 +89,11 @@ public:
         }
 
         // 未物化命中：用已加载值物化；转换失败/类型不符退回本次 default
-        T init_value = default_value;
+        T          init_value = default_value;
         const auto pending_it = state.pending.find(name);
         if (pending_it != state.pending.end()) {
             const std::shared_ptr<ca::json::JsonDocument> document = pending_it->second;
-            const ca::json::JsonValue* loaded =
-                document->root().find(ca::str::Utf8StringRef::from_string_view(name));
+            const ca::json::JsonValue* loaded = document->root().find(ca::str::Utf8StringRef::from_string_view(name));
             if (loaded != nullptr) {
                 auto converted = JsonCast<T>::from_json(*loaded);
                 if (converted.is_ok()) {
@@ -105,6 +106,27 @@ public:
         auto var = std::make_shared<ConfigVar<T>>(name, init_value, description);
         state.vars.emplace(name, var);
         return var;
+    }
+
+    /// @brief lookup 的 Result 版本（推荐入口）。
+    /// @tparam T 值类型，见 ConfigVar<T> 的类型约束。
+    /// @param name 配置项名；为空返回 INVALID_ARGUMENT。
+    /// @param default_value 首次创建时的默认值；已存在时忽略。
+    /// @param description 人读描述；已存在时忽略。
+    /// @return 现有或新建的 ConfigVar<T>；类型冲突返回 Err（code=TYPE_MISMATCH，
+    ///         不再以空指针表达失败）。物化语义与 lookup 一致。
+    template<typename T>
+    static Result<std::shared_ptr<ConfigVar<T>>, ConfigError> lookup_checked(const std::string& name,
+                                                                             const T&           default_value,
+                                                                             const std::string& description = "") {
+        if (name.empty()) {
+            return Err(ConfigError::INVALID_ARGUMENT);
+        }
+        auto var = lookup(name, default_value, description);
+        if (var == nullptr) {
+            return Err(ConfigError::TYPE_MISMATCH);
+        }
+        return Ok(std::move(var));
     }
 
     /// @brief 按名字查找配置项（类型擦除视图）。
@@ -133,6 +155,19 @@ public:
     ///         其余语义同 load()。
     static Result<void, ConfigErrorInfo> load_file(const std::string& path);
 
+    /// @brief 将当前配置（已注册 var + 未物化条目的合并快照）序列化为 JSON 对象文本。
+    /// @return 成功返回顶层 object 的 JSON 文本（可用于 load 往返）；不存在失败路径，
+    ///         Result 仅预留统一错误通道。
+    /// @note 输出按 visit() 的遍历口径：每项为 name → 当前值（未物化条目为原始
+    ///       加载值）；round-trip 保证：dump 结果可经 load 完整还原（值文本均为
+    ///       合法 JSON）。条目顺序不保证。
+    static Result<std::string, ConfigErrorInfo> dump();
+
+    /// @brief 将当前配置写入 JSON 文件（UTF-8，无 BOM），语义同 dump()。
+    /// @param path 文件路径（UTF-8）；父目录不存在时不会自动创建。
+    /// @return 写文件失败返回 Err（code=WRITE_FILE_FAILED）。
+    static Result<void, ConfigErrorInfo> dump_file(const std::string& path);
+
     /// @brief 遍历全部配置项（已注册 var + 未物化条目）。
     /// @param callback 对每个条目回调一次；callback 为空时为本 no-op。
     /// @note 回调在注册表锁之外执行，顺序不保证；value 是回调时刻的快照。
@@ -144,4 +179,4 @@ public:
     static void clear();
 };
 
-}  // namespace ca::config
+}   // namespace ca::config

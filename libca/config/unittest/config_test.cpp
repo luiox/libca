@@ -34,17 +34,13 @@ using ca::config::ConfigVar;
 
 class ConfigTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
-        Config::clear();
-    }
+    void SetUp() override { Config::clear(); }
 };
 
 // ==================== lookup：创建 / 幂等 / 类型冲突 ====================
 
 // 不存在的 name：创建并带默认值、名字与描述。
-TEST_F(ConfigTest, LookupCreatesWithDefault)
-{
+TEST_F(ConfigTest, LookupCreatesWithDefault) {
     auto var = Config::lookup<ca::i32>("t1/server/port", 8080, "服务端口");
     ASSERT_NE(var, nullptr);
     EXPECT_EQ(var->value(), 8080);
@@ -54,15 +50,14 @@ TEST_F(ConfigTest, LookupCreatesWithDefault)
 }
 
 // 同名同类型重复 lookup：返回同一实例，忽略第二次的 default 与 description（幂等）。
-TEST_F(ConfigTest, LookupIdempotentReturnsSameInstance)
-{
-    auto first = Config::lookup<ca::i32>("t1/idempotent", 1, "first");
+TEST_F(ConfigTest, LookupIdempotentReturnsSameInstance) {
+    auto first  = Config::lookup<ca::i32>("t1/idempotent", 1, "first");
     auto second = Config::lookup<ca::i32>("t1/idempotent", 999, "second");
     ASSERT_NE(first, nullptr);
     ASSERT_NE(second, nullptr);
     EXPECT_EQ(first.get(), second.get());
-    EXPECT_EQ(first->value(), 1);          // 第二次的 default 999 被忽略
-    EXPECT_EQ(first->description(), "first");  // 第二次的描述也被忽略
+    EXPECT_EQ(first->value(), 1);               // 第二次的 default 999 被忽略
+    EXPECT_EQ(first->description(), "first");   // 第二次的描述也被忽略
 
     // 类型擦除视图也指向同一实例
     auto base = Config::lookup_base("t1/idempotent");
@@ -71,8 +66,7 @@ TEST_F(ConfigTest, LookupIdempotentReturnsSameInstance)
 }
 
 // 同名不同类型：后一次 lookup 返回 nullptr，且不破坏已注册实例。
-TEST_F(ConfigTest, LookupTypeConflictReturnsNullptr)
-{
+TEST_F(ConfigTest, LookupTypeConflictReturnsNullptr) {
     auto int_var = Config::lookup<ca::i32>("t1/conflict", 7, "int");
     ASSERT_NE(int_var, nullptr);
 
@@ -90,24 +84,21 @@ TEST_F(ConfigTest, LookupTypeConflictReturnsNullptr)
 }
 
 // lookup_base：存在的 name 返回实例；不存在的 name 返回 nullptr。
-TEST_F(ConfigTest, LookupBaseMissingReturnsNullptr)
-{
+TEST_F(ConfigTest, LookupBaseMissingReturnsNullptr) {
     EXPECT_EQ(Config::lookup_base("t1/missing"), nullptr);
 }
 
 // ==================== ConfigVar：set 短路与监听器 ====================
 
 // set 值相等短路：不换值、不触发监听器、返回 false。
-TEST_F(ConfigTest, SetEqualShortCircuits)
-{
+TEST_F(ConfigTest, SetEqualShortCircuits) {
     ConfigVar<ca::i32> var("direct/var", 10);
-    int change_count = 0;
-    const ca::u64 id = var.add_listener(
-        [&change_count](const ca::i32& old_value, const ca::i32& new_value) {
-            (void)old_value;
-            (void)new_value;
-            ++change_count;
-        });
+    int                change_count = 0;
+    const ca::u64      id = var.add_listener([&change_count](const ca::i32& old_value, const ca::i32& new_value) {
+        (void)old_value;
+        (void)new_value;
+        ++change_count;
+    });
 
     EXPECT_FALSE(var.set(10));
     EXPECT_EQ(change_count, 0);
@@ -122,27 +113,24 @@ TEST_F(ConfigTest, SetEqualShortCircuits)
     EXPECT_TRUE(var.set(12));
     EXPECT_EQ(change_count, 1);
     EXPECT_EQ(var.value(), 12);
-    EXPECT_FALSE(var.remove_listener(id));  // 重复移除返回 false
-    EXPECT_FALSE(var.remove_listener(0));   // 0 保留为无效 id
+    EXPECT_FALSE(var.remove_listener(id));   // 重复移除返回 false
+    EXPECT_FALSE(var.remove_listener(0));    // 0 保留为无效 id
 }
 
 // 监听器收到正确的旧值/新值；多个监听器都触发；id 从 1 递增且互不相同。
-TEST_F(ConfigTest, ListenerReceivesOldAndNewValue)
-{
+TEST_F(ConfigTest, ListenerReceivesOldAndNewValue) {
     ConfigVar<std::string> var("direct/listener", std::string("old"));
-    ca::i32 observed_old_len = -1;
-    ca::i32 observed_new_len = -1;
-    int fire_count = 0;
+    ca::i32                observed_old_len = -1;
+    ca::i32                observed_new_len = -1;
+    int                    fire_count       = 0;
 
-    const ca::u64 id1 = var.add_listener(
-        [&observed_old_len, &observed_new_len, &fire_count](const std::string& old_value,
-                                                            const std::string& new_value) {
-            observed_old_len = static_cast<ca::i32>(old_value.size());
-            observed_new_len = static_cast<ca::i32>(new_value.size());
-            ++fire_count;
-        });
-    const ca::u64 id2 = var.add_listener(
-        [&fire_count](const std::string&, const std::string&) { ++fire_count; });
+    const ca::u64 id1 = var.add_listener([&observed_old_len, &observed_new_len, &fire_count](
+                                             const std::string& old_value, const std::string& new_value) {
+        observed_old_len = static_cast<ca::i32>(old_value.size());
+        observed_new_len = static_cast<ca::i32>(new_value.size());
+        ++fire_count;
+    });
+    const ca::u64 id2 = var.add_listener([&fire_count](const std::string&, const std::string&) { ++fire_count; });
 
     EXPECT_NE(id1, ca::u64(0));
     EXPECT_NE(id2, ca::u64(0));
@@ -150,16 +138,15 @@ TEST_F(ConfigTest, ListenerReceivesOldAndNewValue)
 
     EXPECT_TRUE(var.set(std::string("brand-new")));
     EXPECT_EQ(fire_count, 2);
-    EXPECT_EQ(observed_old_len, 3);       // "old"
-    EXPECT_EQ(observed_new_len, 9);       // "brand-new"
+    EXPECT_EQ(observed_old_len, 3);   // "old"
+    EXPECT_EQ(observed_new_len, 9);   // "brand-new"
     EXPECT_EQ(var.value(), "brand-new");
 }
 
 // ==================== JsonCast：标量 ====================
 
 // bool：严格类型校验。
-TEST_F(ConfigTest, JsonCastBool)
-{
+TEST_F(ConfigTest, JsonCastBool) {
     auto ok = ca::config::JsonCast<bool>::from_json(ca::json::JsonValue::make_bool(true));
     ASSERT_TRUE(ok.is_ok());
     EXPECT_TRUE(std::move(ok).unwrap());
@@ -170,8 +157,7 @@ TEST_F(ConfigTest, JsonCastBool)
 }
 
 // 整型：范围检查（u32 越界报 OUT_OF_RANGE，i8 越界同理），负数对无符号越界。
-TEST_F(ConfigTest, JsonCastIntegerRangeCheck)
-{
+TEST_F(ConfigTest, JsonCastIntegerRangeCheck) {
     auto u32_ok = ca::config::JsonCast<ca::u32>::from_json(ca::json::JsonValue::make_int(42));
     ASSERT_TRUE(u32_ok.is_ok());
     EXPECT_EQ(std::move(u32_ok).unwrap(), ca::u32(42));
@@ -184,8 +170,7 @@ TEST_F(ConfigTest, JsonCastIntegerRangeCheck)
     ASSERT_TRUE(u32_neg.is_err());
     EXPECT_EQ(std::move(u32_neg).unwrap_err(), ConfigError::OUT_OF_RANGE);
 
-    auto i64_ok = ca::config::JsonCast<ca::i64>::from_json(
-        ca::json::JsonValue::make_int(9007199254740993));
+    auto i64_ok = ca::config::JsonCast<ca::i64>::from_json(ca::json::JsonValue::make_int(9007199254740993));
     ASSERT_TRUE(i64_ok.is_ok());
     EXPECT_EQ(std::move(i64_ok).unwrap(), ca::i64(9007199254740993));
 
@@ -196,16 +181,15 @@ TEST_F(ConfigTest, JsonCastIntegerRangeCheck)
 }
 
 // u64 整型序列化：i64 正域内输出 Int；超域降级 Float（不静默回绕成负数）。
-TEST_F(ConfigTest, JsonCastU64ToJsonOutOfRangeDegradesToFloat)
-{
+TEST_F(ConfigTest, JsonCastU64ToJsonOutOfRangeDegradesToFloat) {
     ca::str::Utf8StringArena arena;
-    const ca::u64 in_range = 9223372036854775807ULL;  // i64 max
-    auto int_value = ca::config::JsonCast<ca::u64>::to_json(in_range, arena);
+    const ca::u64            in_range  = 9223372036854775807ULL;   // i64 max
+    auto                     int_value = ca::config::JsonCast<ca::u64>::to_json(in_range, arena);
     ASSERT_TRUE(int_value.is_int());
     EXPECT_EQ(int_value.as_int(), 9223372036854775807LL);
 
-    const ca::u64 out_of_range = 9223372036854775808ULL;  // i64 max + 1
-    auto float_value = ca::config::JsonCast<ca::u64>::to_json(out_of_range, arena);
+    const ca::u64 out_of_range = 9223372036854775808ULL;   // i64 max + 1
+    auto          float_value  = ca::config::JsonCast<ca::u64>::to_json(out_of_range, arena);
     ASSERT_TRUE(float_value.is_float());
     EXPECT_DOUBLE_EQ(float_value.as_float(), 9223372036854775808.0);
 
@@ -216,8 +200,7 @@ TEST_F(ConfigTest, JsonCastU64ToJsonOutOfRangeDegradesToFloat)
 }
 
 // 浮点：Int 与 Float 都接受。
-TEST_F(ConfigTest, JsonCastFloatAcceptsIntAndFloat)
-{
+TEST_F(ConfigTest, JsonCastFloatAcceptsIntAndFloat) {
     auto from_int = ca::config::JsonCast<ca::f64>::from_json(ca::json::JsonValue::make_int(3));
     ASSERT_TRUE(from_int.is_ok());
     EXPECT_DOUBLE_EQ(std::move(from_int).unwrap(), 3.0);
@@ -226,18 +209,17 @@ TEST_F(ConfigTest, JsonCastFloatAcceptsIntAndFloat)
     ASSERT_TRUE(from_float.is_ok());
     EXPECT_FLOAT_EQ(std::move(from_float).unwrap(), 2.5f);
 
-    auto bad = ca::config::JsonCast<ca::f64>::from_json(ca::json::JsonValue::make_string(
-        ca::str::Utf8StringRef::from_cstr("3.14")));
+    auto bad = ca::config::JsonCast<ca::f64>::from_json(
+        ca::json::JsonValue::make_string(ca::str::Utf8StringRef::from_cstr("3.14")));
     ASSERT_TRUE(bad.is_err());
     EXPECT_EQ(std::move(bad).unwrap_err(), ConfigError::TYPE_MISMATCH);
 }
 
 // 字符串：JSON String ↔ std::string。
-TEST_F(ConfigTest, JsonCastString)
-{
+TEST_F(ConfigTest, JsonCastString) {
     ca::json::JsonDocument document;
-    ca::json::JsonValue value = ca::json::JsonValue::make_string(document.arena().intern("hello"));
-    auto ok = ca::config::JsonCast<std::string>::from_json(value);
+    ca::json::JsonValue    value = ca::json::JsonValue::make_string(document.arena().intern("hello"));
+    auto                   ok    = ca::config::JsonCast<std::string>::from_json(value);
     ASSERT_TRUE(ok.is_ok());
     EXPECT_EQ(std::move(ok).unwrap(), "hello");
 
@@ -249,8 +231,7 @@ TEST_F(ConfigTest, JsonCastString)
 // ==================== JsonCast：嵌套容器 ====================
 
 // vector<i32> / vector<string> 往返。
-TEST_F(ConfigTest, JsonCastVectorContainers)
-{
+TEST_F(ConfigTest, JsonCastVectorContainers) {
     {
         auto doc_result = ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("[1,2,3]"));
         ASSERT_TRUE(doc_result.is_ok());
@@ -261,8 +242,7 @@ TEST_F(ConfigTest, JsonCastVectorContainers)
         EXPECT_EQ(std::move(converted).unwrap(), (std::vector<ca::i32>{1, 2, 3}));
     }
     {
-        auto doc_result =
-            ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("[\"a\",\"b\"]"));
+        auto doc_result = ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("[\"a\",\"b\"]"));
         ASSERT_TRUE(doc_result.is_ok());
         ca::json::JsonDocument document = std::move(doc_result).unwrap();
 
@@ -272,8 +252,7 @@ TEST_F(ConfigTest, JsonCastVectorContainers)
     }
     // 元素类型不符：整体失败
     {
-        auto doc_result =
-            ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("[1,\"x\"]"));
+        auto doc_result = ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("[1,\"x\"]"));
         ASSERT_TRUE(doc_result.is_ok());
         ca::json::JsonDocument document = std::move(doc_result).unwrap();
 
@@ -284,15 +263,12 @@ TEST_F(ConfigTest, JsonCastVectorContainers)
 }
 
 // map<string,i32> 往返。
-TEST_F(ConfigTest, JsonCastMapContainer)
-{
-    auto doc_result =
-        ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("{\"a\":1,\"b\":2}"));
+TEST_F(ConfigTest, JsonCastMapContainer) {
+    auto doc_result = ca::json::JsonReader::read(ca::str::Utf8StringRef::from_string_view("{\"a\":1,\"b\":2}"));
     ASSERT_TRUE(doc_result.is_ok());
     ca::json::JsonDocument document = std::move(doc_result).unwrap();
 
-    auto converted =
-        ca::config::JsonCast<std::unordered_map<std::string, ca::i32>>::from_json(document.root());
+    auto converted = ca::config::JsonCast<std::unordered_map<std::string, ca::i32>>::from_json(document.root());
     ASSERT_TRUE(converted.is_ok());
     const auto map = std::move(converted).unwrap();
     ASSERT_EQ(map.size(), ca::usize(2));
@@ -301,32 +277,27 @@ TEST_F(ConfigTest, JsonCastMapContainer)
 }
 
 // map<string,vector<i32>> 嵌套往返（含序列化 → 再解析）。
-TEST_F(ConfigTest, JsonCastNestedMapOfVectorRoundTrip)
-{
+TEST_F(ConfigTest, JsonCastNestedMapOfVectorRoundTrip) {
     std::unordered_map<std::string, std::vector<ca::i32>> source;
     source["a"] = std::vector<ca::i32>{1, 2};
     source["b"] = std::vector<ca::i32>{3};
 
     ca::json::JsonDocument document;
-    ca::json::JsonValue encoded =
-        ca::config::JsonCast<std::unordered_map<std::string, std::vector<ca::i32>>>::to_json(
-            source, document.arena());
+    ca::json::JsonValue    encoded =
+        ca::config::JsonCast<std::unordered_map<std::string, std::vector<ca::i32>>>::to_json(source, document.arena());
     document.root() = encoded;
 
     auto converted =
-        ca::config::JsonCast<std::unordered_map<std::string, std::vector<ca::i32>>>::from_json(
-            document.root());
+        ca::config::JsonCast<std::unordered_map<std::string, std::vector<ca::i32>>>::from_json(document.root());
     ASSERT_TRUE(converted.is_ok());
     EXPECT_EQ(std::move(converted).unwrap(), source);
 }
 
 // to_json（显式 document 版本）：字符串 intern 到调用方文档，内容正确。
-TEST_F(ConfigTest, ConfigVarToJsonExplicitDocument)
-{
-    ConfigVar<std::vector<std::string>> var("direct/vec_str",
-                                            std::vector<std::string>{"x", "y"});
-    ca::json::JsonDocument document;
-    ca::json::JsonValue value = var.to_json(document);
+TEST_F(ConfigTest, ConfigVarToJsonExplicitDocument) {
+    ConfigVar<std::vector<std::string>> var("direct/vec_str", std::vector<std::string>{"x", "y"});
+    ca::json::JsonDocument              document;
+    ca::json::JsonValue                 value = var.to_json(document);
     ASSERT_TRUE(value.is_array());
     ASSERT_EQ(value.size(), ca::usize(2));
     EXPECT_EQ(value.at(0).as_string().to_std_string(), "x");
@@ -336,14 +307,12 @@ TEST_F(ConfigTest, ConfigVarToJsonExplicitDocument)
 // ==================== load：注册项应用 / 监听器 ====================
 
 // load 应用到已注册 var：监听器触发一次，旧值/新值正确。
-TEST_F(ConfigTest, LoadAppliesRegisteredVarAndFiresListener)
-{
-    auto var = Config::lookup<ca::i32>("t2/port", 80);
+TEST_F(ConfigTest, LoadAppliesRegisteredVarAndFiresListener) {
+    auto    var          = Config::lookup<ca::i32>("t2/port", 80);
     ca::i32 observed_old = 0;
     ca::i32 observed_new = 0;
-    int fire_count = 0;
-    var->add_listener([&observed_old, &observed_new, &fire_count](const ca::i32& old_value,
-                                                                  const ca::i32& new_value) {
+    int     fire_count   = 0;
+    var->add_listener([&observed_old, &observed_new, &fire_count](const ca::i32& old_value, const ca::i32& new_value) {
         observed_old = old_value;
         observed_new = new_value;
         ++fire_count;
@@ -358,10 +327,9 @@ TEST_F(ConfigTest, LoadAppliesRegisteredVarAndFiresListener)
 }
 
 // load 的值与当前值相等：不触发监听器。
-TEST_F(ConfigTest, LoadEqualValueDoesNotFireListener)
-{
-    auto var = Config::lookup<ca::i32>("t2/same", 42);
-    int fire_count = 0;
+TEST_F(ConfigTest, LoadEqualValueDoesNotFireListener) {
+    auto var        = Config::lookup<ca::i32>("t2/same", 42);
+    int  fire_count = 0;
     var->add_listener([&fire_count](const ca::i32&, const ca::i32&) { ++fire_count; });
 
     const auto result = Config::load(R"({"t2/same": 42})");
@@ -370,8 +338,7 @@ TEST_F(ConfigTest, LoadEqualValueDoesNotFireListener)
 }
 
 // load 未知 key：存入未物化表，后续 lookup 物化时以已加载值为初值。
-TEST_F(ConfigTest, LoadUnknownKeyMaterializedOnLookup)
-{
+TEST_F(ConfigTest, LoadUnknownKeyMaterializedOnLookup) {
     const auto result = Config::load(R"({"t2/future": 7})");
     ASSERT_TRUE(result.is_ok());
 
@@ -388,8 +355,7 @@ TEST_F(ConfigTest, LoadUnknownKeyMaterializedOnLookup)
 }
 
 // 未物化 key 与 lookup 类型不符：退回本次 default（文档化语义），注册仍成功。
-TEST_F(ConfigTest, LoadUnknownKeyFallsBackToDefaultOnMismatch)
-{
+TEST_F(ConfigTest, LoadUnknownKeyFallsBackToDefaultOnMismatch) {
     const auto result = Config::load(R"({"t2/fallback": "not-a-number"})");
     ASSERT_TRUE(result.is_ok());
 
@@ -399,13 +365,11 @@ TEST_F(ConfigTest, LoadUnknownKeyFallsBackToDefaultOnMismatch)
 }
 
 // 嵌套容器经 load 注入：vector<int> / vector<string> / map<string,int> / map<string,vector<int>>。
-TEST_F(ConfigTest, LoadIntoNestedContainerVars)
-{
+TEST_F(ConfigTest, LoadIntoNestedContainerVars) {
     auto vec_int = Config::lookup<std::vector<ca::i32>>("t2/vec_int", {});
     auto vec_str = Config::lookup<std::vector<std::string>>("t2/vec_str", {});
     auto map_int = Config::lookup<std::unordered_map<std::string, ca::i32>>("t2/map_int", {});
-    auto map_vec =
-        Config::lookup<std::unordered_map<std::string, std::vector<ca::i32>>>("t2/map_vec", {});
+    auto map_vec = Config::lookup<std::unordered_map<std::string, std::vector<ca::i32>>>("t2/map_vec", {});
 
     const auto result = Config::load(R"({
         "t2/vec_int": [1, 2, 3],
@@ -431,10 +395,9 @@ TEST_F(ConfigTest, LoadIntoNestedContainerVars)
 // ==================== load：失败语义 ====================
 
 // 非法 JSON / 顶层非 object：整体拒绝，内部状态零变化。
-TEST_F(ConfigTest, LoadInvalidJsonRejectedAtomically)
-{
-    auto var = Config::lookup<ca::i32>("t2/atomic", 1);
-    int fire_count = 0;
+TEST_F(ConfigTest, LoadInvalidJsonRejectedAtomically) {
+    auto var        = Config::lookup<ca::i32>("t2/atomic", 1);
+    int  fire_count = 0;
     var->add_listener([&fire_count](const ca::i32&, const ca::i32&) { ++fire_count; });
 
     auto bad_syntax = Config::load(R"({"t2/atomic": )");
@@ -455,11 +418,10 @@ TEST_F(ConfigTest, LoadInvalidJsonRejectedAtomically)
 }
 
 // 单 key 类型不匹配：跳过该 key、其余 key 生效，Err 携带失败 key 详情。
-TEST_F(ConfigTest, LoadSingleKeyMismatchSkipsAndReports)
-{
-    auto good = Config::lookup<ca::i32>("t2/good", 0);
-    auto bad = Config::lookup<ca::i32>("t2/bad", 0);
-    int bad_fire = 0;
+TEST_F(ConfigTest, LoadSingleKeyMismatchSkipsAndReports) {
+    auto good     = Config::lookup<ca::i32>("t2/good", 0);
+    auto bad      = Config::lookup<ca::i32>("t2/bad", 0);
+    int  bad_fire = 0;
     bad->add_listener([&bad_fire](const ca::i32&, const ca::i32&) { ++bad_fire; });
 
     const auto result = Config::load(R"({"t2/good": 3, "t2/bad": "text"})");
@@ -477,9 +439,8 @@ TEST_F(ConfigTest, LoadSingleKeyMismatchSkipsAndReports)
 }
 
 // 监听器回调抛异常：不穿透 load（转 LISTENER_FAILED 错误），值已应用、其余 key 继续。
-TEST_F(ConfigTest, LoadListenerExceptionBecomesErrorAndContinues)
-{
-    auto exn = Config::lookup<ca::i32>("t2/exn", 0);
+TEST_F(ConfigTest, LoadListenerExceptionBecomesErrorAndContinues) {
+    auto exn   = Config::lookup<ca::i32>("t2/exn", 0);
     auto other = Config::lookup<ca::i32>("t2/other", 0);
     exn->add_listener([](const ca::i32&, const ca::i32&) { throw std::runtime_error("boom"); });
 
@@ -496,8 +457,7 @@ TEST_F(ConfigTest, LoadListenerExceptionBecomesErrorAndContinues)
 }
 
 // 混合失败：类型不匹配与监听器异常并存时 code 取 TYPE_MISMATCH，keys 收两类。
-TEST_F(ConfigTest, LoadMixedFailuresReportBothKeys)
-{
+TEST_F(ConfigTest, LoadMixedFailuresReportBothKeys) {
     auto exn = Config::lookup<ca::i32>("t2/mix_exn", 0);
     auto bad = Config::lookup<ca::i32>("t2/mix_bad", 0);
     exn->add_listener([](const ca::i32&, const ca::i32&) { throw std::runtime_error("boom"); });
@@ -513,8 +473,7 @@ TEST_F(ConfigTest, LoadMixedFailuresReportBothKeys)
 // ==================== load_file / visit ====================
 
 // load_file 往返：写临时文件 → load_file → 断言 → 删除。
-TEST_F(ConfigTest, LoadFileRoundTrip)
-{
+TEST_F(ConfigTest, LoadFileRoundTrip) {
     const auto temp_result = ca::fs::FileUtil::create_temp_file("libca_config_test", ".json");
     ASSERT_TRUE(temp_result.is_ok());
     const std::string path = std::move(temp_result).unwrap();
@@ -522,7 +481,7 @@ TEST_F(ConfigTest, LoadFileRoundTrip)
     const auto write_result = ca::fs::FileUtil::write_text(path, R"({"t2/file_var": 123})");
     ASSERT_TRUE(write_result.is_ok());
 
-    auto var = Config::lookup<ca::i32>("t2/file_var", 0);
+    auto       var         = Config::lookup<ca::i32>("t2/file_var", 0);
     const auto load_result = Config::load_file(path);
     ASSERT_TRUE(load_result.is_ok());
     EXPECT_EQ(var->value(), 123);
@@ -531,16 +490,14 @@ TEST_F(ConfigTest, LoadFileRoundTrip)
 }
 
 // load_file：文件不存在返回 READ_FILE_FAILED。
-TEST_F(ConfigTest, LoadFileMissingReportsReadFileFailed)
-{
+TEST_F(ConfigTest, LoadFileMissingReportsReadFileFailed) {
     const auto result = Config::load_file("t2/no/such/file.json");
     ASSERT_TRUE(result.is_err());
     EXPECT_EQ(std::move(result).unwrap_err().code, ConfigError::READ_FILE_FAILED);
 }
 
 // visit：同时覆盖已注册 var 与未物化条目，name + JSON 文本表示正确。
-TEST_F(ConfigTest, VisitCoversRegisteredAndPending)
-{
+TEST_F(ConfigTest, VisitCoversRegisteredAndPending) {
     auto var = Config::lookup<ca::i32>("t2/registered", 9);
     (void)var;
     const auto result = Config::load(R"({"t2/pending_key": true})");
@@ -568,48 +525,43 @@ TEST_F(ConfigTest, VisitCoversRegisteredAndPending)
 // 2 线程 lookup + 1 线程 load + 原子计数监听器：总截止 5 秒内完成，禁止无界等待。
 // 各线程循环自检 deadline，join 必然有界；并发加固（注册表 shared_mutex、监听器锁外
 // 回调）已随提交 1/2 的实现自然涵盖，本用例做行为级回归。
-TEST_F(ConfigTest, ConcurrentLookupLoadSmoke)
-{
-    namespace chrono = std::chrono;
+TEST_F(ConfigTest, ConcurrentLookupLoadSmoke) {
+    namespace chrono    = std::chrono;
     const auto deadline = chrono::steady_clock::now() + chrono::seconds(5);
 
     std::atomic<ca::i32> change_count{0};
-    std::atomic<bool> stop{false};
+    std::atomic<bool>    stop{false};
 
     // 热点 key：lookup / load / 监听器三方并发
     auto hot = Config::lookup<ca::i32>("t3/hot", 0, "并发热点");
     ASSERT_NE(hot, nullptr);
-    const ca::u64 listener_id = hot->add_listener([&change_count](const ca::i32&, const ca::i32&) {
-        change_count.fetch_add(1, std::memory_order_relaxed);
-    });
+    const ca::u64 listener_id = hot->add_listener(
+        [&change_count](const ca::i32&, const ca::i32&) { change_count.fetch_add(1, std::memory_order_relaxed); });
 
     auto lookup_hot_worker = [&stop, &deadline]() {
         ca::i32 turns = 0;
-        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
-               && turns < 500) {
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline && turns < 500) {
             const auto var = Config::lookup<ca::i32>("t3/hot", turns);
-            EXPECT_NE(var, nullptr);  // 幂等命中，绝不类型冲突
+            EXPECT_NE(var, nullptr);   // 幂等命中，绝不类型冲突
             ++turns;
         }
     };
 
     auto lookup_fresh_worker = [&stop, &deadline]() {
         ca::i32 turns = 0;
-        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
-               && turns < 500) {
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline && turns < 500) {
             const auto var = Config::lookup<ca::i32>("t3/fresh/" + std::to_string(turns), turns);
-            EXPECT_NE(var, nullptr);  // 新 key 逐个注册
+            EXPECT_NE(var, nullptr);   // 新 key 逐个注册
             ++turns;
         }
     };
 
     auto load_worker = [&stop, &deadline]() {
         ca::i32 turns = 0;
-        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline
-               && turns < 500) {
-            const std::string text = "{\"t3/hot\": " + std::to_string(turns % 4) + "}";
-            const auto result = Config::load(text);
-            EXPECT_TRUE(result.is_ok());  // i32 var + 小整数，不应失败
+        while (!stop.load(std::memory_order_relaxed) && chrono::steady_clock::now() < deadline && turns < 500) {
+            const std::string text   = "{\"t3/hot\": " + std::to_string(turns % 4) + "}";
+            const auto        result = Config::load(text);
+            EXPECT_TRUE(result.is_ok());   // i32 var + 小整数，不应失败
             ++turns;
         }
     };
@@ -620,7 +572,7 @@ TEST_F(ConfigTest, ConcurrentLookupLoadSmoke)
     t1.join();
     t2.join();
     t3.join();
-    stop.store(true);  // 线程均已在 deadline 内自行退出，此处仅防御
+    stop.store(true);   // 线程均已在 deadline 内自行退出，此处仅防御
 
     // join 在截止时间内完成（留 1 秒调度余量）
     EXPECT_LT(chrono::steady_clock::now(), deadline + chrono::seconds(1));
@@ -633,4 +585,75 @@ TEST_F(ConfigTest, ConcurrentLookupLoadSmoke)
     EXPECT_TRUE(hot->remove_listener(listener_id));
 }
 
-}  // namespace
+
+// ==================== lookup_checked / dump（issue #224）====================
+
+// lookup_checked：成功路径与 lookup 一致；类型冲突返回 Err 而非空指针；空名返回 Err。
+TEST_F(ConfigTest, LookupCheckedReturnsErrOnTypeConflictAndEmptyName) {
+    auto var = Config::lookup_checked<ca::i32>("ck/port", 8080, "端口");
+    ASSERT_TRUE(var.is_ok());
+    EXPECT_EQ(std::move(var).unwrap()->value(), 8080);
+
+    // 同名不同类型：Err（TYPE_MISMATCH），区别于 lookup 的 nullptr。
+    auto conflict = Config::lookup_checked<std::string>("ck/port", std::string("x"));
+    ASSERT_TRUE(conflict.is_err());
+    EXPECT_EQ(conflict.unwrap_err(), ConfigError::TYPE_MISMATCH);
+
+    auto empty = Config::lookup_checked<ca::i32>("", 1);
+    ASSERT_TRUE(empty.is_err());
+    EXPECT_EQ(empty.unwrap_err(), ConfigError::INVALID_ARGUMENT);
+}
+
+// dump round-trip：注册 var + load 未物化 key，dump 输出可经 load 完整还原。
+TEST_F(ConfigTest, DumpRoundTripsThroughLoad) {
+    auto port = Config::lookup_checked<ca::i32>("dump/port", 80);
+    ASSERT_TRUE(port.is_ok());
+    std::move(port).unwrap()->set(8080);
+
+    auto enabled = Config::lookup_checked<bool>("dump/enabled", false);
+    ASSERT_TRUE(enabled.is_ok());
+    std::move(enabled).unwrap()->set(true);
+
+    // 未物化 key：load 后无人 lookup，应以其原始加载值出现在 dump 中。
+    auto loaded = Config::load(R"({"dump/pending": [1, 2, 3]})");
+    ASSERT_TRUE(loaded.is_ok()) << loaded.unwrap_err().message;
+
+    auto dumped = Config::dump();
+    ASSERT_TRUE(dumped.is_ok()) << dumped.unwrap_err().message;
+    const std::string text = std::move(dumped).unwrap();
+
+    // 重新 load dump 文本：全部 key 应用成功即完整还原。
+    auto reload = Config::load(text);
+    ASSERT_TRUE(reload.is_ok()) << reload.unwrap_err().message;
+
+    auto port_again = Config::lookup_checked<ca::i32>("dump/port", 0);
+    ASSERT_TRUE(port_again.is_ok());
+    EXPECT_EQ(std::move(port_again).unwrap()->value(), 8080);
+
+    auto pending_again = Config::lookup_checked<std::vector<ca::i32>>("dump/pending", {});
+    ASSERT_TRUE(pending_again.is_ok()) << "pending entry must materialize from dumped text";
+    auto pending_value = std::move(pending_again).unwrap()->value();
+    ASSERT_EQ(pending_value.size(), 3u);
+    EXPECT_EQ(pending_value[2], 3);
+}
+
+// dump_file：写出后可用 load_file 读回，round-trip 成立。
+TEST_F(ConfigTest, DumpFileRoundTripsThroughLoadFile) {
+    auto var = Config::lookup_checked<ca::i32>("dumpfile/answer", 42);
+    ASSERT_TRUE(var.is_ok());
+
+    const std::string path    = "config_dump_roundtrip_test.json";
+    auto              written = Config::dump_file(path);
+    ASSERT_TRUE(written.is_ok()) << written.unwrap_err().message;
+
+    Config::clear();
+    auto loaded = Config::load_file(path);
+    ASSERT_TRUE(loaded.is_ok()) << loaded.unwrap_err().message;
+    auto restored = Config::lookup_checked<ca::i32>("dumpfile/answer", 0);
+    ASSERT_TRUE(restored.is_ok());
+    EXPECT_EQ(std::move(restored).unwrap()->value(), 42);
+
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
+}
+}   // namespace
