@@ -8,6 +8,7 @@
 #include "libca/crypto/chacha20.hpp"
 #include "libca/crypto/crypto_error.hpp"
 #include "libca/crypto/crypto_util.hpp"
+#include "libca/crypto/des.hpp"
 #include "libca/crypto/hash.hpp"
 #include "libca/crypto/hex.hpp"
 #include "libca/crypto/hkdf.hpp"
