@@ -1067,44 +1067,17 @@ u64 current_process_birth()
                ? filetime_to_u64(create_time)
                : 0;
 }
-#else
-// 读 /proc/<pid>/stat 的 starttime（整体第 22 字段，clock tick）。comm 字段可含空格与
-// ')'，先定位最后一个 ')'，其后第 1 个字段是 state（整体第 3），第 20 个是 starttime。
-u64 read_process_birth(u64 pid)
-{
-    char path[64]{};
-    std::snprintf(path, sizeof(path), "/proc/%llu/stat", static_cast<unsigned long long>(pid));
-    std::FILE*  file = std::fopen(path, "r");
-    if (file == nullptr)
-        return 0;
-    char        buffer[1024]{};
-    const bool  read_ok = std::fgets(buffer, sizeof(buffer), file) != nullptr;
-    std::fclose(file);
-    if (!read_ok)
-        return 0;
-    const char* cursor = std::strrchr(buffer, ')');
-    if (cursor == nullptr)
-        return 0;
-    for (int field = 1; field <= 20; ++field) {
-        while (*cursor == ' ' || *cursor == '\t')
-            ++cursor;
-        if (*cursor == '\0')
-            return 0;
-        const char* token = cursor;
-        while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t' && *cursor != '\n')
-            ++cursor;
-        if (field == 20)
-            return std::strtoull(token, nullptr, 10);
-    }
-    return 0;
-}
 #endif
+
+// POSIX 的 read_process_birth 定义在文件尾的 detail 命名空间（声明见 ipc.hpp，
+// 测试可直接调用验证 /proc 解析）。
 
 ProcessIdentity current_process_identity()
 {
 #if defined(_WIN32)
     return ProcessIdentity{static_cast<u64>(GetCurrentProcessId()), current_process_birth()};
 #else
+    using detail::read_process_birth;
     const u64 pid = static_cast<u64>(::getpid());
     return ProcessIdentity{pid, read_process_birth(pid)};
 #endif
@@ -1117,6 +1090,9 @@ ProcessIdentity current_process_identity()
 //       时保守视为存活，宁可推迟接管也不误接管。POSIX：kill(pid, 0) 判存在（EPERM 视
 //       为存在），/proc 出生戳比对抵御 pid 复用；/proc 不可读时出生戳记 0，存活判定
 //       退化为仅查 pid。
+#if !defined(_WIN32)
+using detail::read_process_birth;
+#endif
 bool process_identity_alive(u64 pid, u64 birth)
 {
     if (pid < 2)   // 0/1 不是合法写者 pid（1 与接管哨兵冲突，见 kRingWriterElecting）
@@ -1625,6 +1601,45 @@ Status remove_message_queue(const std::string& name)
     return posix_unlink(name, "mq_unlink",
                         [](const std::string& path) { return mq_unlink(path.c_str()); });
 }
+
+namespace detail {
+
+// 读 /proc/<pid>/stat 的 starttime（整体第 22 字段，clock tick）。comm 字段可含空格
+// 与 ')'，先定位最后一个 ')' 并跳过它本身：其后第 1 个 token 是 state（整体第 3 字
+// 段），第 20 个 token 即整体第 22 字段 starttime。此前 cursor 停在 ')' 上未跳过，
+// token 整体后移一位，第 20 个 token 取到恒为 0 的 itrealvalue（整体第 21 字段），
+// 出生戳永远为 0，pid 复用防御静默失效。
+u64 read_process_birth(u64 pid)
+{
+    char path[64]{};
+    std::snprintf(path, sizeof(path), "/proc/%llu/stat", static_cast<unsigned long long>(pid));
+    std::FILE*  file = std::fopen(path, "r");
+    if (file == nullptr)
+        return 0;
+    char        buffer[1024]{};
+    const bool  read_ok = std::fgets(buffer, sizeof(buffer), file) != nullptr;
+    std::fclose(file);
+    if (!read_ok)
+        return 0;
+    const char* cursor = std::strrchr(buffer, ')');
+    if (cursor == nullptr)
+        return 0;
+    ++cursor;   // 跳过 ')' 本身
+    for (int field = 1; field <= 20; ++field) {
+        while (*cursor == ' ' || *cursor == '\t')
+            ++cursor;
+        if (*cursor == '\0')
+            return 0;
+        const char* token = cursor;
+        while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t' && *cursor != '\n')
+            ++cursor;
+        if (field == 20)
+            return std::strtoull(token, nullptr, 10);
+    }
+    return 0;
+}
+
+}   // namespace detail
 
 #endif
 

@@ -261,7 +261,7 @@ TEST(XmlReaderTest, RejectsInvalidUtf8) {
     EXPECT_TRUE(XmlReader::read(R("<a>中文</a>")).is_ok());
 }
 
-// 深度守卫：默认 max_depth=1000，嵌套元素超限须报错而非栈溢出。
+// 深度守卫：默认 max_depth=256（见 XmlReaderOptions），嵌套元素超限须报错而非栈溢出。
 TEST(XmlReaderTest, RejectsExcessiveNesting) {
     std::string deep;
     for (int i = 0; i < 1200; ++i) deep += "<a>";
