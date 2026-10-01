@@ -1,6 +1,7 @@
 ---
-version: 1.1
+version: 1.2
 update:
+2026-10-01 - 新增 DES 章节：单实现取舍、弱密钥不校验语义与 JCE 黄金组锚点
 2026-09-15 - 新增 AES 章节：三后端结构、Auto 顺序、GCM 取舍与性能数据
 2026-07-06 - 首版，补充 crypto 模块职责、算法分层与使用边界
 ---
@@ -25,7 +26,7 @@ crypto 依赖 `libca_core`，主要复用 `ByteSlice`、`Bytes`、`Result` 和 `
 - 认证：`hmac.hpp`。
 - 随机数：`random.hpp`。
 - 流加密：`rc4.hpp`、`chacha20.hpp`。
-- 分组加密：`aes.hpp`（内置参考实现 + 多后端分发）。
+- 分组加密：`aes.hpp`（内置参考实现 + 多后端分发）、`des.hpp`（纯内置单实现）。
 - 聚合入口：`crypto.hpp`。
 
 每个算法尽量保持小文件独立，避免把所有实现集中到一个巨型工具类中。
@@ -119,6 +120,54 @@ SP800-38A 及其他后端严格一致，跨后端对拍逐字节相同。
 内置实现比外部后端慢约 1~2 个数量级，符合"正确性优先、不做平台优化"的定位；对吞吐
 有要求的调用方应选择外部后端。
 
+## DES：标准块密码原语与 JCE 对齐
+
+### 单实现、无后端分发
+
+`des.hpp` 提供纯内置的 FIPS 46-3 实现（IP/FP + 16 轮 Feistel、E 扩展、8 个 S-box、
+P 置换、PC-1/PC-2 密钥调度 + 循环左移表），与 AES 的多后端结构刻意不同：**不设
+后端枚举、不接 OpenSSL/CNG**。原因：DES 已被现代提供方弃用（OpenSSL 3.x 移入
+legacy provider、CNG 逐步收紧），为它维护多条后端路径只有成本没有收益；内置查表
+实现即为唯一事实来源。
+
+API 分三层，全部 snake_case 自由函数（不引入 `Des` 类型，与模块既有风格一致）：
+
+- 单块：`des_encrypt_block` / `des_decrypt_block`（8 字节进、8 字节出）；
+- 模式：`des_ecb_encrypt/decrypt`、`des_cbc_encrypt/decrypt`（NoPadding，IV 显式
+  传入，零 IV 也由调用方显式给；块对齐由调用方保证，非 8 倍数返回
+  `INVALID_ARGUMENT`）；
+- 填充：`pkcs5_pad` / `pkcs5_unpad`（固定按 DES 块大小 8；unpad 对 pad 值越界
+  （0 或 > 8）或不一致返回 `INVALID_ARGUMENT`，对齐 JCE BadPaddingException 口径）。
+
+错误通道沿用 `Result<Bytes, CryptoError>`，只用到 `INVALID_ARGUMENT`，不新增错误码。
+
+### 弱密钥不校验（与 JCE 对齐的硬要求）
+
+JCE 的 `DESKeySpec` 只读取 8 字节原始密钥，**不调整奇偶位、不拒绝弱密钥/半弱密钥**；
+奇偶位经 PC-1 置换自然丢弃。本实现同样不做任何密钥校验：任意 8 字节都是合法密钥。
+这不只是宽容——morpher 侧既有数据（混淆产物中的密钥常带非法奇偶位）依赖该语义，
+逐位对齐是硬要求。推论：全零密钥 `0000000000000000` 与弱密钥 `0101010101010101` 经
+PC-1 后完全同键，两者 `E(0) = 8CA64DE9C1B123A7`（单测钉死）。
+
+### 测试向量来源
+
+- FIPS 46-3 教科书向量（key `133457799BBCDFF1`：
+  `E(0123456789ABCDEF)=85E813540F0AB405`、`D(0123456789ABCDEF)=EE0F7C12E0B09338`）
+  与附录 B、经典例题（"Now is t"）。
+- **JCE 黄金组**移植自 luiox/morpher `mjt-deobf/test/des_eval_test.cpp`（SunJCE
+  JDK17 实测产出）：单块解密 `D(133457799BBCDFF1, FEDCBA9876543210)=7D4D8B4E525E14ED`、
+  `D(133457799BBCDFF1, FFFFFFFFFFFFFFFF)=D85B9AE1CCD81834`；零 IV 三块 CBC 链、
+  非零 IV CBC 单块、7 组 CBC-PKCS5 明文长（0/1/7/8/9/16/23）与 4 组非法填充拒绝。
+  morpher 的 DES 双实现下沉本模块后，这批数字是双仓共用的逐位兼容锚点。
+- 回环与链接性：确定性 LCG 伪随机输入双向回环；IV 变化改变输出、错 IV 解密仅首块
+  不同、逐块核对 `C_i = E(P_i xor C_{i-1})`；弱/半弱密钥的 FIPS 46-3 附录 A 对合性质
+  （弱密钥 `E(E(P))=P`、半弱对 `E_K2(E_K1(P))=P`）兼作"未拒绝弱密钥"的行为证明。
+
+### 安全口径
+
+DES 56 位有效密钥强度早已不足，本原语仅供 legacy 协议与混淆场景兼容，不用于新安全
+设计；PKCS#5 填充校验只保证协议正确性，不具备认证能力（安全场景用 AES-GCM）。
+
 ## 安全边界
 
 本模块不是完整安全协议库。它只提供基础原语：
@@ -128,6 +177,8 @@ SP800-38A 及其他后端严格一致，跨后端对拍逐字节相同。
 - ChaCha20 当前是裸流加密能力，调用方必须保证 key/nonce/counter 使用策略正确。
 - AES 的 ECB/CBC/CTR 均为原始模式，无填充、无认证；需要认证加密用 AES-GCM（外部
   后端）或自行组合 MAC。
+- DES 为 legacy 兼容原语（56 位有效密钥，强度不足），仅用于旧协议与混淆场景；
+  按设计不校验弱密钥（对齐 JCE `DESKeySpec` 语义）。
 
 ## 新人阅读顺序
 
@@ -136,3 +187,4 @@ SP800-38A 及其他后端严格一致，跨后端对拍逐字节相同。
 3. `sha256.hpp`、`hmac.hpp`：理解常用摘要和认证入口。
 4. `rc4.hpp`、`chacha20.hpp`：理解流加密接口和测试向量。
 5. `aes.hpp`：理解"同一签名、多后端分发"的组织方式与后端可用性边界。
+6. `des.hpp`：理解"单实现 + JCE 逐位对齐"的兼容原语取舍。
