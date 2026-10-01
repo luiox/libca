@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 
 namespace ca::str {
@@ -1063,10 +1064,15 @@ std::ostream& operator<<(std::ostream& os, const Utf8String& s) {
 }
 
 struct CacheData {
-    std::mutex mutex;
+    // 命中路径用读锁：多线程日志/热路径字面量查询不互相串行化（issue #229）。
+    std::shared_mutex mutex;
     // key: 字符串的内存地址（字面量地址全局唯一且不变）
     std::unordered_map<const char*, ZUtf8StringRef> map;
 };
+
+// 容量上限：字面量级条目实际远小于该值；封顶后未命中仅计算不缓存，避免按指针
+// 地址只增不减的无界增长（每条 ~64B，封顶后总量有界）。
+inline constexpr usize kMaxStaticCacheEntries = 4096;
 
 static CacheData& get_cache() {
     static CacheData cache;
@@ -1078,19 +1084,30 @@ ZUtf8StringRef ZUtf8StringRef::from_static(const char* cstr)
     if (!cstr) return ZUtf8StringRef(nullptr, 0, 0);
 
     auto& inst = get_cache();
-    std::lock_guard<std::mutex> lock(inst.mutex);
-
-    auto it = inst.map.find(cstr);
-    if (it != inst.map.end()) {
-        return it->second; // 命中缓存
+    {
+        std::shared_lock<std::shared_mutex> lock(inst.mutex);
+        auto it = inst.map.find(cstr);
+        if (it != inst.map.end()) {
+            return it->second; // 命中缓存
+        }
     }
 
-    // 未命中，计算并加入缓存
+    // 未命中：锁外计算码点数，再取写锁入表（并发未命中同一地址时 emplace 去重）。
     usize len = std::strlen(cstr);
     usize cp = utf8_count_code_points(reinterpret_cast<const u8*>(cstr), len);
     ZUtf8StringRef ref(reinterpret_cast<const u8*>(cstr), len, cp);
-    inst.map.emplace(cstr, ref);
+    std::unique_lock<std::shared_mutex> lock(inst.mutex);
+    if (inst.map.size() < kMaxStaticCacheEntries) {
+        inst.map.emplace(cstr, ref);
+    }
     return ref;
+}
+
+void ZUtf8StringRef::clear_static_cache()
+{
+    auto& inst = get_cache();
+    std::unique_lock<std::shared_mutex> lock(inst.mutex);
+    inst.map.clear();
 }
 
 ZUtf8StringRef ZUtf8StringRef::from_utf8_string(const Utf8String& s) {

@@ -280,3 +280,108 @@ TEST(StringUtilTest, CaseConversionPreservesHighBytes) {
     EXPECT_EQ(StringUtil::to_lower_case("ABC"), "abc");
     EXPECT_EQ(StringUtil::to_upper_case("abc"), "ABC");
 }
+
+// split 尾段语义统一（issue #229）：char/separators 版保留空段（含首尾），
+// 与 Utf8StringRef::split 一致；whitespace 版保持 split_whitespace 语义。
+TEST(StringUtilTest, splitByCharPreservesEmptySegments) {
+    std::vector<std::string> result;
+    StringUtil::split(result, "a,", ',');
+    ASSERT_EQ(result.size(), 2);
+    EXPECT_EQ(result[0], "a");
+    EXPECT_EQ(result[1], "");
+
+    StringUtil::split(result, ",a", ',');
+    ASSERT_EQ(result.size(), 2);
+    EXPECT_EQ(result[0], "");
+    EXPECT_EQ(result[1], "a");
+
+    StringUtil::split(result, ",", ',');
+    ASSERT_EQ(result.size(), 2);
+    EXPECT_EQ(result[0], "");
+    EXPECT_EQ(result[1], "");
+
+    StringUtil::split(result, "", ',');
+    EXPECT_TRUE(result.empty());
+
+    StringUtil::split(result, "abc", ',');
+    ASSERT_EQ(result.size(), 1);
+    EXPECT_EQ(result[0], "abc");
+}
+
+TEST(StringUtilTest, splitBySeparatorsPreservesEmptySegments) {
+    std::vector<std::string> result;
+    StringUtil::split(result, "a,", ",;");
+    ASSERT_EQ(result.size(), 2);
+    EXPECT_EQ(result[0], "a");
+    EXPECT_EQ(result[1], "");
+
+    StringUtil::split(result, ",;", ",;");
+    ASSERT_EQ(result.size(), 3);
+    EXPECT_EQ(result[0], "");
+    EXPECT_EQ(result[1], "");
+    EXPECT_EQ(result[2], "");
+
+    StringUtil::split(result, "", ",;");
+    EXPECT_TRUE(result.empty());
+}
+
+// 数值转换 Result 化（issue #229）：parse_* 严格版有错误通道，to_* 宽松版
+// 历史语义保持（失败返 0、容忍尾部非数字、跳过前导空白）。
+TEST(StringUtilTest, parseIntStrictResultSemantics) {
+    auto ok = StringUtil::parse_int("42");
+    ASSERT_TRUE(ok.is_ok());
+    EXPECT_EQ(std::move(ok).unwrap(), 42);
+
+    auto negative = StringUtil::parse_int("-17");
+    ASSERT_TRUE(negative.is_ok());
+    EXPECT_EQ(std::move(negative).unwrap(), -17);
+
+    // 失败与 0 可区分。
+    EXPECT_TRUE(StringUtil::parse_int("abc").is_err());
+    EXPECT_TRUE(StringUtil::parse_int("").is_err());
+    EXPECT_TRUE(StringUtil::parse_int("12abc").is_err());
+    EXPECT_TRUE(StringUtil::parse_int(" 12").is_err());
+    EXPECT_TRUE(StringUtil::parse_int("99999999999").is_err());
+
+    auto zero = StringUtil::parse_int("0");
+    ASSERT_TRUE(zero.is_ok());
+    EXPECT_EQ(std::move(zero).unwrap(), 0);
+}
+
+TEST(StringUtilTest, parseNumericFamilyCoversTypes) {
+    auto s = StringUtil::parse_short("300");
+    ASSERT_TRUE(s.is_ok());
+    EXPECT_EQ(std::move(s).unwrap(), 300);
+
+    auto l = StringUtil::parse_long("123456789");
+    ASSERT_TRUE(l.is_ok());
+    EXPECT_EQ(std::move(l).unwrap(), 123456789L);
+
+    auto f = StringUtil::parse_float("2.5");
+    ASSERT_TRUE(f.is_ok());
+    EXPECT_FLOAT_EQ(std::move(f).unwrap(), 2.5f);
+
+    auto d = StringUtil::parse_double("3.14");
+    ASSERT_TRUE(d.is_ok());
+    EXPECT_DOUBLE_EQ(std::move(d).unwrap(), 3.14);
+
+    auto de = StringUtil::parse_double("1e3");
+    ASSERT_TRUE(de.is_ok());
+    EXPECT_DOUBLE_EQ(std::move(de).unwrap(), 1000.0);
+
+    EXPECT_TRUE(StringUtil::parse_float("x").is_err());
+    EXPECT_TRUE(StringUtil::parse_double("1.2.3").is_err());
+}
+
+TEST(StringUtilTest, legacyToNumericSemanticsUnchanged) {
+    EXPECT_EQ(StringUtil::to_int("42"), 42);
+    EXPECT_EQ(StringUtil::to_int("-1"), -1);
+    EXPECT_EQ(StringUtil::to_int("0"), 0);
+    // 失败/垃圾输入仍返 0（宽松历史语义）。
+    EXPECT_EQ(StringUtil::to_int("abc"), 0);
+    EXPECT_EQ(StringUtil::to_int("12abc"), 12);
+    EXPECT_EQ(StringUtil::to_int(" 12"), 12);
+    EXPECT_EQ(StringUtil::to_int("99999999999"), 0);
+    EXPECT_DOUBLE_EQ(StringUtil::to_double("3.14"), 3.14);
+    EXPECT_EQ(StringUtil::to_double("abc"), 0.0);
+}

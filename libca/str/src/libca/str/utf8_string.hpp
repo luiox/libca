@@ -510,7 +510,12 @@ std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 class ZUtf8StringRef {
 public:
     /// @brief 从 C 字符串构造（仅建议字面量/全局常量）。命中全局缓存表优化；不保证去重。
+    /// @note 缓存命中走读锁（shared_mutex），多线程热路径不串行化；缓存条目有上限
+    ///       （超出后仅计算不缓存），并可用 clear_static_cache() 整体清空。
     static ZUtf8StringRef from_static(const char* cstr);
+
+    /// @brief 清空 from_static 的全局缓存表（测试或内存压力时使用）。
+    static void clear_static_cache();
 
     /// 从 Utf8String 转换（其保证末尾 `\0`）。
     static ZUtf8StringRef from_utf8_string(const Utf8String& s);
