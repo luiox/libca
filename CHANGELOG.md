@@ -7,6 +7,18 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
 
+## [0.0.10] - 未发布
+
+### libca
+
+- **[random]** 新增确定性伪随机原语 `SplitMix64` / `Xorshift32`（header-only，
+  仅依赖 core）：作为 luiox/morpher#1027 A3/A4 的收敛单份，语义逐位锁定
+  morpher 正典（SplitMix64 = vmc4_instance.cpp 内联版；Xorshift32 =
+  regc_cache_pool.cpp regcStringXorshift32，与 native_lib_crypto.hpp
+  xorshift32Step 同式），unittest 以 Python 复刻正典产出的 golden 向量做
+  位精确对拍，morpher 收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0
+  为定义行为（序列恒 0，与正典一致），不做隐式替换。
+
 ## [0.0.9] - 2026-10-01
 
 ### 全局
