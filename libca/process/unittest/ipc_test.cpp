@@ -455,5 +455,31 @@ TEST(IpcRemoveTest, RemoveRejectsPathLikeName)
     EXPECT_FALSE(ipc::remove_message_queue("a/b").is_ok());
 }
 
+// can_receive() 使平台能力差异可检测（issue #233）：接收端 true、发送端 false、
+// 已关闭实例 false。Windows 发送端只能写（mailslot 客户端），POSIX 两侧均可收发。
+TEST(MessageQueueTest, CanReceiveReflectsInstanceCapability)
+{
+    const std::string name =
+        "libca_process_mq_canrecv_" + std::to_string(current_process_id());
+    auto receiver = ipc::MessageQueue::create(name, 64);
+    ASSERT_TRUE(receiver.is_ok()) << receiver.unwrap_err().to_string();
+    auto sender = ipc::MessageQueue::open(name);
+    ASSERT_TRUE(sender.is_ok()) << sender.unwrap_err().to_string();
+
+    auto receiver_value = std::move(receiver).unwrap();
+    auto sender_value   = std::move(sender).unwrap();
+    EXPECT_TRUE(receiver_value.can_receive());
+    EXPECT_FALSE(sender_value.can_receive());
+
+    sender_value.close();
+    EXPECT_FALSE(sender_value.can_receive());
+
+    auto received = receiver_value.receive_for(std::chrono::milliseconds(5));
+    ASSERT_TRUE(received.is_ok());
+    EXPECT_FALSE(received.unwrap().has_value());
+    receiver_value.close();
+    EXPECT_FALSE(receiver_value.can_receive());
+}
+
 }   // namespace
 }   // namespace ca::process::test

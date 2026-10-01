@@ -4,6 +4,8 @@
 #include <chrono>
 #include <future>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 
 #include "libca/thread/thread.hpp"
 
@@ -92,6 +94,33 @@ TEST(ThreadTest, MoveTransfersOwnership)
     EXPECT_EQ(entered.get_future().wait_for(1s), std::future_status::ready);
     target.request_stop();
     EXPECT_TRUE(target.join().is_ok());
+}
+
+// 并发 join 同一 Thread（issue #231）：多个线程同时调 join() 不应抛
+// system_error，所有调用者拿到同一份幂等完成状态。
+TEST(ThreadTest, ConcurrentJoinIsSerializedAndIdempotent)
+{
+    std::promise<void> completed;
+    auto started = Thread::start([&]() { completed.set_value(); });
+    ASSERT_TRUE(started.is_ok()) << started.unwrap_err().to_string();
+
+    auto thread = std::move(started).unwrap();
+    EXPECT_EQ(completed.get_future().wait_for(1s), std::future_status::ready);
+
+    constexpr int kJoiners               = 4;
+    std::vector<ca::core::Status> results(kJoiners);
+    std::vector<std::thread>      joiners;
+    joiners.reserve(kJoiners);
+    for (int i = 0; i < kJoiners; ++i) {
+        joiners.emplace_back([&thread, &results, i]() { results[i] = thread.join(); });
+    }
+    for (auto& joiner : joiners) {
+        joiner.join();
+    }
+    for (const auto& status : results) {
+        ASSERT_TRUE(status.is_ok()) << status.to_string();
+    }
+    EXPECT_FALSE(thread.joinable());
 }
 
 }   // namespace

@@ -385,3 +385,37 @@ TEST(CsvIoTest, RoundTripsThroughUtf8PathFile) {
     std::error_code ec;
     std::filesystem::remove(std::filesystem::u8path(path), ec);
 }
+
+TEST(CsvReaderTest, RejectsReservedDelimiterAndQuoteChars) {
+    // 验收（issue #234）：CR/LF/NUL 三种字符 × delimiter/quote 全部入口拒绝。
+    const char reserved[] = {'\r', '\n', '\0'};
+    for (char c : reserved) {
+        CsvReaderOptions delim_options;
+        delim_options.delimiter = c;
+        auto delim_result = CsvReader::read(R("a b"), delim_options);
+        ASSERT_TRUE(delim_result.is_err());
+        auto delim_err = std::move(delim_result).unwrap_err();
+        std::string delim_msg(
+            reinterpret_cast<const char*>(delim_err.message.data()),
+            reinterpret_cast<const char*>(delim_err.message.data()) +
+                delim_err.message.byte_length());
+        EXPECT_NE(delim_msg.find("delimiter"), std::string::npos);
+
+        CsvReaderOptions quote_options;
+        quote_options.quote = c;
+        auto quote_result = CsvReader::read(R("a,b"), quote_options);
+        ASSERT_TRUE(quote_result.is_err());
+        auto quote_err = std::move(quote_result).unwrap_err();
+        std::string quote_msg(
+            reinterpret_cast<const char*>(quote_err.message.data()),
+            reinterpret_cast<const char*>(quote_err.message.data()) +
+                quote_err.message.byte_length());
+        EXPECT_NE(quote_msg.find("quote"), std::string::npos);
+    }
+
+    // 合法自定义分隔符不受影响。
+    CsvReaderOptions pipe_options;
+    pipe_options.delimiter = '|';
+    auto ok_result = CsvReader::read(R("a|b"), pipe_options);
+    ASSERT_TRUE(ok_result.is_ok());
+}

@@ -12,8 +12,12 @@
 
 namespace ca::yaml {
 
-/// @brief YAML 读取选项（配置子集固定语义，目前无可配项，保留扩展位）。
-struct YamlReaderOptions {};
+/// @brief YAML 读取选项。
+struct YamlReaderOptions {
+    /// 最大嵌套深度（块/flow 合计），超出报错以防栈溢出。
+    /// @note 默认 1000（与 YamlParserOptions 一致）。
+    ca::usize max_depth = 1000;
+};
 
 /// @brief YAML Reader，静态入口。
 class YamlReader {

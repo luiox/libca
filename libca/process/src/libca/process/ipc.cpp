@@ -561,7 +561,12 @@ StatusResult<SharedMemory> SharedMemory::open(const std::string& name)
         CloseHandle(handle);
         return Err(windows_error("MapViewOfFile"));
     }
-    VirtualQuery(view, &info, sizeof(info));
+    if (VirtualQuery(view, &info, sizeof(info)) != sizeof(info)) {
+        const auto error = windows_error("VirtualQuery");
+        UnmapViewOfFile(view);
+        CloseHandle(handle);
+        return Err(error);
+    }
     return Ok(SharedMemory(to_native(handle), view, info.RegionSize));
 #else
     auto path = posix_shared_memory_name(name);

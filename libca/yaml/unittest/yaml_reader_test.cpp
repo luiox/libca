@@ -571,3 +571,37 @@ TEST(YamlReaderTest, RejectsExcessiveNesting) {
     }
     EXPECT_TRUE(YamlReader::read(Utf8StringRef::from_string_view(moderate)).is_ok());
 }
+
+// max_depth 可配（issue #232）：Reader 选项透传 parser，默认值与旧行为一致，
+// 超限报错、限内正常。
+TEST(YamlReaderTest, MaxDepthOptionIsConfigurable) {
+    auto build_nested = [](int depth) {
+        std::string deep;
+        for (int i = 0; i < depth; ++i) {
+            deep.append(static_cast<ca::usize>(i) * 2, ' ');
+            deep += "-\n";
+        }
+        return deep;
+    };
+
+    // 限内成功（50 层 < max_depth=100）。
+    YamlReaderOptions loose;
+    loose.max_depth = 100;
+    EXPECT_TRUE(
+        YamlReader::read(Utf8StringRef::from_string_view(build_nested(50)), loose).is_ok());
+
+    // 同输入收紧上限后报错，默认 1000 下仍可解析。
+    EXPECT_TRUE(
+        YamlReader::read(Utf8StringRef::from_string_view(build_nested(50))).is_ok());
+    auto exceeded =
+        YamlReader::read(Utf8StringRef::from_string_view(build_nested(150)), loose);
+    ASSERT_TRUE(exceeded.is_err());
+
+    // 默认值与 YamlParserOptions 一致（=1000）：1001 层拒绝、900 层接受。
+    YamlReaderOptions default_options;
+    EXPECT_EQ(default_options.max_depth, ca::usize{1000});
+    EXPECT_TRUE(
+        YamlReader::read(Utf8StringRef::from_string_view(build_nested(900))).is_ok());
+    EXPECT_TRUE(
+        YamlReader::read(Utf8StringRef::from_string_view(build_nested(1200))).is_err());
+}

@@ -138,9 +138,12 @@ private:
 
 /// @brief 保序消息队列，move-only。
 /// @details Windows 用 mailslot，Linux 用 POSIX 消息队列，二者都保留单条消息边界。
-///          Windows 上有意设计为单向：create() 返回接收端，open() 返回发送端；
-///          Linux 上打开的队列可同时收发。超过 max_message_size 的消息在 Linux 上被拒绝，
-///          Windows 在接收端按配置上限截断。close() 只释放本地句柄。
+///          超过 max_message_size 的消息在 Linux 上被拒绝，Windows 在接收端按配置上限截断。
+///          close() 只释放本地句柄。
+/// @warning 平台能力不对称：Windows mailslot 是单向管道，create() 返回的句柄只能接收、
+///          open() 返回的句柄只能发送（发送端调 receive()/receive_for() 一律
+///          FAILED_PRECONDITION）；Linux 上打开的队列可同时收发。跨平台代码请用
+///          can_receive() 检测当前实例的接收能力，不要假设同名 API 两平台行为一致。
 class MessageQueue
 {
 public:
@@ -165,6 +168,13 @@ public:
     /// @brief 限时接收；超时返回空 optional（区分于系统错误）。
     ca::core::StatusResult<std::optional<std::string>> receive_for(
         std::chrono::milliseconds timeout);
+    /// @brief 当前实例是否可接收（Windows 发送端为 false，POSIX 两侧均为 true）。
+    /// @return 已关闭的实例返回 false；用于跨平台代码运行期检测能力差异，
+    ///         避免直接调 receive() 才撞 FAILED_PRECONDITION。
+    bool can_receive() const noexcept
+    {
+        return native_handle_ != -1 && receiver_;
+    }
     void close() noexcept;
 
 private:
