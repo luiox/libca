@@ -75,7 +75,9 @@ TEST(ZipOutputStreamTest, RejectsMoreThanUint16Entries)
     }
     zos.put_next_entry(ZipEntry("overflow.txt", 0, 1, 0, 0, 0));
     zos.write(reinterpret_cast<const ca::u8*>(content.data()), 1);
-    EXPECT_THROW(zos.close_entry(), std::runtime_error);
+    // Result 迁移后：溢出守卫返回 Err（UNSUPPORTED），不再抛异常；
+    // 析构路径 close()->close_entry() 同步 Err 提前返回，拒绝写坏 EOCD。
+    EXPECT_TRUE(zos.close_entry().is_err());
 }
 
 TEST(ZipOutputStreamTest, MultipleEntries)

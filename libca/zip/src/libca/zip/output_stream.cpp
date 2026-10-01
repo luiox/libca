@@ -341,8 +341,8 @@ Result<void, ZipErrorInfo> ZipOutputStream::close_entry() {
     // 无 ZIP64 写路径：EOCD 的条目数字段为 u16，第 65536 条起计数回绕，
     // 会产出目录损坏却"看似成功"的归档，这里显式失败。
     if (impl_->total_entries == 0xFFFF) {
-        throw std::runtime_error(
-            "ZipOutputStream: too many entries (max 65535 without ZIP64)");
+        return Err(ZipErrorInfo{ZipError::UNSUPPORTED,
+                                "ZipOutputStream: too many entries (max 65535 without ZIP64)"});
     }
     impl_->total_entries++;
 
