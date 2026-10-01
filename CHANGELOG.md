@@ -7,7 +7,7 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
 
-## [0.0.9] - 未发布
+## [0.0.9] - 2026-10-01
 
 ### 全局
 
@@ -100,7 +100,16 @@
     改为返回 `Err(INVALID_FORMAT)`；`read_all` 对不支持的压缩方法返回
     `Err(UNSUPPORTED)`；`ZipOutputStream::put_next_entry` 在未 open 时返回
     `Err(INVALID_STATE)`（原先为未定义行为）；
-  - 全部 zip 单测迁移为 Result 断言（68 用例）。
+  - 全部 zip 单测迁移为 Result 断言（69 用例）。
+
+- **[csv/process/thread/yaml]** 健壮性批次 2（#235）：csv 读取选项校验拒绝保留分隔符/引号字符；
+  process `ipc` Windows 侧补 `VirtualQuery` 返回值检查；`thread` join 串行化消除竞争；
+  yaml `max_depth` 可配（防深嵌套递归失控）。
+- **[config]** 新增持久化出口与 checked 查询（#240）：`Config::save/dump/dump_file`、
+  `lookup_checked`（缺失/类型不符显式报错），附 K&R 格式化输出。
+- **[zip]** 条目数溢出守卫完成 Result 迁移：`close_entry` 第 65536 条起返回
+  `Err(UNSUPPORTED)`（原先抛 `std::runtime_error`，且异常穿越析构路径可致 terminate）。
+
 
 ## [0.0.7] - 未发布
 
