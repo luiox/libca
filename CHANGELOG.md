@@ -18,6 +18,15 @@
   xorshift32Step 同式），unittest 以 Python 复刻正典产出的 golden 向量做
   位精确对拍，morpher 收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0
   为定义行为（序列恒 0，与正典一致），不做隐式替换。
+- **[crypto]** 新增标准 DES 块密码原语 `crypto/des.hpp`（FIPS 46-3：IP/FP + 16 轮
+  Feistel、E 扩展、8 S-box、P 置换、PC-1/PC-2 密钥调度）：单块
+  `des_encrypt_block`/`des_decrypt_block`、`des_ecb_encrypt/decrypt` 与
+  `des_cbc_encrypt/decrypt` 双向（NoPadding，IV 显式传入，非整块返回
+  INVALID_ARGUMENT）、PKCS#5 助手 `pkcs5_pad`/`pkcs5_unpad`（非法填充报错）。
+  纯内置实现，**不接** OpenSSL/CNG 后端（现代提供方已弃用 DES）；密钥奇偶位不
+  校验不调整、弱密钥不拒绝（对齐 JCE `DESKeySpec` 语义，morpher#1027 A5 下沉
+  单份原语的逐位对齐硬要求），单测钉死 SunJCE 实测黄金组（来源
+  morpher mjt-deobf des_eval_test）。
 
 ## [0.0.9] - 2026-10-01
 
