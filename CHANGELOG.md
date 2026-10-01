@@ -69,6 +69,13 @@
   现可用。
 - **[net]** `UdpSocket` 补 `set_ttl/ttl`（IPv4 走 IP_TTL，IPv6 走
   IPV6_UNICAST_HOPS，往返一致）；组播成员管理暂不提供，待后续单独立项。
+- **[http] 协议健壮性三件**：服务端协议错误响应（431/413 等）此前硬编码按 GET
+  帧——HEAD 请求失败时多出的 body 字节会被客户端下一响应解析器吞掉，现按
+  请求行已解析 method 判定帧规则（Http1Reader 新增 last_head_method()）；
+  HTTP 客户端复用连接遇 reset 类错误且请求不可重试时，最终错误保留原始
+  EPIPE/RST 诊断（不再被笼统的"closed before response head"吞掉）；服务器
+  stop 轮询等待在原始 TCP 路径改用 select（Windows 上阻塞收发超时后连接处于
+  MSDN "不确定状态"，此前重试依赖该状态；TLS 路径无法规避、已注释文档化风险）。
 
 ## [0.0.7] - 未发布
 

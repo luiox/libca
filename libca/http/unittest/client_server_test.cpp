@@ -844,5 +844,52 @@ TEST(HttpClientServerTest, ProtocolErrorIsDeliveredWhileClientStreamsBody)
     EXPECT_NE(received.find("413"), std::string::npos);
 }
 
+
+// HEAD 请求触发协议错误（431）时，响应须按 HEAD 帧规则只发头不发 body；
+// 旧实现硬编码按 GET 发 body，body 字节会被客户端下一响应解析器吞掉（issue #228）。
+TEST(HttpClientServerTest, ProtocolErrorForHeadRequestOmitsBody)
+{
+    HttpServerOptions options;
+    options.request_limits.max_header_bytes = 64;
+    options.overload_response_timeout = std::chrono::milliseconds(2000);
+    auto server = bind_server(options);
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ServerRunner runner(std::move(server));
+
+    auto connected =
+        net::TcpStream::connect_timeout("127.0.0.1", address.port(), std::chrono::seconds(5));
+    ASSERT_TRUE(connected.is_ok());
+    auto stream = std::move(connected).unwrap();
+    ASSERT_TRUE(stream.set_write_timeout(std::chrono::milliseconds(5000)).is_ok());
+    ASSERT_TRUE(stream.set_read_timeout(std::chrono::milliseconds(5000)).is_ok());
+
+    // 请求行合法（method=HEAD 已解析），随后超限的头触发 431。
+    const std::string head = "HEAD / HTTP/1.1\r\nHost: 127.0.0.1\r\n";
+    auto written = stream.write(reinterpret_cast<const u8*>(head.data()), head.size());
+    ASSERT_TRUE(written.is_ok());
+    const std::string oversized(256, 'z');
+    const std::string big_header = "X-Big: " + oversized + "\r\n\r\n";
+    written = stream.write(reinterpret_cast<const u8*>(big_header.data()), big_header.size());
+    ASSERT_TRUE(written.is_ok());
+
+    std::string received;
+    std::array<char, 1024> buffer{};
+    for (;;) {
+        auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+        if (read.is_err() || read.unwrap() == 0)
+            break;
+        received.append(buffer.data(), read.unwrap());
+    }
+    EXPECT_NE(received.find("431"), std::string::npos);
+
+    // 头之后不得有任何 body 字节：HEAD 的协议错误响应只到头终止 CRLFCRLF。
+    const auto head_end = received.find("\r\n\r\n");
+    ASSERT_NE(head_end, std::string::npos);
+    EXPECT_EQ(received.size(), head_end + 4)
+        << "HEAD protocol error response must not carry a body, got: " << received;
+}
+
 }   // namespace
 }   // namespace ca::http::test

@@ -7,10 +7,53 @@
 
 #include "libca/io/reader.hpp"
 #include "libca/io/writer.hpp"
+#include "libca/net/detail/socket_platform.hpp"
 #include "libca/net/tcp.hpp"
 #include "libca/thread/stop_token.hpp"
 
 namespace ca::http::detail {
+
+namespace {
+
+/// @brief 在原始 socket 上 select 等待可读/可写（与 tcp.cpp connect_timeout
+///        同款模式）。返回 false 表示等待超时（socket 状态未受扰动）。
+/// @details Windows 上阻塞收发一旦超时，连接处于 MSDN 所称"不确定状态"、应当
+///          关闭而非继续重试——select 超时无此副作用，故 stop 轮询等待走此路径
+///          而非反复设 SO_RCVTIMEO/SO_SNDTIMEO 超时重试（issue #228）。
+inline io::IoResult<bool> wait_socket_ready(net::TcpStream&           stream,
+                                            bool                      for_write,
+                                            std::chrono::milliseconds wait)
+{
+    const auto native = stream.native_socket();
+#if !defined(_WIN32)
+    if (static_cast<int>(native) >= FD_SETSIZE)
+        return ca::core::Err(io::IoError::from_kind(
+            io::IoErrorKind::Unsupported,
+            "socket descriptor exceeds FD_SETSIZE limit for select"));
+#endif
+    timeval timeout{};
+    timeout.tv_sec  = static_cast<long>(wait.count() / 1000);
+    timeout.tv_usec = static_cast<long>((wait.count() % 1000) * 1000);
+    fd_set fds;
+    FD_ZERO(&fds);
+#if defined(_WIN32)
+    FD_SET(static_cast<SOCKET>(native), &fds);
+    const int ready = ::select(0, for_write ? nullptr : &fds, for_write ? &fds : nullptr,
+                               nullptr, &timeout);
+#else
+    FD_SET(static_cast<int>(native), &fds);
+    const int ready =
+        ::select(static_cast<int>(native) + 1, for_write ? nullptr : &fds,
+                 for_write ? &fds : nullptr, nullptr, &timeout);
+#endif
+    if (ready == 0)
+        return ca::core::Ok(false);
+    if (ready < 0)
+        return ca::core::Err(io::IoError::last_os_error("select"));
+    return ca::core::Ok(true);
+}
+
+}  // namespace
 
 class DeadlineReader final : public io::Reader
 {
@@ -74,16 +117,34 @@ public:
                 return ca::core::Err(timeout.unwrap_err());
             const auto wait = polling_enabled() ? std::min(timeout.unwrap(), stop_poll_interval_)
                                                 : timeout.unwrap();
-            auto       configured = stream_->set_read_timeout(wait);
-            if (configured.is_err())
-                return ca::core::Err(configured.unwrap_err());
-            if (bidirectional_io_) {
-                auto write_timeout = stream_->set_write_timeout(wait);
-                if (write_timeout.is_err())
-                    return ca::core::Err(write_timeout.unwrap_err());
+            if (polling_enabled() && !bidirectional_io_) {
+                // 原始 TCP + stop 轮询：select 等就绪后再读，读本身不带超时，
+                // 不再依赖超时重试语义（socket 状态不被超时扰动，issue #228）。
+                auto ready = wait_socket_ready(*stream_, false, wait);
+                if (ready.is_err())
+                    return ca::core::Err(ready.unwrap_err());
+                if (!ready.unwrap())
+                    continue;  // 本轮无数据：回循环顶检查 stop/deadline
+                auto cleared = stream_->set_read_timeout(std::nullopt);
+                if (cleared.is_err())
+                    return ca::core::Err(cleared.unwrap_err());
+            } else {
+                // TLS transport（bidirectional_io_）：SSL 内部缓冲使原始 fd 的可读性
+                // 不可靠，只能保留 SO_RCVTIMEO 超时重试。Windows 上该重试依赖超时后
+                // "不确定"的连接状态，存在静默损坏风险——平台限制，此处显式文档化；
+                // 原始 TCP 路径已用 select 规避。
+                auto       configured = stream_->set_read_timeout(wait);
+                if (configured.is_err())
+                    return ca::core::Err(configured.unwrap_err());
+                if (bidirectional_io_) {
+                    auto write_timeout = stream_->set_write_timeout(wait);
+                    if (write_timeout.is_err())
+                        return ca::core::Err(write_timeout.unwrap_err());
+                }
             }
             auto result = reader_->read(buffer, capacity);
-            if (result.is_err() && polling_enabled() && is_timeout(result.unwrap_err()))
+            if (result.is_err() && bidirectional_io_ && polling_enabled() &&
+                is_timeout(result.unwrap_err()))
                 continue;
             if (result.is_ok() && result.unwrap() != 0 && waiting_first_byte_) {
                 waiting_first_byte_ = false;
@@ -191,16 +252,31 @@ public:
                 return ca::core::Err(timeout.unwrap_err());
             const auto wait = polling_enabled() ? std::min(timeout.unwrap(), stop_poll_interval_)
                                                 : timeout.unwrap();
-            auto       configured = stream_->set_write_timeout(wait);
-            if (configured.is_err())
-                return ca::core::Err(configured.unwrap_err());
-            if (bidirectional_io_) {
-                auto read_timeout = stream_->set_read_timeout(wait);
-                if (read_timeout.is_err())
-                    return ca::core::Err(read_timeout.unwrap_err());
+            if (polling_enabled() && !bidirectional_io_) {
+                // 原始 TCP + stop 轮询：select 等可写后再写，写本身不带超时
+                //（规避 Windows 发送超时后连接状态不确定的问题，issue #228）。
+                auto ready = wait_socket_ready(*stream_, true, wait);
+                if (ready.is_err())
+                    return ca::core::Err(ready.unwrap_err());
+                if (!ready.unwrap())
+                    continue;
+                auto cleared = stream_->set_write_timeout(std::nullopt);
+                if (cleared.is_err())
+                    return ca::core::Err(cleared.unwrap_err());
+            } else {
+                // TLS transport：保留超时重试路径，Windows 风险见 DeadlineReader::read 注释。
+                auto       configured = stream_->set_write_timeout(wait);
+                if (configured.is_err())
+                    return ca::core::Err(configured.unwrap_err());
+                if (bidirectional_io_) {
+                    auto read_timeout = stream_->set_read_timeout(wait);
+                    if (read_timeout.is_err())
+                        return ca::core::Err(read_timeout.unwrap_err());
+                }
             }
             auto result = writer_->write(data, length);
-            if (result.is_err() && polling_enabled() && is_timeout(result.unwrap_err()))
+            if (result.is_err() && bidirectional_io_ && polling_enabled() &&
+                is_timeout(result.unwrap_err()))
                 continue;
             return result;
         }
