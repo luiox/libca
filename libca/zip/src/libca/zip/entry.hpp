@@ -11,17 +11,15 @@ namespace ca::zip {
 class ZipEntry {
 public:
     ZipEntry() = default;
-    ZipEntry(std::string name, ca::u32 compressed_size, ca::u32 uncompressed_size,
-             ca::u16 compression_method, ca::u32 crc32, ca::u32 relative_offset,
-             std::vector<ca::u8> extra_field = {})
+    ZipEntry(std::string name, ca::u32 compressed_size, ca::u32 uncompressed_size, ca::u16 compression_method,
+             ca::u32 crc32, ca::u32 relative_offset, std::vector<ca::u8> extra_field = {})
         : name_(std::move(name))
         , compressed_size_(compressed_size)
         , uncompressed_size_(uncompressed_size)
         , compression_method_(compression_method)
         , crc32_(crc32)
         , relative_offset_(relative_offset)
-        , extra_field_(std::move(extra_field))
-    {}
+        , extra_field_(std::move(extra_field)) {}
 
     const std::string&         name() const { return name_; }
     ca::u32                    compressed_size() const { return compressed_size_; }

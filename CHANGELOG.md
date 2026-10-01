@@ -84,6 +84,23 @@
   （不再保留为本 client 复用连接），`max_body_bytes` 在流式下语义不变
   （Content-Length 超限 head 阶段报错；chunked/close-delimited 累计超限报错），
   大 body 流式消费需按需调高该上限。
+- **[不兼容]** `libca/zip` 错误通道从异常迁移到 `ca::Result<T, ZipErrorInfo>`
+  （全库最后一个以异常为错误通道的模块）：
+  - `ZipFile::open/read`、`ZipInputStream::get_next_entry/read/read_all`、
+    `ZipOutputStream::open/close/put_next_entry/write/close_entry/set_level`、
+    `GzipReader::read/read_all`、`gzip_decompress`、`GzipWriter::write/finish`、
+    `gzip_compress` 一律返回 `Result<..., ZipErrorInfo>`（`code` + `message`，
+    见 `libca/zip/zip_error.hpp`）；
+  - 错误码覆盖 `NOT_FOUND / INVALID_FORMAT / CRC_MISMATCH / UNSUPPORTED /
+    IO_FAILED / ZLIB_ERROR / INVALID_ARGUMENT / INVALID_STATE`；
+  - 异常仅保留在打开型构造重载（失败抛 `std::runtime_error`）与
+    `ZipFile::get_entry_at` 越界（抛 `std::out_of_range`，对齐 `std::vector::at`
+    语义）；需要 Result 语义的构造改为默认构造 + `open()`；
+  - 行为细化：`ZipInputStream::read` 遇 deflate 数据损坏不再静默返回部分数据，
+    改为返回 `Err(INVALID_FORMAT)`；`read_all` 对不支持的压缩方法返回
+    `Err(UNSUPPORTED)`；`ZipOutputStream::put_next_entry` 在未 open 时返回
+    `Err(INVALID_STATE)`（原先为未定义行为）；
+  - 全部 zip 单测迁移为 Result 断言（68 用例）。
 
 ## [0.0.7] - 未发布
 

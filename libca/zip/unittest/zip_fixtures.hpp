@@ -9,47 +9,62 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <zlib.h>
 
+#include "libca/core/result.hpp"
+#include "libca/zip/zip_error.hpp"
+
 namespace zip_test {
 
-inline void append_u16_le(std::vector<uint8_t>& out, uint16_t v)
-{
+// 测试辅助：断言 void Result 为 Ok；失败时报告错误详情（不中断用例其余断言）。
+inline void expect_ok(const ca::Result<void, ca::zip::ZipErrorInfo>& result, const char* context = "") {
+    if (result.is_err()) {
+        ADD_FAILURE() << context << result.unwrap_err().message;
+    }
+}
+
+// 测试辅助：断言 Result 为 Ok 并取出值；失败时报告错误详情并返回默认构造值。
+template<typename T>
+inline T expect_value(ca::Result<T, ca::zip::ZipErrorInfo> result, const char* context = "") {
+    if (result.is_err()) {
+        ADD_FAILURE() << context << result.unwrap_err().message;
+        return T{};
+    }
+    return std::move(result).unwrap();
+}
+
+inline void append_u16_le(std::vector<uint8_t>& out, uint16_t v) {
     out.push_back(static_cast<uint8_t>(v & 0xFF));
     out.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
 }
 
-inline void append_u32_le(std::vector<uint8_t>& out, uint32_t v)
-{
+inline void append_u32_le(std::vector<uint8_t>& out, uint32_t v) {
     out.push_back(static_cast<uint8_t>(v & 0xFF));
     out.push_back(static_cast<uint8_t>((v >> 8) & 0xFF));
     out.push_back(static_cast<uint8_t>((v >> 16) & 0xFF));
     out.push_back(static_cast<uint8_t>((v >> 24) & 0xFF));
 }
 
-inline void append_u64_le(std::vector<uint8_t>& out, uint64_t v)
-{
+inline void append_u64_le(std::vector<uint8_t>& out, uint64_t v) {
     append_u32_le(out, static_cast<uint32_t>(v & 0xFFFFFFFFu));
     append_u32_le(out, static_cast<uint32_t>(v >> 32));
 }
 
-inline uint32_t crc32_of(const uint8_t* data, size_t len)
-{
+inline uint32_t crc32_of(const uint8_t* data, size_t len) {
     return static_cast<uint32_t>(::crc32(0, data, static_cast<uInt>(len)));
 }
 
 template<typename T>
-inline uint32_t crc32_of(const T& container)
-{
+inline uint32_t crc32_of(const T& container) {
     return crc32_of(reinterpret_cast<const uint8_t*>(container.data()), container.size());
 }
 
 // 单条 stored 条目的最小合法 ZIP。
-inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name = "a.txt",
-                                                     const std::string& content = "abc")
-{
+inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name    = "a.txt",
+                                                     const std::string& content = "abc") {
     const std::vector<uint8_t> data(content.begin(), content.end());
     const uint32_t             crc  = crc32_of(data);
     const uint32_t             size = static_cast<uint32_t>(data.size());
@@ -106,9 +121,8 @@ inline std::vector<uint8_t> build_minimal_stored_zip(const std::string& name = "
 }
 
 // 带 "PREFIX" 前缀的自提取式 ZIP64：CEN 偏移相对 ZIP 段自身。
-inline std::vector<uint8_t> build_prefixed_zip64_zip()
-{
-    const std::string         name = "zip64.txt";
+inline std::vector<uint8_t> build_prefixed_zip64_zip() {
+    const std::string          name = "zip64.txt";
     const std::vector<uint8_t> data = {'z', 'i', 'p', '6', '4'};
     const uint32_t             crc  = crc32_of(data);
     const uint32_t             size = static_cast<uint32_t>(data.size());
@@ -183,10 +197,9 @@ inline std::vector<uint8_t> build_prefixed_zip64_zip()
 }
 
 // CEN 中 CRC 与 LOC 数据不一致的归档：读取时应报 CRC 校验失败。
-inline std::vector<uint8_t> build_crc_mismatch_zip()
-{
-    const std::string         name       = "a.txt";
-    const std::vector<uint8_t> data      = {'a', 'b', 'c'};
+inline std::vector<uint8_t> build_crc_mismatch_zip() {
+    const std::string          name       = "a.txt";
+    const std::vector<uint8_t> data       = {'a', 'b', 'c'};
     const uint32_t             correctCrc = crc32_of(data);
     const uint32_t             wrongCrc   = 0xDEADBEEF;
     const uint32_t             size       = static_cast<uint32_t>(data.size());
@@ -243,11 +256,10 @@ inline std::vector<uint8_t> build_crc_mismatch_zip()
 }
 
 // 单条 stored 条目 + 无签名 12 字节旧式 data descriptor。
-inline std::vector<uint8_t> build_stored_zip_with_unsigned_data_descriptor()
-{
-    constexpr uint16_t        kDdFlags = 0x0008u;
-    std::vector<uint8_t>      out;
-    const std::string         name = "a.txt";
+inline std::vector<uint8_t> build_stored_zip_with_unsigned_data_descriptor() {
+    constexpr uint16_t         kDdFlags = 0x0008u;
+    std::vector<uint8_t>       out;
+    const std::string          name = "a.txt";
     const std::vector<uint8_t> data = {'a', 'b', 'c'};
 
     append_u32_le(out, 0x04034b50u);
@@ -302,8 +314,7 @@ inline std::vector<uint8_t> build_stored_zip_with_unsigned_data_descriptor()
 }
 
 // 首条目零长、次条目有数据的双 LOC 流：验证空条目不吞后续头部。
-inline std::vector<uint8_t> build_two_local_headers_with_empty_first_entry()
-{
+inline std::vector<uint8_t> build_two_local_headers_with_empty_first_entry() {
     std::vector<uint8_t>       out;
     const std::string          emptyName = "empty.txt";
     const std::string          dataName  = "b.txt";
@@ -339,31 +350,27 @@ inline std::vector<uint8_t> build_two_local_headers_with_empty_first_entry()
 }
 
 // 截断无签名 DD 的坏档：下一头部存在但 DD 本身缺尾 4 字节。
-inline std::vector<uint8_t> build_truncated_unsigned_data_descriptor_zip()
-{
+inline std::vector<uint8_t> build_truncated_unsigned_data_descriptor_zip() {
     auto out = build_stored_zip_with_unsigned_data_descriptor();
     out.erase(out.begin() + 38, out.begin() + 42);
     return out;
 }
 
 // 测试输出路径：系统临时目录下 libca_zip_test/ 子目录（自动创建）。
-inline std::filesystem::path temp_path(const std::string& filename)
-{
+inline std::filesystem::path temp_path(const std::string& filename) {
     namespace fs = std::filesystem;
-    auto dir = fs::temp_directory_path() / "libca_zip_test";
+    auto dir     = fs::temp_directory_path() / "libca_zip_test";
     fs::create_directories(dir);
     return dir / filename;
 }
 
-inline std::vector<uint8_t> read_file_bytes(const std::filesystem::path& path)
-{
+inline std::vector<uint8_t> read_file_bytes(const std::filesystem::path& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) {
         ADD_FAILURE() << "cannot open file: " << path.string();
         return {};
     }
-    return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)),
-                                std::istreambuf_iterator<char>());
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
 
 }   // namespace zip_test

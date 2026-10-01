@@ -11,21 +11,19 @@ namespace ca::zip {
 
 namespace {
 
-constexpr ca::u8 kMagic1     = 0x1F;
-constexpr ca::u8 kMagic2     = 0x8B;
-constexpr ca::u8 kDeflateCm  = 8;
-constexpr ca::u8 kOsUnknown  = 0xFF;
+constexpr ca::u8 kMagic1    = 0x1F;
+constexpr ca::u8 kMagic2    = 0x8B;
+constexpr ca::u8 kDeflateCm = 8;
+constexpr ca::u8 kOsUnknown = 0xFF;
 
-void write_u32_le(ca::u8* p, ca::u32 v)
-{
+void write_u32_le(ca::u8* p, ca::u32 v) {
     p[0] = static_cast<ca::u8>(v);
     p[1] = static_cast<ca::u8>(v >> 8);
     p[2] = static_cast<ca::u8>(v >> 16);
     p[3] = static_cast<ca::u8>(v >> 24);
 }
 
-void append_u32_le(std::vector<ca::u8>& out, ca::u32 v)
-{
+void append_u32_le(std::vector<ca::u8>& out, ca::u32 v) {
     ca::u8 buf[4];
     write_u32_le(buf, v);
     out.insert(out.end(), buf, buf + 4);
@@ -35,15 +33,14 @@ void append_u32_le(std::vector<ca::u8>& out, ca::u32 v)
 
 struct GzipWriter::Impl {
     int                 level = Z_DEFAULT_COMPRESSION;
-    z_stream            zs {};
+    z_stream            zs{};
     bool                zs_init  = false;
     bool                finished = false;
     std::vector<ca::u8> out;
     Crc32               crc;
     ca::u64             total_uncompressed = 0;
 
-    ~Impl()
-    {
+    ~Impl() {
         if (zs_init) {
             ::deflateEnd(&zs);
         }
@@ -51,19 +48,16 @@ struct GzipWriter::Impl {
 };
 
 GzipWriter::GzipWriter()
-    : impl_(std::make_unique<Impl>())
-{
+    : impl_(std::make_unique<Impl>()) {
     init_impl(kGzipDefaultLevel);
 }
 
 GzipWriter::GzipWriter(int level)
-    : impl_(std::make_unique<Impl>())
-{
+    : impl_(std::make_unique<Impl>()) {
     init_impl(level);
 }
 
-void GzipWriter::init_impl(int level)
-{
+void GzipWriter::init_impl(int level) {
     if (level < -1 || level > 9) {
         throw std::runtime_error("Invalid compression level: " + std::to_string(level));
     }
@@ -72,10 +66,10 @@ void GzipWriter::init_impl(int level)
     // RFC 1952 固定头：magic + CM + FLG=0 + MTIME=0 + XFL + OS=unknown。
     // MTIME 取 0 使输出只由输入与级别决定，便于测试与互操作比对。
     ca::u8 header[10] = {};
-    header[0] = kMagic1;
-    header[1] = kMagic2;
-    header[2] = kDeflateCm;
-    header[3] = 0;
+    header[0]         = kMagic1;
+    header[1]         = kMagic2;
+    header[2]         = kDeflateCm;
+    header[3]         = 0;
     // XFL 语义（gzip 实现）：级别 9 置 2，级别 1 置 4，其余 0。
     if (level == 9) {
         header[8] = 2;
@@ -85,8 +79,7 @@ void GzipWriter::init_impl(int level)
     header[9] = kOsUnknown;
     impl_->out.insert(impl_->out.end(), header, header + sizeof(header));
 
-    if (::deflateInit2(&impl_->zs, level, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY) !=
-        Z_OK) {
+    if (::deflateInit2(&impl_->zs, level, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
         throw std::runtime_error("zlib deflateInit2 failed");
     }
     impl_->zs_init = true;
@@ -94,13 +87,12 @@ void GzipWriter::init_impl(int level)
 
 GzipWriter::~GzipWriter() = default;
 
-void GzipWriter::write(const ca::u8* data, ca::usize size)
-{
+Result<void, ZipErrorInfo> GzipWriter::write(const ca::u8* data, ca::usize size) {
     if (impl_->finished) {
-        throw std::runtime_error("GzipWriter already finished");
+        return Err(ZipErrorInfo{ZipError::INVALID_STATE, "GzipWriter already finished"});
     }
     if (size == 0) {
-        return;
+        return Ok();
     }
 
     impl_->crc.update(data, size);
@@ -112,8 +104,8 @@ void GzipWriter::write(const ca::u8* data, ca::usize size)
     constexpr ca::usize kMaxFeed = static_cast<ca::usize>(0x7FFFFFFF);
     while (size > 0) {
         const ca::usize chunk = size > kMaxFeed ? kMaxFeed : size;
-        zs->next_in          = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(data));
-        zs->avail_in         = static_cast<uInt>(chunk);
+        zs->next_in           = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(data));
+        zs->avail_in          = static_cast<uInt>(chunk);
 
         ca::u8 buffer[8192];
         do {
@@ -121,7 +113,7 @@ void GzipWriter::write(const ca::u8* data, ca::usize size)
             zs->avail_out = sizeof(buffer);
             const int ret = ::deflate(zs, Z_NO_FLUSH);
             if (ret == Z_STREAM_ERROR) {
-                throw std::runtime_error("deflate stream error");
+                return Err(ZipErrorInfo{ZipError::ZLIB_ERROR, "deflate stream error"});
             }
             impl_->out.insert(impl_->out.end(), buffer, buffer + (sizeof(buffer) - zs->avail_out));
         } while (zs->avail_out == 0);
@@ -129,20 +121,19 @@ void GzipWriter::write(const ca::u8* data, ca::usize size)
         data += chunk;
         size -= chunk;
     }
+    return Ok();
 }
 
-void GzipWriter::write(const std::vector<ca::u8>& data)
-{
-    write(data.data(), data.size());
+Result<void, ZipErrorInfo> GzipWriter::write(const std::vector<ca::u8>& data) {
+    return write(data.data(), data.size());
 }
 
-void GzipWriter::finish()
-{
+Result<void, ZipErrorInfo> GzipWriter::finish() {
     if (impl_->finished) {
-        return;
+        return Ok();
     }
 
-    auto* zs = &impl_->zs;
+    auto* zs     = &impl_->zs;
     zs->next_in  = nullptr;
     zs->avail_in = 0;
 
@@ -153,7 +144,7 @@ void GzipWriter::finish()
         zs->avail_out = sizeof(buffer);
         ret           = ::deflate(zs, Z_FINISH);
         if (ret == Z_STREAM_ERROR) {
-            throw std::runtime_error("deflate stream error on finish");
+            return Err(ZipErrorInfo{ZipError::ZLIB_ERROR, "deflate stream error on finish"});
         }
         impl_->out.insert(impl_->out.end(), buffer, buffer + (sizeof(buffer) - zs->avail_out));
     } while (ret != Z_STREAM_END);
@@ -166,36 +157,42 @@ void GzipWriter::finish()
     append_u32_le(impl_->out, static_cast<ca::u32>(impl_->total_uncompressed & 0xFFFFFFFFu));
 
     impl_->finished = true;
+    return Ok();
 }
 
-bool GzipWriter::finished() const
-{
+bool GzipWriter::finished() const {
     return impl_->finished;
 }
 
-const std::vector<ca::u8>& GzipWriter::output() const
-{
+const std::vector<ca::u8>& GzipWriter::output() const {
     return impl_->out;
 }
 
-std::vector<ca::u8> GzipWriter::take()
-{
+std::vector<ca::u8> GzipWriter::take() {
     std::vector<ca::u8> result = std::move(impl_->out);
     impl_->out.clear();
     return result;
 }
 
-std::vector<ca::u8> gzip_compress(const std::vector<ca::u8>& data, int level)
-{
+Result<std::vector<ca::u8>, ZipErrorInfo> gzip_compress(const std::vector<ca::u8>& data, int level) {
     return gzip_compress(data.data(), data.size(), level);
 }
 
-std::vector<ca::u8> gzip_compress(const ca::u8* data, ca::usize size, int level)
-{
+Result<std::vector<ca::u8>, ZipErrorInfo> gzip_compress(const ca::u8* data, ca::usize size, int level) {
+    // 级别检查前置：单次压缩入口不能因参数错误抛异常（构造重载才会）。
+    if (level < -1 || level > 9) {
+        return Err(ZipErrorInfo{ZipError::INVALID_ARGUMENT, "Invalid compression level: " + std::to_string(level)});
+    }
     GzipWriter writer(level);
-    writer.write(data, size);
-    writer.finish();
-    return writer.take();
+    auto       written = writer.write(data, size);
+    if (written.is_err()) {
+        return Err(std::move(written).unwrap_err());
+    }
+    auto finished = writer.finish();
+    if (finished.is_err()) {
+        return Err(std::move(finished).unwrap_err());
+    }
+    return Ok(writer.take());
 }
 
 }   // namespace ca::zip
