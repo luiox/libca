@@ -254,6 +254,7 @@ Result<Bytes, CryptoError> des_cbc_crypt(ByteSlice key, ByteSlice iv, ByteSlice 
             for (usize i = 0; i < DES_BLOCK_SIZE; ++i)
                 xored[i] = static_cast<u8>(input[offset + i] ^ feedback[i]);
             store_be_u64(block, des_crypt_block(load_be_u64(xored), subkeys));
+            secure_zero(xored, sizeof(xored));
             for (usize i = 0; i < DES_BLOCK_SIZE; ++i)
                 feedback[i] = block[i];
         } else {
