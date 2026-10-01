@@ -32,15 +32,17 @@
 
 - **[构建/包定义]** luiox-repo 的 `packages/l/libca/xmake.lua` Windows
   `add_syslinks` 补齐清单补 `Iphlpapi`（morpher#952）：50bb642 为 `libca.net`
-  新增 `sock_util::interface_list`（Windows 调 `GetAdaptersAddresses`，符号在
-  iphlpapi.lib），而模块 target 的 `add_syslinks` 不随包安装传导，包定义
-  Windows 清单漏同步，消费方（mjt-mcp 经 libmcp Streamable HTTP 首次拉入
-  `libca_net`）静态链接报 `LNK2019: __imp_GetAdaptersAddresses`。修复在包
-  定义层、对既有各锁定版本一并生效；libca 仓内 net target 自 50bb642 起已
-  正确声明 `add_syslinks("ws2_32", "iphlpapi")`，仓内构建与源码无需变更。
-  包定义 `on_test` 同步新增 net 链接级自检（syslinks 再缺失时包安装期即
-  失败）；消费侧临时 `add_syslinks("Iphlpapi")` 垫片（morpher mjt）可在
-  修复生效后移除。
+  新增自由函数 `ca::net::interface_list`（Windows 调 `GetAdaptersAddresses`，
+  符号在 iphlpapi.lib），而模块 target 的 `add_syslinks` 不随包安装传导，
+  包定义 Windows 清单漏同步，消费方（mjt-mcp 经 libmcp Streamable HTTP
+  首次拉入 `libca_net`）静态链接报 `LNK2019: __imp_GetAdaptersAddresses`。
+  修复在包定义层，syslinks 清单对既有各锁定版本一并生效（多链接一个未用
+  库无害）；`on_test` 新增的 net 链接级自检（syslinks 再缺失时包安装期即
+  失败）则按版本门控 `>= 0.0.8`——`sock_util.hpp` 自 0.0.8（560d263）才
+  存在，更早锁定版本的全新安装会死在自检编译期（评审 R7）。libca 仓内
+  net target 自 50bb642 起已正确声明 `add_syslinks("ws2_32", "iphlpapi")`，
+  仓内构建与源码无需变更；消费侧临时 `add_syslinks("Iphlpapi")` 垫片
+  （morpher mjt）可在修复生效后移除。
 
 ## [0.0.9] - 2026-10-01
 
