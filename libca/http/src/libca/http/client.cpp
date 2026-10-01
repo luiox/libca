@@ -105,7 +105,64 @@ private:
     net::TcpStream stream_;
 };
 
+// 流式路径共用的响应头读取：处理 1xx（跳过、上限、拒绝 101），返回最终 head。
+HttpResult<HttpResponseHead> read_streaming_head(detail::ClientConnection& connection,
+                                                 const HttpClientOptions& options,
+                                                 const std::string& method)
+{
+    connection.deadline_reader.start(options.response_header_timeout);
+    HttpResponseHead head;
+    usize informational_count = 0;
+    for (;;) {
+        auto received = connection.codec_reader.read_response_head(method);
+        if (received.is_err())
+            return ca::core::Err(std::move(received).unwrap_err());
+        auto optional_head = std::move(received).unwrap();
+        if (!optional_head.has_value())
+            return ca::core::Err(HttpError::from_kind(
+                HttpErrorKind::InvalidMessage, "HTTP connection closed before response head"));
+        head = std::move(*optional_head);
+        if (!is_informational(head.status))
+            return ca::core::Ok(std::move(head));
+        auto finished = connection.codec_reader.finish_body();
+        if (finished.is_err())
+            return ca::core::Err(std::move(finished).unwrap_err());
+        ++informational_count;
+        if (head.status == 101)
+            return ca::core::Err(HttpError::from_kind(HttpErrorKind::Unsupported,
+                                                      "HTTP protocol upgrades are not supported"));
+        if (informational_count > options.max_informational_responses)
+            return ca::core::Err(HttpError::from_kind(
+                HttpErrorKind::InvalidMessage,
+                "HTTP response contains too many informational responses"));
+    }
+}
+
 }   // namespace
+
+// ---- 流式公开类型的实现（pImpl；依赖本 TU 可见的 detail::ClientConnection）----
+
+class HttpStreamingResponse::Impl
+{
+public:
+    std::unique_ptr<detail::ClientConnection> connection;
+    HttpClientOptions                         options;
+    HttpResponseHead                          head;
+    bool                                      body_done = false;
+    bool                                      released  = false;
+};
+
+class HttpChunkedRequest::Impl
+{
+public:
+    // 成员析构顺序（逆序）：chunked_writer 先于 connection 析构——writer 持有
+    // connection 内 codec_writer 的指针，不得在连接销毁后再触碰。
+    std::unique_ptr<detail::ClientConnection> connection;
+    HttpClientOptions                         options;
+    std::string                               method;
+    std::optional<Http1ChunkedBodyWriter>     chunked_writer;
+    bool                                      finished = false;
+};
 
 class HttpClient::Impl
 {
@@ -307,6 +364,68 @@ public:
         return ca::core::Ok(std::move(response));
     }
 
+    // 流式请求：head 就绪即返回，body 留给 HttpStreamingResponse 消费。
+    // 不做 stale 重试（连接被流式对象接管前生命周期复杂化，收益低——文档化取舍）。
+    HttpResult<HttpStreamingResponse> request_streaming(const HttpUrl& url, HttpRequest request)
+    {
+        auto connected = connect(url);
+        if (connected.is_err())
+            return ca::core::Err(connected.unwrap_err());
+        request.target = url.target();
+        auto host      = request.headers.set("Host", url.authority());
+        if (host.is_err()) {
+            connection.reset();
+            return ca::core::Err(std::move(host).unwrap_err());
+        }
+
+        connection->deadline_writer.start(options.request_write_timeout);
+        auto written = connection->codec_writer.write_request(request);
+        if (written.is_err()) {
+            connection.reset();
+            return ca::core::Err(std::move(written).unwrap_err());
+        }
+
+        auto head = read_streaming_head(*connection, options, request.method);
+        if (head.is_err()) {
+            connection.reset();
+            return ca::core::Err(std::move(head).unwrap_err());
+        }
+
+        auto response_impl          = std::make_unique<HttpStreamingResponse::Impl>();
+        response_impl->connection   = std::move(connection);
+        response_impl->options      = options;
+        response_impl->head         = std::move(head).unwrap();
+        return ca::core::Ok(HttpStreamingResponse(std::move(response_impl)));
+    }
+
+    // chunked 请求：发出 head 后交出 Http1ChunkedBodyWriter，body 由调用方写。
+    HttpResult<HttpChunkedRequest> begin_chunked(const HttpUrl& url, HttpRequestHead head)
+    {
+        auto connected = connect(url);
+        if (connected.is_err())
+            return ca::core::Err(connected.unwrap_err());
+        head.target = url.target();
+        auto host   = head.headers.set("Host", url.authority());
+        if (host.is_err()) {
+            connection.reset();
+            return ca::core::Err(std::move(host).unwrap_err());
+        }
+
+        connection->deadline_writer.start(options.request_write_timeout);
+        auto chunked = connection->codec_writer.begin_chunked_request(head);
+        if (chunked.is_err()) {
+            connection.reset();
+            return ca::core::Err(std::move(chunked).unwrap_err());
+        }
+
+        auto impl          = std::make_unique<HttpChunkedRequest::Impl>();
+        impl->connection   = std::move(connection);
+        impl->options      = options;
+        impl->method       = head.method;
+        impl->chunked_writer.emplace(std::move(chunked).unwrap());
+        return ca::core::Ok(HttpChunkedRequest(std::move(impl)));
+    }
+
     HttpResult<HttpResponse> fail(HttpError error)
     {
         connection.reset();
@@ -363,6 +482,199 @@ void HttpClient::close() noexcept
 bool HttpClient::has_open_connection() const noexcept
 {
     return impl_ != nullptr && impl_->connection != nullptr;
+}
+
+// ==================== HttpStreamingResponse ====================
+
+HttpStreamingResponse::HttpStreamingResponse() noexcept = default;
+
+HttpStreamingResponse::HttpStreamingResponse(std::unique_ptr<Impl> impl) noexcept
+    : impl_(std::move(impl))
+{}
+
+HttpStreamingResponse::HttpStreamingResponse(HttpStreamingResponse&& other) noexcept = default;
+
+HttpStreamingResponse& HttpStreamingResponse::operator=(HttpStreamingResponse&& other) noexcept = default;
+
+HttpStreamingResponse::~HttpStreamingResponse() = default;
+
+u16 HttpStreamingResponse::status() const noexcept
+{
+    return impl_ != nullptr ? impl_->head.status : u16{0};
+}
+
+HttpVersion HttpStreamingResponse::version() const noexcept
+{
+    return impl_ != nullptr ? impl_->head.version : HttpVersion::Http11;
+}
+
+const HttpHeaders& HttpStreamingResponse::headers() const noexcept
+{
+    static const HttpHeaders empty{};
+    return impl_ != nullptr ? impl_->head.headers : empty;
+}
+
+bool HttpStreamingResponse::body_finished() const noexcept
+{
+    return impl_ != nullptr && impl_->body_done;
+}
+
+HttpResult<usize> HttpStreamingResponse::read_body(u8* buffer, usize capacity)
+{
+    if (impl_ == nullptr || impl_->connection == nullptr || impl_->released)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "HTTP streaming response is empty"));
+    if (impl_->body_done)
+        return ca::core::Ok(usize{0});
+    impl_->connection->deadline_reader.start(impl_->options.response_body_timeout);
+    auto read = impl_->connection->codec_reader.read_body(buffer, capacity);
+    if (read.is_err()) {
+        impl_->connection.reset();
+        return ca::core::Err(std::move(read).unwrap_err());
+    }
+    if (read.unwrap() == 0)
+        impl_->body_done = true;
+    return read;
+}
+
+HttpResult<void> HttpStreamingResponse::finish()
+{
+    if (impl_ == nullptr || impl_->connection == nullptr || impl_->released)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "HTTP streaming response is empty"));
+    auto& connection = *impl_->connection;
+    if (!impl_->body_done) {
+        // 未读完由本方法在期限内排空（大文件场景调用方一般读到 0 再 finish，
+        // 排空兜底小体积剩余）。
+        std::array<u8, 8192> buffer{};
+        connection.deadline_reader.start(impl_->options.response_body_timeout);
+        while (!connection.codec_reader.body_finished()) {
+            auto read = connection.codec_reader.read_body(buffer.data(), buffer.size());
+            if (read.is_err()) {
+                impl_->connection.reset();
+                impl_->released = true;
+                return ca::core::Err(std::move(read).unwrap_err());
+            }
+        }
+        impl_->body_done = true;
+    }
+    auto trailers = connection.codec_reader.finish_body();
+    if (trailers.is_err()) {
+        impl_->connection.reset();
+        impl_->released = true;
+        return ca::core::Err(std::move(trailers).unwrap_err());
+    }
+    if (impl_->options.pool != nullptr)
+        detail::pool_checkin(*impl_->options.pool, std::move(impl_->connection));
+    else
+        impl_->connection.reset();
+    impl_->released = true;
+    return ca::core::Ok();
+}
+
+void HttpStreamingResponse::abort() noexcept
+{
+    if (impl_ == nullptr)
+        return;
+    impl_->connection.reset();
+    impl_->released = true;
+}
+
+// ==================== HttpChunkedRequest ====================
+
+HttpChunkedRequest::HttpChunkedRequest() noexcept = default;
+
+HttpChunkedRequest::HttpChunkedRequest(std::unique_ptr<Impl> impl) noexcept
+    : impl_(std::move(impl))
+{}
+
+HttpChunkedRequest::HttpChunkedRequest(HttpChunkedRequest&& other) noexcept = default;
+
+HttpChunkedRequest& HttpChunkedRequest::operator=(HttpChunkedRequest&& other) noexcept = default;
+
+HttpChunkedRequest::~HttpChunkedRequest() = default;
+
+HttpResult<void> HttpChunkedRequest::write_chunk(const u8* data, usize length)
+{
+    if (impl_ == nullptr || impl_->connection == nullptr || impl_->finished)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "HTTP chunked request is empty"));
+    impl_->connection->deadline_writer.start(impl_->options.request_write_timeout);
+    auto written = impl_->chunked_writer->write_chunk(data, length);
+    if (written.is_err()) {
+        // writer 持有连接内 codec 的指针：先销毁 writer 再销毁连接。
+        impl_->chunked_writer.reset();
+        impl_->connection.reset();
+        return ca::core::Err(std::move(written).unwrap_err());
+    }
+    return ca::core::Ok();
+}
+
+HttpResult<void> HttpChunkedRequest::flush()
+{
+    if (impl_ == nullptr || impl_->connection == nullptr || impl_->finished)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "HTTP chunked request is empty"));
+    impl_->connection->deadline_writer.start(impl_->options.request_write_timeout);
+    auto flushed = impl_->chunked_writer->flush();
+    if (flushed.is_err()) {
+        impl_->chunked_writer.reset();
+        impl_->connection.reset();
+        return ca::core::Err(std::move(flushed).unwrap_err());
+    }
+    return ca::core::Ok();
+}
+
+HttpResult<HttpStreamingResponse> HttpChunkedRequest::finish(const HttpHeaders& trailers)
+{
+    if (impl_ == nullptr || impl_->connection == nullptr || impl_->finished)
+        return ca::core::Err(HttpError::from_kind(HttpErrorKind::InvalidState,
+                                                  "HTTP chunked request is empty"));
+    impl_->connection->deadline_writer.start(impl_->options.request_write_timeout);
+    auto done = impl_->chunked_writer->finish(trailers);
+    if (done.is_err()) {
+        impl_->chunked_writer.reset();
+        impl_->connection.reset();
+        impl_->finished = true;
+        return ca::core::Err(std::move(done).unwrap_err());
+    }
+    auto head = read_streaming_head(*impl_->connection, impl_->options, impl_->method);
+    if (head.is_err()) {
+        impl_->chunked_writer.reset();
+        impl_->connection.reset();
+        impl_->finished = true;
+        return ca::core::Err(std::move(head).unwrap_err());
+    }
+    auto response_impl        = std::make_unique<HttpStreamingResponse::Impl>();
+    response_impl->connection = std::move(impl_->connection);
+    response_impl->options    = impl_->options;
+    response_impl->head       = std::move(head).unwrap();
+    impl_->chunked_writer.reset();
+    impl_->finished = true;
+    return ca::core::Ok(HttpStreamingResponse(std::move(response_impl)));
+}
+
+void HttpChunkedRequest::abort() noexcept
+{
+    if (impl_ == nullptr)
+        return;
+    impl_->chunked_writer.reset();
+    impl_->connection.reset();
+    impl_->finished = true;
+}
+
+// ==================== HttpClient 流式入口 ====================
+
+HttpResult<HttpStreamingResponse> HttpClient::request_streaming(const HttpUrl& url,
+                                                                HttpRequest    request)
+{
+    return impl_->request_streaming(url, std::move(request));
+}
+
+HttpResult<HttpChunkedRequest> HttpClient::begin_chunked(const HttpUrl&   url,
+                                                         HttpRequestHead  head)
+{
+    return impl_->begin_chunked(url, std::move(head));
 }
 
 }   // namespace ca::http

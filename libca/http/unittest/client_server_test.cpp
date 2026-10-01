@@ -892,4 +892,102 @@ TEST(HttpClientServerTest, ProtocolErrorForHeadRequestOmitsBody)
 }
 
 }   // namespace
+
+// ==================== 流式收发（issue #225）====================
+
+// 流式响应：大 body 逐块消费不整体驻留内存；finish 后连接归还池中可继续复用。
+TEST(HttpClientServerTest, StreamingResponseConsumesBodyInChunks)
+{
+    auto server = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    const std::string payload(256 * 1024, 'A');
+    ASSERT_TRUE(server
+                    .route("GET",
+                           "/big",
+                           [&](const HttpServerRequestContext& context) {
+                               return ca::core::Ok(
+                                   HttpServerResponse::buffered(text_response(200, payload)));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto client_result = HttpClient::create();
+    ASSERT_TRUE(client_result.is_ok());
+    auto client = std::move(client_result).unwrap();
+
+    auto streamed = client.request_streaming(server_url(address, "/big"),
+                                             HttpRequest());
+    ASSERT_TRUE(streamed.is_ok()) << streamed.unwrap_err().to_string();
+    auto response = std::move(streamed).unwrap();
+    EXPECT_EQ(response.status(), 200);
+
+    std::string accumulated;
+    std::array<u8, 4096> buffer{};
+    for (;;) {
+        auto read = response.read_body(buffer.data(), buffer.size());
+        ASSERT_TRUE(read.is_ok()) << read.unwrap_err().to_string();
+        if (read.unwrap() == 0)
+            break;
+        accumulated.append(reinterpret_cast<const char*>(buffer.data()), read.unwrap());
+        EXPECT_LE(accumulated.size(), payload.size());
+    }
+    EXPECT_EQ(accumulated.size(), payload.size());
+    auto finished = response.finish();
+    ASSERT_TRUE(finished.is_ok()) << finished.unwrap_err().to_string();
+}
+
+// chunked 请求：逐块上传，服务器收到的 body 完整；响应经流式读取。
+TEST(HttpClientServerTest, ChunkedRequestUploadsBodyInChunks)
+{
+    auto server = bind_server();
+    auto address_result = server.local_address();
+    ASSERT_TRUE(address_result.is_ok());
+    const auto address = address_result.unwrap();
+    ASSERT_TRUE(server
+                    .route("POST",
+                           "/upload",
+                           [&](const HttpServerRequestContext& context) {
+                               return ca::core::Ok(HttpServerResponse::buffered(text_response(
+                                   200, std::to_string(context.request().body.remaining()))));
+                           })
+                    .is_ok());
+    ServerRunner runner(std::move(server));
+
+    auto client_result = HttpClient::create();
+    ASSERT_TRUE(client_result.is_ok());
+    auto client = std::move(client_result).unwrap();
+
+    HttpRequestHead head;
+    head.method = "POST";
+    auto upload = client.begin_chunked(server_url(address, "/upload"), head);
+    ASSERT_TRUE(upload.is_ok()) << upload.unwrap_err().to_string();
+    auto chunked = std::move(upload).unwrap();
+
+    const std::string chunk(8192, 'x');
+    for (int i = 0; i < 4; ++i) {
+        auto written = chunked.write_chunk(reinterpret_cast<const u8*>(chunk.data()),
+                                           chunk.size());
+        ASSERT_TRUE(written.is_ok()) << written.unwrap_err().to_string();
+    }
+    auto response_result = chunked.finish();
+    ASSERT_TRUE(response_result.is_ok()) << response_result.unwrap_err().to_string();
+    auto response = std::move(response_result).unwrap();
+    ASSERT_EQ(response.status(), 200);
+
+    // 响应体经流式 API 读取完整。
+    std::string accumulated;
+    std::array<u8, 1024> buffer{};
+    for (;;) {
+        auto read = response.read_body(buffer.data(), buffer.size());
+        ASSERT_TRUE(read.is_ok());
+        if (read.unwrap() == 0)
+            break;
+        accumulated.append(reinterpret_cast<const char*>(buffer.data()), read.unwrap());
+    }
+    EXPECT_EQ(accumulated, std::to_string(4 * chunk.size()));
+    EXPECT_TRUE(response.finish().is_ok());
+}
+
 }   // namespace ca::http::test
