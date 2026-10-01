@@ -44,6 +44,14 @@
 - **[zip]** `ZipOutputStream` 第 65536 条起此前计数回绕产出目录损坏的归档，
   现显式报错（无 ZIP64 写路径上限 65535 条）。
 - **[config]** 清理 `config_var.hpp` 重复的 `#pragma once`。
+- **[fs] `FileMode::CREATE_NEW` 从 TOCTOU 检查改为内核原子创建**（`O_CREAT|O_EXCL`）：
+  并发独占创建不再可能后开者截断先者写入；`atomic_write_bytes` 的临时文件随之
+  真正原子。新增 `copy_ex/move_ex/remove_ex/remove_all_ex` Result 版本（EXDEV、
+  权限、目标占用等失败原因不再被吞成 bool），旧 bool 版保留转发。
+- **[fs]** `list_files(recursive)`/`copy_dir` 递归遍历补
+  `skip_permission_denied`（对齐 glob 口径）：树上无权限子目录跳过而非整体失败。
+- **[fs]** `metadata()` 符号链接分层语义文档化：类型/权限描述链接本身（不跟随），
+  modified_at 取自目标，悬空链接返回 FileNotFound。
 
 ## [0.0.7] - 未发布
 

@@ -21,16 +21,22 @@ struct FileMode
 };
 
 /// @brief 文件元数据快照。
-/// @note 使用 symlink_status 获取类型信息，因此 is_symlink 可以识别符号链接本身。
+/// @details 符号链接采用**分层语义**（与 std::filesystem 一致，明确文档化而非隐式混用）：
+///          - 类型/权限（is_file/is_directory/is_symlink/permissions）取自
+///            symlink_status，描述**链接本身**、不跟随——因此指向普通文件的符号链接
+///            is_symlink=true 且 is_file=false；
+///          - modified_at 取自**链接目标**（std::filesystem 无不跟随的时间查询）；
+///            悬空链接无目标可查，metadata() 对其返回 FileNotFound。
+///          需要目标的类型/大小时，请对目标路径再调 metadata()。
 struct FileMetadata
 {
     bool exists = false;                         ///< 路径是否存在
-    bool is_file = false;                        ///< 是否为普通文件
-    bool is_directory = false;                   ///< 是否为目录
+    bool is_file = false;                        ///< 是否为普通文件（符号链接为 false）
+    bool is_directory = false;                   ///< 是否为目录（符号链接为 false）
     bool is_symlink = false;                     ///< 是否为符号链接
     ca::i64 size = -1;                           ///< 普通文件大小；非普通文件为 -1
-    std::filesystem::perms permissions{};        ///< 文件权限位
-    std::filesystem::file_time_type modified_at; ///< 最后修改时间
+    std::filesystem::perms permissions{};        ///< 文件权限位（符号链接自身的权限）
+    std::filesystem::file_time_type modified_at; ///< 最后修改时间（符号链接取目标的）
 };
 
 /// 文件与目录操作工具类
@@ -108,6 +114,8 @@ public:
     /// @brief 获取路径元数据。
     /// @param path 文件系统路径。
     /// @return 成功返回 FileMetadata；路径不存在或查询失败返回 FsError。
+    /// @note 符号链接的字段语义见 FileMetadata 的分层说明（类型/权限描述链接
+    ///       本身、modified_at 取自目标）；悬空链接返回 FileNotFound。
     static Result<FileMetadata, FsError> metadata(const std::string& path);
 
     /// @brief 获取路径权限位。
@@ -127,10 +135,21 @@ public:
     // ==================== 拷贝 / 移动 ====================
 
     /// 拷贝文件或目录。overwrite=true 时覆盖已存在的目标。
+    /// @note 不关心失败原因的便捷版，等价于忽略 copy_ex 的错误。
     static bool copy(const std::string& src, const std::string& dst, bool overwrite = true);
 
+    /// @brief copy 的错误通道版本：失败返回 FsError（源不存在为 FileNotFound）。
+    static Result<void, FsError> copy_ex(const std::string& src, const std::string& dst,
+                                         bool overwrite = true);
+
     /// 移动（重命名）文件或目录。overwrite=true 时覆盖已存在的目标。
+    /// @note 不关心失败原因的便捷版，等价于忽略 move_ex 的错误。
     static bool move(const std::string& src, const std::string& dst, bool overwrite = true);
+
+    /// @brief move 的错误通道版本：源不存在为 FileNotFound，不覆盖且目标已存在
+    ///        为 AlreadyExists（EXDEV、目标占用等失败不再被吞成 false）。
+    static Result<void, FsError> move_ex(const std::string& src, const std::string& dst,
+                                         bool overwrite = true);
 
     /// @brief 递归拷贝目录。
     /// @param src 源目录路径，必须存在且为目录。
@@ -150,10 +169,18 @@ public:
     // ==================== 删除 ====================
 
     /// 删除文件或空目录
+    /// @note 便捷版：false 同时表示"不存在"与"删除失败"，需区分时用 remove_ex。
     static bool remove(const std::string& path);
 
-    /// 递归删除文件或目录（无论是否为空）
+    /// @brief remove 的错误通道版本：Ok(false)=原本不存在，Err=删除失败原因。
+    static Result<bool, FsError> remove_ex(const std::string& path);
+
+    /// 递归删除文件或目录（无论是否为空）；不存在视为成功。
+    /// @note 便捷版：false 表示删除出错，需区分"不存在"时用 remove_all_ex。
     static bool remove_all(const std::string& path);
+
+    /// @brief remove_all 的错误通道版本：Ok(false)=原本不存在（无内容被删），Err=失败原因。
+    static Result<bool, FsError> remove_all_ex(const std::string& path);
 
     // ==================== 创建 ====================
 
