@@ -385,6 +385,97 @@ TEST(FileUtilTest, MetadataAndPermissions)
     EXPECT_NE(perms.unwrap(), std::filesystem::perms::none);
 }
 
+// ==================== metadata 的符号链接分层语义 ====================
+// 钉现状行为（实现域 file_util.cpp metadata()，口径见 FileMetadata 头注释）：
+// 类型/权限字段取自 symlink_status，描述**链接本身**、不跟随——文件符号链接
+// is_symlink=true 且 is_file=false；modified_at 是分层里唯一跟随目标的字段；
+// 悬空链接无目标可查 → metadata() 返回 FileNotFound。
+// Windows/NTFS 上创建符号链接需开发者模式或管理员权限：创建失败时 GTEST_SKIP，
+// 跳过事实在测试报告单列。以下用例断言现状而非理想行为，不改语义。
+
+TEST(FileUtilTest, Metadata_FileSymlinkDescribesLinkItself)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto target = tmp.make_path("target.txt");
+    ASSERT_TRUE(FileUtil::write_text(target, "0123456789").is_ok());
+
+    auto link = tmp.make_path("file_link.txt");
+    std::error_code ec;
+    std::filesystem::create_symlink("target.txt", std::filesystem::u8path(link), ec);
+    if (ec) {
+        // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    // 对照：exists() 系跟随口径——有效链接按存在论。
+    EXPECT_TRUE(FileUtil::exists(link));
+
+    auto meta = FileUtil::metadata(link);
+    ASSERT_TRUE(meta.is_ok());
+    EXPECT_TRUE(meta.unwrap().is_symlink);   // 类型字段描述链接本身
+    EXPECT_FALSE(meta.unwrap().is_file);     // 不跟随：文件链接 ≠ 普通文件
+    EXPECT_FALSE(meta.unwrap().is_directory);
+    EXPECT_EQ(meta.unwrap().size, -1);       // size 只描述普通文件，链接为 -1
+
+    // modified_at 跟随目标：对链接与对目标直接查询得到同一时间。
+    auto target_meta = FileUtil::metadata(target);
+    ASSERT_TRUE(target_meta.is_ok());
+    EXPECT_EQ(meta.unwrap().modified_at, target_meta.unwrap().modified_at);
+}
+
+TEST(FileUtilTest, Metadata_DirectorySymlinkDescribesLinkItself)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::create_directories(tmp.make_path("subdir")));
+
+    auto link = tmp.make_path("dir_link");
+    std::error_code ec;
+    std::filesystem::create_directory_symlink("subdir", std::filesystem::u8path(link), ec);
+    if (ec) {
+        // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    // 对照：is_directory() 系跟随口径——目录链接按目标类型论。
+    EXPECT_TRUE(FileUtil::is_directory(link));
+
+    // 而 metadata() 的 lstat 口径下，目录符号链接同样只描述链接本身：
+    // is_symlink=true 且 is_directory=false（要目标的类型，请对目标路径再查）。
+    auto meta = FileUtil::metadata(link);
+    ASSERT_TRUE(meta.is_ok());
+    EXPECT_TRUE(meta.unwrap().is_symlink);
+    EXPECT_FALSE(meta.unwrap().is_directory);
+    EXPECT_FALSE(meta.unwrap().is_file);
+}
+
+TEST(FileUtilTest, Metadata_DanglingSymlinkReturnsFileNotFound)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    auto link = tmp.make_path("dangling_link");
+    std::error_code ec;
+    std::filesystem::create_symlink("missing.txt", std::filesystem::u8path(link), ec);
+    if (ec) {
+        // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
+        GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
+    }
+
+    // 对照：exists() 跟随链接 → 悬空链接按不存在论。
+    EXPECT_FALSE(FileUtil::exists(link));
+
+    // 悬空链接：链接条目本身存在（symlink_status 可查），但 modified_at 无目标
+    // 可查（std::filesystem 无不跟随的时间查询），metadata() 以 FileNotFound
+    // 失败——分层语义的现门口径（FileMetadata 头注释写实）。
+    auto meta = FileUtil::metadata(link);
+    ASSERT_TRUE(meta.is_err());
+    EXPECT_EQ(meta.unwrap_err(), FsError::FileNotFound);
+}
+
 // ==================== listFiles / listEntries ====================
 
 TEST(FileUtilTest, ListFiles_Flat)
@@ -949,5 +1040,113 @@ TEST(FileUtilTest, CopyMoveRemoveEx_ReportErrors)
     ASSERT_TRUE(wiped.is_ok());
     EXPECT_FALSE(std::move(wiped).unwrap());
 }
+
+// ==================== skip_permission_denied 遍历语义（Linux-only） ====================
+// 实现域（file_util.cpp）：list_files(recursive=true)、copy_dir、glob 均以
+// std::filesystem::directory_options::skip_permission_denied 遍历——树上无权限
+// 子目录跳过而非整体失败，结果集完整跳过该子树。
+// EACCES 目录仅 POSIX 上可稳定构造（Windows 的 ACL 拒绝语义不同，且 chmod 权限
+// 位对当前所有者/管理员不生效），故本组用例编译期门控为 Linux-only：Windows
+// 构建下不参与编译、本机未运行（事实在测试报告单列），语义核对以实现注释为准。
+#if !defined(_WIN32)
+
+// ListFiles 递归遍历：无权限子目录不崩、不失败，其内文件完整跳过，其余结果完整。
+TEST(FileUtilTest, ListFilesRecursive_SkipsPermissionDeniedSubtree)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    tmp.create_file("open.txt");
+    tmp.create_file("secret/hidden.txt");  // 受保护子树内文件：应被完整跳过
+
+    const auto protected_dir = std::filesystem::u8path(tmp.make_path("secret"));
+    std::error_code ec;
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+
+    // 权限位对 root 不生效：若仍能列该目录，说明本环境构造不出 EACCES，跳过。
+    std::filesystem::directory_iterator probe(protected_dir, ec);
+    if (!ec) {
+        GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
+    }
+
+    auto result = FileUtil::list_files(tmp.path(), /*recursive=*/true);
+    // 先恢复权限再断言，保证 TempDirGuard 能清理受保护目录。
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+
+    // 跳过而非失败：遍历不得因 EACCES 报错。
+    ASSERT_TRUE(result.is_ok()) << to_string(result.unwrap_err());
+    for (const auto& f : result.unwrap()) {
+        EXPECT_EQ(f.find("hidden.txt"), std::string::npos)
+            << "无权限子树不应出现在结果集: " << f;
+    }
+    // 结果集完整：未受保护的文件不因旁路子目录被跳过而丢失。
+    bool has_open = false;
+    for (const auto& f : result.unwrap()) {
+        if (f.find("open.txt") != std::string::npos) has_open = true;
+    }
+    EXPECT_TRUE(has_open);
+}
+
+// Glob 递归模式：与 list_files 共用同一 directory_options 跳过口径。
+TEST(FileUtilTest, GlobRecursive_SkipsPermissionDeniedSubtree)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    tmp.create_file("open.txt");
+    tmp.create_file("secret/hidden.txt");
+
+    const auto protected_dir = std::filesystem::u8path(tmp.make_path("secret"));
+    std::error_code ec;
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+
+    std::filesystem::directory_iterator probe(protected_dir, ec);
+    if (!ec) {
+        GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
+    }
+
+    auto result = FileUtil::glob(PathUtil::join(tmp.path(), "**/*.txt"));
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+
+    // 跳过而非失败；受保护子树内容不进匹配集，未受保护文件照常匹配。
+    ASSERT_TRUE(result.is_ok()) << to_string(result.unwrap_err());
+    ASSERT_EQ(result.unwrap().size(), 1u);
+    EXPECT_THAT(result.unwrap()[0], HasSubstr("open.txt"));
+}
+
+// CopyDir 递归拷贝：源树上无权限子目录被跳过，拷贝不失败，目标不含该子树内容。
+TEST(FileUtilTest, CopyDir_SkipsPermissionDeniedSubtree)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    const auto src_dir = tmp.make_path("copy_src");
+    const auto dst_dir = tmp.make_path("copy_dst");
+    ASSERT_TRUE(FileUtil::create_directories(src_dir));
+    ASSERT_TRUE(FileUtil::write_text(PathUtil::join(src_dir, "open.txt"), "a").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(PathUtil::join(src_dir, "secret/hidden.txt"), "b").is_ok());
+
+    const auto protected_dir = std::filesystem::u8path(PathUtil::join(src_dir, "secret"));
+    std::error_code ec;
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
+    ASSERT_FALSE(ec) << ec.message();
+
+    std::filesystem::directory_iterator probe(protected_dir, ec);
+    if (!ec) {
+        GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
+    }
+
+    auto copied = FileUtil::copy_dir(src_dir, dst_dir, true);
+    std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+
+    // 跳过而非失败；受保护子树内容不进目标，未受保护文件照常拷出。
+    ASSERT_TRUE(copied.is_ok()) << to_string(copied.unwrap_err());
+    EXPECT_TRUE(FileUtil::is_file(PathUtil::join(dst_dir, "open.txt")));
+    EXPECT_FALSE(FileUtil::exists(PathUtil::join(dst_dir, "secret/hidden.txt")));
+}
+
+#endif  // !defined(_WIN32)
 
 }}}  // namespace ca::fs::test
