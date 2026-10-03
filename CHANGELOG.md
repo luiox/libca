@@ -1,11 +1,26 @@
 # Changelog
 
-本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.1`。
+本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.11`。
 
 ## 格式约定
 
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
+
+## [0.0.11] - 2026-10-03
+
+### libca
+
+- **[str]** `Utf8String::clone()` 单分配化：修前每次 clone 双分配——先默认构造
+  分配 1 字节缓冲、随即 delete 再直配 `byte_length + 1`；现经内部
+  uninitialized 直配路径一次分配目标容量（含 `'\0'`）。非空 clone 每次
+  2 allocs → 1 allocs（分配计数探针实测，17 字节串 100 次 clone：
+  200 allocs / 1900 bytes → 100 allocs / 1800 bytes），clone 热点消费方
+  普遍降低分配流量。实现仅新增私有标记构造，不引入数据成员/虚函数，
+  **API/ABI 兼容，公开签名不动**；unittest 新增全局 new/delete delta 计数
+  回归，钉死「clone 分配次数 = 1」。升级注意：无（行为语义不变，仅分配
+  流量下降）。已知遗留：同文件 `from_data` / `from_data_unchecked` /
+  `from_validated` 存在同构双分配模式，本版不做，后续独立收敛。
 
 ## [0.0.10] - 2026-10-02
 
