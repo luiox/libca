@@ -1,11 +1,29 @@
 # Changelog
 
-本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.12`。
+本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.13`。
 
 ## 格式约定
 
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
+
+## [0.0.13] - 2026-10-03
+
+### libca
+
+- **[opt]** HelpTable 排版能力扩展（morpher#890）：多列布局、原样行块组合、
+  折行（续行尾随空白对齐 render_columns 口径、折行空格口径写实）、CJK 显示
+  宽度与渲染列能力；非法 UTF-8/末列折行用例钉死行为（R54 N1-N3 落刀随本条
+  落地，opt.cpp/opt.hpp 实现域 + unittest 覆盖）
+- **[test]** fs 模块纯测试覆盖（零行为变更）：skip_permission_denied Linux-only
+  遍历三例（list_files 递归 / glob 递归 / copy_dir——无权限子树跳过而非失败；
+  root 环境下先恢复权限再 SKIP + 恢复 ec 检查，R55 N1 落刀随本条落地）与
+  metadata 符号链接分层语义三例（文件/目录链接描述链接本身不跟随、
+  modified_at 跟随目标、悬空链接返回 FileNotFound；对照 exists()/is_directory()
+  的跟随口径；NTFS symlink 创建失败则 GTEST_SKIP）
+- **[docs]** fs `FileMetadata` 注释口径卡：写明 `list_files`/`glob` 条目分类
+  **跟随** symlink（std::filesystem 目录遍历默认口径）而 `metadata()` 用
+  **lstat 不跟随**口径——"同路径两口径"的真实误用风险就地文档化，零代码改动
 
 ## [0.0.12] - 2026-10-03
 

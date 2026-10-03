@@ -28,6 +28,11 @@ struct FileMode
 ///          - modified_at 取自**链接目标**（std::filesystem 无不跟随的时间查询）；
 ///            悬空链接无目标可查，metadata() 对其返回 FileNotFound。
 ///          需要目标的类型/大小时，请对目标路径再调 metadata()。
+///          注意**同路径两口径**：`list_files`/`glob` 的条目分类**跟随**符号链接
+///          （std::filesystem 目录遍历默认口径，entry status 按目标论），而
+///          `metadata()` 用 **lstat 不跟随**口径描述链接本身——同一符号链接
+///          路径在遍历/匹配结果里按目标分类、在 metadata() 里描述链接，
+///          两口径混用做判断是真实误用风险，调用方须明确自己要哪一口径。
 struct FileMetadata
 {
     bool exists = false;                         ///< 路径是否存在

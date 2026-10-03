@@ -1065,8 +1065,12 @@ TEST(FileUtilTest, ListFilesRecursive_SkipsPermissionDeniedSubtree)
     ASSERT_FALSE(ec) << ec.message();
 
     // 权限位对 root 不生效：若仍能列该目录，说明本环境构造不出 EACCES，跳过。
+    // 先恢复权限再跳过：GTEST_SKIP 立即返回，000 权限必须还原，
+    // 否则留给 TempDirGuard 的 remove_all 清不掉该目录；恢复结果检查 ec。
     std::filesystem::directory_iterator probe(protected_dir, ec);
     if (!ec) {
+        std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+        ASSERT_FALSE(ec) << ec.message();
         GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
     }
 
@@ -1102,8 +1106,12 @@ TEST(FileUtilTest, GlobRecursive_SkipsPermissionDeniedSubtree)
     std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
     ASSERT_FALSE(ec) << ec.message();
 
+    // 同上：root 分支先恢复权限再跳过（GTEST_SKIP 立即返回，不还原则
+    // TempDirGuard 清不掉 000 权限目录），恢复结果检查 ec。
     std::filesystem::directory_iterator probe(protected_dir, ec);
     if (!ec) {
+        std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+        ASSERT_FALSE(ec) << ec.message();
         GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
     }
 
@@ -1133,8 +1141,12 @@ TEST(FileUtilTest, CopyDir_SkipsPermissionDeniedSubtree)
     std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
     ASSERT_FALSE(ec) << ec.message();
 
+    // 同上：root 分支先恢复权限再跳过（GTEST_SKIP 立即返回，不还原则
+    // TempDirGuard 清不掉 000 权限目录），恢复结果检查 ec。
     std::filesystem::directory_iterator probe(protected_dir, ec);
     if (!ec) {
+        std::filesystem::permissions(protected_dir, std::filesystem::perms::owner_all, ec);
+        ASSERT_FALSE(ec) << ec.message();
         GTEST_SKIP() << "environment does not enforce permission bits (e.g. running as root)";
     }
 
