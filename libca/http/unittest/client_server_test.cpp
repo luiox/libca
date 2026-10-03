@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "libca/http/detail/deadline_io.hpp"
 #include "libca/http/http.hpp"
 #include "libca/net/tcp.hpp"
 
@@ -988,6 +989,178 @@ TEST(HttpClientServerTest, ChunkedRequestUploadsBodyInChunks)
     }
     EXPECT_EQ(accumulated, std::to_string(4 * chunk.size()));
     EXPECT_TRUE(response.finish().is_ok());
+}
+
+// issue #228：stop 轮询路径必须以 select 等就绪、读本身不带超时——阻塞中的
+// deadline read 在 stop 后应在轮询间隔量级返回取消错误，而不是依赖"阻塞读被
+// SO_RCVTIMEO 打断（Windows 上连接状态不确定）后重试"的语义；取消后连接还须
+// 保持可用，证明 socket 状态未被超时扰动。
+TEST(HttpClientServerTest, DeadlineReaderStopPollingCancelsPromptlyAndKeepsSocketUsable)
+{
+    auto bound = net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
+    ASSERT_TRUE(bound.is_ok());
+    auto listener = std::move(bound).unwrap();
+    auto local    = listener.local_address();
+    ASSERT_TRUE(local.is_ok());
+    const auto address = local.unwrap();
+
+    std::atomic<bool>             server_stop{false};
+    std::optional<net::TcpStream> peer;
+    std::thread server_thread([&listener, &server_stop, &peer] {
+        if (!listener.set_nonblocking(true).is_ok())
+            return;
+        while (!server_stop.load(std::memory_order_relaxed)) {
+            auto accepted = listener.accept();
+            if (accepted.is_ok()) {
+                peer = std::move(std::move(accepted).unwrap().stream);
+                // Windows 上 accept 出的 socket 继承 listener 的非阻塞态，
+                // 后续要对其做阻塞写，须显式恢复。
+                if (!peer->set_nonblocking(false).is_ok())
+                    peer.reset();
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    });
+    struct ServerThreadGuard {
+        std::thread        thread;
+        std::atomic<bool>& stop;
+        ~ServerThreadGuard()
+        {
+            stop.store(true, std::memory_order_relaxed);
+            if (thread.joinable())
+                thread.join();
+        }
+    } guard{std::move(server_thread), server_stop};
+
+    auto connected =
+        net::TcpStream::connect_timeout("127.0.0.1", address.port(), std::chrono::seconds(5));
+    ASSERT_TRUE(connected.is_ok());
+    auto stream = std::move(connected).unwrap();
+
+    ca::thread::StopSource stop_source;
+    detail::DeadlineReader reader(stream, stop_source.token(), std::chrono::milliseconds(20));
+    reader.start(std::chrono::seconds(10));
+
+    std::array<u8, 64> buffer{};
+    auto read_task = std::async(std::launch::async, [&reader, &buffer] {
+        return reader.read(buffer.data(), buffer.size());
+    });
+
+    // 阻塞读就位后请求停止：取消须在轮询间隔量级完成，而非等满 10s deadline。
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    stop_source.request_stop();
+    ASSERT_EQ(read_task.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    auto cancelled = read_task.get();
+    ASSERT_TRUE(cancelled.is_err());
+    EXPECT_EQ(cancelled.unwrap_err().kind(), io::IoErrorKind::ConnectionAborted);
+    EXPECT_NE(cancelled.unwrap_err().message().find("cancelled"), std::string::npos);
+
+    // 取消后连接仍可用：peer 写入的数据必须完整可读、字节序不变。
+    const std::string payload = "still-alive";
+    ASSERT_TRUE(peer.has_value());
+    auto written = peer->write(reinterpret_cast<const u8*>(payload.data()), payload.size());
+    ASSERT_TRUE(written.is_ok());
+    ASSERT_TRUE(stream.set_read_timeout(std::chrono::milliseconds(5000)).is_ok());
+    std::string received;
+    while (received.size() < payload.size()) {
+        auto read = stream.read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+        ASSERT_TRUE(read.is_ok()) << read.unwrap_err().message();
+        ASSERT_GT(read.unwrap(), usize{0});
+        received.append(reinterpret_cast<const char*>(buffer.data()), read.unwrap());
+    }
+    EXPECT_EQ(received, payload);
+}
+
+// issue #228：复用连接被服务器 RST 且请求不可重试（POST）时，最终错误必须
+// 保留首个 reset 类原始诊断，而不是笼统的 "closed before response head"。
+TEST(HttpClientServerTest, NonRetryableRequestOnResetConnectionKeepsOriginalDiagnostic)
+{
+    // 脚本化 server：只接受一条连接。GET 正常响应（keep-alive）；读到复用连接上
+    // 下一个请求的首字节后，带着未读入站数据直接 close——close 因存在未读数据
+    // 触发 RST 而非优雅 FIN，客户端 POST 失败时错误里应带上原始 reset 诊断。
+    auto bound = net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
+    ASSERT_TRUE(bound.is_ok());
+    auto listener = std::move(bound).unwrap();
+    auto local    = listener.local_address();
+    ASSERT_TRUE(local.is_ok());
+    const auto address = local.unwrap();
+
+    const std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+    std::atomic<bool> server_stop{false};
+    std::atomic<int>  accepted_count{0};
+    std::thread       server_thread([&listener, &server_stop, &accepted_count, &response] {
+        if (!listener.set_nonblocking(true).is_ok())
+            return;
+        std::optional<net::TcpStream> stream;
+        while (!server_stop.load(std::memory_order_relaxed)) {
+            auto accepted = listener.accept();
+            if (accepted.is_ok()) {
+                stream = std::move(std::move(accepted).unwrap().stream);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        if (!stream)
+            return;
+        // Windows 上 accept 出的 socket 继承 listener 的非阻塞态，须显式恢复阻塞。
+        if (!stream->set_nonblocking(false).is_ok())
+            return;
+        if (!stream->set_read_timeout(std::chrono::milliseconds(5000)).is_ok() ||
+            !stream->set_write_timeout(std::chrono::milliseconds(5000)).is_ok())
+            return;
+        ++accepted_count;
+        std::string received;
+        std::array<char, 2048> buffer{};
+        while (received.find("\r\n\r\n") == std::string::npos) {
+            auto read = stream->read(reinterpret_cast<u8*>(buffer.data()), buffer.size());
+            if (read.is_err() || read.unwrap() == 0)
+                return;
+            received.append(buffer.data(), read.unwrap());
+        }
+        auto written = stream->write(reinterpret_cast<const u8*>(response.data()), response.size());
+        if (written.is_err())
+            return;
+        // 只消费复用连接上下一请求的首字节：剩余请求字节留在接收缓冲未读，
+        // close 即触发 RST，客户端在响应头读取阶段得到 reset 类错误。
+        auto probe = stream->read(reinterpret_cast<u8*>(buffer.data()), 1);
+        if (probe.is_err() || probe.unwrap() == 0)
+            return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // stream 析构 close：未读入站数据存在 → RST。
+    });
+    struct ServerThreadGuard {
+        std::thread        thread;
+        std::atomic<bool>& stop;
+        ~ServerThreadGuard()
+        {
+            stop.store(true, std::memory_order_relaxed);
+            if (thread.joinable())
+                thread.join();
+        }
+    } guard{std::move(server_thread), server_stop};
+
+    auto created = HttpClient::create();
+    ASSERT_TRUE(created.is_ok());
+    auto client = std::move(created).unwrap();
+
+    auto first = client.get(server_url(address, "/warm"));
+    ASSERT_TRUE(first.is_ok()) << first.unwrap_err().to_string();
+    ASSERT_EQ(first.unwrap().status, 200);
+
+    // 第二次请求落在被 RST 的复用连接上：POST 不可重试，最终错误须保留
+    // 原始 reset 诊断（"closed before response head: " 后必有追加内容）。
+    HttpRequest post;
+    post.method = "POST";
+    post.body   = body_bytes("payload");
+    auto second = client.request(server_url(address, "/send"), std::move(post));
+    ASSERT_TRUE(second.is_err());
+    const std::string message = second.unwrap_err().message();
+    EXPECT_EQ(second.unwrap_err().kind(), HttpErrorKind::InvalidMessage);
+    EXPECT_NE(message.find("HTTP connection closed before response head: "), std::string::npos)
+        << "original reset diagnostic was swallowed, got: " << message;
+    // 不可重试请求不得悄悄重试：全程只应有一条连接被接受。
+    EXPECT_EQ(accepted_count.load(), 1);
 }
 
 }   // namespace ca::http::test
