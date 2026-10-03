@@ -1920,5 +1920,32 @@ TEST(HelpTableTest, RenderColumnsMixesAddAndAddRow)
               "list  show          all\n");
 }
 
+TEST(HelpTableTest, DisplayWidthInvalidUtf8ByteCountsOneNoLoss)
+{
+    HelpTable table;
+    table.set_width_mode(WidthMode::Display);
+    // 非法续行字节 0x8A：help_utf8_next 走 0xFFFD 替换路径，按宽度 1 计、
+    // 字节原样保留不丢字。
+    table.add("\x8ax", "d");
+    const std::string text = table.render(0, 3);
+    // 名宽 = 1(替换符) + 1('x') = 2 → 描述列 = 0 + 2 + 3 = 5。
+    EXPECT_EQ(text, "\x8ax   d\n");
+}
+
+TEST(HelpTableTest, RenderColumnsWrapsLastColumnWithHangingAlign)
+{
+    HelpTable table;
+    table.set_text_width(9);
+    table.add_row({"ab", "cd", "ef ghij"});
+    const std::string text = table.render_columns(0, 1);
+    // 列宽 = 2/2/7；last_start = (2+1) + (2+1) = 6；末列可用 = 9 - 6 = 3
+    // → "ef"(2)+空格(1) 满行断点，"ghij"(4) 超可用硬切 "ghi"+"j"；续行悬挂
+    // 对齐到第 6 列，缺格续行补列宽+间距后 rstrip。
+    EXPECT_EQ(text,
+              "ab cd ef\n"
+              "      ghi\n"
+              "      j\n");
+}
+
 }   // namespace
 }   // namespace ca::opt::test

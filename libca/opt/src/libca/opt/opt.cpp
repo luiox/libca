@@ -826,8 +826,12 @@ std::string HelpTable::render_to_column(const std::size_t indent,
         out += desc_lines[0];
         out.push_back('\n');
         for (std::size_t k = 1; k < desc_lines.size(); ++k) {
-            out.append(description_column, ' ');   // 续行悬挂对齐到描述列
-            out += desc_lines[k];
+            std::string line;
+            line.append(description_column, ' ');  // 续行悬挂对齐到描述列
+            line += desc_lines[k];
+            // 对齐口径与 render_columns 一致：行尾不留空白（空硬续行不产尾随空格）。
+            while (!line.empty() && line.back() == ' ') line.pop_back();
+            out += line;
             out.push_back('\n');
         }
     }

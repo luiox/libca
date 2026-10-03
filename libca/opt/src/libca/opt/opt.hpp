@@ -225,7 +225,8 @@ public:
     ///        （历史行为）。
     /// @note 折行只作用于描述列（render/render_to_column）或末列
     ///       （render_columns），续行悬挂对齐到该列起始列；断点为空格与宽字符
-    ///       边界，单词超过整行可用宽度时按宽度硬切，永不截断丢字。
+    ///       边界，单词超过整行可用宽度时按宽度硬切，永不截断丢字。落行时行尾
+    ///       空格剥除、行首空格随断点丢弃——折行输出不作 verbatim 空格保留。
     HelpTable& set_text_width(std::size_t columns) noexcept
     {
         text_width_ = columns;
