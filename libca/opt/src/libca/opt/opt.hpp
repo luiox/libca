@@ -13,6 +13,8 @@
 ///        类型化选项（Flag/String/Int/StringList/OptionalString/Positional）、多别名、
 ///        required/default、互斥组、选项分组渲染、自定义 usage、初始值注入
 ///        （default < 注入初值 < 命令行）、子命令嵌套、--help 自动生成帮助、-- 终止符。
+///        另提供 HelpTable help 行排版层：结构化行/原样行的多行块组合、渲染期
+///        自动列宽与 padding、多列对齐、CJK 显示宽度口径、末列折行与悬挂对齐。
 ///        命名空间 `ca::opt`。
 ///
 /// 错误以 ParseErrorCategory 类别 + 出错选项名表达，文案与 i18n 归调用方；
@@ -163,52 +165,109 @@ struct Command
 ///        位置参数与子命令摘要不受过滤影响。
 std::string help_text(const Command& cmd, const std::vector<std::string>& groups = {});
 
-/// @brief Two-column help row table: computes the name column width at render
-///        time and pads rows automatically, replacing hand-aligned spaces
-///        (issue luiox/morpher#890).
-/// @details Use case: compact "name column + description column" layouts such
-///          as subcommand lists. i18n resources carry plain text only (name
-///          and description each as one segment, no alignment spaces);
-///          alignment happens at render time. Column width counts UTF-8
-///          codepoints -- names are expected to be ASCII identifiers; wider
-///          (e.g. CJK) descriptions are not measured, they just follow the
-///          padding.
+/// @brief 列宽计量口径。
+enum class WidthMode
+{
+    /// 每个码点计 1（默认，与历史行为逐字节一致；名称为 ASCII 标识符时两种口径等价）。
+    Codepoint,
+    /// 终端显示宽度（East Asian Width 近似）：Wide/Fullwidth（CJK、全角、Hangul 等）
+    /// 计 2，组合符号/零宽字符/控制字符计 0，其余计 1。名或描述含 CJK 时用它对齐。
+    Display,
+};
+
+/// @brief help 行排版表：结构化行（名字列/描述列或任意多列）+ 原样行，渲染期
+///        自动计算列宽并 padding，替代字符串字面量里的手工对齐空格
+///        （issue luiox/morpher#890）。
+/// @details 用法：i18n 资源只承载纯文案（每格一段，不含对齐空格与列宽假设），
+///          对齐在渲染期完成。表即多行块（子命令列表、参数组等）——块内用
+///          add_raw() 插节标题/分隔线等原样行，块间用 append() 合并后一次渲染。
+///          支持末列自动折行（set_text_width）与单元格内 '\n' 硬换行的悬挂对齐。
+///          列宽口径默认按 UTF-8 码点数（历史行为）；名/描述含 CJK 时用
+///          set_width_mode(WidthMode::Display) 按终端显示宽度计量。
 class HelpTable
 {
 public:
-    /// @brief Append one row. An empty description renders the name only
-    ///        (no trailing whitespace).
+    /// @brief 追加一行两列结构行。描述为空时只渲染名字（无尾随空白）。
     void add(std::string name, std::string description);
 
-    /// @brief Number of appended rows.
-    std::size_t size() const noexcept { return rows_.size(); }
+    /// @brief 追加一行多列结构行。cells 数量可少于既有行（缺格按空串计，行尾
+    ///        不留空白）；列数取全表最大格数，在渲染期统一对齐。
+    void add_row(std::vector<std::string> cells);
 
-    /// @brief True when no rows were appended.
-    bool empty() const noexcept { return rows_.empty(); }
+    /// @brief 追加一行原样内容：不参与列宽与对齐计算，渲染时按原文输出（仅补
+    ///        换行）。用于节标题、usage 行、空行、分隔线等非表格内容——借此把
+    ///        多个排版块组装进同一张表，一次 render() 出全文。
+    /// @note 原样行不参与 size() 之外的任何度量，也不折行、不去尾随空白。
+    void add_raw(std::string line);
 
-    /// @brief Relative rendering: each row is `<indent><name><padding><description>\n`.
-    /// @details padding = gap + (longest name codepoints - current name codepoints),
-    ///          at least 1 space; rows with an empty description get no padding
-    ///          (no trailing whitespace). An empty table renders to an empty string.
+    /// @brief 合并另一张表的全部条目（结构行与原样行，按原顺序追加到本表尾部）。
+    ///        列宽在渲染期按本表全量重算；口径与折行设置不随表迁移（沿用本表的）。
+    void append(const HelpTable& other);
+
+    /// @brief 追加的条目数（结构行 + 原样行）。
+    std::size_t size() const noexcept { return entries_.size(); }
+
+    /// @brief 无任何条目时为真。
+    bool empty() const noexcept { return entries_.empty(); }
+
+    /// @brief 链式设置列宽计量口径。默认 WidthMode::Codepoint（历史行为）。
+    /// @note 渲染期取当前口径计算全部宽度，add/add_row 之前或之后设置均可。
+    HelpTable& set_width_mode(WidthMode mode) noexcept
+    {
+        width_mode_ = mode;
+        return *this;
+    }
+
+    /// @brief 当前列宽计量口径。
+    WidthMode width_mode() const noexcept { return width_mode_; }
+
+    /// @brief 链式设置折行总宽（行最大列数，按当前口径计量）。默认 0 = 不折行
+    ///        （历史行为）。
+    /// @note 折行只作用于描述列（render/render_to_column）或末列
+    ///       （render_columns），续行悬挂对齐到该列起始列；断点为空格与宽字符
+    ///       边界，单词超过整行可用宽度时按宽度硬切，永不截断丢字。
+    HelpTable& set_text_width(std::size_t columns) noexcept
+    {
+        text_width_ = columns;
+        return *this;
+    }
+
+    /// @brief 当前折行总宽（0 = 不折行）。
+    std::size_t text_width() const noexcept { return text_width_; }
+
+    /// @brief 相对两列渲染：每行 `<indent><名字><padding><描述>\n`。
+    /// @details padding = gap + (最长名宽 - 当前行名宽)，至少 1 空格；描述为空
+    ///          的行不加 padding（无尾随空白）。空表渲染为空串。
+    ///          名字列取各行第一格；其余格以单空格连接作描述（两列表不受影响）。
+    ///          描述含 '\n' 时续行悬挂对齐到描述列；text_width() > 0 时先按
+    ///          可用宽度折行再悬挂对齐。
     std::string render(std::size_t indent = 2, std::size_t gap = 3) const;
 
-    /// @brief Absolute column rendering: aligns the description column at a fixed
-    ///        position (for migrating legacy hand-aligned text).
-    /// @details padding = description_column - indent - name codepoints, at least
-    ///          1 space; an overlong name (less than 1 space left) degrades to a
-    ///          single-space separator with the description shifted right, never
-    ///          truncated. description_column <= indent behaves like a 1-space
-    ///          separator.
+    /// @brief 绝对列渲染：描述列对齐到固定位置（迁移既有手工对齐文本）。
+    /// @details padding = description_column - indent - 名宽，至少 1 空格；名过宽
+    ///          （不足 1 空格）时退化为单空格分隔、描述右移，永不截断。
+    ///          description_column <= indent 等价于 1 空格分隔。描述含 '\n' 或
+    ///          text_width() > 0 时的续行处理同 render()。
     std::string render_to_column(std::size_t indent, std::size_t description_column) const;
 
+    /// @brief 通用多列渲染：每列左对齐，列宽 = 该列最大格宽（当前口径），列间
+    ///        gap 个空格；行尾不留空白（空末格与缺格行同样干净）。
+    /// @details 单元格含 '\n' 时续行对齐回本列起始列；折行只作用于表的末列
+    ///          （text_width() > 0 时），续行悬挂对齐到末列起始列。窄列中的
+    ///          超宽续行会把后续列右推（永不截断）。缺格按空串计。单列表
+    ///          （每行一格）等价于按 text_width 折行的缩进段落块。
+    std::string render_columns(std::size_t indent = 2, std::size_t gap = 3) const;
+
 private:
-    struct Row
+    /// 表条目：结构行（参与对齐）或原样行（verbatim，raw = true）。
+    struct Entry
     {
-        std::string name;
-        std::string description;
+        bool                     raw;
+        std::vector<std::string> cells;
     };
-    std::vector<Row> rows_;
-    std::size_t      max_name_codepoints_ = 0;
+    std::vector<Entry> entries_;
+    WidthMode          width_mode_ = WidthMode::Codepoint;
+    std::size_t        text_width_ = 0;
 };
 
 /// @brief 选项值的来源。区分「命令行显式给值 / 注入初值 / 静态默认」；

@@ -1738,5 +1738,187 @@ TEST(HelpTableTest, EmptyTableRendersEmptyString)
     EXPECT_EQ(table.render(), "");
 }
 
+// ---- #890 排版能力扩展：多列 / 块组合 / 折行 / CJK 宽度口径 ----
+
+TEST(HelpTableTest, MultiColumnRowsAlignPerColumn)
+{
+    HelpTable table;
+    table.add_row({"git", "version control", "dvcs"});
+    table.add_row({"make", "build", ""});
+    const std::string text = table.render_columns(0, 2);
+    // col0 = max(3,4) = 4；col1 = max(15,5) = 15；末列不补白，缺格行无尾随空白。
+    EXPECT_EQ(text,
+              "git   version control  dvcs\n"
+              "make  build\n");
+}
+
+TEST(HelpTableTest, RawLinesComposeBlocksInOneTable)
+{
+    HelpTable table;
+    table.add_raw("Subcommands:");
+    table.add("jar fix", "repair");
+    table.add_raw("");
+    table.add_raw("Options:");
+    table.add("-v, --verbose", "chatty");
+    EXPECT_EQ(table.size(), 5u);
+    EXPECT_FALSE(table.empty());
+    const std::string text = table.render(2, 3);
+    // 名列宽 = max(7, 13) = 13 → 描述列 = 2 + 13 + 3 = 18；原样行 verbatim、不参与度量。
+    EXPECT_EQ(text,
+              "Subcommands:\n"
+              "  jar fix         repair\n"
+              "\n"
+              "Options:\n"
+              "  -v, --verbose   chatty\n");
+}
+
+TEST(HelpTableTest, AppendMergesEntriesAndRecomputesWidth)
+{
+    HelpTable a;
+    a.add("jar", "archive tool");
+    HelpTable b;
+    b.add("decompile", "readable code");
+    a.append(b);
+    EXPECT_EQ(a.size(), 2u);
+    const std::string text = a.render(0, 2);
+    // 合并后按全表重算：名列宽 = max(3, 9) = 9，描述列 = 0 + 9 + 2 = 11。
+    EXPECT_EQ(text,
+              "jar        archive tool\n"
+              "decompile  readable code\n");
+}
+
+TEST(HelpTableTest, AppendKeepsReceiverSettings)
+{
+    HelpTable a;
+    a.add("cmd", "desc");
+    HelpTable b;
+    b.set_width_mode(WidthMode::Display).set_text_width(40);
+    b.add("\xe5\xad\x90\xe5\x91\xbd\xe4\xbb\xa4", "x");   // 子命令
+    a.append(b);
+    // 口径与折行设置不随 append 迁移：接收方仍为 Codepoint / 不折行。
+    EXPECT_EQ(a.width_mode(), WidthMode::Codepoint);
+    EXPECT_EQ(a.text_width(), 0u);
+    // 码点口径：名列宽 = max(3 码点, 3) = 3，描述列 = 0 + 3 + 1 = 4。
+    EXPECT_EQ(a.render(0, 1),
+              "cmd desc\n"
+              "\xe5\xad\x90\xe5\x91\xbd\xe4\xbb\xa4 x\n");
+}
+
+TEST(HelpTableTest, WrapsLongDescriptionWithHangingIndent)
+{
+    HelpTable table;
+    table.set_text_width(20);
+    table.add("--output", "write result to the given file path");
+    const std::string text = table.render(2, 3);
+    // 描述列 = 2 + 8 + 3 = 13，可用宽度 = 20 - 13 = 7：
+    // "write"(5) / "result"(6) / "to the"(6) / "given"(5) / "file"(4) / "path"(4)，
+    // 续行悬挂对齐到描述列（13 空格）。
+    EXPECT_EQ(text,
+              "  --output   write\n"
+              "             result\n"
+              "             to the\n"
+              "             given\n"
+              "             file\n"
+              "             path\n");
+}
+
+TEST(HelpTableTest, NewlineInDescriptionAlignsHangingIndent)
+{
+    HelpTable table;
+    table.add("jar fix", "\xe4\xbf\xae\xe5\xa4\x8d\xe6\x8c\x87\xe5\xae\x9a"
+                         "\n\xe7\x9b\xae\xe6\xa0\x87\xe6\x96\x87\xe4\xbb\xb6");   // 修复指定\n目标文件
+    const std::string text = table.render(2, 3);
+    // 描述列 = 2 + 7 + 3 = 12；'\n' 硬换行续行悬挂对齐到描述列，不折行。
+    EXPECT_EQ(text,
+              "  jar fix   \xe4\xbf\xae\xe5\xa4\x8d\xe6\x8c\x87\xe5\xae\x9a\n"
+              "            \xe7\x9b\xae\xe6\xa0\x87\xe6\x96\x87\xe4\xbb\xb6\n");
+}
+
+TEST(HelpTableTest, OverlongWordHardSplitAtAvail)
+{
+    HelpTable table;
+    table.set_text_width(14);
+    table.add("-p", "abcdefghij klm");
+    const std::string text = table.render(0, 3);
+    // 描述列 = 0 + 2 + 3 = 5，可用 = 14 - 5 = 9："abcdefghij"(10) 超过整行可用
+    // 宽度 → 按宽度硬切 "abcdefghi" + "j"，续段接 " klm"。
+    EXPECT_EQ(text,
+              "-p   abcdefghi\n"
+              "     j klm\n");
+}
+
+TEST(HelpTableTest, WrapCjkBreaksAtWideCharBoundary)
+{
+    HelpTable table;
+    table.set_width_mode(WidthMode::Display);
+    table.set_text_width(10);
+    // 修复指定的目标文件并输出结果（14 个 CJK 字）。
+    table.add("fix", "\xe4\xbf\xae\xe5\xa4\x8d\xe6\x8c\x87\xe5\xae\x9a\xe7\x9a\x84\xe7\x9b\xae"
+                     "\xe6\xa0\x87\xe6\x96\x87\xe4\xbb\xb6\xe5\xb9\xb6\xe8\xbe\x93\xe5\x87\xba"
+                     "\xe7\xbb\x93\xe6\x9e\x9c");
+    const std::string text = table.render(0, 2);
+    // 描述列 = 0 + 3 + 2 = 5，可用 = 10 - 5 = 5：宽字符边界即断点，每行 2 字
+    // （第 3 字放不下），14 字折成 7 行，续行悬挂对齐到描述列。
+    EXPECT_EQ(text,
+              "fix  \xe4\xbf\xae\xe5\xa4\x8d\n"
+              "     \xe6\x8c\x87\xe5\xae\x9a\n"
+              "     \xe7\x9a\x84\xe7\x9b\xae\n"
+              "     \xe6\xa0\x87\xe6\x96\x87\n"
+              "     \xe4\xbb\xb6\xe5\xb9\xb6\n"
+              "     \xe8\xbe\x93\xe5\x87\xba\n"
+              "     \xe7\xbb\x93\xe6\x9e\x9c\n");
+}
+
+TEST(HelpTableTest, DisplayWidthModeAlignsCjkNamesByTerminalColumns)
+{
+    HelpTable table;
+    table.set_width_mode(WidthMode::Display);
+    table.add("\xe5\xad\x90\xe5\x91\xbd\xe4\xbb\xa4", "desc");   // 子命令：6 终端列 / 3 码点
+    table.add("abc", "d2");
+    const std::string text = table.render(0, 1);
+    // Display 口径按终端列计量：名列宽 = 6 → 描述列 = 7；
+    // "子命令" 补 1 空格、"abc" 补 4 空格（码点口径下两行都会少补 3 格）。
+    EXPECT_EQ(text,
+              "\xe5\xad\x90\xe5\x91\xbd\xe4\xbb\xa4 desc\n"
+              "abc    d2\n");
+}
+
+TEST(HelpTableTest, DisplayWidthCombiningMarkCountsZero)
+{
+    HelpTable table;
+    table.set_width_mode(WidthMode::Display);
+    table.add("e\xcc\x81" "cole", "desc");   // e + U+0301 组合符 + cole：显示宽 5
+    table.add("abcdef", "x");
+    const std::string text = table.render(0, 1);
+    // 组合符计 0："e\xcc\x81" "cole" 显示宽 = 5 → 描述列 = 0 + 6 + 1 = 7。
+    EXPECT_EQ(text, "e\xcc\x81" "cole  desc\nabcdef x\n");
+}
+
+TEST(HelpTableTest, SingleColumnRowsWrapAsIndentedParagraph)
+{
+    HelpTable table;
+    table.set_text_width(12);
+    table.add_row({"hello world again"});
+    const std::string text = table.render_columns(2, 0);
+    // 单列表 = 缩进段落块：可用 = 12 - 2 = 10 → "hello" / "world" / "again"。
+    EXPECT_EQ(text,
+              "  hello\n"
+              "  world\n"
+              "  again\n");
+}
+
+TEST(HelpTableTest, RenderColumnsMixesAddAndAddRow)
+{
+    HelpTable table;
+    table.add("fix", "repair a jar");          // 两格行（add 的历史形态）
+    table.add_row({"list", "show", "all"});    // 三格行
+    const std::string text = table.render_columns(0, 2);
+    // 列数 = 3；col0 = max(3,4) = 4，col1 = max(12,4) = 12；
+    // 两格行在第 3 格缺省为空 → rstrip 后无尾随空白。
+    EXPECT_EQ(text,
+              "fix   repair a jar\n"
+              "list  show          all\n");
+}
+
 }   // namespace
 }   // namespace ca::opt::test

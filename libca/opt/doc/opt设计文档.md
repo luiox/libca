@@ -1,6 +1,12 @@
 ---
-version: 1.8
+version: 1.9
 update:
+2026-10-03 - HelpTable 排版层扩展（morpher#890）：多列结构行 add_row、原样行
+             add_raw 与块合并 append（列宽渲染期全表重算）；列宽口径可切
+             WidthMode（默认 Codepoint 保持历史逐字节行为，Display 按 East
+             Asian Width 近似计 CJK 为 2）；set_text_width 末列折行 + 悬挂
+             对齐、单元格 '\n' 硬换行同口径；新增 render_columns 通用多列
+             渲染。见 §3.8
 2026-08-24 - 多字符单横线别名（如 -vm-range）按整 token 精确匹配：此前实现
              只查两字符短名，头文件声明的整 token 别名在解析路径永不命中
              （被拆成短簇报截断错误）。命中后取值语义与长形态一致
@@ -181,6 +187,31 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 补全脚本由下游基于 Arg 字段自建并序列化。库不定义 dump 格式：那会把 JSON/GUI
 关注点拖进依赖分层。
 
+### 3.8 HelpTable 排版层：对齐是渲染期的事
+
+i18n 迁移暴露的问题：help 文案靠字符串字面量里的手工空格做列对齐，翻译值必须
+逐条复刻空格数，列宽一调全表返工（morpher#890）。HelpTable 把对齐收进渲染期：
+
+- **表即多行块**：结构行（`add`/`add_row`）与原样行（`add_raw`）按插入序共存于
+  一张表——原样行承载节标题/空行/分隔线，不参与列宽度量；`append` 把多张表
+  （子命令列表块、参数组块）拼成一张，列宽渲染期按全表重算。i18n 资源只存
+  纯文案，不含任何对齐空格。
+- **宽度口径可切**：默认按 UTF-8 码点数（0.0.12 口径，ASCII 名下与显示宽度
+  等价，存量输出逐字节不变）；名/描述含 CJK 时切 `WidthMode::Display`，按
+  East Asian Width 近似表计量（Wide 计 2、组合符计 0）。不做完整 EAW/表情
+  联合表——help 排版够用，精度换依赖零化。
+- **折行是末列的事**：`set_text_width` 给出行总宽，超宽只在描述列/末列折行，
+  续行悬挂对齐到该列起始列；断点为空格与宽字符边界（CJK 无空格分词），
+  单词超整行宽度时按宽度硬切，永不截断丢字。单元格内 `'\n'` 是硬换行，
+  续行同样悬挂对齐——mjt 多行子命令 help（`jar fix<对齐>修复…\n jar list…`）
+  由此结构化表达。
+- **对齐口径三不变**（与 0.0.10 两列版一致并推广到多列）：padding 至少 1 空格；
+  过宽退化为单空格分隔右移不截断；空描述行行尾不留空白。多列渲染额外保证
+  缺格/空末格行经行尾空白清理后同样干净。
+- 渲染期取"当时"的口径与设置全量计算宽度，`set_*` 在 add 之前或之后调用均可
+  （0.0.12 及以前在 add 时缓存最大名宽，等价）；`append` 只搬条目不搬设置，
+  接收方的口径/折行设置生效。
+
 ## 4. 功能裁切
 
 不需要专门机制。条件注册即天然 fail-closed：
@@ -196,7 +227,7 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 
 ## 5. 测试
 
-`libca/opt/unittest/opt_test.cpp`，61 个用例分七组：
+`libca/opt/unittest/opt_test.cpp`，80 个用例分八组：
 
 - OptParseTest：旧验收面（形态解析、子命令、-- 终止符、--help、基础错误）
 - OptV2Test：P0 能力（positionals、Int 校验、多别名 canonical、StringList 合并、last-wins、
@@ -208,3 +239,7 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 - OptV2OptionalTest：OptionalString 形态与互斥组/help 交互
 - OptV2FixTest：评审修复回归（子命令 usage 行、-h/--help 可覆盖、Int 空白
   严格化、跨层级同名选项优先级）
+- HelpTableTest：两列渲染基线（自动列宽、绝对列、空描述、过宽退化、码点计量、
+  空表）+ #890 排版扩展（多列对齐、原样行块组合、append 合并重算、设置不随
+  迁移、折行悬挂对齐、超长词硬切、CJK 宽字符断点、Display 口径 CJK 对齐、
+  组合符零宽、单列段落折行、add/add_row 混用缺格）

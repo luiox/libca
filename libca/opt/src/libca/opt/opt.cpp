@@ -511,12 +511,12 @@ std::string help_text(const Command& cmd, const std::vector<std::string>& groups
     return render_help(cmd, {cmd.name}, &groups);
 }
 
-// ---- HelpTable: two-column help row table (issue luiox/morpher#890) ----
+// ---- HelpTable: help 行排版表（issue luiox/morpher#890）----
 
 namespace {
 
 // UTF-8 codepoint count: every non-continuation byte ((c & 0xC0) != 0x80)
-// starts one codepoint.
+// starts one codepoint. （Codepoint 口径的历史实现，保持逐字节行为不变。）
 std::size_t help_utf8_codepoint_count(std::string_view text) noexcept
 {
     std::size_t count = 0;
@@ -527,50 +527,377 @@ std::size_t help_utf8_codepoint_count(std::string_view text) noexcept
     return count;
 }
 
-// Single row: indent + name + padding + description + newline char; padding
-// is at least 1 space (omitted entirely when the description is empty -- the
-// row ends at the name). pad_to is the target column measured from the line
-// start; a name already past the column (delta < 1) degrades to a
-// single-space separator.
-void help_append_row(std::string& out, std::size_t indent, std::string_view name,
-                     std::size_t name_width, std::size_t pad_to, std::string_view description)
+// UTF-8 解码：从 s[i] 起解码一个码点。合法序列写 cp 并推进 i 返回 true；
+// 非法字节（含截断序列）消费 1 字节、cp 置替换符返回 false（该字节按宽度 1
+// 计入，内容不丢）。
+bool help_utf8_next(std::string_view s, std::size_t& i, char32_t& cp) noexcept
 {
-    out.append(indent, ' ');
-    out.append(name);
-    if (description.empty()) {
-        out.push_back('\n');
-        return;
+    const auto lead = static_cast<unsigned char>(s[i]);
+    std::size_t len   = 0;
+    char32_t    value = 0;
+    if (lead < 0x80) {
+        cp = lead;
+        i += 1;
+        return true;
     }
-    const std::size_t used  = indent + name_width;
-    const std::size_t pad   = pad_to > used ? pad_to - used : 1;
-    out.append(pad, ' ');
-    out.append(description);
-    out.push_back('\n');
+    if ((lead & 0xE0) == 0xC0) {
+        len   = 2;
+        value = lead & 0x1Fu;
+    }
+    else if ((lead & 0xF0) == 0xE0) {
+        len   = 3;
+        value = lead & 0x0Fu;
+    }
+    else if ((lead & 0xF8) == 0xF0) {
+        len   = 4;
+        value = lead & 0x07u;
+    }
+    else {
+        cp = 0xFFFD;
+        i += 1;
+        return false;
+    }
+    if (i + len > s.size()) {
+        cp = 0xFFFD;
+        i += 1;
+        return false;
+    }
+    for (std::size_t k = 1; k < len; ++k) {
+        const auto cont = static_cast<unsigned char>(s[i + k]);
+        if ((cont & 0xC0) != 0x80) {
+            cp = 0xFFFD;
+            i += 1;
+            return false;
+        }
+        value = (value << 6) | (cont & 0x3Fu);
+    }
+    cp = value;
+    i += len;
+    return true;
+}
+
+// 单码点终端显示宽度近似（East Asian Width 精简表）：Wide/Fullwidth 计 2，
+// 组合符号/零宽字符/控制字符计 0，其余计 1。 help 排版足够，不做完整 EAW 表。
+std::size_t help_codepoint_display_width(char32_t cp) noexcept
+{
+    if (cp < 0x20 || (cp >= 0x7F && cp <= 0x9F)) return 0;   // 控制字符
+    if ((cp >= 0x0300 && cp <= 0x036F) ||                    // 组合附加符号
+        (cp >= 0x200B && cp <= 0x200F) ||                    // 零宽字符与方向标记
+        (cp >= 0xFE00 && cp <= 0xFE0F) ||                    // 变体选择符
+        cp == 0xFEFF)                                        // 零宽不换行空格
+        return 0;
+    const bool wide =
+        (cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo
+        (cp >= 0x2E80 && cp <= 0x303E) ||   // CJK 部首与符号
+        (cp >= 0x3041 && cp <= 0x33FF) ||   // 假名、注音、CJK 兼容方块
+        (cp >= 0x3400 && cp <= 0x4DBF) ||   // CJK 扩展 A
+        (cp >= 0x4E00 && cp <= 0x9FFF) ||   // CJK 统一表意文字
+        (cp >= 0xA000 && cp <= 0xA4CF) ||   // 彝文
+        (cp >= 0xA960 && cp <= 0xA97F) ||   // Hangul Jamo 扩展 A
+        (cp >= 0xAC00 && cp <= 0xD7A3) ||   // Hangul 音节
+        (cp >= 0xF900 && cp <= 0xFAFF) ||   // CJK 兼容表意文字
+        (cp >= 0xFE10 && cp <= 0xFE19) ||   // 竖排形式
+        (cp >= 0xFE30 && cp <= 0xFE6F) ||   // CJK 兼容形式
+        (cp >= 0xFF00 && cp <= 0xFF60) ||   // 全角 ASCII 与标点
+        (cp >= 0xFFE0 && cp <= 0xFFE6) ||   // 全角符号
+        (cp >= 0x1F300 && cp <= 0x1F64F) || // emoji 常用块
+        (cp >= 0x1F680 && cp <= 0x1F6FF) ||
+        (cp >= 0x1F900 && cp <= 0x1F9FF) ||
+        (cp >= 0x20000 && cp <= 0x2FFFD) || // CJK 扩展 B 起
+        (cp >= 0x30000 && cp <= 0x3FFFD);
+    return wide ? 2 : 1;
+}
+
+// 按计量口径测字符串宽度：Codepoint = 码点数（历史口径）；Display = 显示宽度。
+std::size_t help_string_width(std::string_view text, WidthMode mode) noexcept
+{
+    if (mode == WidthMode::Codepoint) return help_utf8_codepoint_count(text);
+    std::size_t width = 0;
+    std::size_t i     = 0;
+    char32_t    cp    = 0;
+    while (i < text.size()) {
+        help_utf8_next(text, i, cp);
+        width += help_codepoint_display_width(cp);
+    }
+    return width;
+}
+
+// 折行 token：一段不可再断的文本——空格段、普通词（非宽字符连续段）或单个
+// 宽字符（宽字符前后皆可断行，CJK 无空格分词）。
+struct HelpWrapToken
+{
+    std::string text;
+    std::size_t width;
+    bool        is_space;
+};
+
+// 把一行按断点切成 token（宽度按 mode 口径）。
+std::vector<HelpWrapToken> help_wrap_tokenize(std::string_view line, WidthMode mode)
+{
+    std::vector<HelpWrapToken> tokens;
+    std::size_t                i = 0;
+    while (i < line.size()) {
+        const std::size_t space_start = i;
+        while (i < line.size() && line[i] == ' ') ++i;
+        if (i > space_start) {
+            const std::string text{line.substr(space_start, i - space_start)};
+            tokens.push_back(HelpWrapToken{text, help_string_width(text, mode), true});
+            continue;
+        }
+        std::string cur;
+        std::size_t cur_w = 0;
+        while (i < line.size() && line[i] != ' ') {
+            const std::size_t begin = i;
+            char32_t          cp    = 0;
+            help_utf8_next(line, i, cp);
+            const std::size_t w = help_codepoint_display_width(cp);
+            if (w == 2) {
+                // 宽字符自成断点段：先落此前积累的普通词。
+                if (!cur.empty()) {
+                    tokens.push_back(HelpWrapToken{cur, cur_w, false});
+                    cur.clear();
+                    cur_w = 0;
+                }
+                tokens.push_back(HelpWrapToken{std::string(line.substr(begin, i - begin)), w, false});
+            }
+            else {
+                cur.append(line.substr(begin, i - begin));
+                cur_w += w;
+            }
+        }
+        if (!cur.empty()) tokens.push_back(HelpWrapToken{cur, cur_w, false});
+    }
+    return tokens;
+}
+
+// 贪心折行：avail = 本段可用宽度（0 = 不折行，整行原样返回）。断点处行尾空格
+// 丢弃；单词超过整行可用宽度时按宽度硬切，永不截断丢字。
+std::vector<std::string> help_wrap_line(std::string_view line, std::size_t avail, WidthMode mode)
+{
+    if (avail == 0 || help_string_width(line, mode) <= avail)
+        return {std::string(line)};
+    std::vector<std::string> out;
+    std::string              cur;
+    std::size_t              cur_w = 0;
+    const auto               flush = [&] {
+        // 断点空格已先行挂上 cur，落行时剥掉：折行产生的行尾不留空白
+        // （对齐口径；与未折行行的 verbatim 原样区分）。
+        while (!cur.empty() && cur.back() == ' ') cur.pop_back();
+        out.push_back(cur);
+        cur.clear();
+        cur_w = 0;
+    };
+    for (const HelpWrapToken& tok : help_wrap_tokenize(line, mode)) {
+        if (tok.is_space) {
+            if (cur_w + tok.width <= avail) {
+                cur += tok.text;
+                cur_w += tok.width;
+            }
+            else if (cur_w > 0) {
+                flush();   // 断点：行尾空格丢弃；行首空格超宽同样丢弃
+            }
+            continue;
+        }
+        if (tok.width > avail) {
+            if (cur_w > 0) flush();
+            // 硬切：逐字符按宽度累计，满 avail 即断段。
+            std::size_t i = 0, piece_w = 0, piece_begin = 0;
+            while (i < tok.text.size()) {
+                const std::size_t ch_begin = i;
+                char32_t          cp       = 0;
+                help_utf8_next(tok.text, i, cp);
+                const std::size_t w =
+                    mode == WidthMode::Display ? help_codepoint_display_width(cp) : 1;
+                if (piece_w + w > avail && piece_w > 0) {
+                    out.push_back(tok.text.substr(piece_begin, ch_begin - piece_begin));
+                    piece_begin = ch_begin;
+                    piece_w     = 0;
+                }
+                piece_w += w;
+            }
+            cur   = tok.text.substr(piece_begin);
+            cur_w = piece_w;
+            continue;
+        }
+        if (cur_w + tok.width > avail && cur_w > 0) flush();
+        cur += tok.text;
+        cur_w += tok.width;
+    }
+    if (!cur.empty() || out.empty()) flush();
+    return out;
+}
+
+// 单元格展开为物理行：'\n' 为硬换行边界（续行由渲染层悬挂对齐）；avail > 0 时
+// 每段硬行再按宽度折行。
+std::vector<std::string> help_cell_lines(std::string_view cell, std::size_t avail, WidthMode mode)
+{
+    std::vector<std::string> lines;
+    std::size_t              start = 0;
+    while (true) {
+        const std::size_t nl = cell.find('\n', start);
+        const std::string_view hard = nl == std::string_view::npos
+                                          ? cell.substr(start)
+                                          : cell.substr(start, nl - start);
+        for (std::string& piece : help_wrap_line(hard, avail, mode))
+            lines.push_back(std::move(piece));
+        if (nl == std::string_view::npos) break;
+        start = nl + 1;
+    }
+    return lines;
+}
+
+// 折行可用宽度：折行开启且列起点在总宽内时返回剩余宽度，否则 0（不折行）。
+std::size_t help_wrap_avail(std::size_t text_width, std::size_t column_start) noexcept
+{
+    return column_start < text_width ? text_width - column_start : 0;
 }
 
 }   // namespace
 
 void HelpTable::add(std::string name, std::string description)
 {
-    const std::size_t width = help_utf8_codepoint_count(name);
-    if (width > max_name_codepoints_) max_name_codepoints_ = width;
-    rows_.push_back(Row{std::move(name), std::move(description)});
+    std::vector<std::string> cells;
+    cells.reserve(2);
+    cells.push_back(std::move(name));
+    cells.push_back(std::move(description));
+    entries_.push_back(Entry{false, std::move(cells)});
+}
+
+void HelpTable::add_row(std::vector<std::string> cells)
+{
+    if (cells.empty()) cells.push_back(std::string());   // 空行：仍按一行结构行参与渲染
+    entries_.push_back(Entry{false, std::move(cells)});
+}
+
+void HelpTable::add_raw(std::string line)
+{
+    entries_.push_back(Entry{true, {std::move(line)}});
+}
+
+void HelpTable::append(const HelpTable& other)
+{
+    for (const Entry& entry : other.entries_) entries_.push_back(entry);
 }
 
 std::string HelpTable::render(const std::size_t indent, const std::size_t gap) const
 {
-    // Description column = indent + longest name width + gap.
-    return render_to_column(indent, indent + max_name_codepoints_ + gap);
+    // 描述列 = indent + 最长名宽 + gap；名宽在渲染期按当前口径全量重算，
+    // 原样行不参与度量。
+    std::size_t max_name_width = 0;
+    for (const Entry& entry : entries_) {
+        if (entry.raw || entry.cells.empty()) continue;
+        const std::size_t width = help_string_width(entry.cells[0], width_mode_);
+        if (width > max_name_width) max_name_width = width;
+    }
+    return render_to_column(indent, indent + max_name_width + gap);
 }
 
 std::string HelpTable::render_to_column(const std::size_t indent,
                                         const std::size_t description_column) const
 {
     std::string out;
-    for (const Row& row : rows_) {
-        help_append_row(out, indent, row.name,
-                        help_utf8_codepoint_count(row.name), description_column,
-                        row.description);
+    const std::size_t avail = help_wrap_avail(text_width_, description_column);
+    for (const Entry& entry : entries_) {
+        if (entry.raw) {
+            out += entry.cells[0];
+            out.push_back('\n');
+            continue;
+        }
+        const std::string& name = entry.cells[0];
+        // 两列口径：第一格为名，其余格以单空格连接作描述。
+        std::string description;
+        for (std::size_t c = 1; c < entry.cells.size(); ++c) {
+            if (c > 1) description.push_back(' ');
+            description += entry.cells[c];
+        }
+        if (description.empty()) {
+            out.append(indent, ' ');
+            out += name;
+            out.push_back('\n');
+            continue;
+        }
+        const std::size_t name_width = help_string_width(name, width_mode_);
+        const std::size_t used       = indent + name_width;
+        const std::size_t pad        = description_column > used ? description_column - used : 1;
+        const std::vector<std::string> desc_lines = help_cell_lines(description, avail, width_mode_);
+        out.append(indent, ' ');
+        out += name;
+        out.append(pad, ' ');
+        out += desc_lines[0];
+        out.push_back('\n');
+        for (std::size_t k = 1; k < desc_lines.size(); ++k) {
+            out.append(description_column, ' ');   // 续行悬挂对齐到描述列
+            out += desc_lines[k];
+            out.push_back('\n');
+        }
+    }
+    return out;
+}
+
+std::string HelpTable::render_columns(const std::size_t indent, const std::size_t gap) const
+{
+    // 列数 = 结构行最大格数；各列宽 = 该列最大格宽（渲染期按当前口径计算）。
+    std::size_t columns = 0;
+    for (const Entry& entry : entries_) {
+        if (!entry.raw) columns = columns > entry.cells.size() ? columns : entry.cells.size();
+    }
+    std::string out;
+    if (columns == 0) {
+        // 纯原样行表：直接拼接。
+        for (const Entry& entry : entries_) {
+            out += entry.cells[0];
+            out.push_back('\n');
+        }
+        return out;
+    }
+    std::vector<std::size_t> col_width(columns, 0);
+    for (const Entry& entry : entries_) {
+        if (entry.raw) continue;
+        for (std::size_t c = 0; c < entry.cells.size(); ++c) {
+            const std::size_t width = help_string_width(entry.cells[c], width_mode_);
+            if (width > col_width[c]) col_width[c] = width;
+        }
+    }
+    // 末列起始列 = indent + 前列宽和 + 列间距和；折行只作用于末列。
+    std::size_t last_start = indent;
+    for (std::size_t c = 0; c + 1 < columns; ++c) last_start += col_width[c] + gap;
+    const std::size_t last_avail = help_wrap_avail(text_width_, last_start);
+
+    static const std::string k_empty;
+    for (const Entry& entry : entries_) {
+        if (entry.raw) {
+            out += entry.cells[0];
+            out.push_back('\n');
+            continue;
+        }
+        // 各格展开物理行：仅落在表末列上的格折行，其余格只展开 '\n' 硬换行。
+        std::vector<std::vector<std::string>> col_lines(entry.cells.size());
+        std::size_t                           line_count = 0;
+        for (std::size_t c = 0; c < entry.cells.size(); ++c) {
+            const std::size_t avail = c + 1 == columns ? last_avail : 0;
+            col_lines[c]            = help_cell_lines(entry.cells[c], avail, width_mode_);
+            if (col_lines[c].size() > line_count) line_count = col_lines[c].size();
+        }
+        for (std::size_t li = 0; li < line_count; ++li) {
+            std::string line;
+            line.append(indent, ' ');
+            for (std::size_t c = 0; c < columns; ++c) {
+                const bool has_text = c < col_lines.size() && li < col_lines[c].size();
+                const std::string& text = has_text ? col_lines[c][li] : k_empty;
+                line += text;
+                if (c + 1 < columns) {
+                    // 补齐本列宽 + 列间距；续行超宽时 pad 为 0（右推后续列，不截断）。
+                    const std::size_t text_w = help_string_width(text, width_mode_);
+                    const std::size_t pad =
+                        col_width[c] > text_w ? col_width[c] - text_w : 0;
+                    line.append(pad + gap, ' ');
+                }
+            }
+            // 对齐口径：结构行行尾不留空白（空末格、缺格续行同样干净）。
+            while (!line.empty() && line.back() == ' ') line.pop_back();
+            out += line;
+            out.push_back('\n');
+        }
     }
     return out;
 }
