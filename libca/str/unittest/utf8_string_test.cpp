@@ -3,11 +3,51 @@
 #include "libca/str/utf8_util.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdlib>
 #include <map>
+#include <new>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <cstring>
+
+// ============================================================================
+// 分配计数探针（clone 单分配回归门）：替换全局 new/delete 做 delta 计数。
+// 只计数不断言（断言只在 CloneSingleAllocation 系列），对其它测试零影响。
+// 计数器为零初始化常量初始化，早于任何动态初始化的分配也安全计入，
+// 测试一律取快照差值，不依赖绝对值。
+// ============================================================================
+
+namespace {
+
+std::atomic<unsigned long long> g_probe_alloc_count{0};
+std::atomic<unsigned long long> g_probe_alloc_bytes{0};
+
+}  // namespace
+
+void* operator new(std::size_t size) {
+    if (void* p = std::malloc(size ? size : 1)) {
+        g_probe_alloc_count.fetch_add(1, std::memory_order_relaxed);
+        g_probe_alloc_bytes.fetch_add(size, std::memory_order_relaxed);
+        return p;
+    }
+    throw std::bad_alloc{};
+}
+
+void* operator new[](std::size_t size) {
+    if (void* p = std::malloc(size ? size : 1)) {
+        g_probe_alloc_count.fetch_add(1, std::memory_order_relaxed);
+        g_probe_alloc_bytes.fetch_add(size, std::memory_order_relaxed);
+        return p;
+    }
+    throw std::bad_alloc{};
+}
+
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
 
 namespace ca::str {
 
@@ -1484,6 +1524,46 @@ TEST(ZUtf8StringRef, FromStaticCacheClearKeepsCorrectness)
     EXPECT_STREQ(after.c_str(), "cache_clear_probe");
     EXPECT_EQ(after.byte_length(), 17);
     EXPECT_EQ(after.length(), 17);
+}
+
+// ============================================================================
+// clone 分配计数回归（0.0.11）：钉死 clone() 单分配契约。
+// 修前基线（探针实测）：每次 clone 双分配——默认构造先 new 1 字节缓冲、
+// 随即 delete 再直配 byte_length+1，即 100 次 clone = 200 allocs / 1900 bytes；
+// 修后应为 100 allocs / 1800 bytes（17 字节串每次恰一次 new[18]）。
+// ============================================================================
+
+TEST(Utf8StringTest, CloneSingleAllocation) {
+    const Utf8String s("clone_alloc_probe");  // 17 字节，非空直配路径
+    const unsigned long long kIterations = 100;
+
+    const auto count_before = g_probe_alloc_count.load(std::memory_order_relaxed);
+    const auto bytes_before = g_probe_alloc_bytes.load(std::memory_order_relaxed);
+    for (unsigned long long i = 0; i < kIterations; ++i) {
+        auto c = s.clone();
+        static_cast<void>(c);
+    }
+    const auto allocs = g_probe_alloc_count.load(std::memory_order_relaxed) - count_before;
+    const auto bytes  = g_probe_alloc_bytes.load(std::memory_order_relaxed) - bytes_before;
+
+    // 每次 clone 恰好 1 次 new[]：目标容量单分配，不容先 new 后 delete 的双分配回归。
+    EXPECT_EQ(allocs, kIterations)
+        << "clone x" << kIterations << " 分配次数=" << allocs;
+    // 字节数同时钉死「直配目标容量」：每次 new[byte_length+1]，不多分配。
+    EXPECT_EQ(bytes, kIterations * (s.byte_length() + 1))
+        << "clone x" << kIterations << " 分配字节=" << bytes
+        << "，期望=" << kIterations * (s.byte_length() + 1);
+}
+
+TEST(Utf8StringTest, CloneEmptySingleAllocation) {
+    const Utf8String empty;
+    const auto count_before = g_probe_alloc_count.load(std::memory_order_relaxed);
+    auto c = empty.clone();
+    const auto allocs = g_probe_alloc_count.load(std::memory_order_relaxed) - count_before;
+
+    EXPECT_TRUE(c.is_empty());
+    EXPECT_EQ(allocs, 1ull)
+        << "空串 clone 分配次数=" << allocs << "（走默认构造单分配路径）";
 }
 
 }  // namespace ca::str

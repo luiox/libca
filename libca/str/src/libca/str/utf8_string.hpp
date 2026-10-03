@@ -346,6 +346,17 @@ private:
     // 调用方须保证 data 为合法 UTF-8 且 cp_count 准确（如刚经 utf8_count_code_points 得到）。
     static Utf8String from_validated(const u8* data, usize byte_len, usize cp_count);
 
+    // 延迟初始化构造标记：仅限内部直配路径（clone 等），跳过默认构造的缓冲分配。
+    struct uninitialized_t { explicit uninitialized_t() = default; };
+
+    // 内部：不分配缓冲的构造（data_ 置空）。调用方随后直配目标容量并填齐三个字段；
+    // 中途抛异常（如 bad_alloc）时 data_ 保持 nullptr，析构 delete[] 空指针安全。
+    // 仅新增私有成员函数，不引入数据成员/虚函数，API/ABI 兼容。
+    explicit Utf8String(uninitialized_t) noexcept
+        : data_(nullptr)
+        , byte_length_(0)
+        , length_(0) {}
+
     friend class Utf8StringBuilder;
 };
 

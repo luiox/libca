@@ -301,8 +301,10 @@ Utf8String Utf8String::clone() const {
     if (data_ == nullptr || byte_length_ == 0)
         return Utf8String();
 
-    Utf8String s;
-    delete[] s.data_;
+    // 单分配直配：经 uninitialized 构造置空后直接分配目标容量（含 '\0'），
+    // 消除此前「默认构造先 new 1 字节缓冲、随即 delete 再直配」的双分配。
+    // 源对象不变式保证 data_[byte_length_] == '\0'，整段复制即带终止符。
+    Utf8String s(uninitialized_t{});
     s.data_ = new u8[byte_length_ + 1];
     std::memcpy(s.data_, data_, byte_length_ + 1);
     s.byte_length_ = byte_length_;
