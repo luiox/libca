@@ -1,5 +1,5 @@
 set_project("libca")
-set_version("0.0.13")
+set_version("0.0.14")
 set_xmakever("2.8.3")
 
 option("with_core")
