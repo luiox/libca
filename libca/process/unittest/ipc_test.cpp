@@ -469,7 +469,12 @@ TEST(MessageQueueTest, CanReceiveReflectsInstanceCapability)
     auto receiver_value = std::move(receiver).unwrap();
     auto sender_value   = std::move(sender).unwrap();
     EXPECT_TRUE(receiver_value.can_receive());
+#if defined(_WIN32)
     EXPECT_FALSE(sender_value.can_receive());
+#else
+    // POSIX 消息队列两侧均可收发（ipc.hpp 平台能力不对称契约），发送端同为 true。
+    EXPECT_TRUE(sender_value.can_receive());
+#endif
 
     sender_value.close();
     EXPECT_FALSE(sender_value.can_receive());
