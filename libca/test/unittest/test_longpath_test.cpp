@@ -17,8 +17,15 @@
 // fixture 由全局 Environment 在全部用例前构造：启动期扫描 call_once 只发生
 // 一次，必须先于首个 setup() 就位；TearDown 尽力清理，不污染工作区。
 // （经静态初始化注册 Environment，既有 unittest/main.cpp 零改动。）
+//
+// 门控 MSVC/Windows：本用例回归的是 Win32 MAX_PATH 语义 + \\?\ 宽字符链路，
+// 仅在 MSVC 标准库上验证（CI windows/msvc job）。libstdc++（mingw）对 \\?\ 的
+// 创建/枚举链路存在未定位挂起（CI mingw job 45 分钟无输出直到超时）；POSIX 无
+// 260 字符路径上限，用例对其无回归价值。其余平台本 TU 为空。
 
 #include <gtest/gtest.h>
+
+#if defined(_WIN32) && defined(_MSC_VER)
 
 #include <algorithm>
 #include <cstddef>
@@ -121,7 +128,7 @@ TEST(TestLibLongPath, StartupScanSurvivesLongCjkTempDirs)
     ASSERT_TRUE(leaf.wstring().find(L"中文") != std::wstring::npos)
         << "fixture 应含 CJK 目录名";
     ASSERT_TRUE(fs::exists(extended_path(leaf)))
-        << "fixture 缺失：" << extended_path(leaf).string();
+        << "fixture 缺失：" << extended_path(leaf).wstring();
 
     // 启动期扫描：修复前此调用即抛未捕获 filesystem 异常（硬崩/用例红）。
     ca::test::setup("libca_test");
@@ -131,3 +138,5 @@ TEST(TestLibLongPath, StartupScanSurvivesLongCjkTempDirs)
     EXPECT_TRUE(ca::test::has_project(kFixtureProject));
     EXPECT_EQ(ca::test::project_path(kFixtureProject).wstring(), leaf.wstring());
 }
+
+#endif   // defined(_WIN32) && defined(_MSC_VER)
