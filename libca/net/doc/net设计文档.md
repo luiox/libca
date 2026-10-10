@@ -539,7 +539,7 @@ OpenSSL 依赖，net 默认构建不拉取 openssl3 包（学 core/minidump 的�
 （FNV-1a 校验防损坏）、对端提前断开（握手中/握手后）、主机名不匹配默认拒绝、
 显式关闭校验放行、错误分类断言；无 OpenSSL 构建验证 stub 降级。
 
-性能基准 target `libca_net_perf`（`set_group("libs/perf")`、默认不构建、不注册
+性能基准 target `libca_net_perf`（`set_group("libca/perf")`、默认不构建、不注册
 add_tests；Stopwatch 计时、热身 + 多轮取中位数、FNV-1a 校验和防空转）：
 
 | 指标 | 参考值 | 环境 |

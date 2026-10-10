@@ -8,12 +8,6 @@ option("with_core")
     set_description("Enable libca (C++ core) targets")
 option_end()
 
-option("with_demo")
-    set_default(true)
-    set_showmenu(true)
-    set_description("Enable demo targets")
-option_end()
-
 -- 测试开关：控制是否拉取 gtest 并启用 *_unittest target。
 -- 默认 false：libca 独立构建跑测试需 `xmake f --with_tests=y`。
 -- 作为 submodule 被 includes 时（如下游仓库直接 includes 子库 xmake.lua），

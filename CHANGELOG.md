@@ -5,7 +5,7 @@
 ## 格式约定
 
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
-- 不兼容变更必须在合并前补充条目（见 README「不做严格兼容承诺」）
+- 不兼容变更必须在合并前补充条目（见 README「说明」）
 
 ## [未发布]
 
@@ -31,6 +31,16 @@
   `std::filesystem::path`），`std::filesystem::u8path`/`generic_u8string` 在
   全库 src 中不再出现——C++20（`char8_t` 废弃 u8path）迁移时只需改
   `fs/path.cpp` 一处。解析器六模块因此新增对 `libca_fs` 的依赖。
+
+### 构建
+
+- **[全局] target 组名 `libs*` 重命名为 `libca*`**：组名是纯 xmake 标签，`libs` 目录
+  早已不存在（源码在 `libca/` 下），重命名使命令与实际布局一致——库
+  `xmake build -g libca`、全量单测 `xmake test -g libca/test`、基准 `libca/benchmark`、
+  性能 `libca/perf`。CI workflow 与 README/AGENTS/设计文档同步更新；组名不参与
+  包安装与 target 命名，对包消费无影响。
+- **[全局] 移除 `with_demo` 死选项**：仓库无任何 demo target，该选项从未被读取；
+  根 xmake.lua 删除选项定义，CI 同步去掉 `--with_demo=n`。
 
 
 ## [0.0.13] - 2026-10-03

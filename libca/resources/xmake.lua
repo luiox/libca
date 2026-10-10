@@ -178,7 +178,7 @@ rule("libca.resources.embed")
 -- header-only：状态为 function-local static，静态初始化完成后各接口可并发调用。
 target("libca_resources")
     set_kind("headeronly")
-    set_group("libs")
+    set_group("libca")
 
     add_deps("libca_core")
     add_headerfiles("src/(libca/resources/*.hpp)")
@@ -190,7 +190,7 @@ target("libca_resources")
 target("libca_resources_unittest")
     set_kind("binary")
     set_default(false)
-    set_group("libs/test")
+    set_group("libca/test")
 
     add_deps("libca_resources")
     add_packages("gtest")

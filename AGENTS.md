@@ -28,7 +28,7 @@ L2  fs, time, crypto  ← 依赖 L0/L1
 L3  业务 / 上层
 ```
 
-改 L0 会连锁影响下游，需谨慎。模块清单见 `README.md` 的「模块一览」和 `doc/libca功能索引.md`。
+改 L0 会连锁影响下游，需谨慎。模块清单见 `README.md` 的「模块」和 `doc/libca功能索引.md`。
 
 ## 模块接入构建
 
@@ -45,7 +45,7 @@ L3  业务 / 上层
 | 配置（默认） | `xmake f -y` |
 | 配置（带 C++ 测试） | `xmake f -y --with_tests=y` |
 | 构建 | `xmake` |
-| C++ 全量测试 | `xmake test -g libs/test` |
+| C++ 全量测试 | `xmake test -g libca/test` |
 | 单个 C++ 测试 | `xmake run libca_<模块>_unittest` |
 
 ## Git 与 PR 工作流

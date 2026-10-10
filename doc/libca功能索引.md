@@ -625,20 +625,30 @@ UUID v4 生成与校验（不做 v1/v3/v5）。底层随机源复用系统 CSPRN
 
 ## zip
 
-JVM `java.util.zip.ZipFile` 语义的 ZIP 读写模块。zlib 经 xrepo 引入，根开关
-`--with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分构建）。
+压缩与归档模块：JVM `java.util.zip.ZipFile` 语义的 ZIP 读写 + gzip（流式与一次性）。
+zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分构建）。
 
 入口头文件：
 - `<libca/zip/file.hpp>`（只读访问器 `ZipFile`）
-- `<libca/zip/input_stream.hpp>` / `<libca/zip/output_stream.hpp>`（流式读写）
 - `<libca/zip/entry.hpp>`（条目元数据 `ZipEntry`）
-- `<libca/zip/checksum.hpp>`（CRC）
+- `<libca/zip/input_stream.hpp>` / `<libca/zip/output_stream.hpp>`（流式读写）
+- `<libca/zip/gzip_reader.hpp>` / `<libca/zip/gzip_writer.hpp>`（gzip 流式与一次性编解码）
+- `<libca/zip/checksum.hpp>`（CRC 等校验和）
+- `<libca/zip/zip_error.hpp>`（`ZipError` 错误码）
 
 功能：
 - `ZipFile`：磁盘/内存镜像打开并立即解析的只读访问器；以最后一条合法 EOCD 为准，
-  支持前缀拼接（自提取类）与 ZIP64；错误抛 `std::runtime_error`。
+  支持前缀拼接（自提取类）与 ZIP64。读取路径经 `Result<T, ZipErrorInfo>` 返回错误；
+  打开型构造重载失败抛 `std::runtime_error`，`get_entry_at` 越界属编程错误抛
+  `std::out_of_range`。
 - `ZipInputStream` / `ZipOutputStream`：条目流式读写，支持 DD（数据描述符）条目。
 - `ZipEntry`：名称、大小、时间等方法信息面的只读元数据。
+- `gzip_compress` / `gzip_decompress`：一次性 gzip 编解码（RFC 1952，支持多成员拼接，
+  成员尾部 CRC32/ISIZE 校验）。
+- `GzipReader` / `GzipWriter`：流式 gzip（RFC 1952 头部逐 flag 解析）。
+- CRC32 等校验和。
+
+设计文档：本模块暂无，API 以头文件 Doxygen 注释为准。
 
 ## resources
 
@@ -710,27 +720,6 @@ JVM `java.util.zip.ZipFile` 语义的 ZIP 读写模块。zlib 经 xrepo 引入�
 
 设计文档：
 - `libca/log/doc/log设计文档.md`
-
-## zip
-
-压缩与归档模块：JVM `ZipFile` 语义 ZIP 读写 + 流式 gzip。zlib 经 xrepo 提供，
-根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
-
-入口头文件：
-- `<libca/zip/file.hpp>`（`ZipFile`）
-- `<libca/zip/input_stream.hpp>` / `<libca/zip/output_stream.hpp>`
-- `<libca/zip/gzip_reader.hpp>` / `<libca/zip/gzip_writer.hpp>`
-- `<libca/zip/checksum.hpp>`
-
-功能：
-- `ZipFile`：ZIP 只读访问器（EOCD 定位与恢复、ZIP64）。
-- `ZipInputStream` / `ZipOutputStream`：流式 ZIP 读写（DD 条目支持）。
-- `gzip_compress` / `gzip_decompress`：一次性 gzip 编解码（多成员拼接、CRC32/ISIZE 校验）。
-- `GzipReader` / `GzipWriter`：流式 gzip（RFC 1952 头部逐 flag 解析）。
-- CRC32 等校验和。
-
-设计文档：
-- `libca/zip/doc/zip设计文档.md`（如无则以上口头文件 Doxygen 为准）
 
 ## 暂未作为主线使用的代码
 

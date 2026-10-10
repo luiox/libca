@@ -124,4 +124,4 @@ peek/advance/fail 模式），不需要 yaml 那套行预扫。
    有意取舍，不是 bug。
 6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y`，不指定平台会
    回落 mingw、gtest 编译失败。单目标构建 `xmake build libca_xml_unittest`（xmake 一次只接受
-   一个目标），全量测试 `xmake test -g libs/test`。
+   一个目标），全量测试 `xmake test -g libca/test`。

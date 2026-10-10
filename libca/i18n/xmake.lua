@@ -152,7 +152,7 @@ rule("libca.i18n.embed-lang")
 -- header-only：注册表用 function-local static，静态库依赖无下游链接负担。
 target("libca_i18n")
     set_kind("headeronly")
-    set_group("libs")
+    set_group("libca")
 
     add_deps("libca_core", "libca_str")
     add_headerfiles("src/(libca/i18n/*.hpp)")
@@ -163,7 +163,7 @@ target("libca_i18n")
 target("libca_i18n_unittest")
     set_kind("binary")
     set_default(false)
-    set_group("libs/test")
+    set_group("libca/test")
 
     add_deps("libca_i18n")
     add_packages("gtest")

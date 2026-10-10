@@ -74,15 +74,14 @@ jobs:
           # -p linux：显式指定平台，避免歧义。
           # --with_core=y：现等价于编入全部 libca 模块。
           # --with_tests=y：启用 *_unittest target 并拉取 gtest。
-          # --with_demo=n：不编 demo。
           # -y：xrepo 安装 gtest 的交互确认自动通过。
-          xmake f -p linux --with_core=y --with_demo=n --with_tests=y -y
+          xmake f -p linux --with_core=y --with_tests=y -y
 
       - name: Build C++ libraries
-        run: xmake build -g libs -v
+        run: xmake build -g libca -v
 
       - name: Run unit tests
-        run: xmake test -g libs/test -v
+        run: xmake test -g libca/test -v
 
   build-and-test-http-openssl-linux:
     name: build & test HTTP (linux, OpenSSL 3)
@@ -116,7 +115,7 @@ jobs:
 
       - name: Configure HTTP with OpenSSL 3
         run: |
-          xmake f -p linux --with_core=y --with_demo=n --with_tests=y --with_openssl=y -y
+          xmake f -p linux --with_core=y --with_tests=y --with_openssl=y -y
 
       - name: Build and test HTTP with OpenSSL 3
         run: |
@@ -155,18 +154,18 @@ jobs:
       - name: Configure (all modules + tests, msvc)
         if: matrix.toolchain == 'msvc'
         # -p windows -a x64：走 runner 预装的 MSVC 工具链；cmake/ninja 已预装，gtest 由 xrepo 编译。
-        run: xmake f -p windows -a x64 --with_core=y --with_demo=n --with_tests=y -y
+        run: xmake f -p windows -a x64 --with_core=y --with_tests=y -y
 
       - name: Configure (all modules + tests, mingw-gcc)
         if: matrix.toolchain == 'mingw'
         # -p mingw：runner 预装的 MinGW-w64 gcc（PATH 可见），xmake 自动探测。
-        run: xmake f -p mingw -a x86_64 --with_core=y --with_demo=n --with_tests=y -y
+        run: xmake f -p mingw -a x86_64 --with_core=y --with_tests=y -y
 
       - name: Build C++ libraries
-        run: xmake build -g libs
+        run: xmake build -g libca
 
       - name: Run unit tests
-        run: xmake test -g libs/test
+        run: xmake test -g libca/test
 
   build-and-test-openssl-windows:
     name: build & test OpenSSL (windows, msvc)
@@ -195,7 +194,7 @@ jobs:
       - name: Configure with OpenSSL 3
         # Windows 上 xrepo 的 openssl3 若无预编译包会源码编译（需 perl/nasm，
         # xmake 自动拉起）；首轮较慢，命中缓存后恢复。
-        run: xmake f -p windows -a x64 --with_core=y --with_demo=n --with_tests=y --with_openssl=y -y
+        run: xmake f -p windows -a x64 --with_core=y --with_tests=y --with_openssl=y -y
 
       - name: Build OpenSSL-variant unittests
         # OpenSSL 变体影响 crypto（EVP 后端）与 http（TLS），两者一并验证。
@@ -242,7 +241,7 @@ jobs:
         # with_spdlog=y 时 libca_log 追加编译 spdlog 后端源文件，
         # 且 unittest 才包含 spdlog_backend_test.cpp（默认构建会排除）。
         run: |
-          xmake f -p linux --with_core=y --with_demo=n --with_tests=y --with_spdlog=y -y
+          xmake f -p linux --with_core=y --with_tests=y --with_spdlog=y -y
 
       - name: Build and test log with spdlog backend
         run: |

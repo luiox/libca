@@ -19,7 +19,7 @@ xmake ≥ 2.8.3，包定义来自 [luiox-repo](https://github.com/luiox/luiox-re
 
 ```lua
 add_repositories("luiox-repo https://github.com/luiox/luiox-repo.git")
-add_requires("libca 0.0.7")   -- 默认链接除 test 外全部模块
+add_requires("libca 0.0.13")   -- 默认链接除 test 外全部模块
 
 target("app")
     set_kind("binary")
@@ -30,7 +30,7 @@ target("app")
 只链子集（依赖闭包自动补全，拼错直接报错）：
 
 ```lua
-add_requires("libca 0.0.7", {configs = {modules = "core,str,json"}})
+add_requires("libca 0.0.13", {configs = {modules = "core,str,json"}})
 ```
 
 ### 代码
@@ -75,12 +75,9 @@ API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得�
 | **opt** | 命令行选项解析 |
 | **time** | 日期时间 / duration / timestamp |
 | **zip** | JVM ZipFile 语义 ZIP 读写 + 流式 gzip（可选 zlib） |
-| **ui** | Win32 窗口、控件、消息框（Windows） |
 | **random / uuid / env** | 随机数 / UUID / 环境变量 |
 | **resources / i18n** | 构建期资源嵌入 / `.lang` 消息国际化 |
 | **test** | 多项目测试布局与样本定位 |
-
-原内嵌的 C99 嵌入式组件（em）已拆分至独立仓库 [luiox/libca-em](https://github.com/luiox/libca-em)。
 
 ## 构建（本仓库开发）
 
@@ -88,8 +85,10 @@ API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得�
 xmake f -p windows -a x64 --with_tests=y -y   # Windows/MSVC
 xmake f -p linux --with_tests=y -y            # Linux
 xmake
-xmake test -g libs/test
+xmake test -g libca/test
 ```
+
+模块库 target 在 `libca` 组，单测在 `libca/test` 组（另有 `libca/benchmark`、`libca/perf`，默认不构建）。`libca_<模块>_unittest` 等 test target 只在 `--with_tests=y` 时定义；经 xrepo 包消费时包定义强制关闭测试，不向下游导出任何 test target、也不拉 gtest，与下游工程的同名 target 无冲突。
 
 ## 说明
 

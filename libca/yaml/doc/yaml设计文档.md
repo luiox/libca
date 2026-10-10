@@ -145,4 +145,4 @@ kind：Null / Boolean / Integer / Float / String / IntOverflow / FloatOverflow�
    这种不可保真情形回退双引号——写测试断言时要照顾这条分支。
 6. **MSVC 工具链**：`xmake f -p windows -a x64 -y --with_tests=y`，不指定平台
    会回落 mingw、gtest 编译失败。单目标构建用 `xmake build libca_yaml_unittest`（xmake
-   一次只接受一个目标），全量测试用 `xmake test -g libs/test`。
+   一次只接受一个目标），全量测试用 `xmake test -g libca/test`。
