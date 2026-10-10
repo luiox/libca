@@ -23,5 +23,7 @@ target("libca_install_consumer")
 
         target:add("includedirs", path.join(install_dir, "include"))
         target:add("linkdirs", path.join(install_dir, "lib"))
-        target:add("links", "libca_json", "libca_str", "libca_core")
+        -- 闭包须与包定义 MODULE_DEPS 一致：json 解析文件流经 fs::Path 打开（0.0.14 起
+        -- json 依赖 fs），漏链 libca_fs 会在 LNK2019 报 from_utf8_lossy/native 未解析。
+        target:add("links", "libca_json", "libca_fs", "libca_str", "libca_core")
     end)
