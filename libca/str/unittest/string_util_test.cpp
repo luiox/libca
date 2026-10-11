@@ -90,6 +90,25 @@ TEST(StringUtilTest, splitByWhitespace) {
     EXPECT_EQ(result[2], "test");
 }
 
+// 空白拆分口径钉死（去 stringstream 重写后语义不变）：连续空白折叠、首尾空白
+// 丢弃、无空段；空白集合 = classic locale 的 ASCII isspace（空格/\t/\n/\v/\f/\r）。
+TEST(StringUtilTest, splitByWhitespaceEdgeCases) {
+    std::vector<std::string> result;
+    StringUtil::split(result, "  hello \t world\n\r test \f\v ");
+    ASSERT_EQ(result.size(), 3);
+    EXPECT_EQ(result[0], "hello");
+    EXPECT_EQ(result[1], "world");
+    EXPECT_EQ(result[2], "test");
+
+    std::vector<std::string> empty;
+    StringUtil::split(empty, "");
+    EXPECT_TRUE(empty.empty());
+
+    std::vector<std::string> blank;
+    StringUtil::split(blank, " \t\n\r");
+    EXPECT_TRUE(blank.empty());
+}
+
 TEST(StringUtilTest, splitByChar) {
     std::vector<std::string> result;
     StringUtil::split(result, "a,b,c", ',');
@@ -123,6 +142,24 @@ TEST(StringUtilTest, joinWithSeparator) {
 TEST(StringUtilTest, joinEmpty) {
     std::vector<std::string> input;
     EXPECT_EQ(StringUtil::join(input), "");
+    // 空 vector 走 (size - 1) 下溢防护分支：两个分隔符重载都必须产出空串
+    EXPECT_EQ(StringUtil::join(input, ','), "");
+    EXPECT_EQ(StringUtil::join(input, ", "), "");
+}
+
+// 单元素不落分隔符：手写重写后由首元素 i > 0 判断保证，钉住该口径
+TEST(StringUtilTest, joinSingleElement) {
+    std::vector<std::string> input = {"solo"};
+    EXPECT_EQ(StringUtil::join(input), "solo");
+    EXPECT_EQ(StringUtil::join(input, ','), "solo");
+    EXPECT_EQ(StringUtil::join(input, ", "), "solo");
+}
+
+// 空串元素保留：分隔符照常落下，不因元素为空而吞并（与 stringstream 版一致）
+TEST(StringUtilTest, joinPreservesEmptyElements) {
+    std::vector<std::string> input = {"a", "", "c"};
+    EXPECT_EQ(StringUtil::join(input, ','), "a,,c");
+    EXPECT_EQ(StringUtil::join(input, ", "), "a, , c");
 }
 
 // ============================================================
