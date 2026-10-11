@@ -23,6 +23,18 @@ target("libca_fs")
         end
     end)
 
+-- 文件 IO 性能基准（手动运行：xmake build -P . libca_fs_perf）。
+target("libca_fs_perf")
+    set_kind("binary")
+    set_default(false)
+    set_group("libca/perf")
+    add_deps("libca_fs")
+    add_files("perf/fs_perf.cpp")
+    add_includedirs("src")
+    if is_plat("windows") then
+        add_cxflags("/utf-8", {tools = "cl"})
+    end
+
 if has_config("with_tests") then
 target("libca_fs_unittest")
     set_kind("binary")

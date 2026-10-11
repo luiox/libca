@@ -1,6 +1,7 @@
 #include "libca/ini/ini_reader.hpp"
 
 #include "libca/fs/path.hpp"
+#include "libca/fs/stdio_file.hpp"
 
 #include "libca/ini/ini_document.hpp"
 #include "libca/ini/parse_error.hpp"
@@ -9,8 +10,6 @@
 #include "libca/str/utf8_util.hpp"
 
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -316,18 +315,17 @@ ca::Result<IniDocument, ParseError> IniReader::read(
 ca::Result<IniDocument, ParseError> IniReader::read_file(
     const ca::str::Utf8StringRef& path,
     const IniReaderOptions& options) {
+    // 整读经 fs 的 stdio 路径（#249：ifstream+ostringstream 双层流换 fopen+fread 单读）
     std::string path_str = to_std(path);
-    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
-    if (!input.is_open()) {
+    auto content = ca::fs::read_file_all(ca::fs::Path::from_utf8_lossy(path_str));
+    if (content.is_err()) {
         ParseError err;
         err.location = SourceLocation{};
         err.message = ca::str::Utf8String::from_cstr(
-            ca::str::format_std("failed to open INI file: {}", path_str).c_str());
+            ca::str::format_std("failed to read INI file: {}", path_str).c_str());
         return ca::Err(std::move(err));
     }
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    const std::string text = buffer.str();
+    std::string text = std::move(content).unwrap();
     // text 是局部变量，read() 同步完成解析，视图在其返回前一直有效。
     return read(ca::str::Utf8StringRef::from_string_view(
         std::string_view(text.data(), text.size())), options);

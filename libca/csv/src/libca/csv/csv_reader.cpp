@@ -1,12 +1,11 @@
 #include "libca/csv/csv_reader.hpp"
 
 #include "libca/fs/path.hpp"
+#include "libca/fs/stdio_file.hpp"
 
 #include "libca/str/format.hpp"
 
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -178,17 +177,15 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
 ca::Result<CsvDocument, ParseError> CsvReader::read_file(
     const ca::str::Utf8StringRef& path,
     const CsvReaderOptions& options) {
+    // 整读经 fs 的 stdio 路径（#249：ifstream+ostringstream 双层流换 fopen+fread 单读）
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
-    if (!input.is_open()) {
+    auto content = ca::fs::read_file_all(ca::fs::Path::from_utf8_lossy(path_str));
+    if (content.is_err()) {
         return ca::Err(make_error(1, 1,
-            ca::str::format_std("failed to open CSV file: {}", path_str)));
+            ca::str::format_std("failed to read CSV file: {}", path_str)));
     }
-
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    std::string text = buffer.str();
+    std::string text = std::move(content).unwrap();
     // text 是局部 std::string，Utf8StringRef 在解析期间必须有效；read() 同步完成。
     return read(ca::str::Utf8StringRef::from_string_view(
         std::string_view(text.data(), text.size())), options);
