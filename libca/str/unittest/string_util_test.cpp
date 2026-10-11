@@ -142,6 +142,24 @@ TEST(StringUtilTest, joinWithSeparator) {
 TEST(StringUtilTest, joinEmpty) {
     std::vector<std::string> input;
     EXPECT_EQ(StringUtil::join(input), "");
+    // 空 vector 走 (size - 1) 下溢防护分支：两个分隔符重载都必须产出空串
+    EXPECT_EQ(StringUtil::join(input, ','), "");
+    EXPECT_EQ(StringUtil::join(input, ", "), "");
+}
+
+// 单元素不落分隔符：手写重写后由首元素 i > 0 判断保证，钉住该口径
+TEST(StringUtilTest, joinSingleElement) {
+    std::vector<std::string> input = {"solo"};
+    EXPECT_EQ(StringUtil::join(input), "solo");
+    EXPECT_EQ(StringUtil::join(input, ','), "solo");
+    EXPECT_EQ(StringUtil::join(input, ", "), "solo");
+}
+
+// 空串元素保留：分隔符照常落下，不因元素为空而吞并（与 stringstream 版一致）
+TEST(StringUtilTest, joinPreservesEmptyElements) {
+    std::vector<std::string> input = {"a", "", "c"};
+    EXPECT_EQ(StringUtil::join(input, ','), "a,,c");
+    EXPECT_EQ(StringUtil::join(input, ", "), "a, , c");
 }
 
 // ============================================================
