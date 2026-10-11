@@ -677,6 +677,11 @@ TEST(FileUtilTest, Glob_MatcherSemanticsPinned)
     ASSERT_EQ(cross.unwrap().size(), 1u);
     EXPECT_THAT(cross.unwrap()[0], HasSubstr("x.txt"));
 
+    // '?' 拒绝匹配 '/'：src?k.txt 不得命中 src/k.txt（无其他候选，恒空）
+    auto q_cross = FileUtil::glob(PathUtil::join(tmp.path(), "src?k.txt"));
+    ASSERT_TRUE(q_cross.is_ok()) << to_string(q_cross.unwrap_err());
+    EXPECT_TRUE(q_cross.unwrap().empty());
+
     // '?' 单字节不跨 '/'，且 '**/' 零前缀允许根层文件：命中 a.txt（根层）、
     // src/k.txt 与 src/a/b/x.txt（x 也是单字符名）；abtxt 不命中
     auto single = FileUtil::glob(PathUtil::join(tmp.path(), "**/?.txt"));
