@@ -1,12 +1,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 #include <zlib.h>
 
+#include "libca/str/os_string.hpp"
 #include "libca/zip/entry.hpp"
 #include "libca/zip/file.hpp"
 #include "libca/zip/output_stream.hpp"
@@ -60,18 +62,32 @@ TEST(ZipOutputStreamTest, WriteReadDeflated) {
     }
 }
 
+// UTF-8 路径 → std::filesystem::path 的桥：std::filesystem::u8path 自 C++20 起废弃
+// （P0492，char8_t 落地后 char 系重载被废弃），libca 的编码边界是 str::OsString
+// （fs::Path::from_utf8_lossy 与之同源）：Windows 下显式转 UTF-16 再构造 path，
+// POSIX 原生编码即 UTF-8 直通。
+std::filesystem::path utf8_to_fs_path(const std::string& utf8) {
+#if defined(_WIN32)
+    return std::filesystem::path(ca::str::OsString::from_utf8_lossy(utf8).into_wstring());
+#else
+    return std::filesystem::path(utf8);
+#endif
+}
+
 // UTF-8 非 ASCII 路径往返回归：Windows 窄 fopen 是 ANSI 代码页语义，修复前
 // 写侧会把文件落到 ACP 误解码出的乱码名上（fopen "wb" 会创建该乱码文件，写读
 // 因此可能自洽通过），故先断言文件落在 UTF-8 指向的真实路径，再经 ZipFile 读回。
 // POSIX 字节路径恒可开，该平台此用例恒过，与 fs/解析器的非 ASCII 路径用例同一口径。
-// 路径经 u8path 构造、u8string 取回，保证传入 zip API 的字节串就是原样 UTF-8。
+// 目录段经 u8string() 取 UTF-8（C++17 下即 std::string），文件名以 UTF-8 字面量
+// 拼入，保证传入 zip API 的字节串就是原样 UTF-8；fs 断言一律经上面的桥。
 TEST(ZipOutputStreamTest, WriteReadNonAsciiUtf8Path) {
     namespace fs = std::filesystem;
-    const auto dir = fs::temp_directory_path() / "libca_zip_test";
+    const fs::path dir = fs::temp_directory_path() / "libca_zip_test";
     fs::create_directories(dir);
-    const std::string outPath = (dir / fs::u8path("目录-中文-📦.zip")).u8string();
+    const std::string           outPath    = dir.u8string() + "/目录-中文-📦.zip";
+    const std::filesystem::path nativePath = utf8_to_fs_path(outPath);
     std::error_code ec;
-    fs::remove(fs::u8path(outPath), ec);
+    fs::remove(nativePath, ec);
     {
         ZipOutputStream zos(outPath);
         expect_ok(zos.put_next_entry(ZipEntry("test.txt", 0, 5, 0, 0, 0)), "put: ");
@@ -79,7 +95,7 @@ TEST(ZipOutputStreamTest, WriteReadNonAsciiUtf8Path) {
         expect_ok(zos.write(reinterpret_cast<const ca::u8*>(content.data()), content.size()), "write: ");
         expect_ok(zos.close_entry(), "close: ");
     }
-    ASSERT_TRUE(fs::exists(fs::u8path(outPath)));
+    ASSERT_TRUE(fs::exists(nativePath));
 
     ZipFile zf(outPath);
     EXPECT_EQ(zf.size(), 1u);
