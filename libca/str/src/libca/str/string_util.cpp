@@ -11,8 +11,6 @@
 #include <charconv>
 #include <cstdarg>
 #include <cstring>
-#include <iterator>
-#include <sstream>
 
 namespace ca::str {
 
@@ -254,11 +252,20 @@ std::string StringUtil::trim(const std::string& input, const char* trims) {
 // ==================== 拆分与合并 ====================
 
 void StringUtil::split(std::vector<std::string>& output, const std::string& input) {
+    // 按空白拆分、不留空段：语义与原 istringstream >> istream_iterator 完全一致
+    //（跳过连续空白、空白集合 = classic locale 的 ASCII isspace），免去 streambuf
+    // 构造与 locale 查询开销。
     output.clear();
-    std::istringstream iss(input);
-    std::copy(std::istream_iterator<std::string>(iss),
-              std::istream_iterator<std::string>(),
-              std::back_inserter(output));
+    auto is_space = [](char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
+    };
+    size_t i = 0;
+    while (i < input.size()) {
+        while (i < input.size() && is_space(input[i])) ++i;
+        size_t start = i;
+        while (i < input.size() && !is_space(input[i])) ++i;
+        if (i > start) output.push_back(input.substr(start, i - start));
+    }
 }
 
 void StringUtil::split(std::vector<std::string>& output, const std::string& input, char separator) {
@@ -294,21 +301,29 @@ std::string StringUtil::join(const std::vector<std::string>& input) {
 }
 
 std::string StringUtil::join(const std::vector<std::string>& input, char separator) {
-    std::ostringstream os;
-    for (const auto& item : input) {
-        if (&item != &input.front()) os << separator;
-        os << item;
+    // 直接拼接：ostringstream 版本每次构造 streambuf 并走 locale 路径，无谓开销。
+    size_t total = input.empty() ? 0 : input.size() - 1;
+    for (const auto& item : input) total += item.size();
+    std::string out;
+    out.reserve(total);
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (i > 0) out.push_back(separator);
+        out += input[i];
     }
-    return os.str();
+    return out;
 }
 
 std::string StringUtil::join(const std::vector<std::string>& input, const char* separators) {
-    std::ostringstream os;
-    for (const auto& item : input) {
-        if (&item != &input.front()) os << separators;
-        os << item;
+    const size_t sep_len = std::strlen(separators);
+    size_t total = input.empty() ? 0 : (input.size() - 1) * sep_len;
+    for (const auto& item : input) total += item.size();
+    std::string out;
+    out.reserve(total);
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (i > 0) out.append(separators, sep_len);
+        out += input[i];
     }
-    return os.str();
+    return out;
 }
 
 // ==================== 比较 ====================
