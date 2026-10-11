@@ -4,6 +4,7 @@
 
 #include "libca/str/utf8_string.hpp"
 
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -29,26 +30,29 @@ public:
         if (n > 0) sb_.append(buf, static_cast<ca::usize>(n));
     }
     void write_float(ca::f64 v) {
-        // RFC 8259 不允许 NaN/Infinity（未定义字面量）；snprintf("%g") 会输出 "nan"/"inf"
+        // RFC 8259 不允许 NaN/Infinity（未定义字面量）；底层转换会输出 "nan"/"inf"
         // 产生非法 JSON。这里统一序列化为 null。
         if (std::isnan(v) || std::isinf(v)) {
             sb_.append("null");
             return;
         }
         char buf[64];
-        // %.17g 保证 double round-trip 精度；但整数形态（如 2.0 写成 "2"、-0.0 写成 "-0"）
-        // 读回会被当 Int，类型与 -0.0 的符号双双丢失——需补 ".0" 保持 Float 形态
+        // to_chars 最短 round-trip：保证读回同一 double，且比 %.17g 显著更短更可读
+        //（0.1 写作 "0.1" 而非 "0.10000000000000001"），也无 snprintf 的 locale/
+        // 格式串开销。整数形态（2.0 写成 "2"、-0.0 写成 "-0"）读回会被当 Int，
+        // 类型与 -0.0 的符号双双丢失——需补 ".0" 保持 Float 形态
         // （与 toml/yaml writer 做法一致）。
-        int n = std::snprintf(buf, sizeof(buf), "%.17g", static_cast<double>(v));
-        if (n <= 0) { sb_.append("0.0"); return; }
+        auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), static_cast<double>(v));
+        if (ec != std::errc{}) { sb_.append("0.0"); return; }
+        ca::usize n = static_cast<ca::usize>(ptr - buf);
         bool has_dot_or_exp = false;
-        for (int i = 0; i < n; ++i) {
+        for (ca::usize i = 0; i < n; ++i) {
             if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'E') { has_dot_or_exp = true; break; }
         }
-        if (!has_dot_or_exp && n + 2 < static_cast<int>(sizeof(buf))) {
+        if (!has_dot_or_exp && n + 2 < sizeof(buf)) {
             buf[n] = '.'; buf[n + 1] = '0'; n += 2;
         }
-        sb_.append(buf, static_cast<ca::usize>(n));
+        sb_.append(buf, n);
     }
 
     void write_raw(const char* s, ca::usize len) { sb_.append(s, len); }

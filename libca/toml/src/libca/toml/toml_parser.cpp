@@ -2,6 +2,7 @@
 
 #include "libca/str/utf8_util.hpp"
 
+#include <charconv>
 #include <cassert>
 #include <cerrno>
 #include <cmath>
@@ -1142,7 +1143,7 @@ bool TomlParser::try_parse_datetime(const u8* p, usize len, TomlDatetime& out, u
 
 bool TomlParser::parse_number_decimal(const u8* begin, usize len, TomlValue& out) {
     SourceLocation start = loc_;
-    // 校验：去除下划线后调用 strtoll/strtod。
+    // 校验：去除下划线后交给 std::from_chars。
     // TOML 下划线规则：只能在数字之间；不在首尾；不在符号后；不在 . 或 e/E 前后。
     // 这里做宽松校验（不允许多个连续下划线、首尾下划线）。
     if (len == 0) { fail(start, "invalid number"); return false; }
@@ -1207,19 +1208,22 @@ bool TomlParser::parse_number_decimal(const u8* begin, usize len, TomlValue& out
         buf.push_back(static_cast<char>(c));
     }
     if (buf.empty()) { fail(start, "invalid number"); return false; }
-    buf.push_back('\0');
 
-    char* endp = nullptr;
-    errno = 0;
+    // TOML 允许前导 '+'，from_chars 不接受 '+'，手动跳过（buf 末尾无需 NUL）。
+    const char* first = buf.data() + (buf[0] == '+' ? 1 : 0);
+    const char* last  = buf.data() + buf.size();
     if (is_float) {
-        double d = std::strtod(buf.data(), &endp);
-        if (errno == ERANGE) { fail(start, "float out of range"); return false; }
-        if (endp != buf.data() + buf.size() - 1) { fail(start, "invalid float"); return false; }
+        // from_chars 不受进程 LC_NUMERIC 影响（strtod 会因 setlocale 截断 "3.14"）。
+        double d = 0.0;
+        auto result = std::from_chars(first, last, d);
+        if (result.ec == std::errc::result_out_of_range) { fail(start, "float out of range"); return false; }
+        if (result.ec != std::errc{} || result.ptr != last) { fail(start, "invalid float"); return false; }
         out = TomlValue::make_float(d);
     } else {
-        long long v = std::strtoll(buf.data(), &endp, 10);
-        if (errno == ERANGE) { fail(start, "integer out of range (i64)"); return false; }
-        if (endp != buf.data() + buf.size() - 1) { fail(start, "invalid integer"); return false; }
+        long long v = 0;
+        auto result = std::from_chars(first, last, v);
+        if (result.ec == std::errc::result_out_of_range) { fail(start, "integer out of range (i64)"); return false; }
+        if (result.ec != std::errc{} || result.ptr != last) { fail(start, "invalid integer"); return false; }
         out = TomlValue::make_integer(static_cast<ca::i64>(v));
     }
     // 推进游标
