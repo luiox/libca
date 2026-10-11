@@ -3,9 +3,7 @@
 #include "libca/str/utf8_util.hpp"
 
 #include <cassert>
-#include <cerrno>
-#include <cstdlib>
-#include <cstring>
+#include <charconv>
 
 namespace ca::json {
 
@@ -213,7 +211,7 @@ void JsonParser::parse_number() {
     const usize begin = pos_;
 
     // 简单字符扫描：允许 -?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?
-    // 这里只做字符级接受，数值转换交给 strtoll/strtod（带范围与解析失败检查）。
+    // 这里只做字符级接受，数值转换交给 std::from_chars（带范围与解析失败检查）。
     if (peek() == '-') advance();
     // 整数部分
     if (peek() == '0') {
@@ -253,60 +251,36 @@ void JsonParser::parse_number() {
     }
 
     const usize end = pos_;
-    const usize len = end - begin;
-    // 复制到临时缓冲并以 \0 结尾，供 strtoll/strtod 使用
-    char buf[64];
-    if (len < sizeof(buf)) {
-        std::memcpy(buf, data_ + begin, len);
-        buf[len] = '\0';
-    } else {
-        // 超长数字：堆上分配
-        char* heap = static_cast<char*>(std::malloc(len + 1));
-        if (!heap) {
-            fail(start, "out of memory parsing number");
+    // from_chars 直接消费 [begin, end) 字节区间：无需 NUL 结尾与堆拷贝，且不受
+    // 进程 locale 影响（strtod 受 LC_NUMERIC 影响，宿主程序 setlocale 后
+    // "3.14" 会被按逗号小数点语义截断）。语法已在上方字符级校验，这里只做
+    // 范围与整段消费检查；溢出的整数降级 double 与原 strtoll→strtod 路径同口径。
+    const char* first = reinterpret_cast<const char*>(data_ + begin);
+    const char* last  = reinterpret_cast<const char*>(data_ + end);
+    if (!is_float) {
+        long long v = 0;
+        auto int_result = std::from_chars(first, last, v);
+        if (int_result.ec == std::errc{}) {
+            handler_.on_int(static_cast<i64>(v), start);
             return;
         }
-        std::memcpy(heap, data_ + begin, len);
-        heap[len] = '\0';
-
-        char* endp = nullptr;
-        errno = 0;
-        double d = std::strtod(heap, &endp);
-        std::free(heap);
-        if (errno == ERANGE) {
-            fail(start, "number out of range");
-            return;
-        }
-        if (endp != heap + len) {
+        // 语法已校验：整数路径失败只会是 i64 溢出，降级为 double
+        if (int_result.ec != std::errc::result_out_of_range) {
             fail(start, "invalid number");
             return;
         }
-        handler_.on_float(d, start);
+    }
+    double d = 0.0;
+    auto float_result = std::from_chars(first, last, d);
+    if (float_result.ec == std::errc::result_out_of_range) {
+        fail(start, "number out of range");
         return;
     }
-
-    char* endp = nullptr;
-    errno = 0;
-    if (is_float) {
-        double d = std::strtod(buf, &endp);
-        if (errno == ERANGE) { fail(start, "number out of range"); return; }
-        if (endp != buf + len) { fail(start, "invalid number"); return; }
-        handler_.on_float(d, start);
-    } else {
-        long long v = std::strtoll(buf, &endp, 10);
-        if (errno == ERANGE) {
-            // i64 溢出，降级为 double
-            errno = 0;
-            double d = std::strtod(buf, &endp);
-            if (errno == ERANGE) { fail(start, "number out of range"); return; }
-            if (endp != buf + len) { fail(start, "invalid number"); return; }
-            handler_.on_float(d, start);
-        } else if (endp != buf + len) {
-            fail(start, "invalid number");
-        } else {
-            handler_.on_int(static_cast<i64>(v), start);
-        }
+    if (float_result.ec != std::errc{} || float_result.ptr != last) {
+        fail(start, "invalid number");
+        return;
     }
+    handler_.on_float(d, start);
 }
 
 // ============================================================================

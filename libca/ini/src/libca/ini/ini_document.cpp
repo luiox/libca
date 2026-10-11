@@ -2,6 +2,7 @@
 
 #include "libca/str/format.hpp"
 
+#include <charconv>
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -191,13 +192,18 @@ ca::Result<ca::f64, ca::str::Utf8String> IniDocument::get_double(
             ca::str::format_std("INI key not found: {}", key).c_str()));
     }
     const std::string s = strip_quotes_to_std(*value);
-    // strtod 无异常；溢出（ERANGE）与 stod 一致按非法处理。前导空白显式拒绝
-    //（同 get_int：消除 " 1.5" 合法而 "1.5 " 非法的不对称）。
-    errno = 0;
-    char* end = nullptr;
-    const double v = std::strtod(s.c_str(), &end);
+    // from_chars 无异常且不受进程 LC_NUMERIC 影响（strtod 在宿主程序 setlocale 后
+    // 会把 "3.14" 按逗号小数点语义截断）；溢出与 stod 一致按非法处理。前导空白
+    // 显式拒绝（同 get_int：消除 " 1.5" 合法而 "1.5 " 非法的不对称）。保留 strtod
+    // 对前导 '+' 的宽容（"+1.5" 仍合法，from_chars 本身不接受 '+'，这里手动跳过）；
+    // 十六进制浮点（"0x1p2"）不再当 double 接受（strtod 曾宽容，非 INI 常规语义）。
+    const bool has_plus = !s.empty() && s[0] == '+';
+    const char* first  = s.data() + (has_plus ? 1 : 0);
+    const char* last   = s.data() + s.size();
+    double v = 0.0;
+    auto result = std::from_chars(first, last, v);
     if (s.empty() || std::isspace(static_cast<unsigned char>(s[0])) ||
-        errno == ERANGE || end != s.c_str() + s.size()) {
+        result.ec != std::errc{} || result.ptr != last) {
         return ca::Err(ca::str::Utf8String::from_cstr(
             ca::str::format_std("INI value is not a valid number: {}", *value).c_str()));
     }

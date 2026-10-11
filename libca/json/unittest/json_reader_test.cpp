@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <clocale>
 #include <utility>
 
 using namespace ca;
@@ -34,6 +35,40 @@ TEST(JsonReaderTest, ParsesNull) {
 TEST(JsonReaderTest, ParsesBool) {
     EXPECT_TRUE(read_ok("true").root().as_bool());
     EXPECT_FALSE(read_ok("false").root().as_bool());
+}
+
+// LC_NUMERIC 毒化回归：strtod 时代宿主程序 setlocale 到逗号小数点区域（如德语）
+// 后，"3.14" 会被按本地小数点语义截断判非法；from_chars 与进程 locale 无关。
+// 找不到逗号小数点 locale 则 SKIP（CI ubuntu 自带 de_DE.UTF-8）。
+TEST(JsonReaderTest, NumberParsingImmuneToLcNumericLocale) {
+    struct LocaleGuard {
+        ~LocaleGuard() { std::setlocale(LC_NUMERIC, "C"); }
+    } guard;
+    const char* candidates[] = {"de_DE.UTF-8", "de-DE", "de_DE", "German_Germany"};
+    bool applied = false;
+    for (const char* name : candidates) {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+            applied = true;
+            break;
+        }
+    }
+    if (!applied) GTEST_SKIP() << "no comma-decimal locale available";
+
+    auto doc = read_ok("{\"v\":3.14,\"w\":1e-2}");
+    ASSERT_TRUE(doc.root().is_object());
+    ASSERT_TRUE(doc.root().find(R("v")) != nullptr);
+    ASSERT_TRUE(doc.root().find(R("v"))->is_float());
+    EXPECT_DOUBLE_EQ(doc.root().find(R("v"))->as_float(), 3.14);
+    ASSERT_TRUE(doc.root().find(R("w")) != nullptr);
+    EXPECT_DOUBLE_EQ(doc.root().find(R("w"))->as_float(), 1e-2);
+}
+
+// 子正规 double（denorm_min）跨平台统一解析成功：glibc strtod 对子正规结果置
+// ERANGE，strtod 时代 Linux 上此值被判非法、MSVC 上合法；from_chars 统一为合法。
+TEST(JsonReaderTest, ParsesSubnormalDouble) {
+    auto doc = read_ok("4.9e-324");
+    ASSERT_TRUE(doc.root().is_float());
+    EXPECT_DOUBLE_EQ(doc.root().as_float(), 4.9406564584124654e-324);
 }
 
 TEST(JsonReaderTest, ParsesInt) {

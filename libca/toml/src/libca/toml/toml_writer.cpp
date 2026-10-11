@@ -4,6 +4,7 @@
 
 #include "libca/str/utf8_string.hpp"
 
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -77,23 +78,25 @@ public:
     void write_float(ca::f64 v) {
         if (std::isnan(v)) { sb_.append("nan"); return; }
         if (std::isinf(v)) { sb_.append(v < 0 ? "-inf" : "inf"); return; }
-        // %.17g 保证 round-trip；但需保证结果至少含一个 '.' 或 'e'，
-        // 否则 TOML 解析器会把整数形态当作 Integer。
+        // to_chars 最短 round-trip：读回同一 double 且比 %.17g 更短更可读（0.1 写作
+        // "0.1"），无 snprintf 的 locale/格式串开销；但需保证结果至少含一个 '.' 或
+        // 'e'，否则 TOML 解析器会把整数形态当作 Integer。
         char buf[64];
-        int n = std::snprintf(buf, sizeof(buf), "%.17g", static_cast<double>(v));
-        if (n <= 0) { sb_.append("0.0"); return; }
+        auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), static_cast<double>(v));
+        if (ec != std::errc{}) { sb_.append("0.0"); return; }
+        ca::usize n = static_cast<ca::usize>(ptr - buf);
         // 检查是否含 '.' 或 'e'/'E'
         bool has_dot_or_exp = false;
-        for (int i = 0; i < n; ++i) {
+        for (ca::usize i = 0; i < n; ++i) {
             if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'E') { has_dot_or_exp = true; break; }
         }
         if (!has_dot_or_exp) {
             // 整数形态（如 "1"），追加 ".0"
-            if (n + 2 < (int)sizeof(buf)) {
+            if (n + 2 < sizeof(buf)) {
                 buf[n] = '.'; buf[n+1] = '0'; n += 2;
             }
         }
-        sb_.append(buf, static_cast<ca::usize>(n));
+        sb_.append(buf, n);
     }
 
     void write_datetime(const TomlDatetime& dt) {

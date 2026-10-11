@@ -1,5 +1,6 @@
 #include "libca/ini/ini.hpp"
 
+#include <clocale>
 #include <cstdio>
 #include <string>
 #include <utility>
@@ -194,6 +195,39 @@ TEST(IniDocumentTypedTest, GetIntFailsOnNonNumber) {
 }
 
 TEST(IniDocumentTypedTest, GetDouble) {
+    auto doc = read_ok("[s]\nx = 3.14\n");
+    EXPECT_DOUBLE_EQ(doc.get_double(R("s"), R("x")).unwrap_or(0.0), 3.14);
+}
+
+// strtod 曾宽容前导 '+'（"+1.5" 合法）；收敛到 from_chars 后显式保留该宽容。
+TEST(IniDocumentTypedTest, GetDoubleAcceptsLeadingPlus) {
+    auto doc = read_ok("[s]\nx = +1.5\n");
+    EXPECT_DOUBLE_EQ(doc.get_double(R("s"), R("x")).unwrap_or(0.0), 1.5);
+}
+
+// strtod 曾把十六进制浮点（"0x1p2" = 8.0）当 double 接受；from_chars 通用格式
+// 不含十六进制，收敛后按非法处理（非 INI 常规语义，钉死新口径）。
+TEST(IniDocumentTypedTest, GetDoubleRejectsHexFloat) {
+    auto doc = read_ok("[s]\nx = 0x1p2\n");
+    EXPECT_TRUE(doc.get_double(R("s"), R("x")).is_err());
+}
+
+// LC_NUMERIC 毒化回归：strtod 时代宿主程序 setlocale 到逗号小数点区域后
+// "3.14" 会被截断判非法；from_chars 与进程 locale 无关。找不到该类 locale 则 SKIP。
+TEST(IniDocumentTypedTest, GetDoubleImmuneToLcNumericLocale) {
+    struct LocaleGuard {
+        ~LocaleGuard() { std::setlocale(LC_NUMERIC, "C"); }
+    } guard;
+    const char* candidates[] = {"de_DE.UTF-8", "de-DE", "de_DE", "German_Germany"};
+    bool applied = false;
+    for (const char* name : candidates) {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr) {
+            applied = true;
+            break;
+        }
+    }
+    if (!applied) GTEST_SKIP() << "no comma-decimal locale available";
+
     auto doc = read_ok("[s]\nx = 3.14\n");
     EXPECT_DOUBLE_EQ(doc.get_double(R("s"), R("x")).unwrap_or(0.0), 3.14);
 }
