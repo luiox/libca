@@ -647,6 +647,48 @@ TEST(FileUtilTest, Glob_DirectoryWildcardUsesRecursiveWalk)
     EXPECT_THAT(matched.unwrap()[0], HasSubstr("nested/c.txt"));
 }
 
+// glob 匹配器语义钉死（std::regex → 手写匹配器替换，口径逐条对齐旧正则）：
+// 正则元字符（'.' 等）按字面匹配；'*' 不跨 '/'；'**' 段中可跨 '/'；
+// '?' 匹配单字节且不跨 '/'；'**/' 可零长（根层文件直接命中）。
+TEST(FileUtilTest, Glob_MatcherSemanticsPinned)
+{
+    TempDirGuard tmp;
+    ASSERT_TRUE(tmp.valid());
+
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("a.txt"), "a").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("abtxt"), "b").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("src/k.txt"), "k").is_ok());
+    ASSERT_TRUE(FileUtil::write_text(tmp.make_path("src/a/b/x.txt"), "x").is_ok());
+
+    // '.' 只按字面点号匹配："a.txt" 不命中 "abtxt"
+    auto literal = FileUtil::glob(PathUtil::join(tmp.path(), "a.txt"));
+    ASSERT_TRUE(literal.is_ok()) << to_string(literal.unwrap_err());
+    ASSERT_EQ(literal.unwrap().size(), 1u);
+
+    // '*' 不跨 '/'：src/ 一层只命中 k.txt，不吞深层 a/b/x.txt
+    auto one_level = FileUtil::glob(PathUtil::join(tmp.path(), "src/*.txt"));
+    ASSERT_TRUE(one_level.is_ok()) << to_string(one_level.unwrap_err());
+    ASSERT_EQ(one_level.unwrap().size(), 1u);
+    EXPECT_THAT(one_level.unwrap()[0], HasSubstr("k.txt"));
+
+    // '**' 位于段中可跨 '/'：src**x.txt 命中 src/a/b/x.txt（不命中 k.txt/top 名）
+    auto cross = FileUtil::glob(PathUtil::join(tmp.path(), "src**x.txt"));
+    ASSERT_TRUE(cross.is_ok()) << to_string(cross.unwrap_err());
+    ASSERT_EQ(cross.unwrap().size(), 1u);
+    EXPECT_THAT(cross.unwrap()[0], HasSubstr("x.txt"));
+
+    // '?' 拒绝匹配 '/'：src?k.txt 不得命中 src/k.txt（无其他候选，恒空）
+    auto q_cross = FileUtil::glob(PathUtil::join(tmp.path(), "src?k.txt"));
+    ASSERT_TRUE(q_cross.is_ok()) << to_string(q_cross.unwrap_err());
+    EXPECT_TRUE(q_cross.unwrap().empty());
+
+    // '?' 单字节不跨 '/'，且 '**/' 零前缀允许根层文件：命中 a.txt（根层）、
+    // src/k.txt 与 src/a/b/x.txt（x 也是单字符名）；abtxt 不命中
+    auto single = FileUtil::glob(PathUtil::join(tmp.path(), "**/?.txt"));
+    ASSERT_TRUE(single.is_ok()) << to_string(single.unwrap_err());
+    ASSERT_EQ(single.unwrap().size(), 3u);
+}
+
 // ==================== move ====================
 
 TEST(FileUtilTest, Move_File)
