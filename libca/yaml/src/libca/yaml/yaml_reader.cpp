@@ -1,14 +1,13 @@
 #include "libca/yaml/yaml_reader.hpp"
 
 #include "libca/fs/path.hpp"
+#include "libca/fs/stdio_file.hpp"
 
 #include "libca/yaml/yaml_parser.hpp"
 
 #include "libca/str/format.hpp"
 
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -24,10 +23,10 @@ ParseError clone_error(const ParseError& error) {
     return copy;
 }
 
-ParseError make_open_error(const ca::str::Utf8StringRef& path) {
+ParseError make_read_error(const ca::str::Utf8StringRef& path) {
     ParseError error;
     error.message = ca::str::Utf8String::from_cstr(
-        ca::str::format_std("failed to open YAML file: {}", path).c_str());
+        ca::str::format_std("failed to read YAML file: {}", path).c_str());
     return error;
 }
 
@@ -52,15 +51,14 @@ ca::Result<YamlDocument, ParseError> YamlReader::read(const ca::str::Utf8StringR
 
 ca::Result<YamlDocument, ParseError> YamlReader::read_file(const ca::str::Utf8StringRef& path,
                                                            const YamlReaderOptions& options) {
+    // 整读经 fs 的 stdio 路径（#249：ifstream+ostringstream 双层流换 fopen+fread 单读）
     std::string path_str(reinterpret_cast<const char*>(path.data()),
                          reinterpret_cast<const char*>(path.data()) + path.byte_length());
-    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
-    if (!input.is_open()) {
-        return ca::Err(make_open_error(path));
+    auto content = ca::fs::read_file_all(ca::fs::Path::from_utf8_lossy(path_str));
+    if (content.is_err()) {
+        return ca::Err(make_read_error(path));
     }
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    const std::string text = buffer.str();
+    std::string text = std::move(content).unwrap();
     // 解析是同步的，text 覆盖 read() 全程，零拷贝视图安全。
     return read(ca::str::Utf8StringRef::from_string_view(std::string_view(text.data(), text.size())),
                 options);

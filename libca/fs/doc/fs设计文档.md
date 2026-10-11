@@ -51,6 +51,7 @@ libca/fs/
   - 创建：`create_file` / `create_directories` / `create_temp_file` / `create_temp_directory`
   - 备份：`backup`
 - **FileMode** 写入模式位标志：`OVERWRITE` / `APPEND` / `CREATE_NEW`。
+- **stdio_file**：`StdioFile`（FILE* RAII 句柄）/ `open_stdio`（平台打开封装）/ `read_file_all`（无预检整读）。
 
 命名遵循 libca C++ 规范：snake_case，getter 无 `get_` 前缀（如 `size()`），常量 UPPER_SNAKE。
 
@@ -148,6 +149,40 @@ UTF-8 ↔ 原生编码的转换实现只存在于 `path.cpp` 一处——C++20 �
 `to_utf8_lossy` 按 U+FFFD 替代；无损承载只能停留在 `Path`/`from_native` 层。
 这与 Rust 用 WTF-8 解决该问题的取舍不同——只要后端是 std::filesystem，此层限制
 不可避免，选择文档声明而非重造路径解析。
+
+### 4.9 读路径 iostream → C stdio（#249 基准驱动）
+
+**动机**：整读场景 iostream 开销真实存在——streambuf 虚分发、locale 机制、
+大块 read 仍走 streambuf 分块拷贝。但「是否替换」由基准数据裁决，不凭体感。
+
+**基准**（`libca_fs_perf`，Windows/MSVC x64 release，三轮取稳定区间，绝对值受
+Defender 放大、看比值）：整读 4MB stdio 比 ifstream 快 **3~4x**（分块拷贝代价，
+可移植结论）；2KB/64KB 两者持平（open 系统调用主导）。**整写 stdio 与 ofstream
+在噪声区间内互有胜负（±15%），无 setvbuf 还劣化——写路径维持 iostream 不替换**。
+
+**设计**：新增 `stdio_file.hpp` 公开头，三件套：
+
+- `StdioFile`：FILE* 的 RAII 句柄（析构 fclose、禁拷贝、可移动、`release/reset`）；
+- `open_stdio(Path, mode)`：**平台分支集中点**——Windows 窄 `fopen` 按 ANSI 代码页
+  解释路径（UTF-8 中文/emoji 必然失败），须 `_wfopen` 经 Path 编码边界转宽；
+  POSIX 直通。失败经 errno → `classify_error` 归类（ENOENT→`FileNotFound` 等）。
+  调用方不得散写 `_wfopen`/`fopen`；
+- `read_file_all(Path)`：无预检整读（open → seek END 取尺寸 → rewind → 单次 fread，
+  尺寸走 64 位 seek 口径：MSVC `_fseeki64`/`_ftelli64`、POSIX `fseeko`/`ftello`）。
+  不做 `exists`/`is_regular_file` 预检——错误由打开/读取的 errno 归类承担
+  （POSIX 目录 fread 报 EISDIR→`IsADirectory`）；适合要自行映射错误的整读方
+  （六个解析器的 `read_file`）。需要 `NotARegularFile` 明确语义的用 FileUtil。
+
+**FileUtil 落地**：`read_all_bytes`/`read_all_text`/`read_lines` 内部改经 stdio
+整读；读预检由 `exists()`+`is_regular_file()` **两次 stat 合并为一次 `status()`**
+（错误语义逐条不变：不存在→`FileNotFound`、非普通文件→`NotARegularFile`，
+基准显示两次 stat 占小文件整读 ~60% 开销）。`read_lines` 由 getline 流式改为
+整读后内存拆行（返回值语义逐条对齐旧实现，见 CHANGELOG）。
+
+**明确不做**：写路径不替换（基准无收益）；io 模块的流式 Reader/Writer 抽象层
+不动（本批只覆盖「按路径打开 + 整读」热点）；log 异步后端如需跟进单独拆条目。
+zip 模块已有同构的 `detail/file_io`（#250），不复用 fs 封装属刻意——zip 不引
+fs 依赖，避免改包定义的链接闭包。
 
 ## 5. 未纳入本期（未来可扩展）
 

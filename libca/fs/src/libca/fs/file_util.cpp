@@ -1,5 +1,7 @@
 #include "file_util.hpp"
 
+#include "stdio_file.hpp"
+
 #include "libca/str/bom.hpp"
 
 #include <filesystem>
@@ -91,39 +93,51 @@ Result<void, FsError> write_exclusive_create(const std::filesystem::path& p,
     return Ok();
 }
 
-// read_all_bytes/read_all_text/read_lines 共享的前置流程：校验路径 → 打开文件 → 取字节大小。
-// 成功时把已定位到末尾的输入流写入 out_file、字节大小写入 out_size 并返回 FsError::Ok；
-// 失败时返回具体 FsError（out_* 未定义）。
-// size 上限守卫：文件大小无法用 ca::usize 表示（32 位平台读 >4GB）时返 ReadFailed，
-// 防止后续 buffer 分配截断导致缓冲区溢出。
-FsError open_for_read(const std::filesystem::path& p, std::ifstream& out_file,
-                      std::streamoff& out_size)
+// read_all_bytes/read_all_text/read_lines 共享的前置流程：一次 status 预检 + stdio 整读。
+// 预检原为 exists()+is_regular_file() 两次 stat，合并为一次 status()（错误语义不变：
+// 不存在→FileNotFound、非普通文件→NotARegularFile，#249 基准：两次 stat 占小文件
+// 整读 ~60%）。整读经 stdio_file（大文件比 ifstream 快 3~4x，小/中持平，见其背景注记）。
+Result<std::string, FsError> read_file_checked(const std::filesystem::path& p)
 {
-    if (!std::filesystem::exists(p)) {
-        return FsError::FileNotFound;
-    }
-    if (!std::filesystem::is_regular_file(p)) {
-        return FsError::NotARegularFile;
-    }
+    std::error_code ec;
+    const auto st = std::filesystem::status(p, ec);
+    if (ec)
+        return Err(classify_error(ec));
+    if (!std::filesystem::exists(st))
+        return Err(FsError::FileNotFound);
+    if (!std::filesystem::is_regular_file(st))
+        return Err(FsError::NotARegularFile);
 
-    std::ifstream file(p, std::ios::binary | std::ios::ate);
-    if (!file.is_open()) {
-        return FsError::OpenFailed;
-    }
+    auto content = read_file_all(Path(p));
+    if (content.is_err())
+        return Err(std::move(content).unwrap_err());
+    return Ok(std::move(content).unwrap());
+}
 
-    auto size = file.tellg();
-    if (size < 0) {
-        return FsError::ReadFailed;
+// 按行拆分（LF/CRLF）：语义对齐原 std::getline 循环 + 行尾 CR 剥离——
+// 结尾无换行的末行保留、连续换行产生空行、文件以换行结尾不追加末空行。
+std::vector<std::string> split_lines(const std::string& text)
+{
+    std::vector<std::string> lines;
+    std::size_t pos = 0;
+    while (pos <= text.size()) {
+        const std::size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) {
+            if (pos < text.size()) {
+                std::string line = text.substr(pos);
+                if (!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                lines.push_back(std::move(line));
+            }
+            break;
+        }
+        std::size_t end = nl;
+        if (end > pos && text[end - 1] == '\r')
+            --end;
+        lines.emplace_back(text, pos, end - pos);
+        pos = nl + 1;
     }
-    // 防御：文件大小超出 usize 可表示范围时拒绝，避免分配截断/缓冲区溢出。
-    if (static_cast<unsigned long long>(size) >
-        static_cast<unsigned long long>(static_cast<ca::usize>(-1))) {
-        return FsError::ReadFailed;
-    }
-
-    out_file = std::move(file);
-    out_size = size;
-    return FsError::Ok;
+    return lines;
 }
 
 std::filesystem::path make_atomic_temp_path(const std::filesystem::path& dst)
@@ -248,26 +262,12 @@ Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const std::string& pat
 Result<ca::core::Bytes, FsError> FileUtil::read_all_bytes(const Path& path)
 {
     try {
-        std::ifstream file;
-        std::streamoff size = 0;
-        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok) {
-            return Err(e);
-        }
-        auto byte_count = static_cast<ca::usize>(size);
-
-        if (byte_count == 0) {
-            return Ok(ca::core::Bytes());
-        }
-
-        std::vector<ca::u8> buffer(byte_count);
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char*>(buffer.data()), size);
-        if (file.fail() && !file.eof()) {
-            return Err(FsError::ReadFailed);
-        }
-        file.close();
-
-        return Ok(ca::core::Bytes::copy_from_slice(buffer.data(), buffer.size()));
+        auto content = read_file_checked(path.native());
+        if (content.is_err())
+            return Err(std::move(content).unwrap_err());
+        std::string text = std::move(content).unwrap();
+        return Ok(ca::core::Bytes::copy_from_slice(
+            reinterpret_cast<const ca::u8*>(text.data()), text.size()));
     } catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_error(e.code()));
     } catch (const std::exception&) {
@@ -283,23 +283,10 @@ Result<std::string, FsError> FileUtil::read_all_text(const std::string& path, bo
 Result<std::string, FsError> FileUtil::read_all_text(const Path& path, bool strip_bom)
 {
     try {
-        std::ifstream file;
-        std::streamoff size = 0;
-        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok) {
-            return Err(e);
-        }
-
-        // 直接读入 std::string 并移动返回，避免 vector→Bytes→string 的多重拷贝。
-        std::string buffer;
-        if (size > 0) {
-            buffer.resize(static_cast<std::size_t>(size));
-            file.seekg(0, std::ios::beg);
-            file.read(&buffer[0], size);
-            if (file.fail() && !file.eof()) {
-                return Err(FsError::ReadFailed);
-            }
-        }
-        file.close();
+        auto content = read_file_checked(path.native());
+        if (content.is_err())
+            return Err(std::move(content).unwrap_err());
+        std::string buffer = std::move(content).unwrap();
 
         // BOM 剥离：复用 str 模块的字节级检测（fs→str 依赖方向合法）。
         // 只在显式要求且确实检测到 BOM 时擦除前缀，默认行为与旧版完全一致。
@@ -435,23 +422,12 @@ Result<std::vector<std::string>, FsError> FileUtil::read_lines(const std::string
 Result<std::vector<std::string>, FsError> FileUtil::read_lines(const Path& path)
 {
     try {
-        std::ifstream file;
-        std::streamoff size = 0;
-        if (auto e = open_for_read(path.native(), file, size); e != FsError::Ok)
-            return Err(e);
-
-        std::vector<std::string> lines;
-        std::string line;
-        file.seekg(0, std::ios::beg);
-        while (std::getline(file, line)) {
-            if (!line.empty() && line.back() == '\r')
-                line.pop_back();
-            lines.push_back(line);
-        }
-        if (file.bad())
-            return Err(FsError::ReadFailed);
-
-        return Ok(std::move(lines));
+        auto content = read_file_checked(path.native());
+        if (content.is_err())
+            return Err(std::move(content).unwrap_err());
+        // 整读后内存拆行（原 getline 流式）：read_lines 本就返回全部行（O(行数)
+        // 内存），峰值多一份文件内容，配置级文件可忽略；IO 错误已由整读承担。
+        return Ok(split_lines(std::move(content).unwrap()));
     } catch (const std::filesystem::filesystem_error& e) {
         return Err(classify_error(e.code()));
     } catch (const std::exception&) {
