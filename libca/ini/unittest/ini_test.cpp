@@ -1,3 +1,4 @@
+#include "libca/fs/path.hpp"
 #include "libca/ini/ini.hpp"
 
 #include <clocale>
@@ -431,7 +432,7 @@ TEST(IniDocumentTest, NumericGetRejectsLeadingWhitespace) {
     EXPECT_TRUE(doc.get_int(R("s"), R("ok")).is_ok());
 }
 
-// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+// 非 ASCII（UTF-8）路径经 ca::fs::Path 构造原生路径的真实文件往返回归，理由同 json 用例。
 TEST(IniIoTest, RoundTripsThroughUtf8PathFile) {
     const std::string path = "build/libca_ini_utf8路径回归.ini";
     auto document = read_ok("[app]\nname = libca\n");
@@ -444,5 +445,5 @@ TEST(IniIoTest, RoundTripsThroughUtf8PathFile) {
     EXPECT_EQ(S(get_ok(loaded_doc, "app", "name")), "libca.ini");
 
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }

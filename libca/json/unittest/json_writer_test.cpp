@@ -1,3 +1,4 @@
+#include "libca/fs/path.hpp"
 #include "libca/json/json.hpp"
 
 #include <gtest/gtest.h>
@@ -232,7 +233,7 @@ TEST(JsonWriterTest, RoundTripPreservesFloatTypeForIntegralValuedFloats) {
     EXPECT_TRUE(std::signbit(docn2.root().as_float()));
 }
 
-// read_file/write_file 经 u8path 处理路径：非 ASCII（UTF-8）路径在 Windows ACP
+// read_file/write_file 经 ca::fs::Path 处理路径：非 ASCII（UTF-8）路径在 Windows ACP
 // 环境下按窄字符打开会落到错误文件名，这里做真实文件往返回归。
 TEST(JsonWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     const std::string path = "build/libca_json_utf8路径回归.json";
@@ -243,5 +244,5 @@ TEST(JsonWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     JsonDocument reloaded = std::move(loaded).unwrap();
     EXPECT_TRUE(equal(doc.root(), reloaded.root()));
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }
