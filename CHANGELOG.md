@@ -7,6 +7,31 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「说明」）
 
+## [Unreleased]
+
+### libca
+
+- **[zip] Windows 非 ASCII 路径打开修复**：`ZipFile`/`ZipOutputStream` 的
+  `std::string` 路径参数明确为 UTF-8 编码契约；Windows 内部经 `ca::str::OsString`
+  转 UTF-16 走 `_wfopen`（窄 `fopen` 是 ANSI 代码页语义，UTF-8 中文/emoji 路径
+  此前必然打开失败或落到乱码文件名），POSIX 原样直通。zip 模块因此新增对
+  `libca_str` 的构建依赖；测试侧的 `std::filesystem::u8path`（C++20 起 P0492
+  废弃）一并清除，改经 `str::OsString` 桥接原生编码。
+- **[json/ini/toml] 数字转换 locale 加固**：`strtod`/`strtoll`/`snprintf("%.17g")`
+  全面替换为 `std::from_chars`/`std::to_chars`，数值解析与序列化不再受进程
+  `LC_NUMERIC`（宿主程序 `setlocale` 到逗号小数点区域）影响。行为收敛：ini 的
+  十六进制浮点（`0x1p2`）不再当 double 接受；子正规 double（如 `4.9e-324`）
+  跨平台统一为合法（glibc `strtod` 曾置 `ERANGE` 判非法，MSVC 合法）；
+  json/toml writer 浮点输出由 `%.17g` 改为 `to_chars` 最短 round-trip 表示
+  （`0.1` 写作 `"0.1"`），仍保证读回同一 double。
+- **[fs] glob 弃用 std::regex 改手写匹配器**：`*`/`?`/`**`/`**/` 语义与旧正则
+  逐条对齐，每候选匹配 15-18x 加速（免每模式 NFA 编译与逐候选解释执行）。
+  唯一口径差：`**` 不再排除含 `\n` 的路径段（旧 ECMAScript 正则的 `.` 不匹配
+  `\n`，而 POSIX 文件名可含换行）。
+- **[str] string_util 去 stringstream 残留**：空白 split / 两个 join 重载改
+  手写实现，语义不变（空白集合 = classic locale 的 ASCII isspace、空串元素
+  保留、空表/单元素边界已钉死测试），免去 streambuf 构造与 locale 查询开销。
+
 ## [0.0.14] - 2026-10-10
 
 ### libca
