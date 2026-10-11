@@ -1,13 +1,13 @@
 # Changelog
 
-本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.14`。
+本文件记录跨版本的不兼容变更与重要行为变化。当前版本 `0.0.15`。
 
 ## 格式约定
 
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「说明」）
 
-## [Unreleased]
+## [0.0.15] - 2026-10-11
 
 ### libca
 
@@ -31,6 +31,11 @@
 - **[str] string_util 去 stringstream 残留**：空白 split / 两个 join 重载改
   手写实现，语义不变（空白集合 = classic locale 的 ASCII isspace、空串元素
   保留、空表/单元素边界已钉死测试），免去 streambuf 构造与 locale 查询开销。
+- **[全局] 测试侧 u8path 清零**：config/csv/ini/json/toml/xml/yaml/fs 单测中
+  13 处 `std::filesystem::u8path` 调用（C++20 起 P0492 废弃）统一改经
+  `ca::fs::Path::from_utf8_lossy(...).native()` 构造原生路径；zip 测试经
+  `str::OsString` 桥接（#250，zip 不引 fs 依赖属刻意）。src 与 test 至此
+  全库零 u8path 调用。
 
 ## [0.0.14] - 2026-10-10
 
