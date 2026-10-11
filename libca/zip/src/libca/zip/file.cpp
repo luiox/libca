@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "libca/zip/checksum.hpp"
+#include "libca/zip/detail/file_io.hpp"
 #include "libca/zip/detail/inflate_raw.hpp"
 
 namespace ca::zip {
@@ -492,13 +493,7 @@ ZipFile::ZipFile(const std::vector<ca::u8>& data)
 ZipFile::~ZipFile() = default;
 
 Result<void, ZipErrorInfo> ZipFile::open(const std::string& path) {
-    FILE* fp = nullptr;
-#ifdef _MSC_VER
-    if (::fopen_s(&fp, path.c_str(), "rb") != 0)
-        fp = nullptr;
-#else
-    fp = std::fopen(path.c_str(), "rb");
-#endif
+    FILE* fp = open_stdio_file(path, "rb");
     if (!fp) {
         return Err(ZipErrorInfo{ZipError::NOT_FOUND, "Failed to open file: " + path});
     }

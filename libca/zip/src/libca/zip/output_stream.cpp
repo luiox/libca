@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "libca/zip/checksum.hpp"
+#include "libca/zip/detail/file_io.hpp"
 #include "libca/zip/entry.hpp"
 #include <zlib.h>
 
@@ -124,13 +125,7 @@ Result<void, ZipErrorInfo> ZipOutputStream::open(const std::string& path) {
     if (impl_->opened) {
         return Err(ZipErrorInfo{ZipError::INVALID_STATE, "ZipOutputStream already open"});
     }
-    FILE* fp = nullptr;
-#ifdef _MSC_VER
-    if (::fopen_s(&fp, path.c_str(), "wb") != 0)
-        fp = nullptr;
-#else
-    fp = std::fopen(path.c_str(), "wb");
-#endif
+    FILE* fp = open_stdio_file(path, "wb");
     if (!fp) {
         return Err(ZipErrorInfo{ZipError::IO_FAILED, "Failed to open file for writing: " + path});
     }

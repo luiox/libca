@@ -22,6 +22,8 @@ public:
     ZipFile();
 
     /// @brief 打开磁盘上的归档并立即解析。
+    /// @param path UTF-8 编码的归档路径；Windows 内部经 UTF-16 走 _wfopen
+    ///             （窄 fopen 是 ANSI 代码页语义，非 ASCII 路径打不开）。
     /// @note 构造路径保留异常：失败抛 std::runtime_error；需要 Result 语义请
     ///       先默认构造再调 open(path)。
     explicit ZipFile(const std::string& path);
@@ -34,6 +36,7 @@ public:
     ~ZipFile();
 
     /// @brief 打开磁盘归档并解析；失败时保持关闭状态。
+    /// @param path UTF-8 编码的归档路径（编码语义同路径构造重载）。
     Result<void, ZipErrorInfo> open(const std::string& path);
 
     /// @brief 从内存镜像解析归档；失败时保持关闭状态。
