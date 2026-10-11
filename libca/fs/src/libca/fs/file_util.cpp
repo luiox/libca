@@ -6,7 +6,6 @@
 #include <fstream>
 #include <algorithm>
 #include <random>
-#include <regex>
 #include <sstream>
 #include <iterator>
 #include <stdexcept>
@@ -148,57 +147,63 @@ bool has_glob_wildcard(const std::string& pattern) noexcept
            pattern.find('?') != std::string::npos;
 }
 
-bool is_regex_meta(char ch) noexcept
+// 手写 glob 匹配器，逐条对齐旧实现 glob_to_regex 生成正则的语义：
+//   '*'  → [^/]*   不含 '/' 的任意字节序列
+//   '?'  → [^/]    单个非 '/' 字节
+//   '**/ → (?:.*/)?  零个或多个「任意字节序列 + '/'」目录前缀
+//   '**' → .*      任意字节序列，可跨 '/'
+//   其余字符按字面匹配（旧正则对元字符转义，即字面量）；整串锚定匹配。
+// 弃用 std::regex 的原因：每模式一次 NFA 编译 + 每候选解释执行，是标准库
+// 公认的慢路径；大目录树上对每个候选跑一遍 regex_match 开销显著。
+// 字节语义与旧正则一致（UTF-8 路径按字节匹配）。唯一口径差：旧正则 '.'
+// 不匹配 '\n'，POSIX 文件名可含换行，手写版 '**' 不再排除（见 CHANGELOG）。
+bool glob_match(std::string_view pattern, std::string_view text)
 {
-    switch (ch) {
-    case '.':
-    case '^':
-    case '$':
-    case '+':
-    case '(':
-    case ')':
-    case '[':
-    case ']':
-    case '{':
-    case '}':
-    case '|':
-    case '\\':
-        return true;
-    default:
-        return false;
-    }
-}
-
-std::string glob_to_regex(const std::string& pattern)
-{
-    std::string out = "^";
-    for (ca::usize i = 0; i < pattern.size();) {
-        const char ch = pattern[i];
-        if (ch == '*') {
-            if (i + 1 < pattern.size() && pattern[i + 1] == '*') {
-                if (i + 2 < pattern.size() && pattern[i + 2] == '/') {
-                    out += "(?:.*/)?";
-                    i += 3;
-                } else {
-                    out += ".*";
-                    i += 2;
+    usize pi = 0;
+    usize ti = 0;
+    while (true) {
+        if (pi == pattern.size())
+            return ti == text.size();
+        const char pc = pattern[pi];
+        if (pc == '*') {
+            if (pi + 1 < pattern.size() && pattern[pi + 1] == '*') {
+                if (pi + 2 < pattern.size() && pattern[pi + 2] == '/') {
+                    // '**/'：先按零前缀试，再在每个 '/' 后试（含跨多级目录）
+                    if (glob_match(pattern.substr(pi + 3), text.substr(ti)))
+                        return true;
+                    for (usize k = ti; k < text.size(); ++k) {
+                        if (text[k] == '/' &&
+                            glob_match(pattern.substr(pi + 3), text.substr(k + 1)))
+                            return true;
+                    }
+                    return false;
                 }
-            } else {
-                out += "[^/]*";
-                ++i;
+                // '**'：任意序列，从最长消费开始回溯
+                for (usize k = text.size() + 1; k-- > ti;) {
+                    if (glob_match(pattern.substr(pi + 2), text.substr(k)))
+                        return true;
+                }
+                return false;
             }
-        } else if (ch == '?') {
-            out += "[^/]";
-            ++i;
-        } else {
-            if (is_regex_meta(ch))
-                out += '\\';
-            out += ch;
-            ++i;
+            // '*'：不含 '/' 的序列，从零长开始扩展
+            for (usize k = ti;; ++k) {
+                if (glob_match(pattern.substr(pi + 1), text.substr(k)))
+                    return true;
+                if (k == text.size() || text[k] == '/')
+                    return false;
+            }
         }
+        if (ti == text.size())
+            return false;
+        if (pc == '?') {
+            if (text[ti] == '/')
+                return false;
+        } else if (text[ti] != pc) {
+            return false;
+        }
+        ++pi;
+        ++ti;
     }
-    out += "$";
-    return out;
 }
 
 std::filesystem::path glob_root(const std::string& pattern)
@@ -783,27 +788,26 @@ Result<std::vector<std::string>, FsError> FileUtil::glob(const std::string& patt
         if (!std::filesystem::is_directory(root))
             return Err(FsError::NotADirectory);
 
-        const std::regex matcher(glob_to_regex(normalized), std::regex::ECMAScript);
         std::vector<std::string> matches;
         auto options = std::filesystem::directory_options::skip_permission_denied;
         if (glob_needs_recursive_walk(normalized)) {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(root, options)) {
                 auto candidate = to_utf8_path(entry.path());
-                if (std::regex_match(candidate, matcher))
+                if (glob_match(normalized, candidate))
                     matches.push_back(candidate);
             }
         } else {
             // 普通文件名通配只扫描 root 一层，避免在大目录树上做不必要的递归遍历。
             // 候选 = 模式的目录前缀 + 条目文件名：与模式文本形状严格一致。裸相对
             // 模式（"*.txt" 前缀为空）此前用 directory_iterator(".") 产出的
-            // "./a.txt" 候选，多出的 "./" 使正则永不匹配、恒返回空结果。
+            // "./a.txt" 候选，多出的 "./" 使匹配永不命中、恒返回空结果。
             const auto  last_slash = normalized.find_last_of('/');
             const std::string prefix =
                 (last_slash == std::string::npos) ? std::string()
                                                   : normalized.substr(0, last_slash + 1);
             for (const auto& entry : std::filesystem::directory_iterator(root, options)) {
                 auto candidate = prefix + to_utf8_path(entry.path().filename());
-                if (std::regex_match(candidate, matcher))
+                if (glob_match(normalized, candidate))
                     matches.push_back(std::move(candidate));
             }
         }
