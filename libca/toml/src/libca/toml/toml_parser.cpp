@@ -1209,7 +1209,7 @@ bool TomlParser::parse_number_decimal(const u8* begin, usize len, TomlValue& out
     }
     if (buf.empty()) { fail(start, "invalid number"); return false; }
 
-    // TOML 允许前导 '+'，from_chars 不接受 '+’，手动跳过（buf 末尾无需 NUL）。
+    // TOML 允许前导 '+'，from_chars 不接受 '+'，手动跳过（buf 末尾无需 NUL）。
     const char* first = buf.data() + (buf[0] == '+' ? 1 : 0);
     const char* last  = buf.data() + buf.size();
     if (is_float) {
