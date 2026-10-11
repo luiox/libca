@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "libca/fs/file_util.hpp"
+#include "libca/fs/path.hpp"
 
 namespace ca { namespace fs { namespace test {
 
@@ -403,7 +404,7 @@ TEST(FileUtilTest, Metadata_FileSymlinkDescribesLinkItself)
 
     auto link = tmp.make_path("file_link.txt");
     std::error_code ec;
-    std::filesystem::create_symlink("target.txt", std::filesystem::u8path(link), ec);
+    std::filesystem::create_symlink("target.txt", Path::from_utf8_lossy(link).native(), ec);
     if (ec) {
         // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
         GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
@@ -434,7 +435,7 @@ TEST(FileUtilTest, Metadata_DirectorySymlinkDescribesLinkItself)
 
     auto link = tmp.make_path("dir_link");
     std::error_code ec;
-    std::filesystem::create_directory_symlink("subdir", std::filesystem::u8path(link), ec);
+    std::filesystem::create_directory_symlink("subdir", Path::from_utf8_lossy(link).native(), ec);
     if (ec) {
         // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
         GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
@@ -459,7 +460,7 @@ TEST(FileUtilTest, Metadata_DanglingSymlinkReturnsFileNotFound)
 
     auto link = tmp.make_path("dangling_link");
     std::error_code ec;
-    std::filesystem::create_symlink("missing.txt", std::filesystem::u8path(link), ec);
+    std::filesystem::create_symlink("missing.txt", Path::from_utf8_lossy(link).native(), ec);
     if (ec) {
         // NTFS symlink 需开发者模式/管理员权限，普通用户进程创建失败则跳过。
         GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
@@ -910,14 +911,14 @@ TEST(FileUtilTest, IsReadable_NonExistent)
 
 // Windows Unicode 路径回归：验证含中文/非 ASCII 的路径在全链路无有损转换。
 // 原因：std::filesystem::path(std::string) 在 Windows 上按本地代码页（ACP）解析，
-// 修复后内部统一用 std::filesystem::u8path，正确按 UTF-8 解码为 wchar_t。
-// 这些用例在 Linux/macOS 恒过（u8path 为 no-op），Windows 中文系统代码页下才能暴露原 bug。
+// 内部统一经 ca::fs::Path 完成 UTF-8 → 原生编码转换（u8path 已于 0.0.14 全库清除）。
+// 这些用例在 Linux/macOS 恒过（UTF-8 即原生编码），Windows 中文系统代码页下才能暴露原 bug。
 TEST(FileUtilTest, UnicodePathRoundTrip)
 {
     TempDirGuard tmp;
     ASSERT_TRUE(tmp.valid());
 
-    // 含中文目录与文件名。make_path 内部走 PathUtil::join（已 u8path 化）。
+    // 含中文目录与文件名。make_path 内部走 PathUtil::join（已 Path 化）。
     const std::string relDir = u8"测试目录";
     const std::string relFile = u8"测试目录/中文文件.txt";
     auto dirPath = tmp.make_path(relDir);
@@ -1100,7 +1101,7 @@ TEST(FileUtilTest, ListFilesRecursive_SkipsPermissionDeniedSubtree)
     tmp.create_file("open.txt");
     tmp.create_file("secret/hidden.txt");  // 受保护子树内文件：应被完整跳过
 
-    const auto protected_dir = std::filesystem::u8path(tmp.make_path("secret"));
+    const auto protected_dir = Path::from_utf8_lossy(tmp.make_path("secret")).native();
     std::error_code ec;
     std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
     ASSERT_FALSE(ec) << ec.message();
@@ -1142,7 +1143,7 @@ TEST(FileUtilTest, GlobRecursive_SkipsPermissionDeniedSubtree)
     tmp.create_file("open.txt");
     tmp.create_file("secret/hidden.txt");
 
-    const auto protected_dir = std::filesystem::u8path(tmp.make_path("secret"));
+    const auto protected_dir = Path::from_utf8_lossy(tmp.make_path("secret")).native();
     std::error_code ec;
     std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
     ASSERT_FALSE(ec) << ec.message();
@@ -1177,7 +1178,7 @@ TEST(FileUtilTest, CopyDir_SkipsPermissionDeniedSubtree)
     ASSERT_TRUE(FileUtil::write_text(PathUtil::join(src_dir, "open.txt"), "a").is_ok());
     ASSERT_TRUE(FileUtil::write_text(PathUtil::join(src_dir, "secret/hidden.txt"), "b").is_ok());
 
-    const auto protected_dir = std::filesystem::u8path(PathUtil::join(src_dir, "secret"));
+    const auto protected_dir = Path::from_utf8_lossy(PathUtil::join(src_dir, "secret")).native();
     std::error_code ec;
     std::filesystem::permissions(protected_dir, std::filesystem::perms::none, ec);
     ASSERT_FALSE(ec) << ec.message();

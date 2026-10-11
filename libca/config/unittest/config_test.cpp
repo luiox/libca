@@ -8,6 +8,7 @@
 #include "libca/core/datatype.hpp"
 
 #include "libca/fs/file_util.hpp"
+#include "libca/fs/path.hpp"
 
 #include "libca/json/json_document.hpp"
 #include "libca/json/json_reader.hpp"
@@ -654,6 +655,6 @@ TEST_F(ConfigTest, DumpFileRoundTripsThroughLoadFile) {
     EXPECT_EQ(std::move(restored).unwrap()->value(), 42);
 
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }
 }   // namespace

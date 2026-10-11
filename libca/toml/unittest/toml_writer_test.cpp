@@ -1,3 +1,4 @@
+#include "libca/fs/path.hpp"
 #include "libca/toml/toml.hpp"
 
 #include <gtest/gtest.h>
@@ -283,7 +284,7 @@ TEST(TomlWriterTest, EscapesDeleteCharacter) {
     EXPECT_NE(out.index_of(R("\\u007f")), ca::usize(-1));  // 输出含转义而非原样 DEL
 }
 
-// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+// 非 ASCII（UTF-8）路径经 ca::fs::Path 构造原生路径的真实文件往返回归，理由同 json 用例。
 TEST(TomlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     const std::string path = "build/libca_toml_utf8路径回归.toml";
     TomlDocument doc;
@@ -296,5 +297,5 @@ TEST(TomlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     ASSERT_NE(value, nullptr);
     EXPECT_EQ(value->as_string(), R("libca"));
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }

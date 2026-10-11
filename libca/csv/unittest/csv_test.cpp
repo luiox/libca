@@ -1,4 +1,5 @@
 #include "libca/csv/csv.hpp"
+#include "libca/fs/path.hpp"
 
 #include <cstdio>
 #include <fstream>
@@ -361,7 +362,7 @@ TEST(CsvReaderTest, SkipsUtf8Bom) {
     EXPECT_EQ(first_header, "name");
 }
 
-// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+// 非 ASCII（UTF-8）路径经 ca::fs::Path 构造原生路径的真实文件往返回归，理由同 json 用例。
 TEST(CsvIoTest, RoundTripsThroughUtf8PathFile) {
     const std::string path = "build/libca_csv_utf8路径回归.csv";
     CsvDocument document;
@@ -383,7 +384,7 @@ TEST(CsvIoTest, RoundTripsThroughUtf8PathFile) {
     EXPECT_EQ(loaded_document.rows()[0][1], "42");
 
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }
 
 TEST(CsvReaderTest, RejectsReservedDelimiterAndQuoteChars) {

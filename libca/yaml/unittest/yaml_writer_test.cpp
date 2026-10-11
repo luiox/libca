@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include "libca/fs/path.hpp"
 #include "libca/yaml/yaml.hpp"
 
 using namespace ca;
@@ -305,7 +306,7 @@ TEST(YamlWriterTest, RoundtripNestedSequences) {
         "    - b\n");
 }
 
-// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+// 非 ASCII（UTF-8）路径经 ca::fs::Path 构造原生路径的真实文件往返回归，理由同 json 用例。
 TEST(YamlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     const std::string path = "build/libca_yaml_utf8路径回归.yaml";
     YamlDocument doc;
@@ -318,5 +319,5 @@ TEST(YamlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     auto ldoc = std::move(loaded).unwrap();
     EXPECT_EQ(ldoc.root().find(R("key"))->as_string(), R("value"));
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }

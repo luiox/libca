@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <string>
 
+#include "libca/fs/path.hpp"
 #include "libca/xml/xml.hpp"
 
 using namespace ca;
@@ -250,7 +251,7 @@ TEST(XmlWriterTest, RoundtripWithDeclaration) {
     expect_roundtrip(R"(<?xml version="1.0" encoding="UTF-8"?><root><a>1</a></root>)");
 }
 
-// 非 ASCII（UTF-8）路径经 u8path 打开的真实文件往返回归，理由同 json 用例。
+// 非 ASCII（UTF-8）路径经 ca::fs::Path 构造原生路径的真实文件往返回归，理由同 json 用例。
 TEST(XmlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     const std::string path = "build/libca_xml_utf8路径回归.xml";
     XmlDocument doc;
@@ -266,5 +267,5 @@ TEST(XmlWriterTest, WriteFileReadFileUtf8PathRoundtrip) {
     auto ldoc = std::move(loaded).unwrap();
     EXPECT_EQ(S(ldoc.root().first_element(R("key"))->text()), "value");
     std::error_code ec;
-    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    std::filesystem::remove(ca::fs::Path::from_utf8_lossy(path).native(), ec);
 }
