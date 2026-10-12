@@ -2,9 +2,9 @@
 // CBC 链接性与 IV 依赖 / PKCS#5 正常与非法填充 / 回环属性 / 弱密钥不校验语义 /
 // 错误路径。
 //
-// 黄金组来源：luiox/morpher mjt-deobf/test/des_eval_test.cpp（JCE harness
+// 黄金组来源：上游 des_eval_test.cpp（JCE harness
 // work/zkm_universal/td0_harness/Td0Vectors.java，JDK17 SunJCE 实测产出；
-// KAT 向量与 FIPS 46-3 附录 B 交叉一致）。morpher 侧 DES 双实现下沉本模块后，
+// KAT 向量与 FIPS 46-3 附录 B 交叉一致）。上游侧 DES 双实现下沉本模块后，
 // 这些数字即双向兼容锚点。
 #include <gtest/gtest.h>
 
@@ -44,7 +44,7 @@ ByteSlice view(const Bytes& data)
     return ByteSlice(data.as_ptr(), data.len());
 }
 
-// 确定性 LCG（回环属性测试；避免测试内随机性），与 morpher des_eval_test 同款。
+// 确定性 LCG（回环属性测试；避免测试内随机性），与上游 des_eval_test 同款。
 u64 next_lcg(u64& state)
 {
     state = state * 6364136223846793005ULL + 1442695040888963407ULL;
@@ -109,7 +109,7 @@ TEST(DesTest, KatFipsAppendixAndClassics)
 }
 
 // ---------------------------------------------------------------------------
-// JCE 黄金组（来源：luiox/morpher mjt-deobf/test/des_eval_test.cpp，SunJCE 实测）
+// JCE 黄金组（来源：上游 des_eval_test.cpp，SunJCE 实测）
 // ---------------------------------------------------------------------------
 
 // 单块解密黄金组：D(133457799BBCDFF1, FEDCBA9876543210)=7D4D8B4E525E14ED、

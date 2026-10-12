@@ -1669,7 +1669,7 @@ TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
 }
 
 
-// ---- HelpTable: two-column help row table (issue luiox/morpher#890) ----
+// ---- HelpTable: two-column help row table ----
 
 TEST(HelpTableTest, RendersRelativeColumnsWithAutoWidth)
 {

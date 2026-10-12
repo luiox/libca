@@ -77,7 +77,7 @@
 
 ### libca
 
-- **[opt]** HelpTable 排版能力扩展（morpher#890）：多列布局、原样行块组合、
+- **[opt]** HelpTable 排版能力扩展（上游需求）：多列布局、原样行块组合、
   折行（续行尾随空白对齐 render_columns 口径、折行空格口径写实）、CJK 显示
   宽度与渲染列能力；非法 UTF-8/末列折行用例钉死行为（R54 N1-N3 落刀随本条
   落地，opt.cpp/opt.hpp 实现域 + unittest 覆盖）
@@ -96,7 +96,7 @@
 ### libca
 
 - **[test]** http 健壮性（#228）三项修复补齐测试覆盖（+173 行，client_server_test）：Windows deadline 轮询、HEAD 帧不污染连接、不可重试请求保留底层错误。三项修复本体已随 [0.0.9] 发布，本版为覆盖落地，无行为变化
-- **[docs]** libca_net syslinks 注释文档化（morpher#952 根治记录：target 层 `add_syslinks("ws2_32","iphlpapi")` 自 50bb642 起，包定义同步义务注明），无代码改动
+- **[docs]** libca_net syslinks 注释文档化（上游需求 根治记录：target 层 `add_syslinks("ws2_32","iphlpapi")` 自 50bb642 起，包定义同步义务注明），无代码改动
 
 ## [0.0.11] - 2026-10-03
 
@@ -118,11 +118,11 @@
 ### libca
 
 - **[random]** 新增确定性伪随机原语 `SplitMix64` / `Xorshift32`（header-only，
-  仅依赖 core）：作为 luiox/morpher#1027 A3/A4 的收敛单份，语义逐位锁定
-  morpher 正典（SplitMix64 = vmc4_instance.cpp 内联版；Xorshift32 =
+  仅依赖 core）：作为上游 A3/A4 的收敛单份，语义逐位锁定
+  本仓正典（SplitMix64 = vmc4_instance.cpp 内联版；Xorshift32 =
   regc_cache_pool.cpp regcStringXorshift32，与 native_lib_crypto.hpp
   xorshift32Step 同式），unittest 以 Python 复刻正典产出的 golden 向量做
-  位精确对拍，morpher 收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0
+  位精确对拍，收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0
   为定义行为（序列恒 0，与正典一致），不做隐式替换。
 - **[crypto]** 新增标准 DES 块密码原语 `crypto/des.hpp`（FIPS 46-3：IP/FP + 16 轮
   Feistel、E 扩展、8 S-box、P 置换、PC-1/PC-2 密钥调度）：单块
@@ -130,17 +130,17 @@
   `des_cbc_encrypt/decrypt` 双向（NoPadding，IV 显式传入，非整块返回
   INVALID_ARGUMENT）、PKCS#5 助手 `pkcs5_pad`/`pkcs5_unpad`（非法填充报错）。
   纯内置实现，**不接** OpenSSL/CNG 后端（现代提供方已弃用 DES）；密钥奇偶位不
-  校验不调整、弱密钥不拒绝（对齐 JCE `DESKeySpec` 语义，morpher#1027 A5 下沉
-  单份原语的逐位对齐硬要求），单测钉死 SunJCE 实测黄金组（来源
-  morpher mjt-deobf des_eval_test）。
+  校验不调整、弱密钥不拒绝（对齐 JCE `DESKeySpec` 语义，该项随本轮下沉
+  单份原语的逐位对齐硬要求），单测钉死 SunJCE 实测黄金组（对拍来源见
+  des_eval_test）。
 
 ### 全局
 
 - **[构建/包定义]** luiox-repo 的 `packages/l/libca/xmake.lua` Windows
-  `add_syslinks` 补齐清单补 `Iphlpapi`（morpher#952）：50bb642 为 `libca.net`
+  `add_syslinks` 补齐清单补 `Iphlpapi`（上游需求）：50bb642 为 `libca.net`
   新增自由函数 `ca::net::interface_list`（Windows 调 `GetAdaptersAddresses`，
   符号在 iphlpapi.lib），而模块 target 的 `add_syslinks` 不随包安装传导，
-  包定义 Windows 清单漏同步，消费方（mjt-mcp 经 libmcp Streamable HTTP
+    补齐 Windows 清单遗漏同样导致消费方 HTTP 传输类项目（libmcp Streamable HTTP
   首次拉入 `libca_net`）静态链接报 `LNK2019: __imp_GetAdaptersAddresses`。
   修复在包定义层，syslinks 清单对既有各锁定版本一并生效（多链接一个未用
   库无害）；`on_test` 新增的 net 链接级自检（syslinks 再缺失时包安装期即
@@ -148,7 +148,7 @@
   存在，更早锁定版本的全新安装会死在自检编译期（评审 R7）。libca 仓内
   net target 自 50bb642 起已正确声明 `add_syslinks("ws2_32", "iphlpapi")`，
   仓内构建与源码无需变更；消费侧临时 `add_syslinks("Iphlpapi")` 垫片
-  （morpher mjt）可在修复生效后移除。
+  （上游项目）可在修复生效后移除。
 
 ## [0.0.9] - 2026-10-01
 
@@ -277,7 +277,7 @@
   再调 `wait_with_output()` 续接即可取回全部输出与退出状态（不丢数据）；`Command::output`
   新增 `OutputOptions` 重载（`timeout` + `kill_on_timeout`，后者默认 true：超时自动终止并
   回收）。`wait_with_output()` 的排空从并发读线程改为等待期间非阻塞增量排空（Windows
-  `PeekNamedPipe` / POSIX `poll`），对外行为不变。服务 morpher mj2x-cli 编译器外呼超时
+  `PeekNamedPipe` / POSIX `poll`），对外行为不变。承接上游项目的 cli 编译器外呼超时
   （其 dev_plan G-2）。
 - **2026-09 小件批次**（分支 `feat/small-items`，全部为新增能力，详见各头文件 Doxygen）：
   - **[core]** 新增 `at_exit.hpp`（`AtExitManager` 进程级 LIFO 退出回调）、
@@ -377,8 +377,8 @@
 - **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物
   一次性入池的规范入口）；`Utf8StringArena::owns(const Utf8StringRef&)` 指针范围归属
   判定（上层容器 debug 断言「视图确属本池」用）；`Utf8StringRef` 与 `std::string_view`
-  的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。服务 morpher 树 API 所有权重构战役
-  （morpher doc_ai/ownership-model.md §1.6）。
+  的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。承接树 API 的权重重构
+  （内部设计文档 §1.6）。
 - **[str] 不兼容 API 收敛**：移除 `Utf8String::size()` / `empty()`，长度统一语义明确的
   `length()`（码点数）与 `byte_length()`（字节数），空判断统一 `is_empty()`；
   `ZUtf8StringRef`、`Utf8String` 到 `std::string_view` 均改为显式转换——每个字符串类型

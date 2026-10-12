@@ -511,7 +511,7 @@ std::string help_text(const Command& cmd, const std::vector<std::string>& groups
     return render_help(cmd, {cmd.name}, &groups);
 }
 
-// ---- HelpTable: help 行排版表（issue luiox/morpher#890）----
+// ---- HelpTable: help 行排版表（上游需求）----
 
 namespace {
 

@@ -1,7 +1,7 @@
 ---
 version: 1.9
 update:
-2026-10-03 - HelpTable 排版层扩展（morpher#890）：多列结构行 add_row、原样行
+2026-10-03 - HelpTable 排版层扩展（上游需求）：多列结构行 add_row、原样行
              add_raw 与块合并 append（列宽渲染期全表重算）；列宽口径可切
              WidthMode（默认 Codepoint 保持历史逐字节行为，Display 按 East
              Asian Width 近似计 CJK 为 2）；set_text_width 末列折行 + 悬挂
@@ -190,7 +190,7 @@ Initial, Default }`：seed 与 CLI 写入分开登记来源，成本极低；下
 ### 3.8 HelpTable 排版层：对齐是渲染期的事
 
 i18n 迁移暴露的问题：help 文案靠字符串字面量里的手工空格做列对齐，翻译值必须
-逐条复刻空格数，列宽一调全表返工（morpher#890）。HelpTable 把对齐收进渲染期：
+逐条复刻空格数，列宽一调全表返工（上游需求）。HelpTable 把对齐收进渲染期：
 
 - **表即多行块**：结构行（`add`/`add_row`）与原样行（`add_raw`）按插入序共存于
   一张表——原样行承载节标题/空行/分隔线，不参与列宽度量；`append` 把多张表
@@ -219,7 +219,7 @@ i18n 迁移暴露的问题：help 文案靠字符串字面量里的手工空格�
 不需要专门机制。条件注册即天然 fail-closed：
 
 ```cpp
-#if MJ2X_WITH_LLVM
+#if LIBCA_OPT_WITH_LLVM
     cmd.args.push_back(llvm_backend_arg());
 #endif
 ```

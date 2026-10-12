@@ -16,7 +16,7 @@ target("libca_net")
         -- 50bb642 引入）。静态库 target 的 add_syslinks 不随包安装传导：消费方经
         -- luiox-repo 包消费时，系统库须由包定义的 add_syslinks 清单补齐，此处新增
         -- 系统库依赖时须同步该清单，否则包消费方链接报 LNK2019 __imp_*
-        --（morpher#952 实证）。
+        --（消费方实测）。
         add_syslinks("ws2_32", "iphlpapi")
         add_cxflags("/utf-8", {tools = "cl"})
     end

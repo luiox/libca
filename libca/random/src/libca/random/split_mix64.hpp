@@ -9,12 +9,12 @@
 namespace ca::random {
 
 /// @brief SplitMix64 确定性伪随机数生成器（header-only，同 seed 同序列）。
-/// @note 收敛基准 = mj2x vmc4 版内联实现（mj2x/backend/vmc4/vmc4_instance.cpp 的
-///       SplitMix64，luiox/morpher#1027 A3 收敛来源）：
+/// @note 位精确正典 = vmc4 版内联实现（上游链路）
+///       SplitMix64，上游需求 A3 收敛来源）：
 ///       `state_ += 0x9E3779B97F4A7C15; z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
 ///       z = (z ^ (z >> 27)) * 0x94D049BB133111EB; return z ^ (z >> 31);`
-///       逐位锁定，morpher 收敛后要求输出逐位不变；任何常数/移位/顺序调整都属
-///       不兼容变更，必须与 morpher 侧同步。
+///       逐位锁定：收敛要求输出逐位不变；任何常数/移位/顺序调整都属
+///       不兼容变更。
 class SplitMix64 {
 public:
     /// @brief 以 seed 初始化内部状态。

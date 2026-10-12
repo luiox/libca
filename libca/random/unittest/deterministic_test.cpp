@@ -8,12 +8,12 @@
 
 // 确定性伪随机原语的位精确对拍测试。
 //
-// golden 向量来源：用 Python 逐位复刻 morpher 侧正典 C++ 产出（非本实现自证）：
-//   - SplitMix64 正典 = mj2x/backend/vmc4/vmc4_instance.cpp 的内联 SplitMix64；
-//   - Xorshift32 正典 = mj2x/backend/regc/regc_cache_pool.cpp 的
-//     regcStringXorshift32（与 mj2x/core/native_lib_crypto.hpp::xorshift32Step
+// golden 向量来源：用 Python 逐位复刻上游正典 C++ 产出（非本实现自证）：
+//   - SplitMix64 正典 = vmc4 链路的内联 SplitMix64；
+//   - Xorshift32 正典 = regc 链路的
+//     regcStringXorshift32（与 native_lib_crypto.hpp::xorshift32Step
 //     同式，vmc4 链路引用的是后者，两者已逐位核对一致）。
-// 背景 luiox/morpher#1027 A3/A4：morpher 侧 splitmix64/xorshift32 副本收敛到
+// 背景 上游需求 A3/A4：上游侧 splitmix64/xorshift32 副本收敛到
 // libca 单份后，要求输出逐位不变——本文件任何向量变更都意味着破坏下游对拍。
 
 namespace ca::random::test {
@@ -163,7 +163,7 @@ TEST(Xorshift32Test, GoldenSeedDeadBeef)
 TEST(Xorshift32Test, ZeroSeedIsDegenerateAllZero)
 {
     // seed == 0 时状态恒为不动点：序列恒 0。这是定义行为（正典亦然，
-    // morpher 侧由调用方回退固定种子），此处锁定该语义防无意"修复"。
+    // 上游侧由调用方回退固定种子），此处锁定该语义防无意"修复"。
     Xorshift32 rng(0);
     for (int i = 0; i < 8; ++i)
         EXPECT_EQ(0u, rng.next()) << "step=" << i;

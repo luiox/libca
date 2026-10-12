@@ -9,14 +9,14 @@
 namespace ca::random {
 
 /// @brief Xorshift32 确定性伪随机数生成器（header-only，同 seed 同序列）。
-/// @note 收敛基准 = mj2x regc 版（mj2x/backend/regc/regc_cache_pool.cpp 的
-///       regcStringXorshift32，luiox/morpher#1027 A4 收敛来源），与同仓
-///       mj2x/core/native_lib_crypto.hpp 的 xorshift32Step（vmc4 链路引用）
+/// @note 位精确正典 = regc 版内联实现（上游链路）
+///       regcStringXorshift32，上游需求 A4 收敛来源），与同仓
+///       上游 native_lib_crypto.hpp 的 xorshift32Step（vmc4 链路引用）
 ///       两处正典同式：`x ^= x << 13; x ^= x >> 17; x ^= x << 5;`
 ///       u32 回绕即 32 位掩码语义，逐位锁定；任何调整都属不兼容变更，
-///       必须与 morpher 侧同步。
+///       必须与上游侧同步。
 /// @note seed == 0 是定义行为下的死锁态：序列恒为 0（正典亦然），调用方
-///       需自行保证种子非零（morpher 侧各链路均有 0 回退固定种子的约定）。
+///       需自行保证种子非零（上游侧各链路均有 0 回退固定种子的约定）。
 class Xorshift32 {
 public:
     /// @brief 以 seed 初始化内部状态。

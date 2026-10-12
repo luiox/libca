@@ -12,7 +12,7 @@
 // - 查询回退：当前语言 → zh_CN → key 原样返回。回退到 key 使渐进迁移可行：
 //   未进表的字面量按原样显示。
 // - key 约定：小写蛇形 + 点分层，首段为命名空间（产品线/库名），
-//   如 "mj2x.param.global.input.desc"。
+//   如 "app.param.global.input.desc"。
 //
 // 实现为 header-only（注册表用 function-local static 保证单实例）：静态库依赖
 // 本库时，其下游 binary 无需追加链接（本库自身无非模板符号；trf 返回的
