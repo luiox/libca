@@ -37,6 +37,63 @@ TEST(Sha3Test, Abc) {
               "10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0");
 }
 
+TEST(Sha3Test, NistExampleMessage) {
+    // FIPS 202 附录 A 官方示例消息（56 字节 / 448 位）：跨 SHA3-256/384 的 rate 边界，
+    // 覆盖多块吸收路径。
+    const std::string message =
+        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    EXPECT_EQ(SHA3(SHA3::Bits224)(message),
+              "8a24108b154ada21c9fd5574494479ba5c7e7ab76ef264ead0fcce33");
+    EXPECT_EQ(SHA3(SHA3::Bits256)(message),
+              "41c0dba2a9d6240849100376a8235e2c82e1b9998a999e21db32dd97496d3376");
+    EXPECT_EQ(SHA3(SHA3::Bits384)(message),
+              "991c665755eb3a4b6bbdfb75c78a492e8c56a22c5c4d7e429bfdbc32b9d4ad5a"
+              "a04a1f076e62fea19eef51acd0657c22");
+}
+
+TEST(Sha3Test, GetHashIsIdempotentAndNonDestructive) {
+    // get_hash() 不破坏内部状态：重复取值一致，且之后继续 add 仍等价于一次性喂入。
+    SHA3 sha3;
+    sha3.add("abc", 3);
+    const std::string first = sha3.get_hash();
+    EXPECT_EQ(sha3.get_hash(), first);
+    sha3.add("def", 3);
+    EXPECT_EQ(sha3.get_hash(), SHA3(SHA3::Bits256)("abcdef"));
+}
+
+TEST(Sha3Test, SplitAtEveryRateBoundary) {
+    // 在各变体 rate 边界前后逐一切开，分段喂入须与一次性喂入一致。
+    const SHA3::Bits kVariants[] = {SHA3::Bits224, SHA3::Bits256,
+                                     SHA3::Bits384, SHA3::Bits512};
+    const std::string payload(500, 'x');   // 远大于任一变体的 rate
+    const ca::usize kSplitPoints[] = {71, 72, 73, 103, 104, 105, 135,
+                                      136, 137, 143, 144, 145, 499};
+    for (SHA3::Bits bits : kVariants) {
+        const std::string expected = SHA3(bits)(payload);
+        for (ca::usize split : kSplitPoints) {
+            SHA3 stream(bits);
+            stream.add(payload.data(), split);
+            stream.add(payload.data() + split, payload.size() - split);
+            EXPECT_EQ(stream.get_hash(), expected)
+                << "bits=" << static_cast<int>(bits) << " split=" << split;
+        }
+    }
+}
+
+TEST(Sha3Test, EmptyAddIsNoOp) {
+    SHA3 sha3;
+    sha3.add(nullptr, 0);
+    EXPECT_EQ(sha3.get_hash(),
+              "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+}
+
+TEST(Sha3Test, DigestLengthMatchesVariant) {
+    EXPECT_EQ(SHA3(SHA3::Bits224)("").size(), 56u);
+    EXPECT_EQ(SHA3(SHA3::Bits256)("").size(), 64u);
+    EXPECT_EQ(SHA3(SHA3::Bits384)("").size(), 96u);
+    EXPECT_EQ(SHA3(SHA3::Bits512)("").size(), 128u);
+}
+
 TEST(Sha3Test, RawDataOverloadMatchesStringOverload) {
     const char data[] = "How are you";
     SHA3 a;
