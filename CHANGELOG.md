@@ -7,6 +7,26 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README「说明」）
 
+## [Unreleased]
+
+### libca
+
+- **[fs] 文件读路径 iostream → C stdio（#249 基准驱动）**：新增 `stdio_file.hpp`
+  公开头——`StdioFile`（FILE* RAII 句柄）+ `open_stdio`（平台打开封装：Windows
+  `_wfopen` / POSIX `fopen`，路径经 `Path` 编码边界）+ `read_file_all`（无预检
+  整读）。基准（`libca_fs_perf`，新 perf target）裁决：整读大文件 stdio 比
+  ifstream 快 3~4x（streambuf 分块拷贝代价），小/中持平；**整写无收益，写路径
+  维持 ofstream 不变**。落地替换：`FileUtil::read_all_bytes`/`read_all_text`/
+  `read_lines` 内部改 stdio 整读，读预检由 `exists()`+`is_regular_file()` 两次
+  stat 合并为一次 `status()`（错误语义不变，小文件读省 ~60% 开销）；六个解析器
+  （csv/ini/json/toml/xml/yaml）的 `read_file` 改经 `fs::read_file_all`（去掉
+  ifstream+ostringstream 双层流与整读内容的二次拷贝）。
+- **[行为收敛] 解析器 `read_file` 读失败消息**：`failed to open XXX file`
+  改为 `failed to read XXX file`（失败点不再只有"打开"，整读中途失败同通道
+  报错）；`FileUtil::read_lines` 由 getline 流式改为整读后拆行（返回值语义
+  不变：行尾 CRLF 剥离、末行无换行保留、结尾换行不产生空行），超大文件峰值
+  内存多一份文件内容。
+
 ## [0.0.15] - 2026-10-11
 
 ### libca

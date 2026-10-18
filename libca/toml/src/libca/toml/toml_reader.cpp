@@ -1,12 +1,11 @@
 #include "libca/toml/toml_reader.hpp"
 
 #include "libca/fs/path.hpp"
+#include "libca/fs/stdio_file.hpp"
 
 #include "libca/toml/toml_parser.hpp"
 
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 
 namespace ca::toml {
@@ -22,10 +21,10 @@ ParseError clone_error(const ParseError& src) {
     return dst;
 }
 
-ParseError make_open_error(const ca::str::Utf8StringRef& path) {
+ParseError make_read_error(const ca::str::Utf8StringRef& path) {
     ParseError err;
     err.location = SourceLocation{};
-    std::string msg = "failed to open TOML file: ";
+    std::string msg = "failed to read TOML file: ";
     msg.append(path.data(), path.data() + path.byte_length());
     err.message = ca::str::Utf8String::from_cstr(msg.c_str());
     return err;
@@ -47,15 +46,13 @@ ca::Result<TomlDocument, ParseError> TomlReader::read(
 ca::Result<TomlDocument, ParseError> TomlReader::read_file(
     const ca::str::Utf8StringRef& path,
     const TomlReaderOptions& options) {
-    // 路径转 std::string（ifstream 需要）
+    // 整读经 fs 的 stdio 路径（#249：ifstream+ostringstream 双层流换 fopen+fread 单读）
     std::string path_str(path.data(), path.data() + path.byte_length());
-    std::ifstream input(ca::fs::Path::from_utf8_lossy(path_str).native(), std::ios::binary);
-    if (!input.is_open()) {
-        return ca::Err(make_open_error(path));
+    auto content = ca::fs::read_file_all(ca::fs::Path::from_utf8_lossy(path_str));
+    if (content.is_err()) {
+        return ca::Err(make_read_error(path));
     }
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    std::string text = buffer.str();
+    std::string text = std::move(content).unwrap();
 
     // text 是局部 std::string，Utf8StringRef 在解析期间必须有效。
     // read() 内部同步完成解析，所以 text 在返回前一直有效。
