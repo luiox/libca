@@ -76,14 +76,15 @@ private:
 ///         （路径不存在为 FileNotFound、无权限为 PermissionDenied 等）。
 Result<StdioFile, FsError> open_stdio(const Path& path, const char* mode);
 
-/// @brief 无预检整读：open → seek END 取尺寸 → rewind → 单次 fread。
+/// @brief 无预检整读：open → fstat 拒目录 → seek END 取尺寸 → rewind → 单次 fread。
 /// @param path 文件路径。
 /// @return 成功返回文件全部字节（空文件为空串）；失败返回 FsError。
-/// @note 不做 exists/is_regular_file 预检（每次调用省两次 stat），错误语义由
-///       打开/读取的 errno 归类承担：不存在为 FileNotFound；目录在 POSIX 上
-///       打开成功、fread 报 EISDIR→IsADirectory，Windows 上打开/读取失败按
-///       errno 归类。适合调用方要自行映射错误的整读场景（解析器 read_file 等）；
-///       需要 NotARegularFile 明确语义的公开接口请用 FileUtil::read_all_*。
+/// @note 不做 exists/is_regular_file 路径级预检（每次调用省两次 stat），错误语义由
+///       打开/读取的 errno 归类承担：不存在为 FileNotFound；目录经打开句柄 fstat
+///       显式拒绝（IsADirectory）——POSIX 上 fopen 目录成功但目录流 seek/tell 行为
+///       不可依赖，Windows 上打开即失败按 errno 归类。适合调用方要自行映射错误的
+///       整读场景（解析器 read_file 等）；需要 NotARegularFile 明确语义的公开接口
+///       请用 FileUtil::read_all_*。
 Result<std::string, FsError> read_file_all(const Path& path);
 
 }}  // namespace ca::fs

@@ -132,10 +132,14 @@ TEST(StdioFileTest, ReadFileAllMissingFileMapsToFileNotFound)
 TEST(StdioFileTest, ReadFileAllRejectsDirectory)
 {
     StdioTempDirGuard guard;
-    // 目录不是可读文件：POSIX 打开成功、fread 报 EISDIR→IsADirectory；
-    // Windows 打开/读取失败按 errno 归类——两平台都必须是错误，不断言具体码。
+    // 目录不是可读文件：POSIX fopen 目录成功，read_file_all 在探尺寸前 fstat
+    // 拒绝（IsADirectory——glibc 目录流 ftello 返回垃圾大值，缺此拦截会按
+    // 该 size 分配抛 length_error）；Windows 打开/读取失败按 errno 归类。
     auto content = read_file_all(Path::from_utf8_lossy(guard.path()));
-    EXPECT_TRUE(content.is_err());
+    ASSERT_TRUE(content.is_err());
+#ifndef _WIN32
+    EXPECT_EQ(content.unwrap_err(), FsError::IsADirectory);
+#endif
 }
 
 TEST(StdioFileTest, ReadFileAllNonAsciiUtf8PathRoundTrips)

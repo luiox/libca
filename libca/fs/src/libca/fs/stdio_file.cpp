@@ -4,6 +4,13 @@
 #include <cstring>
 #include <system_error>
 
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <io.h>  // _fileno
+#else
+#include <unistd.h>  // fileno
+#endif
+
 namespace ca { namespace fs {
 
 namespace {
@@ -60,6 +67,25 @@ Result<std::string, FsError> read_file_all(const Path& path)
         return Err(std::move(opened).unwrap_err());
     StdioFile file = std::move(opened).unwrap();
 
+    // 目录显式拒绝：POSIX 对目录 fopen 成功，但目录流的 seek/tell 行为不可依赖
+    // （glibc 上 ftello 可对目录返回垃圾大值，按该 size 分配缓冲即抛
+    // length_error）；Windows 上 _wfopen 打开目录本就失败、到不了这里。在探
+    // 尺寸前对已打开句柄 fstat 一次（不做路径级预检），两平台错误语义归一到
+    // IsADirectory，不依赖各自的 errno 差异。
+#ifdef _WIN32
+    struct _stat64 st;
+    if (::_fstat64(::_fileno(file.get()), &st) != 0)
+        return Err(FsError::ReadFailed);
+    const bool is_directory = (st.st_mode & _S_IFMT) == _S_IFDIR;
+#else
+    struct stat st;
+    if (::fstat(::fileno(file.get()), &st) != 0)
+        return Err(FsError::ReadFailed);
+    const bool is_directory = S_ISDIR(st.st_mode);
+#endif
+    if (is_directory)
+        return Err(FsError::IsADirectory);
+
     if (LIBCA_FS_SEEK64(file.get(), 0, SEEK_END) != 0)
         return Err(last_errno_error());
     const long long size = LIBCA_FS_TELL64(file.get());
@@ -81,7 +107,7 @@ Result<std::string, FsError> read_file_all(const Path& path)
             std::fread(&buffer[0], 1, static_cast<std::size_t>(size), file.get());
         if (done != static_cast<std::size_t>(size)) {
             if (std::ferror(file.get()) != 0 && errno != 0)
-                return Err(last_errno_error());  // 如 POSIX 目录 EISDIR→IsADirectory
+                return Err(last_errno_error());  // 如读中途 EIO→Unknown
             return Err(FsError::ReadFailed);
         }
     }
