@@ -1,7 +1,7 @@
 ---
 version: 1.6
 update:
-2026-10-21 - 5.1 补充 canonical_name / US-ASCII 门面；conversion.hpp 增拥有型 UTF-16 转换（Result 错误通道）
+2026-10-21 - 5.1 补充 canonical_name 与 US-ASCII 门面
 2026-09-15 - 5.x 新增编码内置化章节：三级查找结构、GB18030 表生成流程、iconv 开关、CP_936 差异钉死与性能参考数字（路线图批次 3）
 2026-08-10 - 9.6 节更新：stdin/stdout/stderr 宏陷阱的解法从 subprocess.cpp include 顺序改为约束内聚到 subprocess.hpp 内部，任何 include 顺序安全
 2026-08-09 - 新增格式化设施 format 章节（fmt 提升为 str public 依赖，提供 format/format_to/format_runtime 门面）
@@ -201,12 +201,6 @@ Unicode 上限的 wide 码点，见 commit 2d005cb）全部以固定向量钉在
 比较不再需要各调用方自带映射表；不企图覆盖 ICU 的完整编码名体系。US-ASCII 作为
 UTF-8 子集提供 `ascii_to_utf8` / `utf8_to_ascii` 门面，逐字节校验 <0x80，不做
 best-fit 替换。
-
-**拥有型 UTF-16 转换**：`conversion.hpp` 的 raw 指针接口以 0 同时表示"空"与"非法"，
-调用方难以区分。新增 `utf8_to_utf16` / `utf16_to_utf8` / `ascii_*` / `latin1_*`
-拥有型重载，直接产出 `std::u16string` / `std::string`，非法输入走
-`StatusResult` 的 `INVALID_ARGUMENT`；UTF-16 侧按 code unit 处理，孤立代理项在
-UTF-8 出口报错、在 ASCII/Latin-1 出口因超范围报错。
 
 **性能参考数字**（`libca_str_perf`，Windows/MSVC release，2 MB 中文样本，
 5 轮中位）：utf8→gb18030 约 78-90 MB/s，gb18030→utf8 约 80-95 MB/s，
