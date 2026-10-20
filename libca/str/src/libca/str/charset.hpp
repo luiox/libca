@@ -27,8 +27,8 @@ namespace ca::str {
 /// @brief 字符编码转换工具（纯静态）。
 ///
 /// 提供本地 ANSI 代码页（Windows 为 CP_ACP，POSIX 为当前 locale 的 codeset）、
-/// GBK / GB18030、Latin-1、Windows-1252 与 UTF-8 / `std::wstring` 之间的双向转换。
-/// 所有方法均为静态函数，类不可实例化。
+/// GBK / GB18030、US-ASCII、Latin-1、Windows-1252 与 UTF-8 / `std::wstring`
+/// 之间的双向转换。所有方法均为静态函数，类不可实例化。
 ///
 /// @note `std::wstring` 的编码跟随平台：Windows 为 UTF-16LE，Linux 为 UCS-4。
 /// @note GBK / GB2312 / GB18030 的关系：GB2312 ⊂ GBK ⊂ GB18030（双字节部分）。
@@ -59,10 +59,22 @@ public:
 
     /// @brief 列出门面保证可用的编码名（含常用别名），按字典序升序返回。
     ///
-    /// 覆盖内置编码的规范名与别名，如 "utf-8" / "utf8"、"gb18030" / "gbk" /
-    /// "cp936" / "gb2312"、"iso-8859-1" / "latin1"、"windows-1252" / "cp1252"、
-    /// "local"。跨平台返回一致（不含 iconv 长尾，长尾请用 `supported()` 探测）。
+    /// 覆盖内置编码的规范名与别名，如 "utf-8" / "utf8"、"us-ascii" / "ascii" /
+    /// "646"、"gb18030" / "gbk" / "cp936" / "gb2312"、"iso-8859-1" / "latin1" /
+    /// "8859_1"、"windows-1252" / "cp1252"、"local"。跨平台返回一致（不含 iconv
+    /// 长尾，长尾请用 `supported()` 探测）。
     static std::vector<std::string> list_supported();
+
+    /// @brief 查询编码名的规范名（大小写不敏感，接受内置别名）。
+    ///
+    /// 用于把用户/格式文件里的编码名归一后再比较，例如 "UTF8" / "utf-8" →
+    /// "utf-8"，"ASCII" / "646" → "us-ascii"，"latin1" / "8859_1" →
+    /// "iso-8859-1"，"gbk" / "cp936" → "gb18030"。
+    ///
+    /// @param charset 编码名。
+    /// @return 内置编码的规范名（静态存储，生命周期覆盖进程）；不在内置别名表
+    ///         时返回空视图。iconv 长尾编码不在此列，可配合 `supported()` 探测。
+    static std::string_view canonical_name(std::string_view charset);
 
     /// @brief UTF-8 字符串转 `std::wstring`（Windows 为 UTF-16LE，Linux 为 UCS-4）。
     /// @param utf8 输入 UTF-8 字节序列，**必须是合法 UTF-8**，否则返回 `INVALID_ARGUMENT`。
@@ -75,6 +87,15 @@ public:
     /// @note 内置纯算法实现，不依赖系统代码页；glibc iconv 曾接受超上限码点的
     ///       平台差异（commit 2d005cb）在内置路径下已消除。
     static core::StatusResult<std::string> wide_to_utf8(std::wstring_view wide);
+
+    /// @brief US-ASCII 字符串转 UTF-8（ASCII 是 UTF-8 子集，逐字节校验后原样复制）。
+    /// @note 含 >= 0x80 的字节时返回 `INVALID_ARGUMENT`，不做有损替换。
+    static core::StatusResult<std::string> ascii_to_utf8(std::string_view ascii);
+
+    /// @brief UTF-8 字符串转 US-ASCII。
+    /// @note 含 > U+007F 的码点或非法 UTF-8 时返回 `INVALID_ARGUMENT`（两者都
+    ///       表现为出现 >= 0x80 的字节）。
+    static core::StatusResult<std::string> utf8_to_ascii(std::string_view utf8);
 
     /// @brief 本地 ANSI 代码页字符串转 `std::wstring`。
     /// @note Windows 为 CP_ACP（系统区域，中文 Windows 通常是 GBK）；

@@ -299,4 +299,86 @@ TEST(ConversionTest, InvalidContinuationBytesRejected) {
     EXPECT_EQ(utf8_to_utf32_length(good, 3), 1u);
 }
 
+// ============================================================================
+// UTF-8 / US-ASCII / Latin-1 ↔ UTF-16（拥有型）
+// ============================================================================
+
+TEST(ConversionTest, OwnedUtf8ToUtf16Roundtrip) {
+    const std::string utf8 = "A\xF0\x9F\x98\x80";  // "A😀"
+    auto              to16 = utf8_to_utf16(utf8);
+    ASSERT_TRUE(to16.is_ok()) << to16.unwrap_err().to_string();
+    const std::u16string expected{0x0041, 0xD83D, 0xDE00};
+    EXPECT_TRUE(to16.unwrap() == expected);
+
+    auto back = utf16_to_utf8(expected);
+    ASSERT_TRUE(back.is_ok()) << back.unwrap_err().to_string();
+    EXPECT_EQ(back.unwrap(), utf8);
+}
+
+TEST(ConversionTest, OwnedUtf8ToUtf16EmptyIsOkNotError) {
+    auto to16 = utf8_to_utf16("");
+    ASSERT_TRUE(to16.is_ok());
+    EXPECT_TRUE(to16.unwrap().empty());
+
+    auto to8 = utf16_to_utf8(std::u16string_view{});
+    ASSERT_TRUE(to8.is_ok());
+    EXPECT_TRUE(to8.unwrap().empty());
+}
+
+TEST(ConversionTest, OwnedUtf8ToUtf16RejectsInvalid) {
+    const std::string bad("\xFF", 1);
+    auto              res = utf8_to_utf16(bad);
+    ASSERT_TRUE(res.is_err());
+    EXPECT_EQ(res.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(ConversionTest, OwnedUtf16ToUtf8RejectsLoneSurrogate) {
+    const std::u16string lone{0xD83D};
+    auto                 res = utf16_to_utf8(lone);
+    ASSERT_TRUE(res.is_err());
+    EXPECT_EQ(res.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(ConversionTest, OwnedAsciiRoundtrip) {
+    auto to16 = ascii_to_utf16("ABC");
+    ASSERT_TRUE(to16.is_ok()) << to16.unwrap_err().to_string();
+    const std::u16string expected{0x0041, 0x0042, 0x0043};
+    EXPECT_TRUE(to16.unwrap() == expected);
+
+    auto back = utf16_to_ascii(expected);
+    ASSERT_TRUE(back.is_ok()) << back.unwrap_err().to_string();
+    EXPECT_EQ(back.unwrap(), "ABC");
+}
+
+TEST(ConversionTest, OwnedAsciiRejectsHighByte) {
+    const std::string high("\x80", 1);
+    auto              to16 = ascii_to_utf16(high);
+    ASSERT_TRUE(to16.is_err());
+    EXPECT_EQ(to16.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+
+    const std::u16string codepoint{0x4E2D};
+    auto                 to8 = utf16_to_ascii(codepoint);
+    ASSERT_TRUE(to8.is_err());
+    EXPECT_EQ(to8.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(ConversionTest, OwnedLatin1Roundtrip) {
+    const std::string latin1("\x00\x7F\x80\xFF", 4);
+    auto              to16 = latin1_to_utf16(latin1);
+    ASSERT_TRUE(to16.is_ok());
+    const std::u16string expected{0x0000, 0x007F, 0x0080, 0x00FF};
+    EXPECT_TRUE(to16.unwrap() == expected);
+
+    auto back = utf16_to_latin1(expected);
+    ASSERT_TRUE(back.is_ok());
+    EXPECT_EQ(back.unwrap(), latin1);
+}
+
+TEST(ConversionTest, OwnedUtf16ToLatin1RejectsAboveU00FF) {
+    const std::u16string codepoint{0x0100};
+    auto                 res = utf16_to_latin1(codepoint);
+    ASSERT_TRUE(res.is_err());
+    EXPECT_EQ(res.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
 }  // namespace ca::str

@@ -264,6 +264,89 @@ usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept {
 
 
 // ============================================================================
+// UTF-8 / US-ASCII / Latin-1 ↔ UTF-16（拥有型）
+// ============================================================================
+
+namespace {
+
+core::Status invalid_sequence(const char* message) {
+    return core::ErrStatus(core::StatusCode::INVALID_ARGUMENT, message);
+}
+
+}  // namespace
+
+core::StatusResult<std::u16string> utf8_to_utf16(std::string_view utf8) {
+    if (utf8.empty())
+        return core::Ok(std::u16string{});
+    const auto* bytes = reinterpret_cast<const u8*>(utf8.data());
+    const usize units = utf8_to_utf16_length(bytes, utf8.size());
+    if (units == 0)
+        return core::Err(invalid_sequence("utf8_to_utf16: invalid UTF-8 sequence"));
+    std::u16string out(units, u'\0');
+    if (utf8_to_utf16(bytes, utf8.size(), reinterpret_cast<u16*>(&out[0])) != units)
+        return core::Err(core::ErrStatus(core::StatusCode::INTERNAL,
+                                         "utf8_to_utf16: length and conversion disagree"));
+    return core::Ok(std::move(out));
+}
+
+core::StatusResult<std::string> utf16_to_utf8(std::u16string_view utf16) {
+    if (utf16.empty())
+        return core::Ok(std::string{});
+    const auto* units = reinterpret_cast<const u16*>(utf16.data());
+    const usize bytes = utf16_to_utf8_length(units, utf16.size());
+    if (bytes == 0)
+        return core::Err(invalid_sequence("utf16_to_utf8: unpaired surrogate"));
+    std::string out(bytes, '\0');
+    if (utf16_to_utf8(units, utf16.size(), reinterpret_cast<u8*>(&out[0])) != bytes)
+        return core::Err(core::ErrStatus(core::StatusCode::INTERNAL,
+                                         "utf16_to_utf8: length and conversion disagree"));
+    return core::Ok(std::move(out));
+}
+
+core::StatusResult<std::u16string> ascii_to_utf16(std::string_view ascii) {
+    std::u16string out;
+    out.reserve(ascii.size());
+    for (const char ch : ascii) {
+        const auto byte = static_cast<unsigned char>(ch);
+        if (byte >= 0x80)
+            return core::Err(invalid_sequence("ascii_to_utf16: byte >= 0x80"));
+        out.push_back(static_cast<char16_t>(byte));
+    }
+    return core::Ok(std::move(out));
+}
+
+core::StatusResult<std::string> utf16_to_ascii(std::u16string_view utf16) {
+    std::string out;
+    out.reserve(utf16.size());
+    for (const char16_t unit : utf16) {
+        if (unit >= 0x80)
+            return core::Err(invalid_sequence("utf16_to_ascii: code unit >= 0x80"));
+        out.push_back(static_cast<char>(unit));
+    }
+    return core::Ok(std::move(out));
+}
+
+core::StatusResult<std::u16string> latin1_to_utf16(std::string_view latin1) {
+    std::u16string out;
+    out.reserve(latin1.size());
+    for (const char ch : latin1)
+        out.push_back(static_cast<char16_t>(static_cast<unsigned char>(ch)));
+    return core::Ok(std::move(out));
+}
+
+core::StatusResult<std::string> utf16_to_latin1(std::u16string_view utf16) {
+    std::string out;
+    out.reserve(utf16.size());
+    for (const char16_t unit : utf16) {
+        if (unit > 0xFF)
+            return core::Err(invalid_sequence("utf16_to_latin1: code unit > U+00FF"));
+        out.push_back(static_cast<char>(unit));
+    }
+    return core::Ok(std::move(out));
+}
+
+
+// ============================================================================
 // UTF-8 ↔ UTF-32
 // ============================================================================
 

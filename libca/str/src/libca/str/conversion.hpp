@@ -8,10 +8,12 @@
 #pragma once
 
 #include "libca/core/datatype.hpp"
+#include "libca/core/status.hpp"
 #include "utf8_string.hpp"
 #include "cstring.hpp"
 #include "wstring.hpp"
 #include <stdexcept>
+#include <string_view>
 
 namespace ca::str {
 
@@ -74,6 +76,27 @@ usize utf16_to_utf8_length(const u16* utf16, usize unitCount) noexcept;
 // utf8 缓冲区应能容纳至少 utf16_to_utf8_length 个 u8
 // 返回写入的 u8 个数，0 表示输入非法
 usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept;
+
+
+// ============================================================================
+// UTF-8 / US-ASCII / Latin-1 ↔ UTF-16（拥有型，Result 错误通道）
+// ============================================================================
+// 直接产出 std::u16string / std::string：空输入返回空串，非法输入返回
+// StatusCode::INVALID_ARGUMENT，不再用 0 同时表示「空」与「非法」。
+// UTF-16 侧是 code unit 序列：孤立的 lead/trail 代理在 UTF-8 出口算非法，
+// 在 ASCII / Latin-1 出口因超出可表示范围同样算非法。
+
+core::StatusResult<std::u16string> utf8_to_utf16(std::string_view utf8);
+core::StatusResult<std::string> utf16_to_utf8(std::u16string_view utf16);
+
+// US-ASCII：每个字节/码元必须 < 0x80，否则 INVALID_ARGUMENT（不做有损替换）。
+core::StatusResult<std::u16string> ascii_to_utf16(std::string_view ascii);
+core::StatusResult<std::string> utf16_to_ascii(std::u16string_view utf16);
+
+// Latin-1：字节 0x00-0xFF 与 U+0000-U+00FF 一一对应。
+// 解码恒成功；编码时任一码元 > 0x00FF 返回 INVALID_ARGUMENT。
+core::StatusResult<std::u16string> latin1_to_utf16(std::string_view latin1);
+core::StatusResult<std::string> utf16_to_latin1(std::u16string_view utf16);
 
 
 // ============================================================================
