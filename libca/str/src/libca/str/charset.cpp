@@ -55,19 +55,29 @@ struct CharsetAlias {
     std::string_view canonical;
 };
 
-constexpr std::array<CharsetAlias, 12> kBuiltinCharsets{{
-    {"utf-8", "utf-8"},
-    {"utf8", "utf-8"},
-    {"gb18030", "gb18030"},
-    {"gbk", "gb18030"},
+constexpr std::array<CharsetAlias, 22> kBuiltinCharsets{{
+    {"646", "us-ascii"},
+    {"819", "iso-8859-1"},
+    {"8859_1", "iso-8859-1"},
+    {"ansi_x3.4-1968", "us-ascii"},
+    {"ascii", "us-ascii"},
+    {"cp1252", "windows-1252"},
     {"cp936", "gb18030"},
+    {"gb18030", "gb18030"},
     {"gb2312", "gb18030"},
+    {"gbk", "gb18030"},
     {"iso-8859-1", "iso-8859-1"},
+    {"iso-ir-6", "us-ascii"},
+    {"iso8859-1", "iso-8859-1"},
+    {"iso_8859-1", "iso-8859-1"},
     {"latin-1", "iso-8859-1"},
     {"latin1", "iso-8859-1"},
-    {"windows-1252", "windows-1252"},
-    {"cp1252", "windows-1252"},
     {"local", "local"},
+    {"unicode-1-1-utf-8", "utf-8"},
+    {"us-ascii", "us-ascii"},
+    {"utf-8", "utf-8"},
+    {"utf8", "utf-8"},
+    {"windows-1252", "windows-1252"},
 }};
 
 // ASCII 小写归一化（只处理 <0x80，多字节输入原样保留参与比较，不会误折叠）。
@@ -136,6 +146,32 @@ std::vector<std::string> CharsetConverter::list_supported()
         names.emplace_back(entry.alias);
     std::sort(names.begin(), names.end());
     return names;
+}
+
+std::string_view CharsetConverter::canonical_name(std::string_view charset)
+{
+    const std::string_view* canonical = lookup_builtin_charset(charset);
+    return canonical != nullptr ? *canonical : std::string_view{};
+}
+
+core::StatusResult<std::string> CharsetConverter::ascii_to_utf8(std::string_view ascii)
+{
+    for (const char ch : ascii) {
+        if (static_cast<unsigned char>(ch) >= 0x80)
+            return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                                             "ascii_to_utf8: byte >= 0x80"));
+    }
+    return core::Ok(std::string(ascii));
+}
+
+core::StatusResult<std::string> CharsetConverter::utf8_to_ascii(std::string_view utf8)
+{
+    for (const char ch : utf8) {
+        if (static_cast<unsigned char>(ch) >= 0x80)
+            return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                                             "utf8_to_ascii: codepoint > U+007F"));
+    }
+    return core::Ok(std::string(utf8));
 }
 
 #if defined(_WIN32)

@@ -3,6 +3,7 @@
 #include <libca/core/status.hpp>
 #include <libca/str/charset.hpp>
 
+#include <algorithm>
 #include <string>
 
 namespace ca::str {
@@ -122,5 +123,59 @@ TEST(CharsetConverterTest, InvalidWideCodePointRejected) {
 }
 
 #endif  // defined(_WIN32)
+
+TEST(CharsetConverterTest, CanonicalNameNormalizesBuiltinAliases) {
+    EXPECT_EQ(CharsetConverter::canonical_name("UTF-8"), "utf-8");
+    EXPECT_EQ(CharsetConverter::canonical_name("utf8"), "utf-8");
+    EXPECT_EQ(CharsetConverter::canonical_name("unicode-1-1-utf-8"), "utf-8");
+    EXPECT_EQ(CharsetConverter::canonical_name("ASCII"), "us-ascii");
+    EXPECT_EQ(CharsetConverter::canonical_name("ansi_x3.4-1968"), "us-ascii");
+    EXPECT_EQ(CharsetConverter::canonical_name("646"), "us-ascii");
+    EXPECT_EQ(CharsetConverter::canonical_name("ISO-8859-1"), "iso-8859-1");
+    EXPECT_EQ(CharsetConverter::canonical_name("8859_1"), "iso-8859-1");
+    EXPECT_EQ(CharsetConverter::canonical_name("GBK"), "gb18030");
+    EXPECT_EQ(CharsetConverter::canonical_name("cp936"), "gb18030");
+    EXPECT_EQ(CharsetConverter::canonical_name("CP1252"), "windows-1252");
+    EXPECT_EQ(CharsetConverter::canonical_name("LOCAL"), "local");
+}
+
+TEST(CharsetConverterTest, CanonicalNameUnknownIsEmpty) {
+    EXPECT_TRUE(CharsetConverter::canonical_name("").empty());
+    EXPECT_TRUE(CharsetConverter::canonical_name("utf-16").empty());
+    EXPECT_TRUE(CharsetConverter::canonical_name("no-such-charset").empty());
+}
+
+TEST(CharsetConverterTest, AsciiIsListedAndSupported) {
+    EXPECT_TRUE(CharsetConverter::supported("ASCII"));
+    EXPECT_TRUE(CharsetConverter::supported("us-ascii"));
+
+    const auto names = CharsetConverter::list_supported();
+    EXPECT_NE(std::find(names.begin(), names.end(), "us-ascii"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "646"), names.end());
+}
+
+TEST(CharsetConverterTest, AsciiToUtf8RejectsHighByte) {
+    auto ok = CharsetConverter::ascii_to_utf8("ABC");
+    ASSERT_TRUE(ok.is_ok()) << ok.unwrap_err().to_string();
+    EXPECT_EQ(ok.unwrap(), "ABC");
+
+    auto bad = CharsetConverter::ascii_to_utf8(std::string("\x80", 1));
+    ASSERT_TRUE(bad.is_err());
+    EXPECT_EQ(bad.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+TEST(CharsetConverterTest, Utf8ToAsciiRejectsNonAscii) {
+    auto ok = CharsetConverter::utf8_to_ascii("ABC");
+    ASSERT_TRUE(ok.is_ok()) << ok.unwrap_err().to_string();
+    EXPECT_EQ(ok.unwrap(), "ABC");
+
+    auto bad = CharsetConverter::utf8_to_ascii("\xC3\xA9");  // U+00E9 é
+    ASSERT_TRUE(bad.is_err());
+    EXPECT_EQ(bad.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+
+    auto invalid = CharsetConverter::utf8_to_ascii(std::string("\xFF", 1));
+    ASSERT_TRUE(invalid.is_err());
+    EXPECT_EQ(invalid.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
 
 }  // namespace ca::str
