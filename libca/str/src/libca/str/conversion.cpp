@@ -304,14 +304,14 @@ core::StatusResult<std::string> utf16_to_utf8(std::u16string_view utf16) {
 }
 
 core::StatusResult<std::u16string> ascii_to_utf16(std::string_view ascii) {
+    // 谓词与 CharsetConverter::ascii_to_utf8 共享（utf8_util::ascii_is_valid），
+    // 先整体校验再构造，错误路径不再产出半成品。
+    if (!ascii_is_valid(reinterpret_cast<const u8*>(ascii.data()), ascii.size()))
+        return core::Err(invalid_sequence("ascii_to_utf16: byte >= 0x80"));
     std::u16string out;
     out.reserve(ascii.size());
-    for (const char ch : ascii) {
-        const auto byte = static_cast<unsigned char>(ch);
-        if (byte >= 0x80)
-            return core::Err(invalid_sequence("ascii_to_utf16: byte >= 0x80"));
-        out.push_back(static_cast<char16_t>(byte));
-    }
+    for (const char ch : ascii)
+        out.push_back(static_cast<char16_t>(static_cast<unsigned char>(ch)));
     return core::Ok(std::move(out));
 }
 

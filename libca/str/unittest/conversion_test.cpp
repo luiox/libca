@@ -3,6 +3,7 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <libca/str/utf8_util.hpp>
 #include <libca/str/conversion.hpp>
 
 namespace ca::str {
@@ -379,6 +380,15 @@ TEST(ConversionTest, OwnedUtf16ToLatin1RejectsAboveU00FF) {
     auto                 res = utf16_to_latin1(codepoint);
     ASSERT_TRUE(res.is_err());
     EXPECT_EQ(res.unwrap_err().code(), core::StatusCode::INVALID_ARGUMENT);
+}
+
+// ascii_is_valid 是 charset 门面（ascii_to_utf8/utf8_to_ascii）与
+// conversion 入口（ascii_to_utf16）共享的谓词：语义必须与两侧一致。
+TEST(ConversionTest, AsciiIsValidSharedPredicate) {
+    EXPECT_TRUE(ascii_is_valid(nullptr, 0));
+    EXPECT_TRUE(ascii_is_valid(reinterpret_cast<const ca::u8*>("ABC\x7F"), 4));
+    EXPECT_FALSE(ascii_is_valid(reinterpret_cast<const ca::u8*>("AB\x80"), 3));
+    EXPECT_FALSE(ascii_is_valid(reinterpret_cast<const ca::u8*>("\xFF"), 1));
 }
 
 }  // namespace ca::str
