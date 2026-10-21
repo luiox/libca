@@ -16,6 +16,7 @@
 
 #include "charset.hpp"
 
+#include "utf8_util.hpp"
 #include "libca/str/detail/charset_builtin.hpp"
 #include "libca/str/detail/charset_gb18030.hpp"
 #include "libca/str/format.hpp"
@@ -154,23 +155,21 @@ std::string_view CharsetConverter::canonical_name(std::string_view charset)
     return canonical != nullptr ? *canonical : std::string_view{};
 }
 
+// ASCII 门面共享 utf8_util 的 ascii_is_valid：与 conversion::ascii_to_utf16
+// 同一谓词，ASCII 合法性语义只维护一处。
 core::StatusResult<std::string> CharsetConverter::ascii_to_utf8(std::string_view ascii)
 {
-    for (const char ch : ascii) {
-        if (static_cast<unsigned char>(ch) >= 0x80)
-            return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
-                                             "ascii_to_utf8: byte >= 0x80"));
-    }
+    if (!ascii_is_valid(reinterpret_cast<const u8*>(ascii.data()), ascii.size()))
+        return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                                         "ascii_to_utf8: byte >= 0x80"));
     return core::Ok(std::string(ascii));
 }
 
 core::StatusResult<std::string> CharsetConverter::utf8_to_ascii(std::string_view utf8)
 {
-    for (const char ch : utf8) {
-        if (static_cast<unsigned char>(ch) >= 0x80)
-            return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
-                                             "utf8_to_ascii: codepoint > U+007F"));
-    }
+    if (!ascii_is_valid(reinterpret_cast<const u8*>(utf8.data()), utf8.size()))
+        return core::Err(core::ErrStatus(core::StatusCode::INVALID_ARGUMENT,
+                                         "utf8_to_ascii: codepoint > U+007F"));
     return core::Ok(std::string(utf8));
 }
 

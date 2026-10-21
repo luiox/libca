@@ -37,4 +37,10 @@ usize utf8_count_code_points(const u8* data, usize byte_length,
 /// @brief 检查是否为合法 UTF-8。
 bool utf8_is_valid(const u8* data, usize byte_length) noexcept;
 
+/// @brief 检查是否为合法 US-ASCII（所有字节 < 0x80；空串合法）。
+/// @note charset 层的门面（`CharsetConverter::ascii_to_utf8` / `utf8_to_ascii`）
+///       与 conversion 层的转换入口（`ascii_to_utf16`）共用本谓词，
+///       ASCII 合法性语义收敛在一处实现，避免两层各自维护。
+bool ascii_is_valid(const u8* data, usize byte_length) noexcept;
+
 }  // namespace ca::str

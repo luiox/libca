@@ -154,6 +154,14 @@ bool utf8_is_valid(const u8* data, usize byte_length) noexcept {
     return true;
 }
 
+bool ascii_is_valid(const u8* data, usize byte_length) noexcept {
+    for (usize i = 0; i < byte_length; ++i) {
+        if (data[i] >= 0x80)
+            return false;
+    }
+    return true;
+}
+
 
 
 }
