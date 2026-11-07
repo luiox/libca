@@ -1,11 +1,11 @@
 #pragma once
 
 /// @file lexical_cast.hpp
-/// @brief JsonValue 与 C++ 类型的双向转换链 JsonCast<T>（header-only）。
+/// @brief JsonValue 与 C++ 类型的双向转换链 JsonCast\<T\>（header-only）。
 /// @details 正向 from_json(JsonValue) → Result<T, ConfigError>（严格类型校验 + 整型范围检查），
 ///          反向 to_json(T, arena) → JsonValue（字符串 intern 到调用方 arena）。
 ///          支持标量 bool / std::string / 整型（含 ca::i32 等） / 浮点，以及
-///          std::vector<T>、std::unordered_map<std::string, T> 的递归容器转换。
+///          std::vector\<T\>、std::unordered_map<std::string, T> 的递归容器转换。
 
 #include "libca/config/config_error.hpp"
 
@@ -144,7 +144,7 @@ struct JsonCast<T, std::enable_if_t<std::is_floating_point<T>::value>> {
     }
 };
 
-/// @brief std::vector<T> 转换：JSON Array ↔ vector，元素递归转换。
+/// @brief std::vector\<T\> 转换：JSON Array ↔ vector，元素递归转换。
 template<typename T>
 struct JsonCast<std::vector<T>> {
     /// @brief 从 JSON 数组读取。@return 数组内任一元素失败则整体失败并透传元素错误。

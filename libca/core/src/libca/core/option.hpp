@@ -1,5 +1,5 @@
 /// @file option.hpp
-/// @brief Option<T>：可空值语义（对标 Rust Option / Some / None）。
+/// @brief Option\<T\>：可空值语义（对标 Rust Option / Some / None）。
 /// @details 与 Result<T, E>（成败语义）互补：表达「可能有值也可能没有」。
 ///          内部基于 std::optional 存储实现（与 collection 模块包装 STL 容器同一策略），
 ///          API 面向 Rust 语义：Some/None 工厂、unwrap 家族、组合子与 Result 桥接。
@@ -21,7 +21,7 @@
 
 namespace ca::core {
 
-/// @brief None 的标签类型：`Option<T> x = None;` 表达空值。
+/// @brief None 的标签类型：`Option\<T\> x = None;` 表达空值。
 struct NoneT {
     /// @brief 支持比较（哨兵值语义）。
     constexpr bool operator==(const NoneT&) const noexcept { return true; }
@@ -31,7 +31,7 @@ struct NoneT {
 /// @brief 空值哨兵（对标 Rust 的 None）。
 inline constexpr NoneT None{};
 
-/// @brief 可空值（对标 Rust Option<T>）：Some(值) 或 None。
+/// @brief 可空值（对标 Rust Option\<T\>）：Some(值) 或 None。
 /// @tparam T 值类型；T 须非 void（「可能有 void」退化为 bool，无意义）。
 /// @details 拷贝/移动语义跟随 T（T 可拷贝则 Option 可拷贝，T 仅移动则 Option 仅移动）。
 template<typename T>
@@ -42,7 +42,7 @@ class Option {
 public:
     /// @brief 构造 None。
     Option() noexcept = default;
-    /// @brief 从 None 哨兵构造（`Option<T> x = None;`）。
+    /// @brief 从 None 哨兵构造（`Option\<T\> x = None;`）。
     Option(NoneT) noexcept {}
     /// @brief 就地构造值。
     template<typename... Args>
@@ -107,12 +107,14 @@ public:
     /// @brief 指针式访问（已确认 Some 的快捷路径，等价 unwrap() 的 operator 语法糖）。
     /// @warning None 上解引用是 UB——与 std::optional::operator-> 同契约。
     const T* operator->() const { return &*value_; }
-    /// @copydoc operator->()
+    /// @brief 同 const 版本，返回可写指针。
+    /// @warning None 上解引用是 UB。
     T* operator->() { return &*value_; }
     /// @brief 解引用（已确认 Some 的快捷路径）。
     /// @warning None 上解引用是 UB。
     const T& operator*() const& { return *value_; }
-    /// @copydoc operator*()
+    /// @brief 同 const 版本，返回可写引用。
+    /// @warning None 上解引用是 UB。
     T& operator*() & { return *value_; }
 
     // ---- 取值或默认 ----
@@ -147,7 +149,7 @@ public:
     // ---- 组合子 ----
 
     /// @brief Some 时对值应用 map_fn，返回 Some(结果)；None 透传。
-    /// @return Option<U>，U 为 map_fn 的返回类型。
+    /// @return Option\<U\>，U 为 map_fn 的返回类型。
     template<typename Func>
     auto map(Func map_fn) const& -> Option<std::decay_t<decltype(map_fn(std::declval<const T&>()))>> {
         using U = std::decay_t<decltype(map_fn(std::declval<const T&>()))>;
@@ -161,8 +163,8 @@ public:
         if (value_) return Option<U>(std::in_place, map_fn(std::move(*value_)));
         return None;
     }
-    /// @brief Some 时调用 and_fn(值)，其返回的 Option<U> 直接作为结果；None 透传。
-    /// @return Option<U>，U 由 and_fn 的返回类型推导。
+    /// @brief Some 时调用 and_fn(值)，其返回的 Option\<U\> 直接作为结果；None 透传。
+    /// @return Option\<U\>，U 由 and_fn 的返回类型推导。
     template<typename Func>
     auto and_then(Func and_fn) const& -> decltype(and_fn(std::declval<const T&>())) {
         using Ret = decltype(and_fn(std::declval<const T&>()));
@@ -247,7 +249,7 @@ private:
 };
 
 /// @brief 构造 Some(值)（对标 Rust Some）。按值衰减推导 Option 的 T。
-/// @example `Option<int> x = Some(42);`
+///        用法：Option\<int\> x = Some(42);
 template<typename T>
 Option<std::decay_t<T>> Some(T&& value) {
     return Option<std::decay_t<T>>(std::in_place, std::forward<T>(value));
@@ -299,7 +301,7 @@ template<typename T>
 using Option = core::Option<T>;
 }  // namespace ca
 
-/// @brief std::hash 特化：None 与 Some(v) 的哈希区分，值哈希跟随 std::hash<T>。
+/// @brief std::hash 特化：None 与 Some(v) 的哈希区分，值哈希跟随 std::hash\<T\>。
 template<typename T>
 struct std::hash<ca::core::Option<T>> {
     size_t operator()(const ca::core::Option<T>& opt) const noexcept {

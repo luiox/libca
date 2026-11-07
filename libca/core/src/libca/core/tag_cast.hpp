@@ -6,7 +6,7 @@
 /// @brief 面向整数 tag 层级的 RTTI-free 向下转型：LLVM 风格 isa/cast/dyn_cast。
 ///
 /// 适用于"kind 即域数据"的类层级——每个节点本就携带 int 型 getType() 标签
-/// （序列化/分派要用），转型零额外成本。类型经特化 TypeOf<T> 映射到其标签值
+/// （序列化/分派要用），转型零额外成本。类型经特化 TypeOf\<T\> 映射到其标签值
 /// 后即可参与识别；与 Polymorphic（cast.hpp，编译期 type_id 自动打标、精确
 /// 动态类型匹配）并存，语义不同：
 /// - Polymorphic：任意多态类型的通用识别，需继承基类（侵入）；
@@ -20,7 +20,7 @@ namespace ca::core::tag_cast {
 /// @brief 把具体类型映射到其整数类型标签。
 ///
 /// 为层级中每个叶子类型特化：
-/// `template<> struct TypeOf<Foo> { static constexpr int value = FOO_TAG; };`
+/// `template<> struct TypeOf\<Foo\> { static constexpr int value = FOO_TAG; };`
 /// 该值必须等于运行期 `Foo::getType()` 的返回值。isa/dyn_cast 依赖此特化；
 /// 无检查的 cast 不查询它。
 ///
@@ -46,7 +46,7 @@ struct remove_star<T*>
 };
 
 /// 把调用方给定的目标 T（Foo / Foo* / const Foo 皆可）归一到裸类类型，
-/// 使 cast<Foo> 与 cast<Foo*> 行为一致。
+/// 使 cast\<Foo\> 与 cast<Foo*> 行为一致。
 template<typename T>
 using cleanup_t = std::remove_cv_t<typename remove_star<T>::type>;
 
@@ -72,7 +72,7 @@ auto cast(const U* ptr) -> const std::decay_t<detail::cleanup_t<T>>*
     return static_cast<const RawT*>(ptr);
 }
 
-/// @brief 按 tag 判型：比较 ptr->getType() 与 TypeOf<T>::value。
+/// @brief 按 tag 判型：比较 ptr->getType() 与 TypeOf\<T\>::value。
 ///
 /// @return ptr 为空返回 false；否则返回 tag 比较结果。
 /// @note 仅提供 const 指针形参重载，可同时接受 const 与非 const 实参。

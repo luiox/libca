@@ -1,6 +1,6 @@
 /// @file bom.hpp
 /// @brief BOM（Byte Order Mark，字节顺序标记）检测与剥离工具。仅依赖 datatype.hpp 与
-///        <string_view>，不依赖其他字符串类型。
+///        string_view，不依赖其他字符串类型。
 /// @author Canrad
 /// @date 2026/09/13
 

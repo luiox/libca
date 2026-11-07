@@ -183,7 +183,7 @@ inline void init(std::initializer_list<TableSet> sets,
     }
 }
 
-/// 从 argv 预扫描 --lang <code> / --lang=<code> 并切换语言。
+/// 从 argv 预扫描 --lang \<code\> / --lang=\<code\> 并切换语言。
 ///
 /// 各入口 main 应在 i18n::init 之后、正式参数解析之前调用，保证解析期错误/help
 /// 已按目标语言渲染。值未注册时忽略并返回 false。

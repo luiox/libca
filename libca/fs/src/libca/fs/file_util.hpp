@@ -55,7 +55,7 @@ struct FileMetadata
 /// - **std::string 族**（兼容存量代码）：路径一律按 **UTF-8** 编码，内部经
 ///   `Path::from_utf8_lossy` 转换——非法 UTF-8 序列以 U+FFFD 替代，语义确定、不抛异常。
 /// - **Path 族**（推荐）：类型化编码边界，无隐式字符串转换；返回路径的重载族
-///   相应返回 Path（如 list_files 返回 `std::vector<Path>`）。需要严格校验非法
+///   相应返回 Path（如 list_files 返回 `std::vector\<Path\>`）。需要严格校验非法
 ///   UTF-8 时，先用 `Path::from_utf8`（失败返回 FsError::InvalidUtf8）构造。
 ///
 /// glob 与 create_temp_file/create_temp_directory 的参数是模式/前后缀而非路径，

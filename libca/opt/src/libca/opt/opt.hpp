@@ -60,7 +60,7 @@ struct Arg
     std::vector<std::string> aliases;
     /// 取值类型。默认 String。
     OptKind kind = OptKind::String;
-    /// help 中的值占位符（如 "<jar>"）。为空时按 kind 使用默认占位。
+    /// help 中的值占位符（如 "\<jar\>"）。为空时按 kind 使用默认占位。
     std::string metavar;
     /// 帮助文本。
     std::string help;
@@ -153,7 +153,7 @@ struct Command
     ///       （default/注入初值）覆盖，子命令的同名显式出现按 last-wins 生效；
     ///       需要各层独立取值时避免跨层级复用同一 canonical 名。
     std::vector<Command> subcommands;
-    /// 自定义 usage 行（不含 "Usage: " 前缀，如 "git [-C <path>] <command> ..."）。
+    /// 自定义 usage 行（不含 "Usage: " 前缀，如 "git [-C \<path\>] \<command\> ..."）。
     /// 为空时按命令路径（程序名 + 已穿过的子命令）与选项/位置参数/子命令自动生成；
     /// 非空时完整替换自动生成部分（含程序名与命令路径，由定义方负责书写）。
     std::string usage;
@@ -236,7 +236,7 @@ public:
     /// @brief 当前折行总宽（0 = 不折行）。
     std::size_t text_width() const noexcept { return text_width_; }
 
-    /// @brief 相对两列渲染：每行 `<indent><名字><padding><描述>\n`。
+    /// @brief 相对两列渲染：每行 `\<indent\><名字>\<padding\><描述>\n`。
     /// @details padding = gap + (最长名宽 - 当前行名宽)，至少 1 空格；描述为空
     ///          的行不加 padding（无尾随空白）。空表渲染为空串。
     ///          名字列取各行第一格；其余格以单空格连接作描述（两列表不受影响）。

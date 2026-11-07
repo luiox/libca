@@ -1,6 +1,6 @@
 /// @file json.hpp
 /// @brief libca/json 聚合头——包含 ca::json 下所有公开组件。
-///        用 `#include <libca/json/json.hpp>` 一次引入整个模块。
+///        用 `\1 <libca/json/json.hpp>` 一次引入整个模块。
 /// @author Canrad
 /// @date 2026/07/19
 

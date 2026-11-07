@@ -19,7 +19,7 @@ namespace ca::collection {
 ///
 /// `HashMap` 提供 Rust-like 的 snake_case API，并用 `ArrayList` 返回 key/value/
 /// entry 快照。查询类 API 使用指针表达“存在或不存在”，移除和覆盖类 API 使用
-/// `std::optional<V>` 返回旧值所有权。迭代顺序遵循底层哈希表，不保证稳定。
+/// `std::optional\<V\>` 返回旧值所有权。迭代顺序遵循底层哈希表，不保证稳定。
 template<typename K, typename V, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>>
 class HashMap {
 public:

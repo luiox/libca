@@ -6,7 +6,7 @@
 ///          null / bool / int / float / string / array / object。
 ///          number 区分 int(i64) 与 float(f64)：字面量不含 `.`/`e`/`E` 时按 int 解析，
 ///          超过 i64 范围自动降级为 float。String 用 Utf8StringRef（指向所属 JsonDocument
-///          内的 Utf8StringArena），Array 用 vector<JsonValue>，
+///          内的 Utf8StringArena），Array 用 vector\<JsonValue\>，
 ///          Object 用 vector<pair<Utf8StringRef, JsonValue>>（保序、允许重复 key，set() 覆盖同名 key）。
 /// @note 由于 Utf8StringRef 可拷贝，JsonValue 整体可拷贝（不再 move-only），
 ///       builder/push_back 都更简单。

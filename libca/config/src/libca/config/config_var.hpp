@@ -1,8 +1,8 @@
 #pragma once
 
 /// @file config_var.hpp
-/// @brief 配置项抽象基类 ConfigVarBase 与模板实现 ConfigVar<T>。
-/// @details ConfigVar<T> 持有一个强类型配置值：支持带"值相等短路"的写入、
+/// @brief 配置项抽象基类 ConfigVarBase 与模板实现 ConfigVar\<T\>。
+/// @details ConfigVar\<T\> 持有一个强类型配置值：支持带"值相等短路"的写入、
 ///          变更监听器（锁外回调）以及与 JSON 的双向转换。
 ///          T 的约束：可默认构造、可拷贝、支持 operator==。
 
@@ -69,7 +69,7 @@ private:
 
 /// @brief 强类型配置项。
 /// @tparam T 值类型：需可默认构造、可拷贝、支持 operator==
-///         （bool / 整型 / 浮点 / std::string / 递归容器均可，见 JsonCast<T>）。
+///         （bool / 整型 / 浮点 / std::string / 递归容器均可，见 JsonCast\<T\>）。
 template<typename T>
 class ConfigVar : public ConfigVarBase {
 public:

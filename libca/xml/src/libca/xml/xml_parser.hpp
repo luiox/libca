@@ -6,7 +6,7 @@
 ///          XML 声明 / prolog（注释），再解析唯一根元素，最后处理 epilog（注释）。
 ///          所有字符串经 document.arena().intern(...) 入池。
 /// @note 命名空间不特殊处理：`prefix:local` 整体作为名字。文本/属性值中的命名实体
-///       （&lt; &gt; &amp; &apos; &quot;）与数字字符引用（&#DD; &#xHH;）解码；未知实体报错。
+///       （&lt; &gt; &amp; &apos; &quot;）与数字字符引用（\&\#DD; \&\#xHH;）解码；未知实体报错。
 /// @warning DOCTYPE/DTD、非声明处理指令（PI）、多根元素、闭合标签不匹配、重复属性 → 报错。
 
 #include "libca/core/datatype.hpp"

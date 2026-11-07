@@ -59,7 +59,7 @@ public:
 /// @brief 日志句柄，持有后端并管理级别。
 ///
 /// 级别管理收归此处（旧设计把 set_level/get_level_atomic 委派给后端，导致每个后端
-/// 重复实现）。Logger 持一个 atomic<Level> 做运行期过滤。
+/// 重复实现）。Logger 持一个 atomic\<Level\> 做运行期过滤。
 class Logger
 {
 public:

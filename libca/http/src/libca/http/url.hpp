@@ -90,7 +90,7 @@ public:
     /// @note parse 保证 query 的 percent 序列合法，本方法不会失败。
     std::vector<HttpQueryParam> query_params() const;
 
-    /// @brief 序列化为完整 URI（scheme://userinfo@host:port/path?query#fragment）。
+    /// @brief 序列化为完整 URI（scheme://userinfo\@host:port/path?query#fragment）。
     /// @note parse(to_string()) 与原实例的组件分解一致（round-trip）。
     std::string to_string() const;
 
