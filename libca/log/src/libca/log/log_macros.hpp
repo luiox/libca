@@ -13,7 +13,7 @@
 
 /// @file log_macros.hpp
 /// @brief 用户入口：日志宏 + 编译期/运行期过滤。命名空间 `ca::log`。
-/// @note 用法：`#include "libca/log/log_macros.hpp"` 然后 `CA_LOG_INFO("hello {}", name)`。
+/// @note 用法：`\1 "libca/log/log_macros.hpp"` 然后 `CA_LOG_INFO("hello {}", name)`。
 ///       编译期级别由 `CA_COMPILE_LOG_LEVEL` 宏控制（默认 Info），低于该级别的宏不生成调用。
 /// @note 短路求值保证：编译期被裁剪的级别（if constexpr 整体丢弃）与运行期级别不满足
 ///       （未注册 target 或 should_log 为 false）时，格式化实参 **零求值**——实参中的

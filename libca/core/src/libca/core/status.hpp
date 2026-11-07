@@ -60,7 +60,7 @@ inline std::string to_string(StatusCode code) {
 }
 
 /// @brief 轻量错误状态，OK 表示成功，其它状态码表示失败。
-/// @note 需要返回值时使用 `StatusResult<T>`；只需成败时可直接返回 `Status`。
+/// @note 需要返回值时使用 `StatusResult\<T\>`；只需成败时可直接返回 `Status`。
 class Status {
 public:
     /// @brief 默认构造为 OK。

@@ -19,7 +19,7 @@ namespace ca::core {
 
 /// @brief 泛型自注册工厂：以 Key 查找工厂并构造 Base 的派生对象。
 /// @tparam Key 注册键类型，需支持 operator<（内部用 std::map 有序存储）。
-/// @tparam Base 产品基类，工厂返回 std::unique_ptr<Base>。
+/// @tparam Base 产品基类，工厂返回 std::unique_ptr\<Base\>。
 /// @tparam Args 工厂调用参数形态：create(key, args...) 原样转发给工厂，
 ///              无额外构造参数时留空即可。
 /// @note 全部接口为 static；每个 Registry<Key, Base, Args...> 实例化各有一张
@@ -39,11 +39,11 @@ namespace ca::core {
 /// namespace {
 /// const bool g_registered_circle = ShapeRegistry::register_factory(
 ///     "circle",
-///     []() -> std::unique_ptr<Shape> { return std::make_unique<Circle>(); }).is_ok();
+///     []() -> std::unique_ptr\<Shape\> { return std::make_unique\<Circle\>(); }).is_ok();
 /// }
 ///
 /// // main.cpp —— 按键构造，无需 include 具体实现
-/// auto shape = ShapeRegistry::create("circle");   // StatusResult<std::unique_ptr<Shape>>
+/// auto shape = ShapeRegistry::create("circle");   // StatusResult<std::unique_ptr\<Shape\>>
 /// @endcode
 template<typename Key, typename Base, typename... Args>
 class Registry {

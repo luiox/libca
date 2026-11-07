@@ -248,7 +248,7 @@ inline usize ring_segment_size(usize slot_count, usize payload_capacity) noexcep
 }
 
 #if !defined(_WIN32)
-/// @brief 读 /proc/<pid>/stat 的 starttime（clock tick）作为进程出生戳。
+/// @brief 读 /proc/\<pid\>/stat 的 starttime（clock tick）作为进程出生戳。
 ///        打开或读取失败返回 0。仅供 ShmRingQueue 实现与测试使用，不属于稳定 API。
 u64 read_process_birth(u64 pid);
 #endif

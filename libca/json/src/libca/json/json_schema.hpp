@@ -5,7 +5,7 @@
 ///          type / required / properties / const / enum / items /
 ///          minimum / maximum / minLength / maxLength。
 ///          schema 与文档都使用 ca::json::JsonValue（DOM）。错误经
-///          ca::Result<std::vector<ValidationError>, SchemaError> 传播，不抛异常。
+///          ca::Result<std::vector\<ValidationError\>, SchemaError> 传播，不抛异常。
 
 #pragma once
 

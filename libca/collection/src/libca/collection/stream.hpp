@@ -2,7 +2,7 @@
 /// @brief Stream — 基于迭代器范围的惰性流水线（header-only 模板）。
 ///
 /// 命名空间 ca::collection。Rust 迭代器风格的适配器链：
-/// `stream(c).filter(p1).filter(p2).map(f).take(n).collect<Container>()`。
+/// `stream(c).filter(p1).filter(p2).map(f).take(n).collect\<Container\>()`。
 /// 每个适配器返回新的流水线节点（按值持有上游），filter/map 可任意叠加；
 /// for_each / collect / count / reduce / any / all 是终止操作，触发一次遍历。
 
@@ -33,7 +33,7 @@ template<typename Parent>
 class SkipStream;
 
 /// @brief 所有流水线节点的公共基类（CRTP）：统一提供适配器与终止操作。
-/// @tparam Derived 节点具体类型，须实现 `Option<value_type> next()` 拉取下一个元素。
+/// @tparam Derived 节点具体类型，须实现 `Option\<value_type\> next()` 拉取下一个元素。
 /// @tparam T       流中元素的值类型（按值传出）。
 ///
 /// 适配器（filter/map/take/skip）返回**新节点**并移动消费当前节点——与 Rust

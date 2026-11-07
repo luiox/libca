@@ -7,7 +7,7 @@
 /// @file cast.hpp
 /// @brief 不依赖 RTTI 的运行时类型识别与向下转型：Polymorphic 基类 + isa/cast/dyn_cast。
 /// @note 类型匹配是**精确动态类型**匹配，不是"是否为某基类"。实际对象是 Human 时，
-///       isa<Mammal> 返回 false、isa<Human> 返回 true。
+///       isa\<Mammal\> 返回 false、isa\<Human\> 返回 true。
 
 namespace ca::core {
 
@@ -32,7 +32,7 @@ bool isa(const U* ptr) noexcept {
 }
 
 /// @brief 无检查向下转型，等价于确认类型后的 static_cast。
-/// @warning 类型不匹配是未定义行为；不确定时用 dyn_cast<T>()。
+/// @warning 类型不匹配是未定义行为；不确定时用 dyn_cast\<T\>()。
 template<typename T, typename U>
 auto cast(U* ptr) noexcept -> std::enable_if_t<!std::is_const_v<U>, std::decay_t<T>*> {
     using RawT = std::decay_t<T>;

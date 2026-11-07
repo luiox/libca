@@ -8,7 +8,7 @@
 ///          都是 `Utf8StringRef`，指向所属 `XmlDocument` 内部的 `Utf8StringArena`，
 ///          节点因此**可拷贝**（浅拷贝引用）。
 /// @note 支持**混合内容**：一个元素的子节点可以是 Element/Text/Comment/Cdata 任意交错
-///       （如 `<p>Hello <b>world</b>!</p>`）。属性保插入序 + key 索引，O(1) 查找/设置。
+///       （如 \<p\>Hello \<b\>world\</b\>!\</p\>）。属性保插入序 + key 索引，O(1) 查找/设置。
 ///       命名空间**不特殊处理**：`prefix:local` 整体作为元素名/属性名（不拆分）。
 /// @warning 字符串引用生命周期绑定所属 `XmlDocument`：document 析构后引用失效。
 ///          需要长期持有的用户应自行 clone 出 Utf8String。
@@ -123,7 +123,7 @@ public:
     XmlNode* first_element(const ca::str::Utf8StringRef& name) noexcept;
 
     /// @brief 拼接元素的**直接** Text 与 Cdata 子节点内容，返回独立 Utf8String。
-    /// @details 常用于取「只有文本内容」的元素的值（如 `<port>8080</port>` 取 "8080"）。
+    /// @details 常用于取「只有文本内容」的元素的值（如 `\<port\>8080</port>` 取 "8080"）。
     ///          混合内容里穿插的子元素被跳过（只取直接文本）。返回值拥有独立堆内存，
     ///          不受 document 生命周期约束。@warning 必须为 Element。
     ca::str::Utf8String text() const;

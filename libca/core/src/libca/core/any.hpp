@@ -23,13 +23,13 @@ constexpr const void* type_id() noexcept {
 
 /// @brief 基于 type_tag 的类型擦除容器，不依赖 RTTI / typeid。
 /// @note 可拷贝类型支持完整拷贝/移动；仅移动类型拷贝 Any 后得到空 Any。
-///       取值优先用 as<T>()（带类型检查）；cast<T>() 不检查类型，不匹配是 UB。
+///       取值优先用 as\<T\>()（带类型检查）；cast\<T\>() 不检查类型，不匹配是 UB。
 class Any {
 public:
     /// 构造空对象（不持有值）。
     Any() noexcept = default;
 
-    /// 持有 decay_t<T> 的副本/移动值。
+    /// 持有 decay_t\<T\> 的副本/移动值。
     template<typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Any>>>
     Any(T&& value) {
         using Raw = std::decay_t<T>;
@@ -105,7 +105,7 @@ public:
         return static_cast<const std::decay_t<T>*>(ptr_);
     }
 
-    /// @brief 无检查取引用。@warning 类型不匹配是未定义行为，不确定时用 as<T>()。
+    /// @brief 无检查取引用。@warning 类型不匹配是未定义行为，不确定时用 as\<T\>()。
     template<typename T>
     std::decay_t<T>& cast() {
         return *static_cast<std::decay_t<T>*>(ptr_);

@@ -6,14 +6,14 @@
 
 /// @file minidump.hpp
 /// @brief Windows 崩溃转储（minidump）：安装未处理异常过滤器，崩溃时经 dbghelp
-///        MiniDumpWriteDump 写出 "<prefix>-<pid>-<时间戳>.dmp"。
+///        MiniDumpWriteDump 写出 "\<prefix>-\<pid>-\<时间戳\>.dmp"。
 /// @note 仅 Windows 生效；其他平台头文件可正常包含，运行时接口返回"不支持"错误。
 
 namespace ca::core {
 
 /// @brief 安装崩溃转储过滤器：SetUnhandledExceptionFilter + dbghelp MiniDumpWriteDump。
 /// @param path_prefix 转储文件路径前缀（UTF-8）。崩溃时写出
-///                    "<path_prefix>-<pid>-<epoch 毫秒>.dmp"，目录需已存在。
+///                    "\<path_prefix\>-\<pid\>-\<epoch 毫秒\>.dmp"，目录需已存在。
 /// @return 成功返回 OK；path_prefix 为空或过长返回 INVALID_ARGUMENT。
 /// @note 幂等：已安装状态下重复调用只更新 path_prefix，不会重复覆盖过滤器链；
 ///       uninstall_crash_dump() 会恢复 install 之前的过滤器。

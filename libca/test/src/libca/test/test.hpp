@@ -46,24 +46,24 @@ std::filesystem::path top_project_path();
 /// 当前子项目根（.project_root_file 所在目录）。
 std::filesystem::path current_project_path();
 
-/// 按名字取任意子项目根；未在映射中命中时回落 <top>/<name>。
+/// 按名字取任意子项目根；未在映射中命中时回落 \<top\>/\<name\>。
 std::filesystem::path project_path(const std::string& project);
 
 /// 该名字是否已由 .project_root_file 注册（区别于回落猜测）。
 bool has_project(const std::string& project);
 
-/// 当前项目资源：<current>/test_resource/<rel>。
+/// 当前项目资源：\<current\>/test_resource/\<rel\>。
 std::filesystem::path resource_path(const std::string& rel);
 bool                  has_resource(const std::string& rel);
 std::vector<uint8_t>  resource(const std::string& rel);
 
-/// 跨项目资源：<project_path(project)>/test_resource/<rel>。
+/// 跨项目资源：<project_path(project)>/test_resource/\<rel\>。
 std::filesystem::path project_resource_path(const std::string& project, const std::string& rel);
 bool                  has_project_resource(const std::string& project, const std::string& rel);
 std::vector<uint8_t>  project_resource(const std::string& project, const std::string& rel);
 
 /// 输出路径约定（目录不存在则自动创建）：
-/// out_path → <out_root>/，demo_out_path → <out_root>/demo/，temp_out_path → <out_root>/tmp/
+/// out_path → \<out_root\>/，demo_out_path → \<out_root\>/demo/，temp_out_path → \<out_root\>/tmp/
 std::filesystem::path out_path(const std::string& filename);
 std::filesystem::path demo_out_path(const std::string& filename);
 std::filesystem::path temp_out_path(const std::string& filename);

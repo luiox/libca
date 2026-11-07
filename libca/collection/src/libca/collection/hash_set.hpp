@@ -18,7 +18,7 @@ namespace ca::collection {
 /// @brief 基于 `std::unordered_set` 的拥有型哈希集合容器。
 ///
 /// `HashSet` 提供 Rust-like 的 snake_case API。集合不保证迭代顺序，查询类 API
-/// 使用 bool 或只读指针表达结果，`take()` / `replace()` 用 `std::optional<T>`
+/// 使用 bool 或只读指针表达结果，`take()` / `replace()` 用 `std::optional\<T\>`
 /// 返回被移出的旧值所有权。
 template<typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>>
 class HashSet {
@@ -169,8 +169,8 @@ public:
     bool insert(T&& value) { return add(std::move(value)); }
 
     /// @brief 插入元素（add 兼容别名，丢弃去重结果）。
-    /// @details 集合无尾部概念，仅满足 Stream::collect<Container> 对 push_back
-    ///          的要求，使 `stream(v).collect<HashSet<T>>()` 可用。
+    /// @details 集合无尾部概念，仅满足 Stream::collect\<Container\> 对 push_back
+    ///          的要求，使 `stream(v).collect<HashSet\<T\>>()` 可用。
     void push_back(const T& value) { add(value); }
     void push_back(T&& value) { add(std::move(value)); }
 
