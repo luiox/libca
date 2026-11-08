@@ -7,7 +7,7 @@
 
 ## 高优先级
 
-### 1. Stream 管道化重写 `[本分支: feat/stream-pipeline-ipc-tests]`
+### 1. Stream 管道化重写 `[已完成]`
 
 现状：`collection/stream.hpp` 的 filter/map 是**覆盖式**——`.filter(p1).filter(p2)`
 静默只应用 p2（头文件 @warning 已声明，测试也钉死了该契约）。这与「Rust 语义对齐」
@@ -20,7 +20,7 @@
 - 补终止操作：count / reduce / any / all；
 - 同步更新 stream_test.cpp（覆盖式契约测试改为组合语义测试）、collection 设计文档、CHANGELOG。
 
-### 2. process/ipc 测试补全 `[本分支: feat/stream-pipeline-ipc-tests]`
+### 2. process/ipc 测试补全 `[已完成]`
 
 现状（盘点修正）：ipc 并非零测试，`subprocess_test.cpp` 里已有 10 个用例覆盖五个
 原语的 happy path 与 remove 语义，但（a）放在 subprocess_test.cpp 文件里名不副实，
@@ -50,7 +50,7 @@ GBK 用 glibc "GBK" 转换器，本地代码页取 `nl_langinfo(CODESET)`，wcha
 "WCHAR_T"；非法/残缺序列返回 INVALID_ARGUMENT，转换对不被支持返回
 UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu CI 验证。
 
-### 5. fs::Path 路径值类型与编码边界收敛 `[本分支: feat/fs-path]`
+### 5. fs::Path 路径值类型与编码边界收敛 `[已完成]`
 
 现状：std::filesystem 的窄字符接口在 Windows 按 ACP 解析（中文路径有损），原对策是
 每个调用点手写 u8path/generic_u8string——契约只在注释、u8path 在 C++20 废弃、
@@ -91,10 +91,12 @@ UNIMPLEMENTED（裁剪系统缺 GBK 时测试跳过）。POSIX 路径由 ubuntu 
   多文档、xml 无 DTD/PI，避免下游预期落差。
 - `[待办]` 功能方向评估：fs 的 glob/通配匹配与目录监听；thread 的定时调度
   （scheduled executor）；time 模块加厚（自述「薄」）。
-- `[待办]` 0.0.1 打 tag 发布，为后续不兼容变更建立参照系。
+- `[已完成]` 0.0.x 持续定版并维护 CHANGELOG（当前 0.0.16），为后续不兼容变更建立参照系。
 
 ## 变更记录
 
+- 2026-11-08：状态盘点修正——Stream 管道化（commit 5a93df5）、process/ipc 测试补全
+  （unittest/ipc_test.cpp 25 例）、fs::Path（0.0.14）均已落地；0.0.x 定版持续进行中。
 - 2026-09-03：新增第 6 项 fs::Path（分支 feat/fs-path）：Path 类型 + FileUtil 双重载族
   + u8path 全库清零；盘点修正——json/toml/xml/yaml 同样存在 u8path 调用（此前漏记）。
 - 2026-08-31（第二批）：macOS 决策为砍掉（方案 B）并删除死分支；charset POSIX

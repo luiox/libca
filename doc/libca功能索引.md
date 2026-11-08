@@ -82,13 +82,20 @@ UTF-8 字符串与所有权模型模块。
 文件与路径工具模块，封装常见 `std::filesystem` 操作。
 
 入口头文件：
+- `<libca/fs/path.hpp>`
 - `<libca/fs/file_util.hpp>`
 - `<libca/fs/path_util.hpp>`
+- `<libca/fs/stdio_file.hpp>`
 - `<libca/fs/fs_error.hpp>`
 
 功能：
+- `Path`：路径值类型，编码边界收敛点——从字符串构造必须经 `from_utf8`（校验报
+  `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）工厂显式表达编码语义，
+  与 std::string 无隐式转换；`operator/` 拼接、native 词法比较。
 - `PathUtil`：路径拼接、规范化、扩展名、文件名、父目录等纯字符串路径操作；`normalize_within` 词法归一化并校验不逃出 base（路径穿越防护）。
 - `FileUtil`：读写文本、读写字节、文件/目录创建、删除、复制、移动和查询。
+- `StdioFile` / `open_stdio` / `read_file_all`：C stdio 读侧设施（整读大文件比
+  ifstream 快 3~4x，写路径维持 iostream）。
 - `FileMode`：写入模式控制。
 - `FsError`：文件操作错误码与可读文本转换。
 
@@ -428,7 +435,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - SHA-1、SHA-256、SHA-384/SHA-512、SHA-3、MD5 等 hash。
 - HMAC-SHA1 / HMAC-SHA256 / HMAC-SHA512。
 - HKDF（RFC 5869）：`hkdf_sha{1,256,512}_extract/_expand/_derive`。
-- PBKDF2-HMAC-SHA256（RFC 7914）。
+- PBKDF2-HMAC-SHA256（RFC 2898 5.2）。
 - CRC、Base64、Hex 编解码。
 - Base32 编解码（RFC 4648）。
 - `murmur3_32`：非加密哈希（HashMap 键哈希/布隆过滤器用）。
