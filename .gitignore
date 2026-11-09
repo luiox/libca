@@ -30,3 +30,5 @@ mcp/GDB-MCP/
 .agent/
 mcp/mcp.txt
 __pycache__/
+doc/_build/
+doc/_apidoc/
