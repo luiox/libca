@@ -1,0 +1,290 @@
+.. _opt-design:
+
+libca::opt 设计文档
+===================
+
+.. code-block:: text
+
+   version: 1.9
+   update:
+   2026-10-03 - HelpTable 排版层扩展（上游需求）：多列结构行 add_row、原样行
+                add_raw 与块合并 append（列宽渲染期全表重算）；列宽口径可切
+                WidthMode（默认 Codepoint 保持历史逐字节行为，Display 按 East
+                Asian Width 近似计 CJK 为 2）；set_text_width 末列折行 + 悬挂
+                对齐、单元格 '\n' 硬换行同口径；新增 render_columns 通用多列
+                渲染。见 §3.8
+   2026-08-24 - 多字符单横线别名（如 -vm-range）按整 token 精确匹配：此前实现
+                只查两字符短名，头文件声明的整 token 别名在解析路径永不命中
+                （被拆成短簇报截断错误）。命中后取值语义与长形态一致
+                （=value 内联 / 空格后继）；两字符短名的簇与附着展开不变；
+                未命中的多字符单横线 token 报全名而非首字符
+   2026-08-24 - 写明跨层级同名选项语义：值键全局共享，上级 CLI 显式值不被子命令
+                种子覆盖（对齐「命令行恒为最高」的全局优先级）；§5 用例清单刷新
+   2026-08-24 - Int 严格十进制拒绝空白（含前导：strtoll 默认跳过前导空白的行为收紧
+                为拒绝，" 30" 与 "30 " 对称报 InvalidInteger）
+   2026-08-24 - 内置 --help/-h 可被用户注册的同名选项覆盖（如 -h 作 --host 别名），
+                注册的 token 优先按用户定义解析
+   2026-08-24 - 修复子命令 --help 的 usage 行：自动 usage 输出完整命令路径
+                （程序名 + 子命令路径），不再重复子命令名/丢程序名；自定义 usage
+                改为完整替换（不再前置子命令路径，与 §3.6 声明一致）
+   2026-08-23 - MutexGroup 增加 label，ParseError.group 回填组标识（下游按组分派
+                文案，替代"唯一互斥组"式硬编码）
+   2026-08-23 - 新增 OptionalString 可选值形态（--x 裸出现 / --x=v 内联，
+                空格形态不消费后继 token）
+   2026-08-23 - 新增值来源查询 source_of()；互斥组判定改为显式选择（静态默认不算）；
+                写明 Int 十进制 i32 边界（评审反馈）
+   2026-08-22 - 初版：v2 重写落地（P0-P2），记录三套 CLI 实现收敛的背景与关键取舍
+
+..
+
+  本文记录 opt 模块的架构、边界、取舍。**不含接口签名与方法说明（见头文件 Doxygen 注释）**。
+  涉及接口见 ``libca/opt/src/libca/opt/opt.hpp``。
+
+1. 模块定位
+-----------
+
+命令行选项解析器，位于业务上层，仅依赖 core（``Result``/``StatusCode``）与 str（``format_std``）。
+
+目标：成为下游项目的共同 CLI 地基，收敛此前在库外各自为政的多套 CLI 解析实现。
+
+边界（不进库，由调用方在库外组装）：
+
+- 配置文件格式与解析（下游用 libca/json 等自行加载后经初值注入接入）
+- schema / template dump（下游基于 Arg 元数据自建，供 GUI 等消费）
+- 错误文案与 i18n（库只产出「类别 + 出错参数名」，message 仅为现成英文兜底）
+
+库为此提供的钩子：带初始值注入的 ``parse()`` 重载、``Parser::root()`` 只读元数据访问、
+``help_text(cmd, groups)`` 分组过滤帮助渲染。
+
+2. 核心模型
+-----------
+
+2.1 Command 树
+^^^^^^^^^^^^^^
+
+根命令 + 任意深度子命令，每层独立持有选项表（args）、互斥组（mutex_groups）、
+usage 与 help。解析按非选项 token 逐层分派；**进入子命令前先对父命令做收尾校验**
+（required 与互斥组），避免"根级约束被子命令分派跳过"这类回归。任何层级都响应
+``--help`` / ``-h``，输出当前层的帮助文本；自动 usage 行为
+``Usage: <程序名> <子命令路径> [options] ...``\ （程序名取根命令 name）。
+内置帮助 token 可被覆盖：``--help`` / ``-h`` 已注册为某选项的长名/别名时
+（如 ``-h`` 作 ``--host`` 的别名），按该选项定义解析——用户注册优先于内置约定。
+
+选项值键跨层级共享命名空间：父命令与子命令注册同名选项时共用同一取值入口
+（``has()``/``get()`` 按名字全局寻址）。种子写入前检查已有来源——**上级命令行
+显式给值不被子命令的种子（default/注入初值）覆盖**，全局优先级
+「default < 注入初值 < 命令行」在跨层级场景同样成立；子命令的同名显式出现按
+last-wins 生效。需要各层独立取值时应避免跨层级复用同一 canonical 名。
+
+2.2 Arg 三要素
+^^^^^^^^^^^^^^
+
+- **name**：canonical key，同时是存储 key——``has()/get()/get_int()/get_list()`` 只认它；
+  即便选项只用短名也必须提供长名作 key。
+- **aliases**：额外的命令行 token（含 ``-`` 前缀完整书写）。别名只影响匹配与 help 展示，
+  不影响取值入口。超过两字符的单横线别名（如 ``-vm-range``）按整 token 精确匹配，
+  取值语义与长形态一致（``=value`` 内联 / 空格后继），不参与短名簇（``-abc``）与
+  附着值（``-ofile``）展开——后两者仅对两字符短名定义。
+- **kind**：取值类型的唯一表达，不存在"有值但类型未定"的中间态。
+
+各 kind 的重复语义：
+
+.. list-table::
+   :header-rows: 1
+
+   * - kind
+     - CLI 形态
+     - 重复出现
+     - 初值注入
+   * - Flag
+     - ``-v`` / ``--verbose``
+     - 幂等置位
+     - 不参与
+   * - String
+     - ``--out x`` / ``--out=x`` / ``-o x`` / ``-ox``
+     - last-wins
+     - 覆盖默认值
+   * - Int
+     - 同上
+     - last-wins，非法即报错
+     - 注入时即校验
+   * - StringList
+     - ``--p a,b,c`` 或多次出现
+     - 追加合并
+     - 逗号拆分追加
+   * - OptionalString
+     - ``--dump``\ （裸） / ``--dump=x``\ （内联）/ ``-d`` / ``-dx``
+     - last-wins
+     - 覆盖默认值
+   * - Positional
+     - 裸 token
+     - 按序收集
+     - 不参与
+
+未声明 Positional 时多余裸 token 报 UnexpectedArgument（旧版静默丢弃属缺陷，v2 收紧）；
+``--`` 终止符后的 token 一律进 positionals。
+
+**OptionalString 的歧义收敛**：可选值是经典 CLI 需求（如
+``--dump-config-schema[=file]`` 不带值输出 stdout、带值写文件），但
+"``--x value`` 算不算给值"与位置参数/子命令天然冲突。v2 采用 GNU getopt_long
+optional_argument 的同款收敛：**空格形态永不消费后继 token**——值只能内联
+（长选项 ``=`` 形态）或附着（短选项 ``-dfile``）；裸出现 = 已提供且值为空串，
+语义归调用方约定。配合 source_of 可精确区分"没给 / 给了空的"。
+
+**Int 的边界**：严格十进制 ``int32``\ （``strtoll`` 全量消费 + 溢出拒绝，且收紧
+strtoll 跳过前导空白的默认行为——含空白即非法，``" 30"`` 与 ``"30 "`` 对称报错），
+不支持 ``0x`` 前缀与无符号全值域。hex（如 ``0x`` 种子值）或 u64 场景走 String 选项
+由下游 ``strtoull`` 自行解析——进制与位宽是领域语义，不值得为此扩 OptKind 面。
+
+3. 关键决策与取舍
+-----------------
+
+3.1 不做兼容层
+^^^^^^^^^^^^^^
+
+旧 ``Arg{short_name, has_value}`` 双字段与新 ``kind + aliases`` 在语义上无法无损映射
+（has_value=true 的 Flag 实际是 String），保留两套表达只会让错误配置更隐蔽。
+该子库当时无下游用户，直接移除旧字段，破坏性变更记入 CHANGELOG。
+
+3.2 错误模型：类别优先于文案
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``parse()`` 返回 ``Result<ParseResult, ParseError>``，错误载荷是
+``ParseErrorCategory + option + message``：
+
+- **类别是契约，文案是兜底**。调用方按 category 决定行为（映射退出码、提示重试、
+  打印帮助），可整体替换文案做 i18n；不想定制的场景直接打印 message 也能用。
+- **HelpRequested 走 Err 分支**：用户请求帮助会中止正常流程，与成功路径互斥；
+  放 Err 里让 ``is_ok()`` 严格等价于"可以继续干活"，message 直接承载完整帮助文本。
+  ``to_status_code()`` 提供到通用 StatusCode 的桥接（HelpRequested → CANCELLED），
+  兼容仍以 Status 为边界的调用方。
+- **InvalidDefinition 单列**：空 name、别名不带 ``-``、token 重复、required 与 default
+  并存、互斥组引用未注册选项等属于\ **定义期程序错误**，与用户输入错误（UnknownOption
+  等）分开，桥接为 FAILED_PRECONDITION。fail-fast：在 parse 入口与子命令切换时即拒绝，
+  不等到运行期。
+
+3.3 互斥组
+^^^^^^^^^^
+
+- 用结构体字段 ``Command::mutex_groups`` 表达而非 builder 方法：聚合初始化即可声明，
+  库侧不引入构建器层；若未来迁移量大再加 builder 语法糖。
+- 组内成员至多出现一个（冲突报 MutexConflict），required 时至少一个（缺失报
+  MutexRequired）。help 中互斥成员标注 ``[exclusive]`` / ``[exclusive, one required]``。
+- **「出现」按显式选择判定**：只有命令行给出或注入初值算选择，静态 default_value
+  预置不算。否则两个带默认值成员同组会在用户什么都没给时报冲突，required 组也
+  会被默认值永久短路——判定依据是 ``ValueSource``，不是 ``has()``。
+- **组标识进错误载荷**：``MutexGroup::label``\ （可选）经 ``ParseError.group`` 回填，
+  无 label 时退化为 "a\|b" 成员拼接。下游按 group 分派文案而非按 category
+  硬编码单一映射——互斥组的业务含义（如下游的 dump_once）只有下游知道，
+  多组并存时这是唯一的分派锚点。
+- 成员必须指向本命令已注册选项，否则 InvalidDefinition——拼错名字不应安静失效。
+
+3.4 初始值注入的三级优先级与边界
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``parse(argc, argv, initial_values)`` 支持把配置文件加载结果批量预填，优先级恒为：
+
+.. code-block:: text
+
+   静态 default_value < initial_values（如配置文件） < 命令行显式出现
+
+边界取舍：
+
+- **仅带值选项参与**。Flag 无法用"presence"区分 true/false——注入 ``"false"`` 后
+  ``has()`` 返回什么都是错的，干脆不允许，布尔类配置留给下游转成显式 String/Int 选项。
+- **未知名字静默忽略**。配置文件通常还包含非 CLI 键（日志级别、窗口尺寸等），
+  逐键报错会让注入不可用；拼写校验交给下游自己的配置 schema。
+- **注入时即校验**：Int 非法、空串在 parse 入口就报 InvalidInteger / EmptyValue，
+  不留到 get 阶段安静回落默认值。
+- required 把注入视为已提供；互斥组按 §3.3 的「选择」语义处理（注入算选择，
+  默认不算）。
+- 进入每个 command 时按该命令的选项名匹配一次，子命令级选项同样可被预填。
+
+3.5 值来源查询
+^^^^^^^^^^^^^^
+
+种子值先行写入后 ``has()`` 无法区分「CLI 显式 / 注入 / 恰好等于默认」，对
+「配置文件 + CLI」双源下游是陷阱（无法干净实现"仅当用户显式给值才告警/覆盖"
+这类逻辑）。因此提供 ``source_of(name)`` 返回 ``ValueSource { None, CommandLine,
+Initial, Default }``：seed 与 CLI 写入分开登记来源，成本极低；下游的
+``*Selected`` 标志族模式由它等价替代。
+
+3.6 help 渲染单一实现
+^^^^^^^^^^^^^^^^^^^^^
+
+``--help`` 输出与公开的 ``help_text()`` 共享同一渲染函数，杜绝"CLI 帮助与库内导出"
+两处漂移。渲染规则：
+
+- 未分组选项归入 ``Options:`` 默认节；``Arg::group`` 相同的选项按标签首次出现顺序各成一节
+- ``groups`` 过滤参数只保留指定分组节（省略默认节），位置参数与子命令摘要不受影响——
+  服务分组打印与按模块裁剪帮助的需求
+- 自定义 usage 完整替换首行的自动生成部分（含程序名，定义方负责书写）
+
+3.7 元数据导出边界
+^^^^^^^^^^^^^^^^^^
+
+``Parser::root()`` 提供 const 访问遍历整棵 Command 树；schema / template dump /
+补全脚本由下游基于 Arg 字段自建并序列化。库不定义 dump 格式：那会把 JSON/GUI
+关注点拖进依赖分层。
+
+3.8 HelpTable 排版层：对齐是渲染期的事
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+i18n 迁移暴露的问题：help 文案靠字符串字面量里的手工空格做列对齐，翻译值必须
+逐条复刻空格数，列宽一调全表返工（上游需求）。HelpTable 把对齐收进渲染期：
+
+- **表即多行块**：结构行（``add``/``add_row``）与原样行（``add_raw``）按插入序共存于
+  一张表——原样行承载节标题/空行/分隔线，不参与列宽度量；``append`` 把多张表
+  （子命令列表块、参数组块）拼成一张，列宽渲染期按全表重算。i18n 资源只存
+  纯文案，不含任何对齐空格。
+- **宽度口径可切**：默认按 UTF-8 码点数（0.0.12 口径，ASCII 名下与显示宽度
+  等价，存量输出逐字节不变）；名/描述含 CJK 时切 ``WidthMode::Display``，按
+  East Asian Width 近似表计量（Wide 计 2、组合符计 0）。不做完整 EAW/表情
+  联合表——help 排版够用，精度换依赖零化。
+- **折行是末列的事**：``set_text_width`` 给出行总宽，超宽只在描述列/末列折行，
+  续行悬挂对齐到该列起始列；断点为空格与宽字符边界（CJK 无空格分词），
+  单词超整行宽度时按宽度硬切，永不截断丢字。落行时行尾空格剥除、行首空格
+  随断点丢弃——折行输出不作 verbatim 空格保留（未折行的行仍逐字节原样）。
+  单元格内 ``'\n'`` 是硬换行，
+  续行同样悬挂对齐——mjt 多行子命令 help（``jar fix<对齐>修复…\n jar list…``）
+  由此结构化表达。
+- **对齐口径三不变**\ （与 0.0.10 两列版一致并推广到多列）：padding 至少 1 空格；
+  过宽退化为单空格分隔右移不截断；空描述行行尾不留空白。多列渲染额外保证
+  缺格/空末格行经行尾空白清理后同样干净。
+- 渲染期取"当时"的口径与设置全量计算宽度，``set_*`` 在 add 之前或之后调用均可
+  （0.0.12 及以前在 add 时缓存最大名宽，等价）；``append`` 只搬条目不搬设置，
+  接收方的口径/折行设置生效。
+
+4. 功能裁切
+-----------
+
+不需要专门机制。条件注册即天然 fail-closed：
+
+.. code-block:: cpp
+
+   #if LIBCA_OPT_WITH_LLVM
+       cmd.args.push_back(llvm_backend_arg());
+   #endif
+
+裁掉的名字回到 UnknownOption 路径，help 由剩余选项自动生成，无需同步两处文本。
+``CommandBuilder`` 未实现：聚合初始化已够用，待下游真实迁移时再评估是否值得加语法糖。
+
+5. 测试
+-------
+
+``libca/opt/unittest/opt_test.cpp``，80 个用例分八组：
+
+- OptParseTest：旧验收面（形态解析、子命令、-- 终止符、--help、基础错误）
+- OptV2Test：P0 能力（positionals、Int 校验、多别名 canonical、StringList 合并、last-wins、
+  多字符单横线别名整 token 匹配）
+- OptV2P1Test：错误分类逐类断言、互斥组三态、分组渲染、自定义 usage、状态码桥接
+- OptV2P2Test：三级优先级、注入校验与作用域、required/互斥组被初值满足、
+  root() 元数据访问、help_text 过滤
+- OptV2ProvenanceTest：source_of 值来源、互斥组显式选择判定
+- OptV2OptionalTest：OptionalString 形态与互斥组/help 交互
+- OptV2FixTest：评审修复回归（子命令 usage 行、-h/--help 可覆盖、Int 空白
+  严格化、跨层级同名选项优先级）
+- HelpTableTest：两列渲染基线（自动列宽、绝对列、空描述、过宽退化、码点计量、
+  空表）+ #890 排版扩展（多列对齐、原样行块组合、append 合并重算、设置不随
+  迁移、折行悬挂对齐、超长词硬切、CJK 宽字符断点、Display 口径 CJK 对齐、
+  组合符零宽、单列段落折行、add/add_row 混用缺格）
