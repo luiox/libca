@@ -6,7 +6,7 @@ TOML 1.0 读写模块（DOM 形态）。命名空间 `ca::toml`，构建目标 `
 `Utf8StringRef` 指向所属 `TomlDocument` 内部的 `Utf8StringArena`。错误用
 `Result<TomlDocument, ParseError>`，不用异常。
 
-> 设计与取舍见 `doc/toml设计文档.md`，开发接力文档见 `doc/dev_plan.md`；
+> 设计与取舍见 `doc/toml-design.rst`，开发接力文档见 `dev_plan.md`；
 > 以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入

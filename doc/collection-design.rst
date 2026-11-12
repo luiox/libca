@@ -3,14 +3,7 @@
 libca/collection 设计文档
 =========================
 
-.. code-block:: text
-
-   version: 1.3
-   update:
-   2026-09-13 - 新增 LruCache 容量淘汰缓存（LRU 策略、命中统计与淘汰回调）
-   2026-08-31 - Stream 重写为模板化惰性流水线（适配器可叠加），更新模块结构与性能边界
-   2026-07-14 - 删除冗余英文摘要 design 文档，本文成为 collection 唯一设计文档
-   2026-07-06 - 首版，补充 collection 模块职责与模板组件边界
+``libca_collection`` 提供基础容器和容器处理辅助，处于依赖分层 L1，只依赖 core 或标准库。本文讲模块边界、设计原则与性能契约；各组件的复杂度与所有权语义在头文件 Doxygen 注释中说明。
 
 定位
 ----
@@ -33,6 +26,8 @@ collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前
 - ``lru_cache.hpp``：容量受限的 LRU 缓存，``get``/``put`` 均摊 O(1)，带命中统计与淘汰回调。
 - ``collection.hpp``：聚合头文件。
 
+.. _collection-design-principles:
+
 设计原则
 --------
 
@@ -42,6 +37,8 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 - 新容器需要有明确语义收益，例如不可变、固定容量、视图、持久化结构等。
 - 模板组件尽量保持 header-only，避免实例化和链接问题。
 - 不把业务集合操作做成通用工具，避免模块失焦。
+
+.. _collection-design-perf:
 
 性能边界
 --------
@@ -66,6 +63,8 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 - 持久化 map/list 等不可变数据结构。
 
 新增组件需要补独立单元测试，并在头文件 Doxygen 中说明复杂度和所有权语义。
+
+.. _collection-design-java-runtime:
 
 Java intrinsic runtime 容器方向
 -------------------------------

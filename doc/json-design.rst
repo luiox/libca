@@ -3,13 +3,9 @@
 libca/json 设计文档
 ===================
 
-.. code-block:: text
-
-   version: 1.2
-   update:
-   2026-09-13 - v1.2：新增 KvStore 章节（持久化键值存储），模块新增对 fs 的单向依赖
-   2026-07-19 - 首版，说明 JSON 模块的 SAX/DOM 双形态、ca::str 集成与错误模型
-   2026-07-19 - v1.1：迁移到 Arena 架构，引入 JsonDocument，SAX/DOM 字符串统一 Utf8StringRef
+本篇是 ``libca_json`` 的设计规格：SAX/DOM 双形态共享同一套解析核心，DOM 字符串所有权统一落在
+ca::str 的 Arena 上，错误经 ``Result`` 传播。KvStore 复用 JSON DOM 与 fs 的原子写，模块对 fs
+的单向依赖也由它引入。各入口的语义与参数边界以对应头文件的 /// Doxygen 注释为准。
 
 定位
 ----
@@ -25,6 +21,8 @@ libca/json 设计文档
 模块命名空间是 ``ca::json``，构建目标是 ``libca_json``，单元测试目标是 ``libca_json_unittest``。
 依赖 ``libca_core`` 和 ``libca_str``；``KvStore``\ （kv_store.hpp）另依赖 ``libca_fs``
 （读取与原子写复用 ``fs::FileUtil``，json → fs 单向，方向合法）。
+
+.. _json-design-arena:
 
 与 ca::str 的集成（Arena 架构）
 -------------------------------
@@ -111,6 +109,8 @@ Object **保序**\ （按插入顺序），``set()`` 覆盖同名 key（不重�
 ``builder``/``push_back``/``emplace`` 都更简单。``clone()`` 仍保留，但语义变为"结构深拷贝 + 字符串
 引用共享原 arena"（字符串引用不复制 arena）。需要完全独立的副本时另起 ``JsonDocument``。
 
+.. _json-design-lifecycle:
+
 生命周期约束
 ^^^^^^^^^^^^
 
@@ -164,6 +164,8 @@ JSON 规范不区分整数与浮点。本库按字面量形态判定：不含 ``
 - 默认紧凑输出；``pretty`` 开启后按 ``indent`` 空格数换行缩进。空数组 ``[]`` 和空对象 ``{}``
   即使在 pretty 模式也保持紧凑。
 
+.. _json-design-error-model:
+
 错误模型
 --------
 
@@ -186,9 +188,9 @@ JSON 规范不区分整数与浮点。本库按字面量形态判定：不含 ``
 - 输入 ``Utf8StringRef``，错误 ``ParseError{SourceLocation, ...}``。
 - 命名/分层/构建脚本风格与 ``libca_csv``、``libca_ini``、``libca_toml`` 一致。
 
-**Arena 架构与 toml 统一**：本模块（v1.1）已迁移到与 ``libca_toml`` 一致的 Arena 架构
-（``Document`` 持 arena + root，DOM 字符串用 ``Utf8StringRef``）。``libca_ini`` 和 ``libca_csv``
-也已迁移到 Arena（csv 用 ``intern_raw`` 以兼容字节级格式）。
+**Arena 架构与 toml 统一**\ （:ref:`toml-design`）：本模块已迁移到与 ``libca_toml`` 一致的
+Arena 架构（``Document`` 持 arena + root，DOM 字符串用 ``Utf8StringRef``）。``libca_ini`` 和
+``libca_csv`` 也已迁移到 Arena（csv 用 ``intern_raw`` 以兼容字节级格式）。
 
 ``SourceLocation`` 和 ``ParseError`` 当前定义在各模块内部。等所有格式库都迁完 Arena，
 如果出现明显的重复，再回抽为独立的公共层 ``libca/textio``\ （暂不预先抽，避免过度设计）。
@@ -201,6 +203,8 @@ JSON 规范不区分整数与浮点。本库按字面量形态判定：不含 ``
 - 递归下降而非 simd 向量化。
 - DOM 用 ``std::variant`` + ``std::vector``；字符串统一经 ``Utf8StringArena`` 入池（去重 + 集中释放）。
 - 文件读取走 ``std::ifstream``\ （与 csv/ini/toml 一致），不引入 fs 依赖。
+
+.. _json-design-kvstore:
 
 KvStore（持久化键值存储）
 -------------------------

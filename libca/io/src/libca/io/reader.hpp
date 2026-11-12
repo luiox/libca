@@ -6,6 +6,7 @@
 namespace ca::io {
 
 /// @brief 同步可读字节流接口，统一文件、管道和 socket 的 EOF 与短读语义。
+///        契约细节见 doc:io-design-reader-contract。
 ///
 /// read() 成功返回实际读取字节数，返回 0 表示 EOF。实现允许短读；非阻塞资源暂时无数据
 /// 必须返回 WouldBlock，而不是返回 0。

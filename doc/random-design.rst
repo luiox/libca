@@ -3,11 +3,9 @@
 libca/random 设计文档
 =====================
 
-.. code-block:: text
+``libca_random`` 提供随机数能力，分系统熵与确定性原语两层。本文讲两层边界与确定性原语对上游正典的逐位收敛契约、对拍策略与语义取舍。
 
-   version: 1.0
-   update:
-   2026-10-01 - 首版：补充模块定位、系统熵/确定性原语两层结构、上游 收敛基准与对拍策略
+.. _random-design-layers:
 
 定位
 ----
@@ -21,6 +19,8 @@ libca/random 设计文档
 
 两层互不依赖：确定性原语只依赖 ``libca_core``\ （``datatype.hpp`` 的 u32/u64），不接触
 crypto；模块整体依赖仍为 ``libca_core`` + ``libca_crypto``，无新增模块依赖。
+
+.. _random-design-canonical:
 
 确定性原语与上游收敛基准（关键约束）
 ------------------------------------
@@ -51,6 +51,8 @@ Xorshift32 在 上游有两处用法（regc 链路的 ``regcStringXorshift32`` �
 **任何常数、移位方向、混合顺序的改动都属不兼容变更**：会破坏上游收敛后的
 逐位一致承诺，必须与 上游 侧同步并走 CHANGELOG。
 
+.. _random-design-golden:
+
 位精确对拍策略
 --------------
 
@@ -63,6 +65,8 @@ unittest（``unittest/deterministic_test.cpp``）的核心是 golden 向量对�
 - ``next_bounded`` 有专项用例：值域 [0, bound)、bound == 1 恒 0，且严格等于同序列
   ``next() % bound``\ （锁定正典取模公式而非任何"更均匀"的替代公式）。
 - 拷贝语义：值类型可拷贝，拷贝与原对象同状态同序列且推进互不串扰。
+
+.. _random-design-tradeoffs:
 
 语义取舍
 --------

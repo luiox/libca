@@ -10,6 +10,8 @@
 #include "libca/thread/stop_token.hpp"
 #include "libca/thread/thread_pool.hpp"
 
+// MessageLoop 的设计取舍与关闭语义见 doc:thread-design-message-loop。
+
 namespace ca::thread {
 
 /// @brief 线程亲和的任务循环：单个工作线程 + FIFO 任务队列。

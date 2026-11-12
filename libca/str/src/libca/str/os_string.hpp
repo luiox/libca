@@ -4,6 +4,7 @@
 ///        与 Utf8String 之间不做隐式转换，必须显式调用，提醒编码开销。
 /// @note OsString 为 move-only（POSIX 持有 move-only 的 Utf8String），与 Rust OsString
 ///       语义一致。OsStr 是只读视图，仅在同一平台语义下使用。
+///       设计与取舍见 doc:str-design-os-string。
 
 #pragma once
 

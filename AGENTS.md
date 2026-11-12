@@ -14,7 +14,7 @@
 
 ## 仓库结构
 
-- libca 模块布局：`libca/<mod>/src/libca/<mod>/*.hpp|cpp` + `unittest/*_test.cpp`（Google Test）+ `doc/`（设计文档，每模块最多一个）
+- libca 模块布局：`libca/<mod>/src/libca/<mod>/*.hpp|cpp` + `unittest/*_test.cpp`（Google Test）；设计规格集中在仓库级 `doc/`（`<mod>-design.rst` 篇 + `module-map` 模块地图），模块内不再放设计文档
 - 头文件包含：C++ 项目头一律引号形式 `#include "libca/<mod>/xxx.hpp"`（尖括号仅系统/第三方头）
 
 ## C++ 依赖分层（libca）
@@ -82,4 +82,4 @@ L3  业务 / 上层
 
 RST 写作约定（中文正文的坑）：表格一律 `.. list-table::`（禁 grid table，全角字形会破坏边框校验）；行内代码紧邻中文时在闭定界符后补转义空格（docutils 要求 end-string 后接空白或 ASCII 标点）；标题层级 `=` / `-` / `^`；跨仓出处带仓名标记（libjbc / libjzip / mjbase），带标记视为 prose 不校验存在性。
 
-存量设计 md 已完成 rst 转写并集中落位 `doc/`（`<mod>-design.rst` ×21，挂 toctree）；路线图/方案规划类内容留 md，各模块 `doc/` 目录不再承载设计文档。
+存量设计 md 已完成 rst 转写并集中落位 `doc/`（`module-map` 模块地图 + `<mod>-design.rst` ×21，挂 toctree，规格篇无编号标题、无版本块，小节带 label）；路线图/方案规划类内容留 md。代码头注以 `doc:<label>` 指向规格层（`check_refs.py` 校验可解析），新裁决先写进对应 `<mod>-design.rst` 再从代码引用。

@@ -14,6 +14,7 @@
 namespace ca::net {
 
 /// @brief 可注入的底层 resolver 签名，与 DnsResolver::resolve 一致。
+///        DNS 缓存的设计与注入形态见 doc:net-design-dns-cache。
 using DnsResolveFn = std::function<io::IoResult<std::vector<SocketAddress>>(
     const std::string& host, u16 port, AddressFamily family, SocketKind kind)>;
 

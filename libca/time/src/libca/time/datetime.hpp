@@ -3,6 +3,7 @@
 ///
 /// 命名空间 ca::time。Date 与 Time 是纯值类型，仅保存日历字段；
 /// DateTime 提供 now() 入口，返回本地时区拆分后的 (Date, Time)。
+/// 模块设计与取舍见 doc:time-design。
 
 #pragma once
 

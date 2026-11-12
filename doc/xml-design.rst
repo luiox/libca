@@ -3,11 +3,7 @@
 libca/xml 设计文档
 ==================
 
-.. code-block:: text
-
-   version: 1.0
-   update:
-   2026-07-26 - 首版，说明 xml 配置子集的支持范围、统一节点模型、解析器字节游标架构、writer 混合内容保真规则与已知坑
+``libca_xml`` 是 XML 配置子集的 DOM 读写模块，面向手写配置的读取、修改与写回，不做完整 XML 校验。本文讲支持范围的取舍、统一节点模型、字节游标解析器与 writer 保真规则；微观契约以 ``libca/xml`` 各头文件的 Doxygen 注释为准。
 
 定位
 ----
@@ -41,6 +37,8 @@ libca/xml 设计文档
 
 支持范围表与拒绝清单见 README。
 
+.. _xml-design-node-model:
+
 节点模型：统一的 XmlNode
 ------------------------
 
@@ -58,6 +56,8 @@ Text/Comment/Cdata 共用一个 ``Utf8StringRef``\ （由 type\_ 区分）。
 
 **XmlDocument** 持有 arena + 声明 + prolog/epilog（root 之外的注释）+ root。root 默认空 Text
 （中性态）；解析后是唯一根元素。move-only。
+
+.. _xml-design-parser:
 
 解析器架构：字节游标递归下降
 ----------------------------
@@ -81,6 +81,8 @@ peek/advance/fail 模式），不需要 yaml 那套行预扫。
 - 名字字符：ASCII 字母/数字/``_``/``-``/``.``/``:`` + 所有 ``>=0x80`` 字节（宽松放行 Unicode 名字，
   不做完整 XML Name 产生式校验——配置够用）。
 
+.. _xml-design-trim:
+
 trim_whitespace（默认开）
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -91,6 +93,8 @@ trim_whitespace（默认开）
 
 代价：严格夹在两个兄弟元素之间的"有意义纯空白"（如 ``<b>a</b> <b>c</b>`` 的那个空格）在默认
 模式下会丢。这在配置里极罕见；README 已注明，关 trim 即可保。
+
+.. _xml-design-writer:
 
 Writer：混合内容保真的缩进
 --------------------------

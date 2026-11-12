@@ -3,16 +3,15 @@
 libca_log 设计文档
 ==================
 
-.. code-block:: text
+``libca_log`` 的模块规格：日志门面与可插拔后端分离，门面层依赖 fmt、后端层零 fmt 依赖，
+``LoggerRegistry`` 按 target 分发并根治并发替换竞态，级别管理收归 ``Logger``。微观契约以
+对应头文件的 /// Doxygen 注释为准（``log_macros.hpp``、``logger.hpp``、``logger_registry.hpp``
+等）。
 
-   version: 1.0
-   update:
-   2026-08-03 - 重新设计：LoggerRegistry 按 target 分发、门面-后端 fmt 解耦、可选 spdlog、零依赖 SimpleLogBackend
+目标与边界
+----------
 
-1. 目标与边界
--------------
-
-``libca_log`` 为 C++17 项目提供日志门面与可插拔后端。重新设计（#189）解决旧实现的几类问题：
+``libca_log`` 为 C++17 项目提供日志门面与可插拔后端。重新设计解决旧实现的几类问题：
 
 - **fmt 耦合泄漏到后端**：旧 ``ILogBackend::log`` 参数携带 ``fmt::format_args``，后端必须依赖 fmt。
 - **单一全局 logger 竞态**：旧 ``set_global_logger`` 先赋 holder 再 store 裸指针，存在窗口期。
@@ -23,7 +22,9 @@ libca_log 设计文档
 新设计以 **LoggerRegistry 按 target 分发** 为核心，配合 **类型擦除的格式化参数载体**
 （OpaqueFormat）与 **可选 spdlog**，从架构层面消除上述问题。
 
-2. 分层
+.. _log-design-layering:
+
+分层
 -------
 
 .. code-block:: text
@@ -47,7 +48,9 @@ libca_log 设计文档
 门面层（``detail/fmt_format.hpp``、``log_macros.hpp``）依赖 fmt；后端层（``logger.hpp``、
 ``simple_log_backend.*``、``spdlog/``）只依赖 logger.hpp 与 level.hpp，**不 include fmt**。
 
-3. OpaqueFormat —— 门面与后端的 fmt 解耦
+.. _log-design-opaque-format:
+
+OpaqueFormat —— 门面与后端的 fmt 解耦
 ----------------------------------------
 
 ``OpaqueFormat`` 是一个抽象基类（纯虚 ``render_to(std::string&)``）。门面侧的 ``FmtArgsHolder``
@@ -64,13 +67,13 @@ libca_log 设计文档
 这是选择方案 B（虚函数 render）而非"预格式化字符串"的根本理由：方案 B 让后端有机会按需
 渲染（甚至不渲染，只看 level/target 做过滤），但代价是 view 生命周期约束。
 
-..
+为什么不传原始参数做结构化日志（如输出 JSON 字段）？因为 ``fmt::format_args`` 一旦构造就
+擦除了参数名（只剩位置/类型），后端无法反推 ``{name}`` 对应的字段名。要结构化日志需另开
+KV 宏 API，不在本次范围。
 
-  为什么不传原始参数做结构化日志（如输出 JSON 字段）？因为 ``fmt::format_args`` 一旦构造就
-  擦除了参数名（只剩位置/类型），后端无法反推 ``{name}`` 对应的字段名。要结构化日志需另开
-  KV 宏 API，不在本次范围。
+.. _log-design-registry:
 
-4. LoggerRegistry —— 按 target 分发的竞态根治
+LoggerRegistry —— 按 target 分发的竞态根治
 ---------------------------------------------
 
 旧设计的单一全局 ``g_logger_ptr``\ （裸指针）+ ``g_logger_holder``\ （shared_ptr）被并发 set/get，
@@ -88,7 +91,9 @@ libca_log 设计文档
 ``get()`` 返回 ``Logger*``\ （裸指针）是安全的，因为约定它只在单次 log 表达式内使用（栈帧存活期间
 shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄语义一致。
 
-5. 级别管理收归 Logger
+.. _log-design-level:
+
+级别管理收归 Logger
 ----------------------
 
 旧设计把 ``set_level``/``get_level_atomic`` 委派给后端，每个后端重复实现。新设计：
@@ -98,7 +103,7 @@ shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄�
 
 这样新增后端（如未来的 syslog/network backend）无需关心级别。
 
-6. 编译期与运行期双重过滤
+编译期与运行期双重过滤
 -------------------------
 
 - **编译期**：``CA_COMPILE_LOG_LEVEL``\ （默认 Info=2）控制。低于该级别的日志在编译期被
@@ -108,11 +113,13 @@ shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄�
 
 编译期裁剪已用 ``static_assert`` 验证（见 logger_test.cpp 顶部）。
 
-7. 后端
+.. _log-design-backend:
+
+后端
 -------
 
-7.1 SimpleLogBackend（默认，零依赖）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+SimpleLogBackend（默认，零依赖）
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - 同步直写：调用线程在 mutex 保护下 fwrite，零外部依赖（不依赖 fmt/spdlog）。
 - 配置（SimpleLogConfig）：stream（stdout/stderr）、file_path、color、show_location、
@@ -121,15 +128,15 @@ shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄�
   到文件时混入控制码。
 - 文件用二进制追加（``ios::binary``），避免 Windows 文本模式 ``\n``\ →\ ``\r\n`` 翻译。
 
-7.2 SpdlogBackend（可选，with_spdlog=y）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+SpdlogBackend（可选，with_spdlog=y）
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - 适配底层 ``spdlog::logger``，把 ``OpaqueFormat::render_to`` 的字符串喂给 spdlog（spdlog 不再做
   fmt 格式化，因消息已完整）。
 - 保留 ``source_loc``\ （file:line），Level 映射到 spdlog level。
 - 仅 ``with_spdlog=y`` 时编译（根 xmake.lua 的 option + log/xmake.lua 的 has_config 分支）。
 
-8. 依赖与构建
+依赖与构建
 -------------
 
 - 门面层（fmt_format.hpp / log_macros.hpp）：依赖 fmt（header_only）。这是 log 模块对外的
@@ -138,7 +145,7 @@ shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄�
 - ``with_spdlog`` build option（默认 false）：控制是否编译 SpdlogBackend 与拉取 spdlog 包。
   作为 submodule 被引用时，默认不强制拉 spdlog，与 ``with_tests``\ （默认 false 避免 gtest）策略一致。
 
-9. 测试策略
+测试策略
 -----------
 
 - **level_test**：from_string/to_string 正反例、大小写不敏感。
@@ -149,7 +156,7 @@ shared_ptr 引用计数 ≥ 1）。这与 spdlog::get、log4j 的 logger 句柄�
 - **simple_log_backend_test**：文件输出格式、各配置开关、多行追加、默认配置。
 - **spdlog_backend_test**\ （with_spdlog）：消息路由、全级别映射、null 安全。
 
-10. 与旧实现的不兼容变更
+与旧实现的不兼容变更
 ------------------------
 
 旧实现未接入构建、全库无调用方，故重新设计不保留任何向后兼容：

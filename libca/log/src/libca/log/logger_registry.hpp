@@ -7,7 +7,7 @@
 
 /// @file logger_registry.hpp
 /// @brief 按 target（模块名）分发 Logger。命名空间 `ca::log`。
-/// @note 用 LoggerRegistry 取代旧设计的单一全局 logger 指针，从架构层面根治
+/// @note 分发与竞态设计见 doc:log-design-registry。用 LoggerRegistry 取代旧设计的单一全局 logger 指针，从架构层面根治
 ///       set_global_logger 的竞态：不再有单一裸指针被并发读写，每个 target 的 Logger
 ///       由 shared_ptr 引用计数保护，注册/查找经 shared_mutex 串行化。
 

@@ -3,19 +3,9 @@
 libca_http 设计文档
 ===================
 
-.. code-block:: text
+``libca_http`` 在 :ref:`net-design` 与 :ref:`io-design` 之上为 C++17 提供可复用的同步 HTTP 基础设施；本篇记录报文层、URL 与同步 client/server 的数据模型、所有权与 framing 安全取舍。接口签名与逐方法契约见 ``libca/http`` 各头文件的 Doxygen 注释。
 
-   version: 1.6
-   update:
-   2026-09-13 - Url 升级 RFC 3986 全量解析：userinfo、path/query/fragment 组件、percent 工具、query 参数、normalize 与 round-trip
-   2026-09-13 - client 增加可选 keep-alive 连接池（按 origin 空闲复用、借出探活与空闲超时、多 client 共享）
-   2026-08-24 - 协议错误响应改 shutdown 写半侧+排水防 RST 吞响应；100-continue 仅 HTTP/1.1；client 幂等请求在 stale keep-alive 连接上自动重试一次
-   2026-07-20 - 增加可选 OpenSSL 3 HTTPS client transport
-   2026-07-19 - 增加同步 client、精确路由 server、有界并发与 stop-aware deadlines
-   2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
-   2026-07-19 - 完成 HTTP/1 数据模型、URL、headers 与同步 codec
-
-1. 目标与边界
+目标与边界
 -------------
 
 ``libca_http`` 建立在 ``libca_net`` 与 ``libca_io`` 上，为 C++17 提供可复用的同步 HTTP 基础设施。
@@ -45,7 +35,9 @@ server。连接池只做借出时的超时与存活校验，不做后台主动�
 client 通过实现相同 ``Reader`` / ``Writer`` 边界的私有 OpenSSL transport 接入，不能进入
 HTTP/1 parser 或公开头文件。MCP 等上层协议使用 JSON-RPC，不把 XML 引入 HTTP 传输层。
 
-2. 数据与所有权
+.. _http-design-ownership:
+
+数据与所有权
 ---------------
 
 ``HttpRequest`` / ``HttpResponse`` 是完整缓冲报文。method、target、reason 和 header 使用
@@ -66,7 +58,9 @@ UTF-8。chunked trailers 与普通 headers 分开保存，避免调用方误把 
 不能用 ``std::map``，因为它会丢失重复字段与顺序；也不能把 header value 强制为 UTF-8，
 因为 HTTP 允许 ``obs-text`` 字节。
 
-3. URL
+.. _http-design-url:
+
+URL
 ------
 
 ``HttpUrl`` 只接受 http/https absolute URL，按 RFC 3986 拆分 scheme、userinfo、host、有效
@@ -88,7 +82,7 @@ parse 仍拒绝端口 0、超范围端口、反斜杠、控制字符、未加方
 IDNA、percent-encoded host 与 IPv6 zone id 留给独立 URL 能力扩展，不在 HTTP client 中
 临时猜测；normalize 也不主动给裸的非法原始字节补编码，只规范化已存在的 ``%`` 序列。
 
-4. Codec 与缓冲
+Codec 与缓冲
 ---------------
 
 ``Http1Reader`` 借用底层 ``Reader``，内部持有 8 KiB 固定预读缓冲。它不使用拥有型
@@ -114,7 +108,9 @@ start-line。chunked trailers 在消息边界处返回，且与普通 headers �
 完整响应；放弃 body 后必须关闭连接。writer 不隐式 flush，SSE 可在每个 event chunk 后显式
 flush，连接管理层决定普通报文何时提交底层缓冲。
 
-5. Framing 与安全
+.. _http-design-framing:
+
+Framing 与安全
 -----------------
 
 报文 framing 遵守以下严格规则：
@@ -133,7 +129,9 @@ flush，连接管理层决定普通报文何时提交底层缓冲。
 
 这些约束优先避免 request smuggling 和连接解析分歧，不为历史宽松实现增加兼容分支。
 
-6. 错误模型与限制
+.. _http-design-error-model:
+
+错误模型与限制
 -----------------
 
 ``HttpResult<T>`` 使用 ``HttpError``，区分 IO、URL、协议、调用状态、header/body 限制和未支持能力。
@@ -144,7 +142,7 @@ flush，连接管理层决定普通报文何时提交底层缓冲。
 headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码后累计 body，不能通过
 拆成许多小 chunk 绕过。
 
-7. Client 与 Server
+Client 与 Server
 -------------------
 
 ``HttpClient`` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同
@@ -208,7 +206,7 @@ server 识别 ``Expect: 100-continue``\ （仅 HTTP/1.1，1.0 请求不回 inter
 过载响应相同，先 shutdown 写半侧再排水读侧至 EOF 或期限，避免 Windows 上未读入站
 数据触发 RST 吞掉已发送的错误响应（如客户端仍在推送 body 时的 413）。
 
-8. 测试策略
+测试策略
 -----------
 
 单元测试使用每次只返回少量字节的 Reader，覆盖：

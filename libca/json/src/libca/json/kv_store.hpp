@@ -1,5 +1,6 @@
 /// @file kv_store.hpp
 /// @brief 扁平 JSON 持久化键值存储：KvStore。
+///        设计取舍见 doc:json-design-kvstore。
 /// @author Canrad
 /// @date 2026/09/13
 

@@ -3,18 +3,9 @@
 libca::process 设计文档
 =======================
 
-.. code-block:: text
-
-   version: 1.2
-   update:
-   2026-07-14 - 由 design 文档 改名补 YAML 头，本文成为 process 唯一设计文档
-   2026-09-15 - 新增 ShmRingQueue IPC 容错章节：头部布局、心跳与接管时序、崩溃恢复边界
-
-..
-
-  本文讲 process 模块的设计边界与平台差异。具体 API 签名见 ``subprocess.hpp``、``ipc.hpp``
-  的 Doxygen 注释。进程控制对齐 Rust ``std::process`` 的所有权形状：可复用的 ``Command``、
-  ``spawn()`` 得到 move-only ``Child``，IPC 提供命名管道 / 共享内存 / 命名信号量 / 消息队列。
+本文讲 process 模块的设计边界与平台差异。具体 API 签名见 ``subprocess.hpp``、``ipc.hpp``
+的 Doxygen 注释。进程控制对齐 Rust ``std::process`` 的所有权形状：可复用的 ``Command``、
+``spawn()`` 得到 move-only ``Child``，IPC 提供命名管道 / 共享内存 / 命名信号量 / 消息队列。
 
 Goal
 ----
@@ -27,6 +18,8 @@ The public API follows the ownership shape of Rust ``std::process``: configure a
 reusable ``Command``, call ``spawn()`` to obtain a move-only ``Child``, then own its
 standard-stream endpoints and lifecycle explicitly. Public types use
 ``CamelCase``; methods and fields use ``snake_case``.
+
+.. _process-design-child-lifecycle:
 
 Process API
 -----------
@@ -77,6 +70,8 @@ which terminates and reaps the child on expiry.
 code. A nonzero exit code is valid process data, not a ``Status`` error.
 Operational failures return ``StatusResult<T>`` or ``Status``.
 
+.. _process-design-ipc:
+
 IPC API
 -------
 
@@ -121,6 +116,8 @@ sender. On Linux an opened queue can send and receive. A message larger than
 the configured maximum is rejected on Linux; Windows enforces the configured
 bound at the receiver. ``receive_for()`` returns an empty optional on timeout,
 allowing callers to distinguish it from operational failure.
+
+.. _process-design-shm-ring-queue:
 
 ShmRingQueue：IPC 容错（写者探活 + 崩溃可恢复）
 -----------------------------------------------
@@ -273,6 +270,8 @@ ShmRingQueue：IPC 容错（写者探活 + 崩溃可恢复）
   串行化：跨进程互斥由认领协议保证，进程内互斥不在本类职责内。
 - ``writer_slot`` 的 ELECTING 哨兵值 1 与 POSIX pid 1 冲突，接受该限制
   （写者不会是 pid 1；``process_identity_alive`` 对 pid < 2 直接判死）。
+
+.. _process-design-error-platform:
 
 Error and Platform Rules
 ------------------------

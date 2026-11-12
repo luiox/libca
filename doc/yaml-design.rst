@@ -3,11 +3,9 @@
 libca/yaml 设计文档
 ===================
 
-.. code-block:: text
-
-   version: 1.0
-   update:
-   2026-07-26 - 首版，说明 yaml 配置子集的支持范围、解析器 (行,列) 游标架构、writer 保真规则与已知坑
+本篇是 ``libca_yaml`` 的设计规格：只做 YAML 配置子集，用不到的高级特性明确报错拒绝；架构与
+toml 同构，DOM 字符串所有权落在 Arena，writer 以 write→read→DOM 结构相等为保真目标。微观
+契约以对应头文件的 /// Doxygen 注释为准。
 
 定位
 ----
@@ -18,6 +16,8 @@ libca/yaml 设计文档
 
 主要使用场景是\ **配置文件**：很多项目的配置就是 YAML（CI、服务、应用配置）。目标是能方便地读
 一份手写的配置、改几个字段再写回，而不是实现完整 YAML 1.2。
+
+.. _yaml-design-reject-list:
 
 为什么是"配置子集"而非完整 YAML
 -------------------------------
@@ -33,10 +33,12 @@ libca/yaml 设计文档
 
 支持范围表与拒绝清单见 README。
 
+.. _yaml-design-arena:
+
 架构：与 toml 同构
 ------------------
 
-复用 toml 本轮验证过的 Arena 架构，几乎 1:1 镜像：
+复用 toml 本轮验证过的 Arena 架构（:ref:`toml-design`），几乎 1:1 镜像：
 
 - ``YamlDocument`` 根容器持有 ``Utf8StringArena`` + root，是整个 DOM 的所有权根，move-only。
 - ``YamlValue`` DOM 节点存 ``Utf8StringRef``\ （16 字节、可拷贝、无独立堆分配），字符串字节进
@@ -54,6 +56,8 @@ Mapping 存储（照抄 TomlValue::TableData）
 members 保插入序供遍历与写回，index 提供 key→下标 O(1) 查找。二者只经 ``set/find/remove``
 同步修改，``as_mapping()`` **仅 const**\ （不暴露可变引用，防绕过索引改成员破坏一致性）。
 index 的 ``string_view`` 指向 key 的 arena 字节（arena 不搬移，members 扩容不影响）。
+
+.. _yaml-design-parser:
 
 解析器架构（关键设计）：行预扫 + (行, 列) 游标
 ----------------------------------------------
@@ -110,6 +114,8 @@ kind：Null / Boolean / Integer / Float / String / IntOverflow / FloatOverflow�
 
 溢出时（IntOverflow/FloatOverflow）该标量\ **退化为 String**——YAML core schema 语义是
 "无法解析为已知标量类型的即普通字符串"，与 toml 的"整数溢出报错"不同。
+
+.. _yaml-design-writer:
 
 Writer 实现要点
 ---------------

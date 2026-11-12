@@ -2,7 +2,8 @@
 /// @brief 格式化门面：基于 fmt 的 `{}`-style 格式化，返回 Utf8String 或追加到 builder/std::string。
 /// @author Canrad
 /// @date 2026/08/09
-/// @note 对标 Rust `format!` / `format_args!`。fmt 在本模块以 public 依赖提供，
+/// @note 门面设计与取舍见 doc:str-design-format-facade。
+///       对标 Rust `format!` / `format_args!`。fmt 在本模块以 public 依赖提供，
 ///       下游模块通过 `add_deps("libca_str")` 间接拿到 fmt，不必各自声明。
 ///       门面只依赖 `<fmt/core.h>`（与 libca.log 一致），刻意不引入 `<fmt/format.h>`
 ///       以保持依赖面最小。门面函数都是 inline 模板，实现留在头文件（符合 spec:36 模板条款）。

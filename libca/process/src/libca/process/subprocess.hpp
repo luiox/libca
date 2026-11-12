@@ -16,6 +16,8 @@
 // 后这些标识符彻底消失（Windows 上它们只是宏，无底层 FILE* 变量）。这里先 include
 // format.hpp 让 fmt 在宏仍存在时完整展开，之后 #undef 不影响已展开的 fmt 代码——
 // 该约束内聚在本头文件内，任何 include 顺序都安全。
+// 设计与取舍见 doc:process-design，子进程契约见 doc:process-design-child-lifecycle，
+// 本文件与 fmt 的宏陷阱约束见 doc:str-design-format-win-stdio。
 #include "libca/str/format.hpp"
 
 #ifdef stdin

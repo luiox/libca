@@ -6,6 +6,7 @@
 ///       勿写入自身公共稳定接口。**非线程安全**。
 /// @note 选型：vs Utf8StringArena——arena 是"同生共死、整块释放"，pool 是"各句柄寿命不同、
 ///       按引用计数回收"。一批字符串有共同死亡点用 arena，无则用 pool。
+///       两种池化策略的选型契约见 doc:str-design-arena-pool。
 /// @note 生命周期契约（核心）：
 ///       - **真删**：PooledPtr refcount 归零即 delete 该 entry（非墓碑）。
 ///       - **outlive 是软契约（性能契约，非硬约束）**：Pool 先于 PooledPtr 析构 / clear() /

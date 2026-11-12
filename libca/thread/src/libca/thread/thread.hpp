@@ -14,6 +14,8 @@
 #include "libca/core/status.hpp"
 #include "libca/thread/stop_token.hpp"
 
+// libca/thread：结构化并发基础设施。设计与取舍见 doc:thread-design。
+
 namespace ca::thread {
 
 namespace details {

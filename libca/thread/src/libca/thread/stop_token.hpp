@@ -3,6 +3,8 @@
 #include <chrono>
 #include <memory>
 
+// 协作取消的设计契约见 doc:thread-design-stop-token。
+
 namespace ca::thread {
 
 namespace details {

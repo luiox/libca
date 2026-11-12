@@ -9,7 +9,7 @@
 
 /// @file simple_log_backend.hpp
 /// @brief 零依赖同步日志后端：控制台（彩色）+ 可选文件输出。命名空间 `ca::log`。
-/// @note 同步直写：调用线程在 mutex 保护下直接 fwrite。零外部依赖（不依赖 fmt/spdlog）。
+/// @note 后端分层见 doc:log-design-backend。同步直写：调用线程在 mutex 保护下直接 fwrite。零外部依赖（不依赖 fmt/spdlog）。
 ///       高并发异步场景请用 with_spdlog 后端。
 
 namespace ca::log {
