@@ -3,7 +3,7 @@
 日志门面与可插拔后端。命名空间 `ca::log`，构建目标 `libca_log`。
 
 重新设计（#189）后：按 target 分发、门面与后端 fmt 解耦、零依赖 SimpleLogBackend、
-spdlog 可选。详细设计见 `doc/log设计文档.md`。
+spdlog 可选。详细设计见 `doc/log-design.rst`。
 
 ## 快速上手
 
@@ -92,4 +92,4 @@ SpdlogBackend backend(spd_logger);   // 适配新 ILogBackend
 - **级别管理收归 Logger**：后端只输出，不再各写一套 set_level。
 - **编译期 + 运行期双重过滤**：低级别日志可在 Release 构建里编译期裁剪。
 
-详见 `doc/log设计文档.md`。
+详见 `doc/log-design.rst`。

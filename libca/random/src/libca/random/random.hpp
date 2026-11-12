@@ -9,6 +9,7 @@
 /// @brief 高层随机数接口。命名空间 `ca::random`。
 /// @note 底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），不实现伪
 ///       随机数引擎、不提供可复现种子。所有函数线程安全（无共享可变状态）。
+///       模块设计与取舍见 doc:random-design。
 
 namespace ca::random {
 

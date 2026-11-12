@@ -3,13 +3,9 @@
 libca/crypto 设计文档
 =====================
 
-.. code-block:: text
-
-   version: 1.2
-   update:
-   2026-10-01 - 新增 DES 章节：单实现取舍、弱密钥不校验语义与 JCE 黄金组锚点
-   2026-09-15 - 新增 AES 章节：三后端结构、Auto 顺序、GCM 取舍与性能数据
-   2026-07-06 - 首版，补充 crypto 模块职责、算法分层与使用边界
+``libca_crypto`` 的模块规格：算法按能力拆成小头文件，字节接口统一 ``ByteSlice`` 输入，
+格式类错误经 ``Result<T, CryptoError>`` 传播。AES 的三后端分发与 DES 的单实现 JCE 对齐是
+两处关键取舍，安全边界也在本篇划明；微观契约以对应头文件的 /// Doxygen 注释为准。
 
 定位
 ----
@@ -36,6 +32,8 @@ crypto 依赖 ``libca_core``，主要复用 ``ByteSlice``、``Bytes``、``Result
 
 每个算法尽量保持小文件独立，避免把所有实现集中到一个巨型工具类中。
 
+.. _crypto-design-error-model:
+
 错误模型
 --------
 
@@ -56,6 +54,8 @@ AES 部分扩展了三个错误语义：
 
 新接口优先使用 ``ca::core::ByteSlice`` 输入，返回 ``Bytes`` 或 ``std::string``。这样调用方可以
 从 ``Bytes``、``BytesMut``、数组或字符串统一构造视图，而不需要在 crypto API 中重复裸指针重载。
+
+.. _crypto-design-backend:
 
 AES：内置参考实现与后端选择
 ---------------------------
@@ -167,6 +167,8 @@ API 分三层，全部 snake_case 自由函数（不引入 ``Des`` 类型，与�
 
 错误通道沿用 ``Result<Bytes, CryptoError>``，只用到 ``INVALID_ARGUMENT``，不新增错误码。
 
+.. _crypto-design-weak-key:
+
 弱密钥不校验（与 JCE 对齐的硬要求）
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -196,6 +198,8 @@ PC-1 后完全同键，两者 ``E(0) = 8CA64DE9C1B123A7``\ （单测钉死）。
 
 DES 56 位有效密钥强度早已不足，本原语仅供 legacy 协议与混淆场景兼容，不用于新安全
 设计；PKCS#5 填充校验只保证协议正确性，不具备认证能力（安全场景用 AES-GCM）。
+
+.. _crypto-design-security-boundary:
 
 安全边界
 --------

@@ -3,6 +3,7 @@
 ///        用 `\1 <libca/csv/csv.hpp>` 一次引入整个模块。
 /// @details 数据模型 CsvDocument 采用 Arena 架构：字段经 `intern_raw` 入池（不校验 UTF-8，
 ///          按原始字节保留——CSV 不规定编码，字段可能含任意字节）。
+///          设计与取舍见 doc:csv-design，Arena 架构见 doc:csv-design-arena。
 
 #pragma once
 

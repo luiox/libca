@@ -6,6 +6,7 @@
 /// 本头只提供读侧设施。平台分支集中于此：Windows 窄 fopen 按 ANSI 代码页解释
 /// 路径，UTF-8 中文/emoji 路径必然失败，须走宽字符 _wfopen（经 Path 的编码边界）；
 /// POSIX 原生路径即字节序列，直接 fopen。调用方不得散写 _wfopen/fopen。
+/// 读路径替换的基准与边界见 doc:fs-design-stdio-read。
 
 #pragma once
 

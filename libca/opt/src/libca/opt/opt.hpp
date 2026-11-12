@@ -13,6 +13,7 @@
 ///        类型化选项（Flag/String/Int/StringList/OptionalString/Positional）、多别名、
 ///        required/default、互斥组、选项分组渲染、自定义 usage、初始值注入
 ///        （default < 注入初值 < 命令行）、子命令嵌套、--help 自动生成帮助、-- 终止符。
+///        模块设计与取舍见 doc:opt-design，优先级规则见 doc:opt-design-priority。
 ///        另提供 HelpTable help 行排版层：结构化行/原样行的多行块组合、渲染期
 ///        自动列宽与 padding、多列对齐、CJK 显示宽度口径、末列折行与悬挂对齐。
 ///        命名空间 `ca::opt`。

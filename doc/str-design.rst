@@ -3,28 +3,14 @@
 libca::str 设计文档
 ===================
 
-.. code-block:: text
+本文讲 str 模块的架构、设计边界与选型。具体接口签名与逐方法说明见各头文件的 Doxygen 注释，
+本文不重复 API 清单。涉及的头文件：
+``utf8_string.hpp``、``utf8_string_pool.hpp``、``utf8_string_arena.hpp``、``utf8_twine.hpp``、
+``utf16_string.hpp``、``cstring.hpp``、``wstring.hpp``、``conversion.hpp``、``charset.hpp``、``char_util.hpp``、
+``string_util.hpp``、``os_string.hpp``、``format.hpp``。
 
-   version: 1.6
-   update:
-   2026-10-21 - 5.1 补充 canonical_name 与 US-ASCII 门面
-   2026-09-15 - 5.x 新增编码内置化章节：三级查找结构、GB18030 表生成流程、iconv 开关、CP_936 差异钉死与性能参考数字（路线图批次 3）
-   2026-08-10 - 9.6 节更新：stdin/stdout/stderr 宏陷阱的解法从 subprocess.cpp include 顺序改为约束内聚到 subprocess.hpp 内部，任何 include 顺序安全
-   2026-08-09 - 新增格式化设施 format 章节（fmt 提升为 str public 依赖，提供 format/format_to/format_runtime 门面）
-   2026-07-20 - 新增代码页转换工具章节（CharsetConverter，从 libca.core 迁移并去 iconv）
-   2026-07-13 - 合并 str-spec 文档 的设计性内容（所有权分层、Pool/Arena/Twine 选型与生命周期契约），删除逐接口清单
-   2026-07-06 - 首版，补充 str 模块职责、UTF-8 类型族与 StringUtil 字节工具边界
-
-..
-
-  本文讲 str 模块的架构、设计边界与选型。**具体接口签名与逐方法说明见各头文件的 Doxygen 注释**，
-  本文不重复 API 清单。涉及的头文件：
-  ``utf8_string.hpp``、``utf8_string_pool.hpp``、``utf8_string_arena.hpp``、``utf8_twine.hpp``、
-  ``utf16_string.hpp``、``cstring.hpp``、``wstring.hpp``、``conversion.hpp``、``charset.hpp``、``char_util.hpp``、
-  ``string_util.hpp``、``os_string.hpp``、``format.hpp``。
-
-1. 模块定位
------------
+模块定位
+--------
 
 ``libca::str`` 提供字符串与文本处理基础设施。它位于 core 之上，只依赖 ``libca_core``，为 fs、crypto、time 和上层业务提供统一的 UTF-8 与文本工具。
 
@@ -33,8 +19,10 @@ str 模块分成两类能力：
 - **UTF-8 类型族**：``Utf8String``、``Utf8StringRef``、``ZUtf8StringRef``、builder、pool、arena、twine。
 - **std::string 工具族**：``StringUtil``、编码转换、C/W string 适配、ASCII/URL-safe 文本工具。
 
-2. UTF-8 类型族
----------------
+.. _str-design-utf8-types:
+
+UTF-8 类型族
+------------
 
 UTF-8 是 libca 的内部文本编码。这一族类型围绕\ **所有权**\ 组织，回答"这块 UTF-8 字节归谁管、活多久"：
 
@@ -56,16 +44,16 @@ UTF-8 是 libca 的内部文本编码。这一族类型围绕\ **所有权**\ �
    构建器（拥有可变缓冲，临时）
      └─ Utf8StringBuilder 追加写入，build() 校验并产出 Utf8String
 
-2.1 拥有与不可变
-^^^^^^^^^^^^^^^^
+拥有与不可变
+^^^^^^^^^^^^
 
 - ``Utf8String`` 一旦构造完成内容不可变，所有"修改"操作（substr、大小写转换等）返回新实例。不可变意味着天然线程安全，且无需 COW、扩容等可变字符串的复杂度。
 - 码点数量在构造时缓存，``length()`` 为 O(1)；按码点访问为 O(n) 扫描，按字节访问为 O(1)。
 - 深拷贝必须显式 ``clone()``，拷贝构造/赋值已删除，避免意外深拷贝。
 - 比较与查找按 UTF-8 字节字典序，不做 Unicode 规范化、不按 locale collation，结果稳定可预测。
 
-2.2 视图与借用纪律
-^^^^^^^^^^^^^^^^^^
+视图与借用纪律
+^^^^^^^^^^^^^^
 
 ``Utf8StringRef`` 是公共视图层，所有比较运算符最终都落在视图上。``Utf8String`` 可隐式构造为视图参与比较。
 
@@ -73,8 +61,10 @@ UTF-8 是 libca 的内部文本编码。这一族类型围绕\ **所有权**\ �
 
 ``Utf8StringRef`` 不保证结尾 ``\0``\ （因为可能是某串的中段切片），故\ **不提供 ``c_str()``**。需要 ``\0`` 保证的场景用 ``ZUtf8StringRef``\ （字面量/全局常量，经 ``from_static`` 走全局 intern 缓存避免重复算码点）或直接用 ``Utf8String``\ （内部始终 ``\0`` 结尾）。
 
-2.3 Arena vs Pool —— 两种池化策略
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _str-design-arena-pool:
+
+Arena vs Pool —— 两种池化策略
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 批量场景下逐个 ``Utf8String`` 分配开销大，提供两种池化去重方案，**按死亡点选型**：
 
@@ -105,8 +95,8 @@ UTF-8 是 libca 的内部文本编码。这一族类型围绕\ **所有权**\ �
   - **outlive 是软契约**：Pool 先于 PooledPtr 析构 / ``clear()`` / move-assign 时\ **不会 UAF**\ （走 disown fail-safe，存活句柄转为自管释放），但失去去重收益。遵守 outlive 则享真删+去重，违反则退化自管，仍安全。
   - **Ref 由借用纪律保证**：``PooledPtr`` 析构后，由它 ``.ref()`` 派生的 ``Utf8StringRef`` 失效。
 
-2.4 惰性拼接 Utf8Twine
-^^^^^^^^^^^^^^^^^^^^^^
+惰性拼接 Utf8Twine
+^^^^^^^^^^^^^^^^^^
 
 ``Utf8Twine`` 是 LLVM Twine 风格的二叉拼接树，拼接（``operator+``/``concat``）零分配，只在真正需要时经 ``to_string()``\ （独立拥有）/ ``materialize(arena)``\ （intern 进 arena）/ ``materialize(pool)``\ （intern 进 pool）一次性产出。
 
@@ -118,8 +108,8 @@ UTF-8 是 libca 的内部文本编码。这一族类型围绕\ **所有权**\ �
    arena.intern(Utf8Twine(x) + y);        // → Utf8StringRef
    (a + b).to_string();                   // → Utf8String（独立拥有）
 
-2.5 标准库互操作
-^^^^^^^^^^^^^^^^
+标准库互操作
+^^^^^^^^^^^^
 
 视图转换遵循「每个类型只有一个隐式出口」，构成单向链：
 
@@ -139,8 +129,8 @@ static_cast。需要分配拷贝时用 ``to_std_string()``。
 UTF-8 字节数，空判断统一 ``is_empty()``；不提供 ``size()`` / ``empty()`` 别名，避免同一
 概念出现两个容易混淆的入口（``size()`` 的陷阱尤甚：STL 习惯当字节数，此处却是码点数）。
 
-3. StringUtil 的边界
---------------------
+StringUtil 的边界
+-----------------
 
 ``StringUtil`` 面向 ``std::string``，按字节或 ASCII 语义工作。它不承担完整 Unicode 分类、大小写折叠或规范化职责。
 
@@ -150,8 +140,8 @@ UTF-8 字节数，空判断统一 ``is_empty()``；不提供 ``size()`` / ``empt
 - 完整 Unicode 语义需要更大的数据表和规范支持，不应隐式塞进简单工具函数。
 - UTF-8 码点语义应优先使用 ``Utf8String`` / ``Utf8StringRef`` 或 ``char_util``。
 
-4. URL-safe 文本工具
---------------------
+URL-safe 文本工具
+-----------------
 
 URL-safe 文本工具放在 ``StringUtil`` 中，因为它们处理的是 UTF-8 的字节表示，而不是 Unicode 码点语义。
 
@@ -163,8 +153,8 @@ URL-safe 文本工具放在 ``StringUtil`` 中，因为它们处理的是 UTF-8 
 
 decode 类接口返回 ``Result<std::string, std::string>``，因为非法输入需要把错误原因交给调用方。Base64url 解码采用严格模式，会拒绝非法字符、非法 padding、非法长度和非零尾部填充位，避免同一字节串出现多个可接受编码。
 
-5. 代码页转换工具（CharsetConverter）
--------------------------------------
+代码页转换工具（CharsetConverter）
+----------------------------------
 
 ``CharsetConverter``\ （``charset.hpp``）从旧 ``libca.core/src/base/Charset.{hpp,cpp}`` 迁移而来。
 旧实现混用 Win32 ``MultiByteToWideChar`` + libiconv + C++17 弃用的 ``<codecvt>``，存在多处
@@ -184,12 +174,14 @@ bug（iconv 失败判断用 ``== 0`` 而非 ``==(iconv_t)-1``、固定 255 字�
 GBK 等中文遗留码页是 Windows 概念，新库不打算为它引入跨平台依赖。如果未来确有跨平台
 中文转码需求，应基于 ICU 或平台原生 API 单独设计，而不是复活 libiconv 路径。
 
-5.1 编码内置化（2026-09，路线图批次 3）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _str-design-charset-builtin:
+
+编码内置化
+^^^^^^^^^^
 
 上面"基于 ICU 或平台原生 API"的结论被推翻：ICU 太重，平台 API 行为随系统漂移
 （裁剪 glibc 缺 GBK gconv 模块直接 ``UNIMPLEMENTED``；Windows 代码页随区域设置变）。
-实际方案是\ **零依赖内置**\ （见 ``doc/加密与编码内置化方案.md`` §一），``CharsetConverter``
+实际方案是\ **零依赖内置**\ （见 ``doc/加密与编码内置化方案.md``），``CharsetConverter``
 实现改为三级查找：
 
 .. code-block:: text
@@ -236,15 +228,15 @@ utf8→utf16 约 270-300 MB/s，utf8→cp1252 约 150-175 MB/s。基准不入 CI
 （``set_default(false)``，无 add_tests），构建 ``xmake build -P . libca_str_perf``
 后直接跑产物。
 
-6. 依赖与错误模型
------------------
+依赖与错误模型
+--------------
 
 str 只依赖 core。需要错误传播的轻量文本工具使用 ``Result<T, std::string>``；领域错误枚举暂不引入，避免为很小的解析错误建立过重类型。
 
 公共头文件写使用说明，``.cpp`` 只保留实现关键点注释。设计文档不重复 API 清单，只解释为什么这样分层。
 
-7. 测试策略
------------
+测试策略
+--------
 
 测试位于 ``libca/str/unittest/``，按组件拆分。重点覆盖：
 
@@ -255,8 +247,10 @@ str 只依赖 core。需要错误传播的轻量文本工具使用 ``Result<T, s
 
 URL-safe 工具尤其要覆盖错误路径，因为解析类函数一旦放宽非法输入，后续协议和缓存 key 很容易出现不可见的不一致。
 
-8. OsString —— 平台原生字符串
------------------------------
+.. _str-design-os-string:
+
+OsString —— 平台原生字符串
+--------------------------
 
 ``OsString`` / ``OsStr`` 对齐 Rust ``std::ffi::OsString`` / ``OsStr``，承载平台\ **原生编码**\ 的字符串：
 
@@ -286,15 +280,17 @@ UTF-8 是 libca 的统一交换编码，但调用 Windows API（``CreateFileW``/
 了平台原生载体，后续可按需为其增加 PathUtil 重载。``libca.env`` 在 Windows 上直接用 Win32
 API 做 UTF-8↔UTF-16，暂未依赖 OsString（保持系统层不跨层依赖 str）。
 
-9. 格式化设施 format
---------------------
+.. _str-design-format-facade:
+
+格式化设施 format
+-----------------
 
 ``format.hpp`` 提供基于 fmt 的 ``{}``-style 格式化门面，对标 Rust ``format!`` / ``format_args!``。
 fmt 是 C++20 ``std::format`` 的原型，API 几乎一致；用 fmt 等于在 C++17 上提前拿到标准设施，
 将来升 C++20 可平滑切到 ``std::format``。
 
-9.1 为什么 fmt 挂在 str
-^^^^^^^^^^^^^^^^^^^^^^^
+为什么 fmt 挂在 str
+^^^^^^^^^^^^^^^^^^^
 
 fmt 最初由 ``libca.log``\ （L3）引入作为日志门面的格式化后端。但 fmt 是"基础设施级"的库——
 opt/env/io/http 等模块都有格式化需求（错误消息拼接、版本号、协议字段）。若 fmt 只挂在 log，
@@ -308,8 +304,8 @@ opt/env/io/http 等模块都有格式化需求（错误消息拼接、版本号�
 - 门面 ``ca::str::format`` 建立在 fmt 之上，对内封装第三方库（便于将来切 ``std::format``），
   对外提供围绕 Utf8String 类型族的一致接口。
 
-9.2 门面 API 与 UTF-8 校验契约
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+门面 API 与 UTF-8 校验契约
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. list-table::
    :header-rows: 1
@@ -334,29 +330,31 @@ opt/env/io/http 等模块都有格式化需求（错误消息拼接、版本号�
 非法字节时抛 ``std::runtime_error``，与 Utf8String 既有契约一致。``format_to(Utf8StringBuilder)``
 在最终 ``build()`` 时校验。``format_to(std::string)`` 不校验，给日志后端/协议代码等字节级场景。
 
-9.3 formatter 特化
-^^^^^^^^^^^^^^^^^^
+formatter 特化
+^^^^^^^^^^^^^^
 
 fmt 12.x 不再自动识别 ``operator std::string_view()`` 的隐式转换，故 ``format.hpp`` 显式特化了
 ``fmt::formatter<Utf8String>`` / ``fmt::formatter<Utf8StringRef>``，转发到 string_view 的 formatter
 （零拷贝）。特化放在 ``namespace fmt``——这是标准库/第三方类型特化的合法位置。
 
-9.4 命名取舍：format_runtime 而非 vformat
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+命名取舍：format_runtime 而非 vformat
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 fmt 自身导出同签名的 ``fmt::vformat(fmt::string_view, fmt::format_args)``。若本门面也叫
 ``vformat``，用户 ``using namespace ca::str`` 后调用会与 ``fmt::vformat`` 经 ADL 产生二义。
 故运行期版本命名为 ``format_runtime``，语义更清晰（运行期格式串）且避开冲突。
 
-9.5 与 log 的关系
-^^^^^^^^^^^^^^^^^
+与 log 的关系
+^^^^^^^^^^^^^
 
 log 的 ``OpaqueFormat`` + ``FmtArgsHolder``\ （Rust ``format_args!`` 的 C++ 翻版，view 语义、延迟渲染）
 设计保留不动，后端仍基于 ``render_to(std::string&)``。本次只迁移 fmt 的依赖来源（从 log 私有
 改为 str public），不改 log 的格式化架构。日志内部若要 Utf8String 化，后续单独演进。
 
-9.6 windows.h 的 stdin/stdout/stderr 宏陷阱
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _str-design-format-win-stdio:
+
+windows.h 的 stdin/stdout/stderr 宏陷阱
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Windows UCRT 把 ``stdin``/``stdout``/``stderr`` 定义为\ **宏**\ （``corecrt_wstdio.h``:
 ``#define stdout (__acrt_iob_func(1))``）。fmt header-only 模式（``FMT_HEADER_ONLY=1``，
@@ -378,8 +376,8 @@ format.hpp）都安全；``subprocess.cpp`` 直接 ``#include "libca/process/sub
 任何 ``#undef stdin/stdout/stderr`` 又要用 ``ca::str::format`` 的 TU 都适用此约束：
 在 undef 之前让 fmt 头完整展开。
 
-9.7 format_std —— std::string 世界的门面
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+format_std —— std::string 世界的门面
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 下游模块（opt/io/env/http/net/process 等）的字符串类型是 ``std::string``，不是 Utf8String。
 为避免这些模块用 format 时多一次 Utf8String→std::string 转换，门面提供 ``format_std()``

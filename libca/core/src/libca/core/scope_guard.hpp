@@ -5,6 +5,7 @@
 
 /// @file scope_guard.hpp
 /// @brief 作用域退出回调工具。用于在 C++17 中表达 defer/cleanup 语义。
+///        裁决边界见 doc:core-design-scope-guard。
 
 namespace ca::core {
 

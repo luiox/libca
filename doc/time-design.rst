@@ -3,19 +3,9 @@
 libca::time 设计文档
 ====================
 
-.. code-block:: text
+本文讲 time 模块的设计边界。具体 API 使用请查看 ``duration.hpp``\ 、``timestamp.hpp``\ 、``datetime.hpp``\ 。
 
-   version: 1.2
-   update:
-   2026-09-13 - 新增 Stopwatch 单调秒表与 ScopeTiming RAII 耗时打点
-   2026-07-14 - 删除冗余英文摘要 design 文档，本文成为 time 唯一设计文档
-   2026-07-06 - 首版，补充 time 模块职责、Duration/Timestamp 值语义与 chrono 边界
-
-..
-
-  本文讲 time 模块的设计边界。具体 API 使用请查看 ``duration.hpp``、``timestamp.hpp``、``datetime.hpp``。
-
-1. 模块定位
+模块定位
 -----------
 
 ``libca::time`` 提供基础时间类型，用于日志、缓存过期、调度、状态文件和跨模块时间计算。它依赖 core 的定长类型，但不依赖 fs、str、crypto 等上层模块。
@@ -26,9 +16,9 @@ libca::time 设计文档
 - **Date / Time / DateTime**：面向日历展示和简单解析的旧接口。
 
 此外还提供两个基于 ``TimeUtil::nano_time()``\ （steady_clock）的测量入口：
-``Stopwatch`` 单调秒表与 ``ScopeTiming`` RAII 耗时打点，见第 8 节。
+``Stopwatch`` 单调秒表与 ``ScopeTiming`` RAII 耗时打点，见 :ref:`time-design-stopwatch`。
 
-2. Duration
+Duration
 -----------
 
 ``Duration`` 表示纳秒精度的时间间隔，内部只保存一个 ``i64`` 纳秒值。
@@ -42,7 +32,7 @@ libca::time 设计文档
 
 ``Duration`` 不负责格式化，也不负责“月份”“年份”这类日历相关间隔，因为这些单位依赖日历规则和时区。
 
-3. Timestamp
+Timestamp
 ------------
 
 ``Timestamp`` 表示 Unix epoch 起算的纳秒时间戳，内部同样只保存一个 ``i64`` 纳秒值。
@@ -56,7 +46,9 @@ libca::time 设计文档
 
 ``Timestamp`` 不包含时区、夏令时或本地化显示信息。需要这些能力时应在更高层或专门的 datetime 组件中处理。
 
-4. chrono 边界
+.. _time-design-clock:
+
+chrono 边界
 --------------
 
 time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直接暴露多种内部表示：
@@ -68,7 +60,9 @@ time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直�
 
 这种设计让 libca 的内部时间语义保持简单，同时不阻断调用方与标准库 API 交互。
 
-5. 错误与溢出策略
+.. _time-design-overflow:
+
+错误与溢出策略
 -----------------
 
 当前 ``Duration`` / ``Timestamp`` 是低层值类型，不做运行时溢出检查。调用方应根据业务场景控制输入范围。
@@ -79,7 +73,7 @@ time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直�
 - C++ 有符号整数溢出本身是调用方前置条件问题。
 - 需要饱和运算或 checked arithmetic 时，应作为单独 API 明确暴露。
 
-6. 测试策略
+测试策略
 -----------
 
 测试位于 ``libca/time/unittest/``。重点覆盖：
@@ -90,7 +84,7 @@ time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直�
 - ``now()`` 的粗略合理性。
 - 纯值操作的 ``constexpr`` 可用性。
 
-7. Date / Time / DateTime
+Date / Time / DateTime
 -------------------------
 
 ``Date``、``Time`` 和 ``DateTime`` 是面向简单日历展示的接口：
@@ -101,7 +95,9 @@ time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直�
 
 这些类型不承载时区、闰秒、日历系统转换等复杂语义，也不应替代 ``Timestamp`` 表达绝对时间点。
 
-8. Stopwatch 与 ScopeTiming
+.. _time-design-stopwatch:
+
+Stopwatch 与 ScopeTiming
 ---------------------------
 
 ``Stopwatch`` 与 ``ScopeTiming`` 是两个只测相对耗时的测量入口，统一走 ``TimeUtil::nano_time()``
@@ -116,7 +112,7 @@ time 模块接受 ``std::chrono`` 作为 C++ 标准库互操作层，但不直�
 
 溢出策略与 Duration 一致：不做运行时检查，高频路径保持轻量。
 
-9. 新人阅读顺序
+新人阅读顺序
 ---------------
 
 建议先看 ``duration.hpp`` 和 ``timestamp.hpp`` 理解纯值时间模型，再看 ``datetime.hpp`` 理解旧的日历展示接口。对应测试位于 ``libca/time/unittest/duration_timestamp_test.cpp`` 和 ``libca/time/unittest/datetime_test.cpp``。

@@ -6,7 +6,7 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。命�
 用 `Utf8StringRef`，由 `JsonDocument` 内嵌的 `Utf8StringArena` 持有——析构 document 时
 所有字符串一次性释放，无零散堆分配。错误用 `Result<JsonDocument, ParseError>`，不用异常。
 
-> 设计与取舍见 `doc/json设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
+> 设计与取舍见 `doc/json-design.rst`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入
 

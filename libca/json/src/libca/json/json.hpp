@@ -1,6 +1,7 @@
 /// @file json.hpp
 /// @brief libca/json 聚合头——包含 ca::json 下所有公开组件。
 ///        用 `\1 <libca/json/json.hpp>` 一次引入整个模块。
+///        设计与取舍见 doc:json-design，Arena 架构见 doc:json-design-arena。
 /// @author Canrad
 /// @date 2026/07/19
 

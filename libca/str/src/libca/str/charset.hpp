@@ -3,7 +3,8 @@
 // @author Canrad
 // @date 2026/07/20
 //
-// 实现按三级查找组织（见 doc/加密与编码内置化方案.md §一）：
+// 三级查找的设计与坑位记录见 doc:str-design-charset-builtin。
+// 实现按三级查找组织（见 doc/加密与编码内置化方案.md）：
 //   1. 内置实现（跨平台一致，不依赖系统环境）：
 //      - Tier 1 纯算法：UTF 家族（UTF-8 ↔ wchar）、Latin-1、Windows-1252；
 //      - Tier 2 表驱动：GB18030（WHATWG index-gb18030 同源码表，覆盖 GBK）；

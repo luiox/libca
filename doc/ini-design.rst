@@ -3,15 +3,9 @@
 libca/ini 设计文档
 ==================
 
-.. code-block:: text
-
-   version: 2.1
-   update:
-   2026-07-19 - v2.1 迁移到 Arena 架构：IniDocument 内嵌 Utf8StringArena，字段与索引统一 Utf8StringRef
-   2026-07-19 - v2.0 重写：深度集成 ca::str、新增类型化访问、修复带引号 value 改写 bug、
-                错误带行列、重复检测、LineRecord 移入 detail 命名空间
-   2026-07-14 - 删除冗余英文摘要 design 文档 与使用文档（并入 README），本文成为 ini 唯一设计文档
-   2026-07-06 - 首版，说明 INI 独立模块的保格式模型、Reader/Writer 分层与注释保留策略
+本篇是 ``libca_ini`` 的设计规格：核心裁决是保格式 round-trip，读入、改少量 key、写回时保留
+人工维护的注释、空行与顺序；字符串所有权统一落在 ca::str 的 Arena 上，引号补回、行内注释
+识别、重复 section/key 处理都有明确契约。微观契约以对应头文件的 /// Doxygen 注释为准。
 
 定位
 ----
@@ -22,7 +16,7 @@ INI 读成 map，而是支持"读入、修改少量 key、写回"时保留人工
 模块命名空间是 ``ca::ini``，构建目标是 ``libca_ini``，单元测试目标是 ``libca_ini_unittest``。
 依赖 ``libca_core`` 和 ``libca_str``。
 
-v2.0 / v2.1 重写动机
+重写动机
 --------------------
 
 v1 能正确保格式 round-trip，但作为通用 INI 库有几个明显缺口。v2.0 针对性地重写：
@@ -64,6 +58,8 @@ v1 能正确保格式 round-trip，但作为通用 INI 库有几个明显缺口�
 核心动机：消灭零散堆分配。v2.0 每行 11 个 Utf8String 字段各一次堆分配，改为 Arena 后所有字符串
 进 arena 的 64KB chunk，析构 = arena 释放几个 chunk。附带 bonus：``intern`` 自动去重，
 section/key 天然去重省内存。
+
+.. _ini-design-arena:
 
 与 ca::str 的集成（Arena 架构）
 -------------------------------
@@ -109,6 +105,8 @@ value_quoted / value_quote_char**：解析时记录 value 是否被首尾配对�
 ``detail::LineRecord`` 在 ``ca::ini::detail`` 命名空间，标注为内部实现细节、不保证稳定，避免
 ABI 泄露到公开接口。
 
+.. _ini-design-format-keep:
+
 注释保留策略
 ------------
 
@@ -137,6 +135,8 @@ INI 的注释保留是本模块的核心约束：
 
 转换失败或 key 不存在返回 ``Err``\ （消息为 ``Utf8String``）。
 
+.. _ini-design-error-model:
+
 错误模型
 --------
 
@@ -146,6 +146,8 @@ INI 的注释保留是本模块的核心约束：
 - ``IniReader::read_file`` 打开失败也返回 ``ParseError``。
 - ``IniWriter::write`` 字符串序列化不失败；``write_file`` 用 ``Result<void, Utf8String>`` 表达
   打开/写入失败。
+
+.. _ini-design-duplicate-policy:
 
 重复 section / key 处理
 -----------------------

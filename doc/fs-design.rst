@@ -3,35 +3,23 @@
 libca::fs 设计文档
 ==================
 
-.. code-block:: text
+本篇讲 fs 模块**为什么这么设计**。具体 API 怎么用，查头文件的 Doxygen 注释：``libca/fs/src/libca/fs/file_util.hpp``\ （文件/目录操作）、``path_util.hpp``\ （路径字符串操作）、``stdio_file.hpp``\ （C stdio 整读）。
 
-   version: 2.2
-   update:
-   2026-09-13 - v2.2：模块新增 libca_str 依赖（read_all_text BOM 剥离）
-   2026-07-06 - 补充原子写入、目录拷贝、glob、元数据与权限的设计说明；更新错误模型为 FsError
-   2026-06-18 - 重写为设计文档（API 移至头文件）；对齐 snake_case；修正过时表述
-   2026-05-29 - 首版
-
-..
-
-  本文讲 **为什么这么设计**。具体 API 怎么用，查头文件：
-  ``libca/fs/src/libca/fs/file_util.hpp``\ （文件/目录操作）、``path_util.hpp``\ （路径字符串操作）。
-
-1. 核心思想
------------
+核心思想
+--------
 
 对 C++17 ``std::filesystem`` 做一层\ **轻量、符合 libca 风格的封装**，提供类似 Java ``FileUtil`` 的便捷静态接口，消除重复的异常处理样板，统一到 ``ca::Result`` 错误模型。
 
 设计原则：
 
 - **零开销抽象**：内部完全基于 ``std::filesystem``，不做额外缓冲或拷贝，仅在接口层提供便利。
-- **错误模型统一**：可能失败且调用方需要原因的操作返回 ``ca::Result<T, FsError>``；只关心成败的便捷操作返回裸 ``bool`` 或哨兵值（见 §4.2）。
+- **错误模型统一**：可能失败且调用方需要原因的操作返回 ``ca::Result<T, FsError>``；只关心成败的便捷操作返回裸 ``bool`` 或哨兵值（见 :ref:`fs-design-error-model`）。
 - **职责分层**：``PathUtil`` 只做路径字符串运算、不碰文件系统；``FileUtil`` 做文件/目录 IO。
 - **平台透明**：返回路径统一用 ``/`` 分隔符（``generic_string()``），Windows 盘符保留。
 - **字符串类型**：当前统一 ``std::string``\ （UTF-8 语义），不用 ``ca::str``。待 ``ca::str`` 定稿且有性能测试后再按一致性评估迁移。
 
-2. 模块结构
------------
+模块结构
+--------
 
 .. code-block:: text
 
@@ -46,8 +34,8 @@ libca::fs 设计文档
 
 依赖：``FileUtil`` 内部用 ``PathUtil``\ （路径拼接/归一化）与 ``std::filesystem``；模块依赖 ``libca_core``\ （``datatype.hpp``、``bytes.hpp``、``result.hpp``）与 ``libca_str``\ （``read_all_text`` 的 BOM 剥离复用 str 模块 bom 接口，L2 fs → L1 str 方向合法）。命名空间 ``ca::fs``。
 
-3. 接口概览（详细签名见头文件）
--------------------------------
+接口概览（详细签名见头文件）
+----------------------------
 
 - **PathUtil**\ （不碰文件系统、不抛异常）：``normalize`` / ``to_unix_separators`` / ``join`` / ``extension`` / ``stem`` / ``filename`` / ``parent`` / ``is_absolute`` / ``to_absolute`` / ``split``。
 - **FileUtil**\ （静态方法，按职责分组）：
@@ -64,16 +52,18 @@ libca::fs 设计文档
 
 命名遵循 libca C++ 规范：snake_case，getter 无 ``get_`` 前缀（如 ``size()``），常量 UPPER_SNAKE。
 
-4. 关键设计决策
----------------
+关键设计决策
+------------
 
-4.1 为什么 PathUtil 与 FileUtil 分开
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+为什么 PathUtil 与 FileUtil 分开
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 路径字符串运算（纯函数、可全覆盖测试、永不失败）和文件 IO（有副作用、依赖环境、可能失败）是两种性质完全不同的操作。分开后 ``PathUtil`` 可以无副作用地被任意复用和单测。
 
-4.2 错误处理策略
-^^^^^^^^^^^^^^^^
+.. _fs-design-error-model:
+
+错误处理策略
+^^^^^^^^^^^^
 
 .. list-table::
    :header-rows: 1
@@ -91,13 +81,15 @@ libca::fs 设计文档
      - ``Result<T, FsError>`` 或 ``bool``
      - 用 ``try-catch(std::exception)`` 包裹，转成 Result/false，绝不向外抛异常
 
-4.3 写操作自动建父目录
-^^^^^^^^^^^^^^^^^^^^^^
+写操作自动建父目录
+^^^^^^^^^^^^^^^^^^
 
 ``write_bytes`` / ``write_text`` / ``create_file`` 在目标父目录不存在时自动创建，省去调用方先 ``create_directories`` 的样板。
 
-4.4 原子写入的失败语义
-^^^^^^^^^^^^^^^^^^^^^^
+.. _fs-design-atomic-write:
+
+原子写入的失败语义
+^^^^^^^^^^^^^^^^^^
 
 ``atomic_write_bytes`` / ``atomic_write_text`` 采用“同目录临时文件 + rename 提交”的设计：
 
@@ -107,8 +99,8 @@ libca::fs 设计文档
 
 这个语义适合配置、缓存、状态文件等“新内容写失败时旧内容必须继续可用”的场景。它不试图跨文件系统移动，也不提供多进程锁；需要锁语义时应由更高层组合文件锁或进程级同步。
 
-4.5 目录拷贝与符号链接
-^^^^^^^^^^^^^^^^^^^^^^
+目录拷贝与符号链接
+^^^^^^^^^^^^^^^^^^
 
 ``copy_dir`` 手动递归遍历源目录，而不是直接把 ``std::filesystem::copy`` 暴露给调用方。这样可以统一错误模型，并明确符号链接策略：
 
@@ -119,8 +111,8 @@ libca::fs 设计文档
 
 这个策略避免递归拷贝意外穿透符号链接目录，也更符合基础库“行为可预期”的目标。
 
-4.6 Glob 的遍历策略
-^^^^^^^^^^^^^^^^^^^
+Glob 的遍历策略
+^^^^^^^^^^^^^^^
 
 ``glob`` 先把模式归一化为 ``/`` 分隔，再转成正则匹配路径。遍历根目录由第一个通配符之前的稳定路径前缀决定。
 
@@ -131,8 +123,8 @@ libca::fs 设计文档
 
 这样保留常用 glob 语义，同时避免简单模式在大型目录树上无意义地递归全量遍历。遍历时使用 ``skip_permission_denied``，尽量让无权限子目录不影响其它匹配结果。
 
-4.7 与 Java FileUtil 的差异
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+与 Java FileUtil 的差异
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. list-table::
    :header-rows: 1
@@ -150,8 +142,10 @@ libca::fs 设计文档
      - ``std::vector<u8>``\ （``ByteVector``）
      - C++ 等价
 
-4.8 Path 路径值类型与编码边界
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _fs-design-path-encoding:
+
+Path 路径值类型与编码边界
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **动机**：``std::filesystem`` 的窄字符接口（``path(std::string)`` 构造、``.string()``）在
 Windows 上按本地代码页（ACP）解析，中文/非 ASCII 路径有损。此前的对策是在每个调用点
@@ -188,8 +182,10 @@ UTF-8 ↔ 原生编码的转换实现只存在于 ``path.cpp`` 一处——C++20
 这与 Rust 用 WTF-8 解决该问题的取舍不同——只要后端是 std::filesystem，此层限制
 不可避免，选择文档声明而非重造路径解析。
 
-4.9 读路径 iostream → C stdio（#249 基准驱动）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _fs-design-stdio-read:
+
+读路径 iostream → C stdio
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **动机**：整读场景 iostream 开销真实存在——streambuf 虚分发、locale 机制、
 大块 read 仍走 streambuf 分块拷贝。但「是否替换」由基准数据裁决，不凭体感。
@@ -220,17 +216,17 @@ Defender 放大、看比值）：整读 4MB stdio 比 ifstream 快 **3~4x**\ （
 
 **明确不做**：写路径不替换（基准无收益）；io 模块的流式 Reader/Writer 抽象层
 不动（本批只覆盖「按路径打开 + 整读」热点）；log 异步后端如需跟进单独拆条目。
-zip 模块已有同构的 ``detail/file_io``\ （#250），不复用 fs 封装属刻意——zip 不引
+zip 模块已有同构的 ``detail/file_io``，不复用 fs 封装属刻意——zip 不引
 fs 依赖，避免改包定义的链接闭包。
 
-5. 未纳入本期（未来可扩展）
----------------------------
+未纳入本期（未来可扩展）
+------------------------
 
 - 文件监控（``FileWatcher``）、文件锁（``FileLock``）
 - 临时文件/目录的 RAII 守卫（当前测试里自行实现了 ``TempDirGuard``）
 - 文件属性写入（修改时间、权限位设置）
 
-6. 测试策略
------------
+测试策略
+--------
 
 Google Test，``libca/fs/unittest/``。覆盖正常路径、空文件、不存在路径、嵌套目录遍历等；IO 测试用临时目录、结束清理。不做跨平台 mock——CI 在 Windows + Linux 分别跑。Path 另有编码边界专项用例（非法 UTF-8 的 from_utf8 拒绝 / lossy 替换、中文往返、Windows 分隔符归一、未配对代理 lossy 导出、hash/比较）。当前 140 个用例全绿（1 个 symlink 用例在 Windows 按支持情况跳过）。

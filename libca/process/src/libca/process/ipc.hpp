@@ -10,6 +10,8 @@
 
 namespace ca::process::ipc {
 
+// IPC 设计与取舍见 doc:process-design，IPC 面貌见 doc:process-design-ipc。
+
 /// @brief 命名管道的一条已建立连接，move-only。
 /// @details 由 NamedPipeServer::accept 或 NamedPipeClient::connect 产出，提供流式
 ///          读写。Windows 对应 Win32 命名管道，Linux 对应 Unix-domain 流式 socket。

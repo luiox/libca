@@ -2,6 +2,7 @@
 
 /// @file config.hpp
 /// @brief Config 静态注册中心：按名字查找/注册强类型配置项 ConfigVar\<T\>，并从 JSON 加载。
+///        模块设计与取舍见 doc:config-design。
 /// @details sylar 风格配置中心的 libca 适配：
 ///          - lookup\<T\>(name, default, description) 幂等：不存在则创建注册；
 ///            已存在且类型一致返回现有实例（忽略本次 default）；类型冲突返回 nullptr；

@@ -3,16 +3,10 @@
 libca_net 设计文档
 ==================
 
-.. code-block:: text
+本文讲 ``libca_net`` 的边界与取舍：建立在 ``libca_io`` 之上的跨平台同步网络基础设施，覆盖地址、TCP / UDP / DNS、socket 所有权与超时语义；TLS 是 ``with_openssl`` 门控的可选适配层，HTTP、WebSocket 与异步 reactor 不进本模块。类型与方法的微观契约见 ``libca/net`` 各头文件的 /// Doxygen 注释。
 
-   version: 1.1
-   update:
-   2026-07-11 - 完成 libca_net 第一版设计
-   2026-07-19 - 加固 socket 继承边界并增加 TCP listener/连接期限配置
-   2026-09-15 - 增加 SockUtil（get_local_ip / TCP keepalive / interface_list）与带 TTL 的 DNS 缓存
-
-1. 目标与边界
--------------
+目标与边界
+-----------
 
 ``libca_net`` 建立在 ``libca_io`` 之上，为 C++17 提供跨平台同步网络基础设施。第一版覆盖：
 
@@ -32,8 +26,10 @@ libca_net 设计文档
 通过包装 ``TcpStream`` 并实现 ``Reader`` / ``Writer`` 接入，不能把证书、握手和加密状态塞进
 基础 socket API。
 
-2. 错误模型
------------
+.. _net-design-error-model:
+
+错误模型
+---------
 
 网络操作统一返回 ``ca::io::IoResult<T>``，复用 ``IoErrorKind`` 中已有的网络类别：
 
@@ -54,11 +50,11 @@ POSIX socket 错误从 ``errno`` 读取。
 DNS 的 ``getaddrinfo()`` 错误不是 errno/WSA socket 错误，按其稳定语义映射为
 ``NotFound``、``WouldBlock``、``OutOfMemory`` 或 ``Other``，消息中保留 ``gai_strerror()`` 文本。
 
-3. 地址类型
------------
+地址类型
+---------
 
-3.1 IpAddress
-^^^^^^^^^^^^^
+IpAddress
+^^^^^^^^^
 
 ``IpAddress`` 是值类型，保存 IPv4 的 4 字节或 IPv6 的 16 字节：
 
@@ -87,8 +83,8 @@ DNS 的 ``getaddrinfo()`` 错误不是 errno/WSA socket 错误，按其稳定语
 文本解析和格式化使用 ``inet_pton()`` / ``inet_ntop()``，不手写 IPv6 压缩规则。
 ``octets()`` 对 IPv4 只使用前 4 字节，其余字节为 0。
 
-3.2 SocketAddress
-^^^^^^^^^^^^^^^^^
+SocketAddress
+^^^^^^^^^^^^^
 
 ``SocketAddress`` 组合 IP 地址和主机字节序端口：
 
@@ -111,8 +107,10 @@ IPv4 文本格式为 ``127.0.0.1:8080``，IPv6 必须使用 ``[::1]:8080``，避
 分隔符产生歧义。IPv6 scope 使用数字格式 ``[fe80::1%3]:8080``；DNS 返回的 flow info 和
 scope id 必须保留。地址类型不携带 DNS 主机名；主机名必须先经过解析。
 
-4. socket 所有权
-----------------
+.. _net-design-socket-ownership:
+
+socket 所有权
+--------------
 
 ``OwnedSocket`` 是 move-only RAII 类型：
 
@@ -143,8 +141,8 @@ scope id 必须保留。地址类型不携带 DNS 主机名；主机名必须先
 ``OwnedSocket`` 不能复用 ``io::OwnedHandle``，因为 Windows ``SOCKET`` 不能由 ``CloseHandle()``
 关闭。
 
-5. DNS
-------
+DNS
+----
 
 .. code-block:: cpp
 
@@ -164,11 +162,11 @@ scope id 必须保留。地址类型不携带 DNS 主机名；主机名必须先
 解析结果保持系统返回顺序并去重。空主机名返回 ``InvalidInput``。DNS API 只负责同步解析，
 不引入缓存线程、TTL 管理或异步回调。
 
-6. TCP
-------
+TCP
+----
 
-6.1 TcpStream
-^^^^^^^^^^^^^
+TcpStream
+^^^^^^^^^
 
 ``TcpStream`` 拥有 ``OwnedSocket``，并实现 ``io::Reader`` 和 ``io::Writer``：
 
@@ -225,8 +223,8 @@ scope id 必须保留。地址类型不携带 DNS 主机名；主机名必须先
 全部地址共享这一个连接期限。同步 DNS 本身不计入 timeout。POSIX 使用 ``select()`` 前必须
 检查 fd 小于 ``FD_SETSIZE``，超过时返回 ``Unsupported``，不能调用 ``FD_SET()``。
 
-6.2 TcpListener
-^^^^^^^^^^^^^^^
+TcpListener
+^^^^^^^^^^^
 
 .. code-block:: cpp
 
@@ -260,8 +258,8 @@ scope id 必须保留。地址类型不携带 DNS 主机名；主机名必须先
 Linux 优先用 ``accept4(SOCK_CLOEXEC)`` 原子禁止继承；不支持 accept4 的平台在 accept 后
 立即设置 ``FD_CLOEXEC``。Windows accept 后清除 ``HANDLE_FLAG_INHERIT``。
 
-7. UDP
-------
+UDP
+----
 
 UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` / ``Writer``：
 
@@ -305,8 +303,10 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 零长度 UDP 数据报是合法消息，``receive_from()`` 的 ``length == 0`` 不能解释为 EOF。
 若数据报大于调用方缓冲区，平台可能截断消息；第一版返回实际复制长度，不提供完整原始长度。
 
-8. 超时与非阻塞
----------------
+.. _net-design-timeout-nonblocking:
+
+超时与非阻塞
+-------------
 
 - ``std::nullopt`` 清除读写 timeout。
 - 显式的 0ms 或负 timeout 返回 ``InvalidInput``，因为系统的零值通常表示无限等待。
@@ -324,8 +324,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 ``from_socket()`` 用于接入外部创建的 socket，并接管 ``OwnedSocket``。调用方必须保证 socket
 类型和状态匹配目标类型，例如传给 ``TcpListener`` 的 socket 已经完成 bind/listen。
 
-9. 并发与生命周期
------------------
+并发与生命周期
+---------------
 
 - 类型本身不承诺同一对象可被多线程无锁并发修改。
 - ``try_clone()`` 可创建独立所有者，用于读写线程分别持有 socket。
@@ -333,8 +333,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 - 移动后对象为空，继续操作返回 ``InvalidInput``。
 - Windows Winsock 初始化由模块内部按进程执行一次，调用方不需要手工调用 ``WSAStartup()``。
 
-10. 测试策略
-------------
+测试策略
+---------
 
 测试覆盖：
 
@@ -348,18 +348,18 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
   三参数、Windows 只断言 SO_KEEPALIVE 开关；``interface_list`` 非空且含 loopback 条目。
 - DNS 缓存用注入计数 resolver 与假时钟验证命中、过期、LRU 淘汰、负项不缓存和并发
   smoke（总截止 5 秒），不做真实外网 DNS 的硬依赖断言（保留宽松可跳过的 smoke）。
-- TlsStream：内存自环真实握手（见第 13 节），单测不起网络。
+- TlsStream：内存自环真实握手（见 :ref:`net-design-tls`），单测不起网络。
 - Windows 本地测试和 Linux Core CI 使用同一套 Google Test。CI 另有独立 job
   "build & test HTTP (linux, OpenSSL 3)" 作为 TLS/HTTPS 回归兜底。
 
-11. SockUtil
-------------
+SockUtil
+---------
 
 ``sock_util.hpp`` 提供三类与具体协议无关的 socket 工具，全部是 ``ca::net`` 命名空间下的
 自由函数：
 
-11.1 get_local_ip —— UDP connect 探路由
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+get_local_ip —— UDP connect 探路由
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: cpp
 
@@ -377,8 +377,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 - 返回值是出口接口的地址，不一定是公网 IP（NAT 之后）；loopback 回落说明当前没有
   可用外网路由。
 
-11.2 TCP keepalive 三参数
-^^^^^^^^^^^^^^^^^^^^^^^^^
+TCP keepalive 三参数
+^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: cpp
 
@@ -403,8 +403,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 - 三参数任一不大于 0 返回 ``InvalidInput``，跨平台语义一致（count 在 Windows 也校验）。
 - socket 不必已连接；对已关闭的 ``TcpStream`` 调用成员方法返回 ``InvalidInput``。
 
-11.3 interface_list —— 枚举接口单播地址
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+interface_list —— 枚举接口单播地址
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: cpp
 
@@ -424,8 +424,10 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 - 只保留 IPv4 / IPv6 单播条目，跳过 ``AF_PACKET`` / ``AF_LINK`` 等；跨平台字段取交集，
   MAC、MTU、网关等平台特有字段不暴露。
 
-12. DNS 缓存（CachedDnsResolver）
----------------------------------
+.. _net-design-dns-cache:
+
+DNS 缓存（CachedDnsResolver）
+------------------------------
 
 ``dns_cache.hpp`` 提供带 TTL 的线程安全正向 DNS 缓存，以装饰方式包装底层 resolver：
 
@@ -455,8 +457,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
   ``stats()`` 返回命中/未命中/过期/淘汰/底层调用计数，供观测与测试防空转。
 - 内部互斥锁保护全部状态，同一实例可被多线程共享；move-only（pimpl）。
 
-12.1 HTTP 侧接入建议（留待主 agent）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+HTTP 侧接入建议（留待主 agent）
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 另一批次正在重构 http 的 TLS 路径，为避免冲突，本批不改 ``libca/http/``。建议接入方式：
 
@@ -468,8 +470,8 @@ UDP 保留消息边界，因此不能实现面向连续字节流的 ``Reader`` /
 - ``TcpStream::connect_timeout(host, ...)`` 内部的 DNS 不经过缓存；若 http 需要缓存
   生效，应先解析出 ``SocketAddress`` 再连接，这也是未来做 happy-eyeballs 的前置条件。
 
-12.2 性能基准
-^^^^^^^^^^^^^
+性能基准
+^^^^^^^^
 
 ``libca_net_sock_perf``\ （``perf/sock_perf.cpp``，默认不构建：``xmake build -P . libca_net_sock_perf``）
 在多轮热身 + 测量取中位数，并用注入计数器/回读校验防空转。Windows 10 x64 / MSVC 2022
@@ -497,11 +499,13 @@ release 参考值（2026-09）：
 命中约为未命中的 6-8 倍；真实场景中未命中还叠加 getaddrinfo 的系统 DNS 往返
 （毫秒到百毫秒级），缓存收益远大于表中"注入 resolver"的未命中口径。
 
-13. TLS（TlsStream）
---------------------
+.. _net-design-tls:
 
-13.1 定位与结构
-^^^^^^^^^^^^^^^
+TLS（TlsStream）
+-----------------
+
+定位与结构
+^^^^^^^^^^
 
 ``TlsStream`` 是 net 内的可选 TLS 适配层（``with_openssl=y`` 才有实质实现，OpenSSL 3.x
 为主、兼容 1.1.1 的点用条件编译最小化）。核心是一对 OpenSSL memory BIO：
@@ -530,8 +534,8 @@ release 参考值（2026-09）：
   stop 轮询、client 的剩余期限收紧都走它）。没有超时能力的底层流（内存流）
   只能受迭代边界约束。
 
-13.2 安全默认值
-^^^^^^^^^^^^^^^
+安全默认值
+^^^^^^^^^^
 
 - **证书校验默认开启**\ （``verify_peer=true``）：``SSL_VERIFY_PEER`` + ``SSL_set1_host`` /
   IP SAN 校验（``X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS``）。显式置 ``false`` 同时关闭
@@ -545,8 +549,8 @@ release 参考值（2026-09）：
 - **ALPN**：client 侧可选提供协议列表，``alpn_selected()`` 返回协商结果；server 侧
   暂不配置选择回调（保持 http 行为等价）。
 
-13.3 错误分类
-^^^^^^^^^^^^^
+错误分类
+^^^^^^^^
 
 统一映射为 ``IoErrorKind``，调用方可判别：
 
@@ -581,15 +585,15 @@ release 参考值（2026-09）：
 ``shutdown()`` 发送 close_notify 后立即刷出，单向不等待对端；析构不隐式关闭
 （对齐原 http 行为，由调用方决定是否干净关闭）。
 
-13.4 无 OpenSSL 降级
-^^^^^^^^^^^^^^^^^^^^
+无 OpenSSL 降级
+^^^^^^^^^^^^^^^
 
 ``with_openssl=n``\ （默认）时整个实现编译为 stub：``tls_stream_supported()`` 返回
 false，``connect`` / ``accept`` / ``load`` 返回 ``Unsupported``，公开头文件不引入任何
 OpenSSL 依赖，net 默认构建不拉取 openssl3 包（学 core/minidump 的平台 stub 模式）。
 
-13.5 测试与性能参考
-^^^^^^^^^^^^^^^^^^^
+测试与性能参考
+^^^^^^^^^^^^^^
 
 单测不起网络：一对内存双工流（``libca/net/test/mem_duplex.hpp``，阻塞/非阻塞两种
 读模式）让 client / server 两个 TlsStream 经 mem-BIO 自环完成真实 TLS 握手；

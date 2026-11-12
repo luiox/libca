@@ -9,6 +9,7 @@
 /// @file result.hpp
 /// @brief Result<T, E> —— 用返回值替代异常的错误处理类型，对齐 Rust std::result。
 ///        成功用 Ok(value)、失败用 Err(error)，命名空间 ca::core（兼容导出到 ca）。
+///        错误值契约见 doc:core-design-errors。
 /// @note 约束：E 不能是 void；T 可以是 void。取值失败（unwrap 错误值等）会 std::terminate。
 ///       链式 API：map/map_error/then/otherwise/and_then/or_else。
 ///       TRY 宏依赖 GNU statement expression，仅 GCC/Clang 可用（见宏处说明）。
