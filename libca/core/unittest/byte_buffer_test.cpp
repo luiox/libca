@@ -6,7 +6,7 @@ namespace ca::core { namespace test {
 
 using namespace testing;
 
-// ==================== Bytes — 构造 ====================
+// ==================== Bytes: 构造 ====================
 
 TEST(BytesTest, DefaultConstructor) {
     Bytes b;
@@ -40,7 +40,7 @@ TEST(BytesTest, NullEmpty) {
     EXPECT_EQ(b.len(), 0u);
 }
 
-// ==================== Bytes — 读游标 ====================
+// ==================== Bytes: 读游标 ====================
 
 TEST(BytesTest, ReadAndAdvance) {
     u8 data[] = {0x01, 0x02, 0x03, 0x04};
@@ -66,7 +66,7 @@ TEST(BytesTest, ReadPastEndReturnsErr) {
     EXPECT_TRUE(b.get_u8().is_err());
 }
 
-// ==================== Bytes — 切片 ====================
+// ==================== Bytes: 切片 ====================
 
 TEST(BytesTest, Slice) {
     u8 data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
@@ -95,7 +95,7 @@ TEST(BytesTest, SliceOfSliceSharedStorage) {
     EXPECT_EQ(s2.get_u8().unwrap(), 'w');
 }
 
-// ==================== Bytes — 类型化读 ====================
+// ==================== Bytes: 类型化读 ====================
 
 TEST(BytesTest, GetU16_BigEndian) {
     u8 data[] = {0xAB, 0xCD};
@@ -157,7 +157,7 @@ TEST(BytesTest, GetValuesSequentially) {
     EXPECT_EQ(b.get_u64_be().unwrap(),   0x08090A0B0C0D0E0Fu);
 }
 
-// ==================== Bytes — 批量读 ====================
+// ==================== Bytes: 批量读 ====================
 
 TEST(BytesTest, CopyToSlice) {
     u8 data[] = {0x01, 0x02, 0x03, 0x04};
@@ -179,7 +179,7 @@ TEST(BytesTest, CopyToSliceUnderflow) {
 }
 
 
-// ==================== BytesMut — 构造 ====================
+// ==================== BytesMut: 构造 ====================
 
 TEST(BytesMutTest, DefaultConstructor) {
     BytesMut b;
@@ -209,7 +209,7 @@ TEST(BytesMutTest, MoveConstructor) {
     EXPECT_EQ(b2.get_u32_be().unwrap(), 0xCAFEBABEu);
 }
 
-// ==================== BytesMut — 写 ====================
+// ==================== BytesMut: 写 ====================
 
 TEST(BytesMutTest, PutU8) {
     auto b = BytesMut::with_capacity(4);
@@ -280,7 +280,7 @@ TEST(BytesMutTest, PutSlice) {
     EXPECT_EQ(b.get_u8().unwrap(), 0x03);
 }
 
-// ==================== BytesMut — 自动扩容 ====================
+// ==================== BytesMut: 自动扩容 ====================
 
 TEST(BytesMutTest, AutoGrow) {
     auto b = BytesMut::with_capacity(2);
@@ -299,7 +299,7 @@ TEST(BytesMutTest, Reserve) {
     EXPECT_GE(b.remaining_mut(), 100u);
 }
 
-// ==================== BytesMut — truncate / clear ====================
+// ==================== BytesMut: truncate / clear ====================
 
 TEST(BytesMutTest, Clear) {
     auto b = BytesMut::with_capacity(10);
@@ -320,7 +320,7 @@ TEST(BytesMutTest, Truncate) {
     EXPECT_EQ(b.len(), 2u);
 }
 
-// ==================== BytesMut — 读 ====================
+// ==================== BytesMut: 读 ====================
 
 TEST(BytesMutTest, ReadAfterWrite) {
     auto b = BytesMut::with_capacity(10);
@@ -344,7 +344,7 @@ TEST(BytesMutTest, ReadUnderflowReturnsErr) {
     EXPECT_TRUE(b.get_u8().is_err());
 }
 
-// ==================== BytesMut — 冻结 ====================
+// ==================== BytesMut: 冻结 ====================
 
 TEST(BytesMutTest, Freeze) {
     auto mut = BytesMut::with_capacity(10);
@@ -361,7 +361,7 @@ TEST(BytesMutTest, FreezeEmpty) {
     EXPECT_TRUE(frozen.is_empty());
 }
 
-// ==================== BytesMut — 比较 ====================
+// ==================== BytesMut: 比较 ====================
 
 TEST(BytesMutTest, Equals) {
     auto a = BytesMut::with_capacity(10);
@@ -437,7 +437,7 @@ TEST(ByteSliceTest, SubSliceOutOfRange) {
     EXPECT_THROW(s.sub_slice(3, 1), std::out_of_range);
 }
 
-// ==================== varint（LEB128）— put 精确字节序列 ====================
+// ==================== varint（LEB128）， put 精确字节序列 ====================
 // 期望字节序列由 python enc(n)（逐字节 n&0x7F、右移 7）现算核对后硬编码。
 
 namespace {
@@ -496,7 +496,7 @@ TEST(BytesMutTest, PutVarU32_AutoGrow) {
     EXPECT_EQ(b.get_var_u32().unwrap(), UINT32_MAX);
 }
 
-// ==================== varint — 合法读取（Bytes 与 BytesMut 两条通路） ====================
+// ==================== varint: 合法读取（Bytes 与 BytesMut 两条通路） ====================
 
 TEST(BytesTest, GetVarU32_ReadsAndAdvancesCursor) {
     u8 data[] = {0x96, 0x01, 0x80, 0x80, 0x01}; // 150、16384 连续排布
@@ -572,7 +572,7 @@ TEST(BytesTest, VarRoundTrip_BoundaryAndZigzagNegatives) {
     EXPECT_EQ(b.remaining(), 0u);
 }
 
-// ==================== varint — 截断 → Underflow 且游标不动 ====================
+// ==================== varint: 截断 → Underflow 且游标不动 ====================
 
 TEST(BytesTest, GetVarU32_UnderflowKeepsCursor) {
     u8 data[] = {0x7F, 0x80, 0x80, 0x80, 0x80}; // 127 正常，后 4 字节续位无终止
@@ -611,7 +611,7 @@ TEST(BytesMutTest, GetVarU32_UnderflowKeepsCursor) {
     EXPECT_EQ(b.remaining(), 1u); // 游标不动
 }
 
-// ==================== varint — 非规范编码 → MalformedVarint 且游标不动 ====================
+// ==================== varint: 非规范编码 → MalformedVarint 且游标不动 ====================
 
 TEST(BytesTest, GetVarU32_MalformedRedundantPadding) {
     u8 data[] = {0x80, 0x00}; // 末字节 0x00 冗余填充（0 只该占 1 字节）
@@ -688,7 +688,7 @@ TEST(BytesMutTest, GetVarU64_MalformedTooLongKeepsCursor) {
     EXPECT_EQ(b.remaining(), 11u); // 游标不动
 }
 
-// ==================== varint — 确定性伪随机 round-trip ====================
+// ==================== varint: 确定性伪随机 round-trip ====================
 
 TEST(BytesTest, VarRoundTrip_DeterministicPseudoRandom) {
     // 固定种子 LCG（Numerical Recipes 参数），不引入随机模块。

@@ -1,5 +1,5 @@
 /// @file toml.hpp
-/// @brief libca/toml 聚合头——包含 ca::toml 下所有公开组件。
+/// @brief libca/toml 聚合头，包含 ca::toml 下所有公开组件。
 ///        用 `\1 <libca/toml/toml.hpp>` 一次引入整个模块。
 /// @author Canrad
 /// @date 2026/07/19

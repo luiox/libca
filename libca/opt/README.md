@@ -2,8 +2,7 @@
 
 命令行选项解析器。命名空间 `ca::opt`，构建目标 `libca_opt`。
 
-定位对标 Rust `clap`/`argh` 或 Python `argparse`，保持 C++ 风格不做过度设计。覆盖常见
-CLI 形态：短名/长名、`--name value`/`--name=value`、required、子命令嵌套、`--help`、`--`。
+定位对标 Rust `clap`/`argh` 或 Python `argparse`，保持 C++ 风格不做过度设计。覆盖常见 CLI 形态：短名/长名、`--name value`/`--name=value`、required、子命令嵌套、`--help`、`--`。
 
 ## 用法
 
@@ -56,15 +55,12 @@ int main(int argc, const char* const argv[]) {
 
 ## `Arg` 约束
 
-- `name` 必须非空。它是 `has()`/`get()` 取值的唯一 key；即便选项只用短名（如 `-v`），
-  也要提供一个长名作为存储 key。重复长名或短名会在 `parse` 时返回 `INVALID_ARGUMENT`。
-- `required` 与 `default_value` 互斥：有默认值意味着 `has()` 恒为真，required 校验永远
-  不触发，`parse` 会拒绝这种组合。
+- `name` 必须非空。它是 `has()`/`get()` 取值的唯一 key；即便选项只用短名（如 `-v`），也要提供一个长名作为存储 key。重复长名或短名会在 `parse` 时返回 `INVALID_ARGUMENT`。
+- `required` 与 `default_value` 互斥：有默认值意味着 `has()` 恒为真，required 校验永远不触发，`parse` 会拒绝这种组合。
 
 ## `--help` 的特殊返回
 
-`parse()` 返回 `StatusResult<ParseResult>`。`--help` 不产出 ParseResult，走 `Err` 分支，
-但 **status code 为 `CANCELLED`**（区别于真正的解析错误 `INVALID_ARGUMENT`）。调用方：
+`parse()` 返回 `StatusResult<ParseResult>`。`--help` 不产出 ParseResult，走 `Err` 分支，但 **status code 为 `CANCELLED`**（区别于真正的解析错误 `INVALID_ARGUMENT`）。调用方：
 
 ```cpp
 if (result.is_err()) {

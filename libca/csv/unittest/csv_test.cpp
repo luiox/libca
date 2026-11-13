@@ -268,7 +268,7 @@ TEST(CsvWriterTest, ValidateUtf8DefaultReturnsErrOnInvalidBytes) {
 }
 
 // ============================================================================
-// 新增：DSV 预设（TSV / 任意分隔符）—— csv 模块本质是可配置分隔符的 DSV
+// 新增：DSV 预设（TSV / 任意分隔符）， csv 模块本质是可配置分隔符的 DSV
 // ============================================================================
 
 TEST(CsvDsvPresetTest, TsvRoundTrip) {

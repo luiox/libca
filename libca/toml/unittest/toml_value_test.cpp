@@ -84,7 +84,7 @@ TEST(TomlValueTest, ArrayAppendAndAt) {
 }
 
 // ============================================================================
-// TomlValue 可拷贝（Utf8StringRef 可拷贝）—— 这是 Arena 架构的核心便利
+// TomlValue 可拷贝（Utf8StringRef 可拷贝）， 这是 Arena 架构的核心便利
 // ============================================================================
 
 TEST(TomlValueTest, ValueIsCopyable) {

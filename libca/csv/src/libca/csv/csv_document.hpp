@@ -6,7 +6,7 @@
 ///          CsvReaderOptions 与 CsvWriterOptions 控制。字段内容按解析后的真实值保存，
 ///          写回时由 CsvWriter 负责按需加引号与转义。
 /// @note 采用 Arena 架构：`CsvDocument` 内嵌 `Utf8StringArena`，所有字段经
-///       `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节入池——CSV 不规定编码，
+///       `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节入池，CSV 不规定编码，
 ///       字段可能含任意字节）。`CsvRow` 与 `CsvDocument` 的字段存 `Utf8StringRef`，
 ///       生命周期绑定 CsvDocument；document 析构/clear/move-assign 后所有 ref 失效。
 ///       CsvDocument 禁拷贝（含 arena，不可共享），仅可移动。

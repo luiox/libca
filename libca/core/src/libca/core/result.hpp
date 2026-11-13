@@ -7,7 +7,7 @@
 #include <utility>
 
 /// @file result.hpp
-/// @brief Result<T, E> —— 用返回值替代异常的错误处理类型，对齐 Rust std::result。
+/// @brief Result<T, E>: 用返回值替代异常的错误处理类型，对齐 Rust std::result。
 ///        成功用 Ok(value)、失败用 Err(error)，命名空间 ca::core（兼容导出到 ca）。
 /// @note 约束：E 不能是 void；T 可以是 void。取值失败（unwrap 错误值等）会 std::terminate。
 ///       链式 API：map/map_error/then/otherwise/and_then/or_else。
@@ -564,7 +564,7 @@ struct err_tag { };
 template<typename T, typename E>
 struct Storage {
     static constexpr size_t Size = sizeof(T) > sizeof(E) ? sizeof(T) : sizeof(E);
-    // 对齐取两者 alignof 的最大值：跟随「尺寸更大者」的 alignof 会在
+    // 对齐取两者 alignof 的最大值：跟随尺寸更大者的 alignof 会在
     // sizeof 相近而 alignof 悬殊（如 array<char,40> vs string）时取到 1，
     // 导致 placement-new 出的对象对齐不足（UB）。
     static constexpr size_t Align = alignof(T) > alignof(E) ? alignof(T) : alignof(E);
@@ -898,7 +898,8 @@ struct Result {
         return types::Err<E>(storage().template get<E>());
     }
 
-    /// @copydoc and_then() —— Result<void,E> 的重载（func 无参）。
+    /// @copydoc and_then()
+    /// Result<void,E> 的重载（func 无参）。
     template<typename Func,
         typename Ret = typename details::result_of<Func>::type,
         typename U = T>

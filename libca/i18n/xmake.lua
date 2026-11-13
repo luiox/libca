@@ -13,7 +13,7 @@
 --   ns.path.key=译文，首个 = 分割，值两端空白剥离，内嵌 = 合法
 --   占位符 {0} {1} …（可乱序/重复）
 -- 构建期校验：key 须匹配 ^[a-z0-9_]+(\.[a-z0-9_]+)*$；同文件重复 key 报错；
--- zh_CN 必须存在且为超集（其它语言的 key 必须在 zh_CN 中出现）——zh_CN 是
+-- zh_CN 必须存在且为超集（其它语言的 key 必须在 zh_CN 中出现），zh_CN 是
 -- 唯一事实源，运行时未命中其它语言回退 zh_CN。
 rule("libca.i18n.embed-lang")
     set_extensions(".lang")

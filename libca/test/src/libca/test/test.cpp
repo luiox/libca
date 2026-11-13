@@ -38,10 +38,10 @@ std::once_flag& scan_once()
 // 扩展长度（\\?\）链路仅在 MSVC 标准库上验证过：libstdc++（mingw）对 \\?\ 前缀
 // 的目录创建/枚举存在未定位的挂起风险（CI windows/mingw job 45 分钟无输出直到
 // 超时，见 test_longpath_test.cpp 引入该链路后的红记录）。mingw 回落常规窄路径
-// 枚举——其 rundir 不含超长 fixture（回归用例同为 MSVC-only），无 MAX_PATH 暴露；
+// 枚举，其 rundir 不含超长 fixture（回归用例同为 MSVC-only），无 MAX_PATH 暴露；
 // 枚举失败仍有 scan_marker_files 的 ec 拒启兜底，不会退化为启动期硬崩。
 #if defined(_WIN32) && defined(_MSC_VER)
-/// Windows：构造扩展长度（\\?\）路径供枚举使用——以宽字符链路根治共享临时根
+/// Windows：构造扩展长度（\\?\）路径供枚举使用，以宽字符链路根治共享临时根
 /// 出现 ≥260 字符（UTF-16 计）长路径目录时的启动期枚举失败（#1126 同族缺陷：
 /// 传统 MAX_PATH 上限 259，窄路径语义下底层 FindFirstFileW 直接失败）。
 /// 非绝对路径或已带前缀时原样返回。
@@ -67,7 +67,7 @@ std::filesystem::path from_extended_length(const std::filesystem::path& path)
 }
 #endif
 
-/// 路径的 UTF-8 诊断文本。诊断消息不得经 path::string()——其按系统 ANSI 码页
+/// 路径的 UTF-8 诊断文本。诊断消息不得经 path::string()，其按系统 ANSI 码页
 /// 做宽窄转换，CJK 路径在 en-US 等码页下直接抛 filesystem_error，导致错误报告
 /// 自身先炸（CI msvc job 全红根因）。Windows 侧从 native 宽字符串手工编码 UTF-8
 /// （无 windows.h 依赖；代理对按 UCS-2 口径逐码元编码，仅诊断用途）；POSIX 窄
@@ -205,7 +205,7 @@ std::filesystem::path ensure_dir(const std::filesystem::path& dir)
 
 void setup(const std::string& project)
 {
-    // 扫描仅首次执行（call_once 保证线程安全）；名字解析每次执行——
+    // 扫描仅首次执行（call_once 保证线程安全）；名字解析每次执行，
     // 未知名始终抛错，也允许启动阶段显式切换当前项目。
     std::call_once(scan_once(), [] {
         top_project() = std::filesystem::current_path();

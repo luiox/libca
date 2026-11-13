@@ -277,7 +277,7 @@ TEST(ConversionTest, EmptyWStringToUtf8) {
 
 // 合法首字节 + 非法续字节（0xE4 'z' 0xAD）此前被 utf8_decode_code_point 误解码为
 // U+4EAD：utf8_code_point_bytes 只看首字节、decode 不校验续位，转换函数曾把非法
-// 输入当合法处理（违反「length 系列返回 0 / to_wstring 抛异常」契约）。
+// 输入当合法处理（违反length 系列返回 0 / to_wstring 抛异常契约）。
 TEST(ConversionTest, InvalidContinuationBytesRejected) {
     const u8 bad[] = {0xE4, 'z', 0xAD};  // 3 字节前导 + 两个非 10xxxxxx 续字节
     u16   out16[4] = {};

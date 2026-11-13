@@ -11,7 +11,7 @@
 #include <utility>
 
 /// @file hash_map.hpp
-/// @brief HashMap — Rust-like 基础 API 的哈希映射容器。
+/// @brief HashMap: Rust-like 基础 API 的哈希映射容器。
 
 namespace ca::collection {
 

@@ -2,10 +2,7 @@
 
 独立 INI 配置读写模块。命名空间 `ca::ini`，构建目标 `libca_ini`。
 
-核心目标是支持「读入、修改少量 key、写回」时保留人工维护的注释、空行和顺序，而不是只把
-INI 读成 map。采用 **Arena 架构**：`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段
-（`IniLine` / `LineRecord`）存 `Utf8StringRef`，析构 document 时 arena 一次性释放，无零散堆
-分配。输入 `Utf8StringRef`，值 `Utf8StringRef`（生命周期绑定 document）。
+核心目标是支持读入、修改少量 key、写回时保留人工维护的注释、空行和顺序，而不是只把 INI 读成 map。采用 **Arena 架构**：`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine` / `LineRecord`）存 `Utf8StringRef`，析构 document 时 arena 一次性释放，无零散堆分配。输入 `Utf8StringRef`，值 `Utf8StringRef`（生命周期绑定 document）。
 
 > 设计与保格式策略见 `doc/ini设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -49,8 +46,7 @@ Utf8StringRef value = document.get(
 
 ## 类型化访问
 
-`get` 返回原始字符串引用（含可能的首尾引号）。需要 int/double/bool 时用类型化访问，
-会自动剥首尾配对引号后转换：
+`get` 返回原始字符串引用（含可能的首尾引号）。需要 int/double/bool 时用类型化访问，会自动剥首尾配对引号后转换：
 
 ```cpp
 auto port = document.get_int(R("server"), R("port")).unwrap_or(80);
@@ -80,9 +76,7 @@ document.set(Utf8StringRef::from_cstr("server"),
 Utf8String text = IniWriter::write(document);
 ```
 
-写回时，原有注释、空行和未修改行会保持原样。上例中 `; keep inline` 会保留在 `host`
-这一行后面。**带引号的 value 修改后保留原引号风格**：`host = "127.0.0.1"` 改成
-`host = "0.0.0.0"`（引号不丢）。
+写回时，原有注释、空行和未修改行会保持原样。上例中 `; keep inline` 会保留在 `host` 这一行后面。**带引号的 value 修改后保留原引号风格**：`host = "127.0.0.1"` 改成 `host = "0.0.0.0"`（引号不丢）。
 
 ## 删除配置
 

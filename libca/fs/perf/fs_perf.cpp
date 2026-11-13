@@ -329,7 +329,7 @@ int main()
             !read_stdio(p, r2) || !read_fd(p, r3) || !read_api_file_util(p, r4) ||
             !read_api_raw(p, r5) || r0 != payload || r1 != r0 || r2 != r0 || r3 != r0 ||
             r4 != r0 || r5 != r0) {
-            std::printf("CORRECTNESS FAILURE on %s — abort\n", s.name);
+            std::printf("CORRECTNESS FAILURE on %s: abort\n", s.name);
             return 1;
         }
 

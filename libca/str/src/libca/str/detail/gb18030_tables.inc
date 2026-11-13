@@ -1,5 +1,5 @@
 //
-// gb18030 双字节码表 —— 由 tools/gen_charset_tables.py 生成，请勿手工编辑。
+// gb18030 双字节码表，由 tools/gen_charset_tables.py 生成，请勿手工编辑。
 // 生成命令：python tools/gen_charset_tables.py --charset gb18030
 // 数据源：python 内置 codec "gb18030"（与 WHATWG encoding 标准 index-gb18030 同源），
 // 生成时已断言 WHATWG 抽样向量一致 + 全量自洽校验。

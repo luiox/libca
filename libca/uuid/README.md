@@ -2,8 +2,7 @@
 
 UUID v4 生成与校验。命名空间 `ca::uuid`，构建目标 `libca_uuid`。
 
-底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），不做伪随机数引擎，
-不做 v1/v3/v5（时间戳/命名空间哈希），也不提供 UUID 结构体类型——只返回格式化字符串。
+底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），不做伪随机数引擎，不做 v1/v3/v5（时间戳/命名空间哈希），也不提供 UUID 结构体类型，只返回格式化字符串。
 
 ## 用法
 

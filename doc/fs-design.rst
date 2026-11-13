@@ -153,75 +153,38 @@ libca::fs 设计文档
 4.8 Path 路径值类型与编码边界
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**动机**：``std::filesystem`` 的窄字符接口（``path(std::string)`` 构造、``.string()``）在
-Windows 上按本地代码页（ACP）解析，中文/非 ASCII 路径有损。此前的对策是在每个调用点
-用 ``u8path``/``generic_u8string``，但：契约只在注释里、``u8path`` 在 C++20 起废弃
-（``char8_t`` 导致返回 ``std::u8string``，编译失败）、每次 API 调用重复转换、非法 UTF-8
-的行为是实现定义的（MSVC 有损替换、libstdc++ 近似透传，两平台不一致）。
+**动机**：``std::filesystem`` 的窄字符接口（``path(std::string)`` 构造、``.string()``）在 Windows 上按本地代码页（ACP）解析，中文/非 ASCII 路径有损。此前的对策是在每个调用点用 ``u8path``/``generic_u8string``，但：契约只在注释里、``u8path`` 在 C++20 起废弃（``char8_t`` 导致返回 ``std::u8string``，编译失败）、每次 API 调用重复转换、非法 UTF-8 的行为是实现定义的（MSVC 有损替换、libstdc++ 近似透传，两平台不一致）。
 
-**设计**：新增 ``Path`` 值类型，内部持有 ``std::filesystem::path``\ （Windows 即 UTF-16、
-POSIX 即字节串），编码语义全部借道 ``ca::str::OsString``，构造/导出命名与其对齐：
+**设计**：新增 ``Path`` 值类型，内部持有 ``std::filesystem::path``\ （Windows 即 UTF-16、 POSIX 即字节串），编码语义全部借道 ``ca::str::OsString``，构造/导出命名与其对齐：
 
-- ``from_utf8``\ （显式校验，非法返回 ``FsError::InvalidUtf8``，对齐 process 模块的
-  fail-fast 边界）/ ``from_utf8_lossy``\ （U+FFFD 替代，绝不失败）；
-- ``from_os_string``\ （POSIX 零转换）/ ``from_native``\ （Windows 宽字符，无校验，
-  可承载未配对代理等无法映射 UTF-8 的名字）；
-- 导出 ``to_utf8_lossy``\ （generic 格式，'/' 分隔）/ ``to_os_string`` / ``native()``
-  （直接喂 ``std::filesystem`` 与 fstream 的 ``filesystem::path`` 构造）。
+- ``from_utf8``\ （显式校验，非法返回 ``FsError::InvalidUtf8``，对齐 process 模块的 fail-fast 边界）/ ``from_utf8_lossy``\ （U+FFFD 替代，绝不失败）；
+- ``from_os_string``\ （POSIX 零转换）/ ``from_native``\ （Windows 宽字符，无校验，可承载未配对代理等无法映射 UTF-8 的名字）；
+- 导出 ``to_utf8_lossy``\ （generic 格式，'/' 分隔）/ ``to_os_string`` / ``native()`` （直接喂 ``std::filesystem`` 与 fstream 的 ``filesystem::path`` 构造）。
 
-与 ``std::string`` 之间\ **不做隐式转换**——裸字符串不携带编码信息，必须经工厂显式表达
-编码语义，这是把「UTF-8 契约」从注释搬进类型系统的核心手段。
+与 ``std::string`` 之间\ **不做隐式转换**，裸字符串不携带编码信息，必须经工厂显式表达编码语义，这是把UTF-8 契约从注释搬进类型系统的核心手段。
 
-**FileUtil/PathUtil 的双轨**：每个接受路径的 FileUtil 函数提供 ``const Path&`` 重载
-（返回路径的重载族相应返回 ``Path``/``std::vector<Path>``）；``std::string`` 重载族保留并
-委托 ``Path::from_utf8_lossy``——非法 UTF-8 从「实现定义的静默损坏」\ **收敛为定义清楚的
-U+FFFD 替换**，不抛异常、行为跨平台一致。严格校验由调用方用 ``Path::from_utf8`` 显式选择。
-PathUtil 保留（一次性字符串运算场景仍有用），内部实现已改经 Path。
+**FileUtil/PathUtil 的双轨**：每个接受路径的 FileUtil 函数提供 ``const Path&`` 重载（返回路径的重载族相应返回 ``Path``/``std::vector<Path>``）；``std::string`` 重载族保留并委托 ``Path::from_utf8_lossy``，非法 UTF-8 从实现定义的静默损坏\ **收敛为定义清楚的 U+FFFD 替换**，不抛异常、行为跨平台一致。严格校验由调用方用 ``Path::from_utf8`` 显式选择。 PathUtil 保留（一次性字符串运算场景仍有用），内部实现已改经 Path。
 
-**收敛效果**：``std::filesystem::u8path``/``generic_u8string`` 在全库 src 中清零
-（fs/csv/ini/json/toml/xml/yaml 的文件流统一经 ``fs::Path::native()`` 打开），
-UTF-8 ↔ 原生编码的转换实现只存在于 ``path.cpp`` 一处——C++20 迁移时只需改一个文件。
-解析器模块（csv/ini/json/toml/xml/yaml）因此新增对 ``libca_fs`` 的依赖。
+**收敛效果**：``std::filesystem::u8path``/``generic_u8string`` 在全库 src 中清零（fs/csv/ini/json/toml/xml/yaml 的文件流统一经 ``fs::Path::native()`` 打开）， UTF-8 ↔ 原生编码的转换实现只存在于 ``path.cpp`` 一处，C++20 迁移时只需改一个文件。解析器模块（csv/ini/json/toml/xml/yaml）因此新增对 ``libca_fs`` 的依赖。
 
-**已知限制**：Windows 文件名含未配对代理（NTFS 允许）时无法表示为合法 UTF-8，
-``to_utf8_lossy`` 按 U+FFFD 替代；无损承载只能停留在 ``Path``/``from_native`` 层。
-这与 Rust 用 WTF-8 解决该问题的取舍不同——只要后端是 std::filesystem，此层限制
-不可避免，选择文档声明而非重造路径解析。
+**已知限制**：Windows 文件名含未配对代理（NTFS 允许）时无法表示为合法 UTF-8， ``to_utf8_lossy`` 按 U+FFFD 替代；无损承载只能停留在 ``Path``/``from_native`` 层。这与 Rust 用 WTF-8 解决该问题的取舍不同，只要后端是 std::filesystem，此层限制不可避免，选择文档声明而非重造路径解析。
 
 4.9 读路径 iostream → C stdio（#249 基准驱动）
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**动机**：整读场景 iostream 开销真实存在——streambuf 虚分发、locale 机制、
-大块 read 仍走 streambuf 分块拷贝。但「是否替换」由基准数据裁决，不凭体感。
+**动机**：整读场景 iostream 开销真实存在，streambuf 虚分发、locale 机制、大块 read 仍走 streambuf 分块拷贝。但是否替换由基准数据裁决，不凭体感。
 
-**基准**\ （``libca_fs_perf``，Windows/MSVC x64 release，三轮取稳定区间，绝对值受
-Defender 放大、看比值）：整读 4MB stdio 比 ifstream 快 **3~4x**\ （分块拷贝代价，
-可移植结论）；2KB/64KB 两者持平（open 系统调用主导）。**整写 stdio 与 ofstream
-在噪声区间内互有胜负（±15%），无 setvbuf 还劣化——写路径维持 iostream 不替换**。
+**基准**\ （``libca_fs_perf``，Windows/MSVC x64 release，三轮取稳定区间，绝对值受 Defender 放大、看比值）：整读 4MB stdio 比 ifstream 快 **3~4x**\ （分块拷贝代价，可移植结论）；2KB/64KB 两者持平（open 系统调用主导）。**整写 stdio 与 ofstream 在噪声区间内互有胜负（±15%），无 setvbuf 还劣化，写路径维持 iostream 不替换**。
 
 **设计**：新增 ``stdio_file.hpp`` 公开头，三件套：
 
 - ``StdioFile``：FILE* 的 RAII 句柄（析构 fclose、禁拷贝、可移动、``release/reset``）；
-- ``open_stdio(Path, mode)``：**平台分支集中点**——Windows 窄 ``fopen`` 按 ANSI 代码页
-  解释路径（UTF-8 中文/emoji 必然失败），须 ``_wfopen`` 经 Path 编码边界转宽；
-  POSIX 直通。失败经 errno → ``classify_error`` 归类（ENOENT→\ ``FileNotFound`` 等）。
-  调用方不得散写 ``_wfopen``/``fopen``；
-- ``read_file_all(Path)``：无预检整读（open → seek END 取尺寸 → rewind → 单次 fread，
-  尺寸走 64 位 seek 口径：MSVC ``_fseeki64``/``_ftelli64``、POSIX ``fseeko``/``ftello``）。
-  不做 ``exists``/``is_regular_file`` 预检——错误由打开/读取的 errno 归类承担
-  （POSIX 目录 fread 报 EISDIR→\ ``IsADirectory``）；适合要自行映射错误的整读方
-  （六个解析器的 ``read_file``）。需要 ``NotARegularFile`` 明确语义的用 FileUtil。
+- ``open_stdio(Path, mode)``：**平台分支集中点**，Windows 窄 ``fopen`` 按 ANSI 代码页解释路径（UTF-8 中文/emoji 必然失败），须 ``_wfopen`` 经 Path 编码边界转宽； POSIX 直通。失败经 errno → ``classify_error`` 归类（ENOENT→\ ``FileNotFound`` 等）。调用方不得散写 ``_wfopen``/``fopen``；
+- ``read_file_all(Path)``：无预检整读（open → seek END 取尺寸 → rewind → 单次 fread，尺寸走 64 位 seek 口径：MSVC ``_fseeki64``/``_ftelli64``、POSIX ``fseeko``/``ftello``）。不做 ``exists``/``is_regular_file`` 预检，错误由打开/读取的 errno 归类承担（POSIX 目录 fread 报 EISDIR→\ ``IsADirectory``）；适合要自行映射错误的整读方（六个解析器的 ``read_file``）。需要 ``NotARegularFile`` 明确语义的用 FileUtil。
 
-**FileUtil 落地**：``read_all_bytes``/``read_all_text``/``read_lines`` 内部改经 stdio
-整读；读预检由 ``exists()``\ +\ ``is_regular_file()`` **两次 stat 合并为一次 status()**
-（错误语义逐条不变：不存在→\ ``FileNotFound``、非普通文件→\ ``NotARegularFile``，
-基准显示两次 stat 占小文件整读 ~60% 开销）。``read_lines`` 由 getline 流式改为
-整读后内存拆行（返回值语义逐条对齐旧实现，见 CHANGELOG）。
+**FileUtil 落地**：``read_all_bytes``/``read_all_text``/``read_lines`` 内部改经 stdio 整读；读预检由 ``exists()``\ +\ ``is_regular_file()`` **两次 stat 合并为一次 status()** （错误语义逐条不变：不存在→\ ``FileNotFound``、非普通文件→\ ``NotARegularFile``，基准显示两次 stat 占小文件整读 ~60% 开销）。``read_lines`` 由 getline 流式改为整读后内存拆行（返回值语义逐条对齐旧实现，见 CHANGELOG）。
 
-**明确不做**：写路径不替换（基准无收益）；io 模块的流式 Reader/Writer 抽象层
-不动（本批只覆盖「按路径打开 + 整读」热点）；log 异步后端如需跟进单独拆条目。
-zip 模块已有同构的 ``detail/file_io``\ （#250），不复用 fs 封装属刻意——zip 不引
-fs 依赖，避免改包定义的链接闭包。
+**明确不做**：写路径不替换（基准无收益）；io 模块的流式 Reader/Writer 抽象层不动（本批只覆盖按路径打开 + 整读热点）；log 异步后端如需跟进单独拆条目。 zip 模块已有同构的 ``detail/file_io``\ （#250），不复用 fs 封装属刻意，zip 不引 fs 依赖，避免改包定义的链接闭包。
 
 5. 未纳入本期（未来可扩展）
 ---------------------------
@@ -233,4 +196,4 @@ fs 依赖，避免改包定义的链接闭包。
 6. 测试策略
 -----------
 
-Google Test，``libca/fs/unittest/``。覆盖正常路径、空文件、不存在路径、嵌套目录遍历等；IO 测试用临时目录、结束清理。不做跨平台 mock——CI 在 Windows + Linux 分别跑。Path 另有编码边界专项用例（非法 UTF-8 的 from_utf8 拒绝 / lossy 替换、中文往返、Windows 分隔符归一、未配对代理 lossy 导出、hash/比较）。当前 140 个用例全绿（1 个 symlink 用例在 Windows 按支持情况跳过）。
+Google Test，``libca/fs/unittest/``。覆盖正常路径、空文件、不存在路径、嵌套目录遍历等；IO 测试用临时目录、结束清理。不做跨平台 mock，CI 在 Windows + Linux 分别跑。Path 另有编码边界专项用例（非法 UTF-8 的 from_utf8 拒绝 / lossy 替换、中文往返、Windows 分隔符归一、未配对代理 lossy 导出、hash/比较）。当前 140 个用例全绿（1 个 symlink 用例在 Windows 按支持情况跳过）。

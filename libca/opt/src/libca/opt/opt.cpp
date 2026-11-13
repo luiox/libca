@@ -380,7 +380,7 @@ bool Parser::seed_option_values(const Command& cmd,
         if (!kind_takes_value(arg.kind))
             continue;
 
-        // 上级命令行已显式给值的同名选项不再被本级种子覆盖——「命令行恒为最高」
+        // 上级命令行已显式给值的同名选项不再被本级种子覆盖，命令行恒为最高
         // 的全局优先级在跨层级场景同样成立。
         auto src = result.sources_.find(arg.name);
         if (src != result.sources_.end() && src->second == ValueSource::CommandLine)
@@ -622,7 +622,7 @@ std::size_t help_string_width(std::string_view text, WidthMode mode) noexcept
     return width;
 }
 
-// 折行 token：一段不可再断的文本——空格段、普通词（非宽字符连续段）或单个
+// 折行 token：一段不可再断的文本，空格段、普通词（非宽字符连续段）或单个
 // 宽字符（宽字符前后皆可断行，CJK 无空格分词）。
 struct HelpWrapToken
 {
@@ -1022,7 +1022,7 @@ ca::core::Result<ParseResult, ParseError> Parser::parse(
         }
 
         // --help / -h：任何层级都支持，但可被用户注册的同名选项覆盖（如 -h 作
-        // --host 的别名）——注册了的 token 优先按用户定义解析。category 为
+        // --host 的别名），注册了的 token 优先按用户定义解析。category 为
         // HelpRequested（用户请求帮助、中止正常流程），message 为格式化的完整
         // 帮助文本，区别于真正的解析错误。
         const bool builtin_help = (token == "--help" || token == "-h") &&

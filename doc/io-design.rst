@@ -12,9 +12,7 @@ libca_io 设计文档
 1. 目标与边界
 -------------
 
-``libca_io`` 为文件、进程管道和网络连接提供统一的同步字节流协议。设计参考 Rust
-``std::io``，但使用 libca 的 C++17、``Result`` 和命名约定。模块的核心不是重新命名
-``read(2)`` / ``ReadFile()``，而是统一以下语义：
+``libca_io`` 为文件、进程管道和网络连接提供统一的同步字节流协议。设计参考 Rust ``std::io``，但使用 libca 的 C++17、``Result`` 和命名约定。模块的核心不是重新命名 ``read(2)`` / ``ReadFile()``，而是统一以下语义：
 
 - EOF、短读、短写和重试规则。
 - 可分类并保留原生错误码的 IO 错误。
@@ -22,8 +20,7 @@ libca_io 设计文档
 - 可组合的缓冲读取和缓冲写入。
 - 原生 handle/fd 的唯一所有权和 RAII 关闭。
 
-首版只提供同步阻塞 IO，不设计 reactor、异步任务、超时或 socket 创建接口。异步 IO
-应在未来建立于同一能力接口和错误模型之上，而不是改变基础同步语义。
+首版只提供同步阻塞 IO，不设计 reactor、异步任务、超时或 socket 创建接口。异步 IO 应在未来建立于同一能力接口和错误模型之上，而不是改变基础同步语义。
 
 依赖方向为：
 
@@ -33,14 +30,12 @@ libca_io 设计文档
                           <- libca_fs
                           <- libca_net
 
-``libca_process`` 当前管道接口仍保留，后续迁移时其 ``PipeReader``、``PipeWriter`` 和
-``NamedPipeConnection`` 应实现 ``Reader`` / ``Writer``，不再维护另一套字节流规则。
+``libca_process`` 当前管道接口仍保留，后续迁移时其 ``PipeReader``、``PipeWriter`` 和 ``NamedPipeConnection`` 应实现 ``Reader`` / ``Writer``，不再维护另一套字节流规则。
 
 2. 错误模型
 -----------
 
-通用 ``Status`` 无法表达 ``WouldBlock``、``Interrupted``、``BrokenPipe``、``UnexpectedEof`` 等
-IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此模块定义：
+通用 ``Status`` 无法表达 ``WouldBlock``、``Interrupted``、``BrokenPipe``、``UnexpectedEof`` 等 IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此模块定义：
 
 .. code-block:: cpp
 
@@ -56,14 +51,9 @@ IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此�
 - 原生错误码；合成错误的原生错误码为 0。
 - 带操作上下文的可读消息。
 
-``IoError::from_native_error()`` 将 POSIX errno 或 Windows error 映射到稳定类别，同时保留
-原值。``to_status()`` 只用于和仍使用 ``Status`` 的旧模块衔接，不作为 IO 主错误接口。
+``IoError::from_native_error()`` 将 POSIX errno 或 Windows error 映射到稳定类别，同时保留原值。``to_status()`` 只用于和仍使用 ``Status`` 的旧模块衔接，不作为 IO 主错误接口。
 
-首版错误类别至少包含：``NotFound``、``PermissionDenied``、``ConnectionRefused``、
-``ConnectionReset``、``ConnectionAborted``、``NotConnected``、``AddrInUse``、
-``AddrNotAvailable``、``BrokenPipe``、``AlreadyExists``、``WouldBlock``、``InvalidInput``、
-``InvalidData``、``TimedOut``、``WriteZero``、``Interrupted``、``UnexpectedEof``、``OutOfMemory``、
-``Unsupported`` 和 ``Other``。
+首版错误类别至少包含：``NotFound``、``PermissionDenied``、``ConnectionRefused``、 ``ConnectionReset``、``ConnectionAborted``、``NotConnected``、``AddrInUse``、 ``AddrNotAvailable``、``BrokenPipe``、``AlreadyExists``、``WouldBlock``、``InvalidInput``、 ``InvalidData``、``TimedOut``、``WriteZero``、``Interrupted``、``UnexpectedEof``、``OutOfMemory``、 ``Unsupported`` 和 ``Other``。
 
 3. Reader
 ---------
@@ -110,10 +100,7 @@ IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此�
        IoResult<void> write_all(ca::core::ByteSlice data);
    };
 
-一次 write 可以短写。``write_all()`` 自动处理短写和 ``Interrupted``；非空输入返回
-``Ok(0)`` 时转换为 ``WriteZero``，避免无限循环。``flush()`` 只保证该 Writer 自己维护的缓冲
-已经交给下一层，不承诺磁盘持久化；需要 ``fsync`` / ``FlushFileBuffers`` 时由文件模块提供
-明确的持久化接口。
+一次 write 可以短写。``write_all()`` 自动处理短写和 ``Interrupted``；非空输入返回 ``Ok(0)`` 时转换为 ``WriteZero``，避免无限循环。``flush()`` 只保证该 Writer 自己维护的缓冲已经交给下一层，不承诺磁盘持久化；需要 ``fsync`` / ``FlushFileBuffers`` 时由文件模块提供明确的持久化接口。
 
 5. Seek
 -------
@@ -142,8 +129,7 @@ IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此�
        IoResult<void> rewind();
    };
 
-``Start`` 使用无符号绝对位置，``Current`` / ``End`` 使用有符号相对偏移。管道和 socket 不应
-假装支持定位，应返回 ``Unsupported``。
+``Start`` 使用无符号绝对位置，``Current`` / ``End`` 使用有符号相对偏移。管道和 socket 不应假装支持定位，应返回 ``Unsupported``。
 
 6. 缓冲读写
 -----------
@@ -151,16 +137,14 @@ IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此�
 6.1 BufReader
 ^^^^^^^^^^^^^
 
-``BufReader`` 拥有一个 ``std::unique_ptr<Reader>`` 和固定容量缓冲区，并自身实现 ``Reader``。
-它提供：
+``BufReader`` 拥有一个 ``std::unique_ptr<Reader>`` 和固定容量缓冲区，并自身实现 ``Reader``。它提供：
 
 - ``read()``：优先消费已缓冲数据；大块读取在缓冲为空时直接透传到底层。
 - ``fill_buf()``：返回在下一次可变操作前有效的 ``ByteSlice``。
 - ``consume()``：显式推进缓冲区，越界返回 ``InvalidInput``。
 - ``read_until()``：读取到指定分隔符或 EOF，适合协议行和帧头解析。
 
-底层对象由缓冲器独占，避免非缓冲读取绕过缓冲区后破坏顺序。需要共享底层资源时，
-调用方应在更高层提供同步代理，而不是让 ``BufReader`` 保存裸引用。
+底层对象由缓冲器独占，避免非缓冲读取绕过缓冲区后破坏顺序。需要共享底层资源时，调用方应在更高层提供同步代理，而不是让 ``BufReader`` 保存裸引用。
 
 6.2 BufWriter
 ^^^^^^^^^^^^^
@@ -186,13 +170,11 @@ IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此�
 - Windows 保存可由 ``CloseHandle()`` 关闭的 ``HANDLE``。
 - POSIX 保存可由 ``close()`` 关闭的 fd，fd 0 是有效值。
 - ``adopt()`` 明确表示接管外部原生资源。
-- ``duplicate()`` 使用 ``DuplicateHandle()`` / ``fcntl(F_DUPFD_CLOEXEC)`` 创建独立所有权；
-  缺少该 fcntl 命令的平台回退到 ``dup()`` 后设置 ``FD_CLOEXEC``。
+- ``duplicate()`` 使用 ``DuplicateHandle()`` / ``fcntl(F_DUPFD_CLOEXEC)`` 创建独立所有权；缺少该 fcntl 命令的平台回退到 ``dup()`` 后设置 ``FD_CLOEXEC``。
 - ``close()`` 显式关闭并返回 ``IoError``；析构执行 noexcept best-effort close。
 - ``release()`` 放弃 RAII 并把原生值交还调用方。
 
-Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。未来 ``libca_net`` 应定义
-自己的 ``OwnedSocket``，但 socket 流仍实现相同 ``Reader`` / ``Writer``。
+Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。未来 ``libca_net`` 应定义自己的 ``OwnedSocket``，但 socket 流仍实现相同 ``Reader`` / ``Writer``。
 
 7.2 NativeStream
 ^^^^^^^^^^^^^^^^
@@ -205,8 +187,7 @@ Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。
 - Windows 管道的 ``ERROR_BROKEN_PIPE`` 在读取侧转换为 EOF。
 - 对管道执行 seek 返回 ``Unsupported``。
 
-文件和进程管道可直接使用或委托给 ``NativeStream``。socket 因 Windows 关闭与 IO API 不同，
-由 net 模块实现同一抽象而不复用 ``NativeStream``。
+文件和进程管道可直接使用或委托给 ``NativeStream``。socket 因 Windows 关闭与 IO API 不同，由 net 模块实现同一抽象而不复用 ``NativeStream``。
 
 8. 并发与生命周期
 -----------------

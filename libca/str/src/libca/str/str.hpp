@@ -1,5 +1,5 @@
 /// @file str.hpp
-/// @brief libca/str 聚合头文件——包含 ca::str 下所有组件。
+/// @brief libca/str 聚合头文件，包含 ca::str 下所有组件。
 ///        用 `\1 <libca/str/str.hpp>` 一次引入整个模块。
 /// @author Canrad
 /// @date 2026/05/31

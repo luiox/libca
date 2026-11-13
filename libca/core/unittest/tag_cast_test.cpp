@@ -59,7 +59,7 @@ TEST(TagCastTest, castDowncastsToConcrete)
 
 TEST(TagCastTest, castStripsCvAndStar)
 {
-    // T 可以是裸类型、指针或 const 形态——cleanup_t 全部归一到同一结果指针类型。
+    // T 可以是裸类型、指针或 const 形态，cleanup_t 全部归一到同一结果指针类型。
     Foo   foo;
     Base* base = &foo;
     EXPECT_EQ(ca::core::tag_cast::cast<Foo>(base), ca::core::tag_cast::cast<Foo*>(base));

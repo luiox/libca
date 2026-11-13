@@ -91,7 +91,7 @@ core 以 ``Result<T, E>`` 作为主要错误传播机制，对齐 Rust ``Result`
 ``DynamicLibrary`` 是插件宿主等场景需要的跨平台运行时加载原语：从 UTF-8 路径加载、查找导出符号、显式或自动释放原生句柄。
 
 - **所有权**：move-only，析构调用 ``unload()``，句柄始终单一所有者。``lookup<T>`` 要求 ``T`` 为函数类型，返回的函数指针生命周期绑定库实例，``unload()`` 或析构后不可调用。
-- **错误模型**：失败操作返回 ``StatusResult<T>``，复用既有 ``Status`` 码归类——``NOT_FOUND``\ （库文件或符号不存在）、``FAILED_PRECONDITION``\ （``unload()`` 后或 moved-from 对象上 ``lookup()``）、``INVALID_ARGUMENT``\ （路径/符号名为空）、``INTERNAL``\ （其余平台加载器错误）。
+- **错误模型**：失败操作返回 ``StatusResult<T>``，复用既有 ``Status`` 码归类，``NOT_FOUND``\ （库文件或符号不存在）、``FAILED_PRECONDITION``\ （``unload()`` 后或 moved-from 对象上 ``lookup()``）、``INVALID_ARGUMENT``\ （路径/符号名为空）、``INTERNAL``\ （其余平台加载器错误）。
 - **平台映射**：Windows 走 ``LoadLibraryW``\ （加载前 UTF-8→UTF-16 转换）/``GetProcAddress``/``FreeLibrary``，错误码 ``ERROR_FILE_NOT_FOUND`` 等映射为 ``NOT_FOUND``；Linux 走 ``dlopen(RTLD_NOW|RTLD_LOCAL)``/``dlsym``/``dlclose``，加载前清空 ``dlerror``，``lookup`` 后用 ``dlerror()`` 而非 ``dlsym`` 返回值判错（``dlsym`` 合法返回 null）。
 - **并发**：不同实例可跨线程使用；单实例不可在 ``unload()`` 与 ``lookup()`` 间并发（加载器可能在另一线程使用符号时释放它）。
 

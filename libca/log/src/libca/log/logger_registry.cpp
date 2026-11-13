@@ -15,7 +15,7 @@ namespace {
 // Meyers 单例：局部 static 保证首次访问初始化线程安全。
 // 持有 shared_ptr<Logger> 而非裸指针；map 是唯一活跃持有者，因此替换/注销/
 // clear 时把旧 Logger 移入退休列表（进程生命周期内保活），保证 get() 返回的
-// 裸指针在调用方一次 log 表达式内有效——正在进行的 backend->log() 不会撞上
+// 裸指针在调用方一次 log 表达式内有效，正在进行的 backend->log() 不会撞上
 // 悬空。退休列表只随注册表变更增长（注册一次的常规用法恒为空成本）。
 std::unordered_map<std::string, std::shared_ptr<Logger>>& registry_map()
 {

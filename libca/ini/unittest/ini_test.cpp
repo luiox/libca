@@ -281,7 +281,7 @@ TEST(IniDocumentTest, SetPreservesSingleQuotesAroundValue) {
 }
 
 TEST(IniDocumentTest, EscapedTrailingQuoteNotTreatedAsQuoted) {
-    // value = "ab\"  —— 尾部引号被反斜杠转义，不是闭合引号。
+    // value = "ab\" : 尾部引号被反斜杠转义，不是闭合引号。
     // detect_quotes 应返回 false，set 重建时不补引号。
     auto document = read_ok("[s]\nx = \"ab\\\"\n");
     EXPECT_EQ(S(get_ok(document, "s", "x")), "\"ab\\\"");

@@ -2,9 +2,7 @@
 
 JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。命名空间 `ca::json`，构建目标 `libca_json`。
 
-深度集成 `ca::str`：输入接受 `Utf8StringRef`（零拷贝指向原文本），DOM 字符串值与 object key
-用 `Utf8StringRef`，由 `JsonDocument` 内嵌的 `Utf8StringArena` 持有——析构 document 时
-所有字符串一次性释放，无零散堆分配。错误用 `Result<JsonDocument, ParseError>`，不用异常。
+深度集成 `ca::str`：输入接受 `Utf8StringRef`（零拷贝指向原文本），DOM 字符串值与 object key 用 `Utf8StringRef`，由 `JsonDocument` 内嵌的 `Utf8StringArena` 持有，析构 document 时所有字符串一次性释放，无零散堆分配。错误用 `Result<JsonDocument, ParseError>`，不用异常。
 
 > 设计与取舍见 `doc/json设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -35,8 +33,7 @@ if (name != nullptr) {
 }
 ```
 
-`JsonValue` 的字符串引用指向 `JsonDocument` 内部 arena，生命周期绑定 document。
-document 析构后所有 ref 失效——需要长期持有应 clone 出独立 `Utf8String`。
+`JsonValue` 的字符串引用指向 `JsonDocument` 内部 arena，生命周期绑定 document。 document 析构后所有 ref 失效，需要长期持有应 clone 出独立 `Utf8String`。
 
 ## SAX 流式
 
@@ -80,8 +77,7 @@ opts.pretty = true;
 Utf8String text = JsonWriter::write(doc, opts);
 ```
 
-`write` 默认输出紧凑 JSON；开启 `pretty` 后按 `indent` 缩进换行；`ensure_ascii` 把所有
-非 ASCII 字符转义为 `\uXXXX`（BMP）或 surrogate pair（astral plane）。
+`write` 默认输出紧凑 JSON；开启 `pretty` 后按 `indent` 缩进换行；`ensure_ascii` 把所有非 ASCII 字符转义为 `\uXXXX`（BMP）或 surrogate pair（astral plane）。
 
 ## 读写文件
 
@@ -102,6 +98,4 @@ opts.allow_comments = true;        // // 行注释 和 /* 块注释 */
 
 ## number 的 int/float 判定
 
-JSON 规范不区分整数与浮点，本库按字面量形态判定：不含 `.`/`e`/`E` 的数字解析为
-`Int`（i64），否则为 `Float`（f64）。超出 i64 范围的整数自动降级为 Float。访问时可用
-`is_int()` / `is_float()` 判别，或用 `as_int_or(fallback)` / `as_float_or(fallback)` 安全取值。
+JSON 规范不区分整数与浮点，本库按字面量形态判定：不含 `.`/`e`/`E` 的数字解析为 `Int`（i64），否则为 `Float`（f64）。超出 i64 范围的整数自动降级为 Float。访问时可用 `is_int()` / `is_float()` 判别，或用 `as_int_or(fallback)` / `as_float_or(fallback)` 安全取值。

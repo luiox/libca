@@ -4,7 +4,7 @@
 /// @date 2026/05/31
 /// @note **Provisional**：接口形状已稳定，但 disown fail-safe 语义较新，下游充分验证前
 ///       勿写入自身公共稳定接口。**非线程安全**。
-/// @note 选型：vs Utf8StringArena——arena 是"同生共死、整块释放"，pool 是"各句柄寿命不同、
+/// @note 选型：vs Utf8StringArena，arena 是"同生共死、整块释放"，pool 是"各句柄寿命不同、
 ///       按引用计数回收"。一批字符串有共同死亡点用 arena，无则用 pool。
 /// @note 生命周期契约（核心）：
 ///       - **真删**：PooledPtr refcount 归零即 delete 该 entry（非墓碑）。
@@ -107,7 +107,7 @@ private:
 
 
 // ============================================================================
-// Utf8StringPool — 引用计数 UTF-8 字符串池
+// Utf8StringPool: 引用计数 UTF-8 字符串池
 // ============================================================================
 
 /// @brief 引用计数 UTF-8 字符串池。详见文件头的选型与生命周期契约。
@@ -165,7 +165,7 @@ private:
     // Pool 退出（析构/clear/move-assign 释放自身旧条目）前的 fail-safe：
     // hash_index_ 里残留的 entry 都仍有外部 PooledPtr 持有（ref_count 归零的早已被
     // erase_entry 真删移出），一律置 owner=nullptr，由存活句柄自管释放。
-    // 消除「Pool 先死、PooledPtr 后死」UAF。
+    // 消除Pool 先死、PooledPtr 后死UAF。
     void disown_all() noexcept;
     friend class Utf8StringPooledPtr;
 };

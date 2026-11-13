@@ -14,7 +14,7 @@
 // 标识符（Command::stdin/stdout/stderr 等成员）不被宏污染而 #undef 它们；但 fmt
 // header-only 模式下 format-inl.h 的 assert/异常路径引用全局 stderr/stdout，宏被 undef
 // 后这些标识符彻底消失（Windows 上它们只是宏，无底层 FILE* 变量）。这里先 include
-// format.hpp 让 fmt 在宏仍存在时完整展开，之后 #undef 不影响已展开的 fmt 代码——
+// format.hpp 让 fmt 在宏仍存在时完整展开，之后 #undef 不影响已展开的 fmt 代码，
 // 该约束内聚在本头文件内，任何 include 顺序都安全。
 #include "libca/str/format.hpp"
 

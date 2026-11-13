@@ -12,7 +12,7 @@
 #include <utility>
 
 /// @file channel.hpp
-/// @brief MPSC 通道 —— 多生产者单消费者消息传递，对齐 Rust std::sync::mpsc 的简化版。
+/// @brief MPSC 通道，多生产者单消费者消息传递，对齐 Rust std::sync::mpsc 的简化版。
 ///        `channel()` 返回 (Sender, Receiver)；Sender 可拷贝（多生产者），Receiver move-only
 ///        （单消费者）。capacity=0 表示无界缓冲，capacity>0 表示有界缓冲（满时 send 阻塞）。
 ///        所有 Sender 销毁后，Receiver 排空已有元素，之后 recv 返回空 optional。

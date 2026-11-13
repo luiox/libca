@@ -1012,7 +1012,7 @@ TEST(ZUtf8StringRef, SimpleTest)
 {
     ZUtf8StringRef CONSTANT_RAW_STR = ZUtf8StringRef::from_static("CONSTANT_RAW_STR");
     // 不可用 EXPECT_EQ 比两个 const char*:那是地址比较,依赖编译器字面量合并
-    // (release /GF 恰好同址,debug 必不同址)——按内容断言用 EXPECT_STREQ。
+    // (release /GF 恰好同址,debug 必不同址)，按内容断言用 EXPECT_STREQ。
     EXPECT_STREQ(CONSTANT_RAW_STR.c_str(), "CONSTANT_RAW_STR");
 
     // ...
@@ -1490,7 +1490,7 @@ TEST(Utf8StringRefTest, EqualsZUtf8StringRefAndStringView) {
 
 TEST(Utf8StringRefTest, EqualsZUtf8StringRefSelfNoAmbiguity) {
     // (Utf8StringRef, ZUtf8StringRef) 自由重载引入后,Z==Z 曾在成员
-    // operator==(const Utf8StringRef&) 与该自由重载间二义(C2593)——
+    // operator==(const Utf8StringRef&) 与该自由重载间二义(C2593)，
     // 各胜一个实参。补 (Z, Z) 直接重载解歧;比较语义为逐字节内容比较,
     // 与字面量是否被编译器合并同址无关。
     const auto a1 = ZUtf8StringRef::from_static("name");
@@ -1528,7 +1528,7 @@ TEST(ZUtf8StringRef, FromStaticCacheClearKeepsCorrectness)
 
 // ============================================================================
 // clone 分配计数回归（0.0.11）：钉死 clone() 单分配契约。
-// 修前基线（探针实测）：每次 clone 双分配——默认构造先 new 1 字节缓冲、
+// 修前基线（探针实测）：每次 clone 双分配，默认构造先 new 1 字节缓冲、
 // 随即 delete 再直配 byte_length+1，即 100 次 clone = 200 allocs / 1900 bytes；
 // 修后应为 100 allocs / 1800 bytes（17 字节串每次恰一次 new[18]）。
 // ============================================================================
@@ -1549,7 +1549,7 @@ TEST(Utf8StringTest, CloneSingleAllocation) {
     // 每次 clone 恰好 1 次 new[]：目标容量单分配，不容先 new 后 delete 的双分配回归。
     EXPECT_EQ(allocs, kIterations)
         << "clone x" << kIterations << " 分配次数=" << allocs;
-    // 字节数同时钉死「直配目标容量」：每次 new[byte_length+1]，不多分配。
+    // 字节数同时钉死直配目标容量：每次 new[byte_length+1]，不多分配。
     EXPECT_EQ(bytes, kIterations * (s.byte_length() + 1))
         << "clone x" << kIterations << " 分配字节=" << bytes
         << "，期望=" << kIterations * (s.byte_length() + 1);

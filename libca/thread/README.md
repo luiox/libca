@@ -1,7 +1,6 @@
 # libca_thread
 
-结构化并发基础设施：协作取消、作用域 join、有界背压队列与线程池。命名空间 `ca::thread`，
-构建目标 `libca_thread`。
+结构化并发基础设施：协作取消、作用域 join、有界背压队列与线程池。命名空间 `ca::thread`，构建目标 `libca_thread`。
 
 > 设计与关闭协议见 `doc/thread设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -29,8 +28,7 @@ thread.request_stop();
 handle_status(thread.join());
 ```
 
-`request_stop()` 只发送协作停止请求。线程函数必须检查令牌，或者使用
-`token.wait_for()` 代替不可控的长时间休眠。
+`request_stop()` 只发送协作停止请求。线程函数必须检查令牌，或者使用 `token.wait_for()` 代替不可控的长时间休眠。
 
 ## 使用有界队列
 
@@ -50,8 +48,7 @@ if (item.is_ok()) {
 queue.close(); // 禁止新消息，消费者仍可排空已有消息。
 ```
 
-不要把 `CANCELLED` 当成异常故障。它表示队列已经关闭并排空，是消费者退出循环的正常
-信号。
+不要把 `CANCELLED` 当成异常故障。它表示队列已经关闭并排空，是消费者退出循环的正常信号。
 
 ## 在线程池提交任务
 
@@ -75,8 +72,7 @@ pool.shutdown(ca::thread::ShutdownMode::Drain);
 pool.join();
 ```
 
-`submit()` 在队列满时等待，适合需要背压的生产者。不能等待时使用 `try_submit()`；需要
-限制等待时长时使用 `submit_for()`。
+`submit()` 在队列满时等待，适合需要背压的生产者。不能等待时使用 `try_submit()`；需要限制等待时长时使用 `submit_for()`。
 
 ## 取消待执行任务
 
@@ -91,9 +87,7 @@ pool.shutdown(ca::thread::ShutdownMode::CancelPending);
 pool.join();
 ```
 
-`CancelPending` 会取消尚未开始的任务，并向正在执行的任务发出停止请求。被取消的待执行
-任务在调用 `future.get()` 时抛出 `ca::thread::TaskCancelled`。已经开始但忽略停止令牌的
-任务仍会继续运行，线程池不会强制终止它。
+`CancelPending` 会取消尚未开始的任务，并向正在执行的任务发出停止请求。被取消的待执行任务在调用 `future.get()` 时抛出 `ca::thread::TaskCancelled`。已经开始但忽略停止令牌的任务仍会继续运行，线程池不会强制终止它。
 
 ## 选择关闭模式
 

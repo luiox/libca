@@ -208,7 +208,7 @@ public:
     // ---- 工厂方法 ----
 
     /// 从 C 字符串构造；空指针或非法 UTF-8 返回空字符串（不抛）。
-    /// @warning 非法 UTF-8 会被**静默吞掉**成空字符串——数据损坏与「本来就是空串」
+    /// @warning 非法 UTF-8 会被**静默吞掉**成空字符串，数据损坏与本来就是空串
     ///          无法区分。来源不可信时用 try_from_cstr（Result 错误通道）代替。
     static Utf8String from_cstr(const char* cstr) noexcept;
     /// @brief 从字节数据复制构造并校验 UTF-8。@throw std::runtime_error 非法 UTF-8。
@@ -227,7 +227,7 @@ public:
     /// @brief 从字节数据复制构造，**不校验 UTF-8**，按原始字节保留。
     /// @details 码点数 length 取保守值 byte_length（上界），与
     ///          `Utf8StringArena::intern_raw` 语义一致。用于字节流载体（CSV 等不规定编码
-    ///          的格式）——调用方须自行确保字节在预期语义下使用，长度查询等行为可能不准。
+    ///          的格式），调用方须自行确保字节在预期语义下使用，长度查询等行为可能不准。
     ///          **不应**用于需要按码点迭代的场景。
     static Utf8String from_data_unchecked(const u8* data, usize byte_len) noexcept;
     /// @brief 从单个码点构造。@throw std::runtime_error 非法码点。
@@ -252,7 +252,7 @@ public:
 
     /// @brief 显式转换为 std::string_view（零拷贝，内部 \0 终止符不计入长度）。
     /// @note Utf8String 的唯一隐式视图出口是 Utf8StringRef；到 string_view 走显式，
-    ///       与 ZUtf8StringRef 同口径——双隐式出口会在重载调用点产生同级竞争路径。
+    ///       与 ZUtf8StringRef 同口径，双隐式出口会在重载调用点产生同级竞争路径。
     ///       传 string_view 形参可写 f(s.ref())（Ref 到 string_view 仍为隐式）。
     explicit operator std::string_view() const noexcept;
 
@@ -513,7 +513,7 @@ std::ostream& operator<<(std::ostream& os, const Utf8StringRef& s);
 std::ostream& operator<<(std::ostream& os, const Utf8String& s);
 
 /// @brief 零结尾 UTF-8 字符串视图：保证 `\0` 终止、零拷贝、可做字面量缓存。
-/// @note **Provisional**：专为字面量/全局常量设计——只有 from_static() 吃全局缓存表。
+/// @note **Provisional**：专为字面量/全局常量设计，只有 from_static() 吃全局缓存表。
 ///       实例应做成 static / 全局变量，避免重复计算码点。
 ///       解决了"字面量既不必分配(Utf8String)、又不能丢 `\0` 保证(Utf8StringRef)"的两难。
 /// @warning from_std_string() 的视图依赖传入 std::string 的生命周期；
@@ -594,7 +594,7 @@ bool operator!=(std::string_view lhs, const ZUtf8StringRef& rhs) noexcept;
 /// @brief `ZUtf8StringRef == ZUtf8StringRef` 的直接重载。
 ///
 /// 成员 operator==(const Utf8StringRef&) 左实参精确、右实参需转换；非成员
-/// (Utf8StringRef, ZUtf8StringRef) 恰好相反——二者对 Z==Z 各胜一个实参互不
+/// (Utf8StringRef, ZUtf8StringRef) 恰好相反，二者对 Z==Z 各胜一个实参互不
 /// 相让（C2593）。本重载两侧精确匹配解歧，比较语义为逐字节内容比较。
 bool operator==(const ZUtf8StringRef& lhs, const ZUtf8StringRef& rhs) noexcept;
 /// @brief `ZUtf8StringRef != ZUtf8StringRef` 的直接重载（同上，解二义）。

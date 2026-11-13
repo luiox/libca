@@ -2,8 +2,7 @@
 
 日志门面与可插拔后端。命名空间 `ca::log`，构建目标 `libca_log`。
 
-重新设计（#189）后：按 target 分发、门面与后端 fmt 解耦、零依赖 SimpleLogBackend、
-spdlog 可选。详细设计见 `doc/log设计文档.md`。
+重新设计（#189）后：按 target 分发、门面与后端 fmt 解耦、零依赖 SimpleLogBackend、 spdlog 可选。详细设计见 `doc/log设计文档.md`。
 
 ## 快速上手
 
@@ -45,8 +44,7 @@ CA_LOGT_DEBUG("net", "handshake ok");         // 被 net 的 Error 级别过滤
 
 格式串用 fmt 风格：`CA_LOG_INFO("user {} logged in", id)`。
 
-未注册的 target 静默丢弃；编译期级别 `CA_COMPILE_LOG_LEVEL`（默认 Info）以下的宏在编译期裁剪，
-零运行期开销。
+未注册的 target 静默丢弃；编译期级别 `CA_COMPILE_LOG_LEVEL`（默认 Info）以下的宏在编译期裁剪，零运行期开销。
 
 ## 后端
 
@@ -63,8 +61,7 @@ cfg.time_format   = "%H:%M:%S";  // 留空则不输出时间
 SimpleLogBackend backend(cfg);
 ```
 
-同步直写（调用线程在 mutex 下 fwrite），线程安全。格式：
-`[time] [LEVEL] [target] message (file:line)`。
+同步直写（调用线程在 mutex 下 fwrite），线程安全。格式： `[time] [LEVEL] [target] message (file:line)`。
 
 ### SpdlogBackend（可选，with_spdlog=y）
 
@@ -85,10 +82,8 @@ SpdlogBackend backend(spd_logger);   // 适配新 ILogBackend
 
 ## 设计要点
 
-- **按 target 分发**：`LoggerRegistry::get(target)`，每个 target 独立 logger/级别。根治了旧
-  设计单一全局 logger 的并发竞态。
-- **门面-后端解耦**：后端只 include `logger.hpp`，不依赖 fmt。格式化参数经 `OpaqueFormat`
-  类型擦除传递，后端调 `render_to(buf)` 取字符串。
+- **按 target 分发**：`LoggerRegistry::get(target)`，每个 target 独立 logger/级别。根治了旧设计单一全局 logger 的并发竞态。
+- **门面-后端解耦**：后端只 include `logger.hpp`，不依赖 fmt。格式化参数经 `OpaqueFormat` 类型擦除传递，后端调 `render_to(buf)` 取字符串。
 - **级别管理收归 Logger**：后端只输出，不再各写一套 set_level。
 - **编译期 + 运行期双重过滤**：低级别日志可在 Release 构建里编译期裁剪。
 

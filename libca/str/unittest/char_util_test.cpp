@@ -4,7 +4,7 @@
 namespace ca::str {
 
 // ============================================================================
-// Utf8Char — 构造与编解码
+// Utf8Char: 构造与编解码
 // ============================================================================
 
 TEST(Utf8CharTest, FromRawAscii) {
@@ -60,7 +60,7 @@ TEST(Utf8CharTest, Equality) {
 }
 
 // ============================================================================
-// Utf8Char — 字符分类（ASCII）
+// Utf8Char: 字符分类（ASCII）
 // ============================================================================
 
 TEST(Utf8CharTest, IsAlphaAscii) {
@@ -123,7 +123,7 @@ TEST(Utf8CharTest, IsXDigitAscii) {
 }
 
 // ============================================================================
-// Utf8Char — 字符分类（非 ASCII）
+// Utf8Char: 字符分类（非 ASCII）
 // ============================================================================
 
 TEST(Utf8CharTest, IsAlphaCjk) {
@@ -167,7 +167,7 @@ TEST(Utf8CharTest, IsCntrlNonAscii) {
 }
 
 // ============================================================================
-// Utf8Char — 大小写转换
+// Utf8Char: 大小写转换
 // ============================================================================
 
 TEST(Utf8CharTest, ToLowerUpperAscii) {
@@ -185,7 +185,7 @@ TEST(Utf8CharTest, ToLowerUpperAscii) {
 
 // wint_t 为 16 位（Windows）时增补平面码点截断：分类函数曾把 U+2000A 截断成
 // U+000A（is_space 误报 true）、转换函数曾把 U+10061 截断成 'a' 后 to_upper
-// 返回 'A'（数据损坏）。全部按「截断不可信」处理：分类 false、转换不变。
+// 返回 'A'（数据损坏）。全部按截断不可信处理：分类 false、转换不变。
 TEST(Utf8CharTest, AstralCodePointsNotTruncatedByWideCtype) {
     // 分类：一律 false（而非按截断值分类）
     EXPECT_FALSE(Utf8Char(0x2000A).is_space());   // 截断值 U+000A 是空白

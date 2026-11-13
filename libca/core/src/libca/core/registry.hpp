@@ -26,7 +26,7 @@ namespace ca::core {
 ///       独立的表，不同 <Key, Base, Args...> 组合互不干扰。接口线程安全。
 /// @note 静态自注册惯用法（文件级静态注册器对象，main 之前完成注册）：
 /// @code
-/// // shape.hpp —— 基类 + 注册表别名
+/// // shape.hpp: 基类 + 注册表别名
 /// class Shape {
 /// public:
 ///     virtual ~Shape() = default;
@@ -34,7 +34,7 @@ namespace ca::core {
 /// };
 /// using ShapeRegistry = ca::core::Registry<std::string, Shape>;
 ///
-/// // circle.cpp —— 匿名命名空间内的文件级静态对象，程序启动时自动注册
+/// // circle.cpp: 匿名命名空间内的文件级静态对象，程序启动时自动注册
 /// class Circle : public Shape { /* ... */ };
 /// namespace {
 /// const bool g_registered_circle = ShapeRegistry::register_factory(
@@ -42,7 +42,7 @@ namespace ca::core {
 ///     []() -> std::unique_ptr\<Shape\> { return std::make_unique\<Circle\>(); }).is_ok();
 /// }
 ///
-/// // main.cpp —— 按键构造，无需 include 具体实现
+/// // main.cpp: 按键构造，无需 include 具体实现
 /// auto shape = ShapeRegistry::create("circle");   // StatusResult<std::unique_ptr\<Shape\>>
 /// @endcode
 template<typename Key, typename Base, typename... Args>

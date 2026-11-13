@@ -38,7 +38,7 @@ namespace ca::str {
 ///       欧元 U+20AC，而 GB18030 中 0x80 是非法字节、欧元的 GB18030 编码为
 ///       A2 E3；内置路径对 0x80 返回 `INVALID_ARGUMENT`。此外 CP_936 对不可
 ///       表示码点做 best-fit 替换，内置路径一律报错不替换。
-/// @note POSIX 侧「本地代码页」取 `nl_langinfo(CODESET)`：C 程序启动时 locale
+/// @note POSIX 侧本地代码页取 `nl_langinfo(CODESET)`：C 程序启动时 locale
 ///       恒为 "C"（ASCII），需要跟随环境时应先 `setlocale(LC_ALL, "")`。
 class CharsetConverter {
 public:

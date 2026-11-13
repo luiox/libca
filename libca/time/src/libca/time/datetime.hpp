@@ -1,5 +1,5 @@
 /// @file datetime.hpp
-/// @brief Date / Time / DateTime — 日期、时间、日期时间基本类型。
+/// @brief Date / Time / DateTime: 日期、时间、日期时间基本类型。
 ///
 /// 命名空间 ca::time。Date 与 Time 是纯值类型，仅保存日历字段；
 /// DateTime 提供 now() 入口，返回本地时区拆分后的 (Date, Time)。

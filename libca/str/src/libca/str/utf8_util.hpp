@@ -23,7 +23,7 @@ u32 utf8_decode_code_point(const u8* bytes) noexcept;
 
 /// @brief 校验首字节之后的 clen-1 个续字节是否均形如 10xxxxxx。
 /// @note utf8_code_point_bytes 只看首字节、utf8_decode_code_point 不校验续位，
-///       直接组合使用会把「合法首字节 + 非法续字节」误解码成错误码点；
+///       直接组合使用会把合法首字节 + 非法续字节误解码成错误码点；
 ///       逐序列解码的调用方须先经本函数确认。
 bool utf8_valid_continuation(const u8* bytes, usize clen) noexcept;
 

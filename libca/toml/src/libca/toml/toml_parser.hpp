@@ -66,7 +66,7 @@ private:
     // 重开这类表（但允许作为中间路径下钻，如 [a.b.d]）。
     std::unordered_set<std::string> dotted_paths_;
 
-    // inline table 字面量（x = {…}）所在路径：inline 表封闭不可变——禁止 [header]
+    // inline table 字面量（x = {…}）所在路径：inline 表封闭不可变，禁止 [header]
     // 定向/下钻，也禁止 dotted-key 追加。
     std::unordered_set<std::string> inline_paths_;
 
