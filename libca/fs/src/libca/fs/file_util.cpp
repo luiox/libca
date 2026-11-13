@@ -46,7 +46,7 @@ void remove_if_exists(const std::filesystem::path& path) noexcept
 }
 
 // CREATE_NEW 独占创建写入：O_CREAT|O_EXCL 让"存在性检查+创建"由内核单步完成，
-// 消除 exists()+trunc 的 TOCTOU 窗口——并发双开时后到者拿到 EEXIST，不再截断
+// 消除 exists()+trunc 的 TOCTOU 窗口，并发双开时后到者拿到 EEXIST，不再截断
 // 先者的写入（atomic_write_bytes 的临时文件依赖该语义）。
 Result<void, FsError> write_exclusive_create(const std::filesystem::path& p,
                                              const ca::core::ByteSlice& content)
@@ -114,7 +114,7 @@ Result<std::string, FsError> read_file_checked(const std::filesystem::path& p)
     return Ok(std::move(content).unwrap());
 }
 
-// 按行拆分（LF/CRLF）：语义对齐原 std::getline 循环 + 行尾 CR 剥离——
+// 按行拆分（LF/CRLF）：语义对齐原 std::getline 循环 + 行尾 CR 剥离，
 // 结尾无换行的末行保留、连续换行产生空行、文件以换行结尾不追加末空行。
 std::vector<std::string> split_lines(const std::string& text)
 {
@@ -164,7 +164,7 @@ bool has_glob_wildcard(const std::string& pattern) noexcept
 // 手写 glob 匹配器，逐条对齐旧实现 glob_to_regex 生成正则的语义：
 //   '*'  → [^/]*   不含 '/' 的任意字节序列
 //   '?'  → [^/]    单个非 '/' 字节
-//   '**/ → (?:.*/)?  零个或多个「任意字节序列 + '/'」目录前缀
+//   '**/ → (?:.*/)?  零个或多个任意字节序列 + '/'目录前缀
 //   '**' → .*      任意字节序列，可跨 '/'
 //   其余字符按字面匹配（旧正则对元字符转义，即字面量）；整串锚定匹配。
 // 弃用 std::regex 的原因：每模式一次 NFA 编译 + 每候选解释执行，是标准库
@@ -324,7 +324,7 @@ Result<void, FsError> FileUtil::write_bytes(const Path& path,
 
         if (mode & FileMode::CREATE_NEW) {
             // 独占创建走内核原子路径（O_CREAT|O_EXCL），不做先 exists() 再 trunc 的
-            // TOCTOU 检查——并发写者后到者报 AlreadyExists，而非截断先者数据。
+            // TOCTOU 检查，并发写者后到者报 AlreadyExists，而非截断先者数据。
             return write_exclusive_create(p, content);
         }
 

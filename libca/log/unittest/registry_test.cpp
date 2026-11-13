@@ -69,7 +69,7 @@ TEST(RegistryTest, Unregister)
 
 // 注册表是唯一持有者时，注销/替换/clear 后旧 Logger 的裸指针仍须有效
 // （get 契约：同一次 log 表达式内使用安全）。旧实现 map.erase 直接析构，
-// 旧指针悬垂——此前被测试体外持有 shared_ptr 掩盖。
+// 旧指针悬垂，此前被测试体外持有 shared_ptr 掩盖。
 TEST(RegistryTest, RetiredLoggerStaysAliveWhenRegistryIsSoleOwner)
 {
     {

@@ -53,7 +53,7 @@ io::IoResult<void> configure_stream_socket(RawSocket socket)
 bool connect_is_in_progress(i64 code) noexcept
 {
 #if defined(_WIN32)
-    // 必须把 WSAEINVAL 算作"连接进行中"——某些 WinSock 版本在非阻塞 socket 首次 connect
+    // 必须把 WSAEINVAL 算作"连接进行中"，某些 WinSock 版本在非阻塞 socket 首次 connect
     // 时返回 WSAEINVAL 而非 WSAEWOULDBLOCK。EINVAL 归一化后是 Unknown，需在此特判。
     if (code == WSAEINVAL)
         return true;

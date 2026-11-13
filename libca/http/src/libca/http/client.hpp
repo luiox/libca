@@ -46,12 +46,12 @@ struct HttpClientOptions
 
 /// @brief 流式响应：response head 已就绪，body 由调用方逐块消费。
 /// @details 由 HttpClient::request_streaming / HttpChunkedRequest::finish 创建，
-///          用于大文件下载、SSE 等场景——响应体不再整体驻留内存。move-only，
+///          用于大文件下载、SSE 等场景，响应体不再整体驻留内存。move-only，
 ///          自持连接（独立于创建它的 client 生命周期）。
 /// @note body 读取同样受 HttpClientOptions::limits::max_body_bytes 约束：Content-Length
-///       响应在 head 阶段即超限报错，chunked / close-delimited 在累计消费超限时报错——
+///       响应在 head 阶段即超限报错，chunked / close-delimited 在累计消费超限时报错，
 ///       流式消费大 body 前应按需调高该上限。
-/// @note 消费完成（finish）后，连接在配置了连接池时归还池中，否则直接关闭——
+/// @note 消费完成（finish）后，连接在配置了连接池时归还池中，否则直接关闭，
 ///       不再作为本 client 的 keep-alive 复用连接保留（流式场景连接复用价值低，
 ///       换取实现简单可靠）。
 class HttpStreamingResponse

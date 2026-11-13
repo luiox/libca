@@ -388,7 +388,7 @@ TEST(FileUtilTest, MetadataAndPermissions)
 
 // ==================== metadata 的符号链接分层语义 ====================
 // 钉现状行为（实现域 file_util.cpp metadata()，口径见 FileMetadata 头注释）：
-// 类型/权限字段取自 symlink_status，描述**链接本身**、不跟随——文件符号链接
+// 类型/权限字段取自 symlink_status，描述**链接本身**、不跟随，文件符号链接
 // is_symlink=true 且 is_file=false；modified_at 是分层里唯一跟随目标的字段；
 // 悬空链接无目标可查 → metadata() 返回 FileNotFound。
 // Windows/NTFS 上创建符号链接需开发者模式或管理员权限：创建失败时 GTEST_SKIP，
@@ -410,7 +410,7 @@ TEST(FileUtilTest, Metadata_FileSymlinkDescribesLinkItself)
         GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
     }
 
-    // 对照：exists() 系跟随口径——有效链接按存在论。
+    // 对照：exists() 系跟随口径，有效链接按存在论。
     EXPECT_TRUE(FileUtil::exists(link));
 
     auto meta = FileUtil::metadata(link);
@@ -441,7 +441,7 @@ TEST(FileUtilTest, Metadata_DirectorySymlinkDescribesLinkItself)
         GTEST_SKIP() << "symlink creation is not supported in this environment: " << ec.message();
     }
 
-    // 对照：is_directory() 系跟随口径——目录链接按目标类型论。
+    // 对照：is_directory() 系跟随口径，目录链接按目标类型论。
     EXPECT_TRUE(FileUtil::is_directory(link));
 
     // 而 metadata() 的 lstat 口径下，目录符号链接同样只描述链接本身：
@@ -471,7 +471,7 @@ TEST(FileUtilTest, Metadata_DanglingSymlinkReturnsFileNotFound)
 
     // 悬空链接：链接条目本身存在（symlink_status 可查），但 modified_at 无目标
     // 可查（std::filesystem 无不跟随的时间查询），metadata() 以 FileNotFound
-    // 失败——分层语义的现门口径（FileMetadata 头注释写实）。
+    // 失败，分层语义的现门口径（FileMetadata 头注释写实）。
     auto meta = FileUtil::metadata(link);
     ASSERT_TRUE(meta.is_err());
     EXPECT_EQ(meta.unwrap_err(), FsError::FileNotFound);
@@ -1001,7 +1001,7 @@ TEST(FsErrorTest, NewCodesHaveDistinctStrings) {
 }
 
 // CREATE_NEW 原子性（issue #227）：并发独占创建只有一者成功，胜者内容完整，
-// 其余全部 AlreadyExists——旧的 exists()+trunc TOCTOU 下后开者会截断先者数据。
+// 其余全部 AlreadyExists，旧的 exists()+trunc TOCTOU 下后开者会截断先者数据。
 TEST(FileUtilTest, WriteBytes_CreateNew_ConcurrentSingleWinner)
 {
     TempDirGuard tmp;
@@ -1085,7 +1085,7 @@ TEST(FileUtilTest, CopyMoveRemoveEx_ReportErrors)
 
 // ==================== skip_permission_denied 遍历语义（Linux-only） ====================
 // 实现域（file_util.cpp）：list_files(recursive=true)、copy_dir、glob 均以
-// std::filesystem::directory_options::skip_permission_denied 遍历——树上无权限
+// std::filesystem::directory_options::skip_permission_denied 遍历，树上无权限
 // 子目录跳过而非整体失败，结果集完整跳过该子树。
 // EACCES 目录仅 POSIX 上可稳定构造（Windows 的 ACL 拒绝语义不同，且 chmod 权限
 // 位对当前所有者/管理员不生效），故本组用例编译期门控为 Linux-only：Windows

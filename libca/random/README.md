@@ -4,12 +4,8 @@
 
 两层能力：
 
-- **系统熵**（`random.hpp`）：随机源复用 `ca::crypto::secure_random_bytes`
-  （系统 CSPRNG），无共享可变状态。所有函数线程安全：熵池为 `thread_local`，
-  无锁竞争。
-- **确定性原语**（`split_mix64.hpp`、`xorshift32.hpp`）：header-only 伪随机数
-  生成器，同 seed 同序列、逐位可复现。语义是上游收敛基准
-  （上游需求 A3/A4），改动算法常数属不兼容变更。
+- **系统熵**（`random.hpp`）：随机源复用 `ca::crypto::secure_random_bytes` （系统 CSPRNG），无共享可变状态。所有函数线程安全：熵池为 `thread_local`，无锁竞争。
+- **确定性原语**（`split_mix64.hpp`、`xorshift32.hpp`）：header-only 伪随机数生成器，同 seed 同序列、逐位可复现。语义是上游收敛基准（上游需求 A3/A4），改动算法常数属不兼容变更。
 
 ## 用法
 
@@ -50,15 +46,10 @@ std::string tok = alphanumeric_string(8);  // 如 "aB3x9Kq2"
 ## 设计
 
 - **无偏整数**：`next(n)` 用拒绝采样，接受域是 n 的整数倍，n 为 2 的幂时零拒绝。
-- **熵池**：内部维护 `thread_local` 熵池（每次 256 字节/系统调用），避免每个随机数
-  都触发一次系统调用，显著降低长字符串生成的开销。
+- **熵池**：内部维护 `thread_local` 熵池（每次 256 字节/系统调用），避免每个随机数都触发一次系统调用，显著降低长字符串生成的开销。
 - **错误处理**：系统随机源失败属致命错误，统一抛 `std::runtime_error`。
-- **确定性原语逐位锁定**：SplitMix64 / Xorshift32 的算法、常数、移位量由上游
-  正典逐位一致，unittest 用 golden 向量对拍锁定；`next_bounded` 与正典一致直接
-  取模（非 2 幂 bound 有轻微模偏差，不影响可复现性），仅对 bound == 0 补了
-  断言 + 异常兜底（正典为 UB）。
-- **依赖**：确定性原语只依赖 core（`datatype.hpp` 的 u32/u64）；模块整体仍只依赖
-  `libca_core`、`libca_crypto`，无新增模块依赖。
+- **确定性原语逐位锁定**：SplitMix64 / Xorshift32 的算法、常数、移位量由上游正典逐位一致，unittest 用 golden 向量对拍锁定；`next_bounded` 与正典一致直接取模（非 2 幂 bound 有轻微模偏差，不影响可复现性），仅对 bound == 0 补了断言 + 异常兜底（正典为 UB）。
+- **依赖**：确定性原语只依赖 core（`datatype.hpp` 的 u32/u64）；模块整体仍只依赖 `libca_core`、`libca_crypto`，无新增模块依赖。
 
 ## 依赖
 

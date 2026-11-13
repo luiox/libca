@@ -2,7 +2,7 @@
 
 /// @file yaml_writer.hpp
 /// @brief YAML 序列化器：YamlWriter。把 YamlDocument 写为 Utf8String。
-/// @details 块式输出（非空集合一律块式，空集合用 flow []/{}）。字符串按需加引号——
+/// @details 块式输出（非空集合一律块式，空集合用 flow []/{}）。字符串按需加引号，
 ///          若不加引号会被读成非字符串类型（如 "true"/"3.14"/"~"）则强制加引号，
 ///          保证 write→read 类型保真。含换行的字符串输出为 | 字面块标量。
 

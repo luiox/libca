@@ -80,7 +80,7 @@ BinPackArguments: false
 # false表示所有形参要么都在同一行，要么都各自一行
 BinPackParameters: true
 
-# 大括号换行：K&R（与 AGENTS.md「K&R 花括号」一致，冲突时以规则文件为准）。
+# 大括号换行：K&R（与 AGENTS.md 的 K&R 花括号 一致，冲突时以规则文件为准）。
 # 旧配置 Custom + BraceWrapping（函数/类/struct 换行大括号，Allman 风）与规则冲突，已移除。
 
 # 在二元运算符前换行: None(在操作符后换行), NonAssignment(在非赋值的操作符前换行), All(在操作符前换行)
@@ -98,7 +98,7 @@ BreakConstructorInitializersBeforeComma: false
 # 要使用的构造函数初始化式样式
 BreakConstructorInitializers: BeforeComma
 
-# 每行字符的限制（与 AGENTS.md「单行最长 120」一致）
+# 每行字符的限制（与 AGENTS.md 的 单行最长 120 一致）
 ColumnLimit: 120
 
 # 描述具有特殊意义的注释的正则表达式，它不应该被分割为多行或以其它方式改变

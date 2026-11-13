@@ -24,14 +24,14 @@ struct FileMode
 /// @brief 文件元数据快照。
 /// @details 符号链接采用**分层语义**（与 std::filesystem 一致，明确文档化而非隐式混用）：
 ///          - 类型/权限（is_file/is_directory/is_symlink/permissions）取自
-///            symlink_status，描述**链接本身**、不跟随——因此指向普通文件的符号链接
+///            symlink_status，描述**链接本身**、不跟随，因此指向普通文件的符号链接
 ///            is_symlink=true 且 is_file=false；
 ///          - modified_at 取自**链接目标**（std::filesystem 无不跟随的时间查询）；
 ///            悬空链接无目标可查，metadata() 对其返回 FileNotFound。
 ///          需要目标的类型/大小时，请对目标路径再调 metadata()。
 ///          注意**同路径两口径**：`list_files`/`glob` 的条目分类**跟随**符号链接
 ///          （std::filesystem 目录遍历默认口径，entry status 按目标论），而
-///          `metadata()` 用 **lstat 不跟随**口径描述链接本身——同一符号链接
+///          `metadata()` 用 **lstat 不跟随**口径描述链接本身，同一符号链接
 ///          路径在遍历/匹配结果里按目标分类、在 metadata() 里描述链接，
 ///          两口径混用做判断是真实误用风险，调用方须明确自己要哪一口径。
 struct FileMetadata
@@ -53,7 +53,7 @@ struct FileMetadata
 ///
 /// 每个接受路径的函数提供两个重载族：
 /// - **std::string 族**（兼容存量代码）：路径一律按 **UTF-8** 编码，内部经
-///   `Path::from_utf8_lossy` 转换——非法 UTF-8 序列以 U+FFFD 替代，语义确定、不抛异常。
+///   `Path::from_utf8_lossy` 转换，非法 UTF-8 序列以 U+FFFD 替代，语义确定、不抛异常。
 /// - **Path 族**（推荐）：类型化编码边界，无隐式字符串转换；返回路径的重载族
 ///   相应返回 Path（如 list_files 返回 `std::vector\<Path\>`）。需要严格校验非法
 ///   UTF-8 时，先用 `Path::from_utf8`（失败返回 FsError::InvalidUtf8）构造。

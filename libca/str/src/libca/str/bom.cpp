@@ -17,7 +17,7 @@ constexpr std::string_view BOM_UTF16LE = "\xFF\xFE"sv;
 constexpr std::string_view BOM_UTF16BE = "\xFE\xFF"sv;
 
 // 判断 bytes 开头是否为 prefix。同时校验长度：输入不足 prefix 长度时不匹配，
-// 保证「输入不足一个完整 BOM 长度时不得误判」。
+// 保证输入不足一个完整 BOM 长度时不得误判。
 bool starts_with_bytes(std::string_view bytes, std::string_view prefix) noexcept
 {
     return bytes.size() >= prefix.size() &&

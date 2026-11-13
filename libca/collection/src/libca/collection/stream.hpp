@@ -1,5 +1,5 @@
 /// @file stream.hpp
-/// @brief Stream — 基于迭代器范围的惰性流水线（header-only 模板）。
+/// @brief Stream: 基于迭代器范围的惰性流水线（header-only 模板）。
 ///
 /// 命名空间 ca::collection。Rust 迭代器风格的适配器链：
 /// `stream(c).filter(p1).filter(p2).map(f).take(n).collect\<Container\>()`。
@@ -36,7 +36,7 @@ class SkipStream;
 /// @tparam Derived 节点具体类型，须实现 `Option\<value_type\> next()` 拉取下一个元素。
 /// @tparam T       流中元素的值类型（按值传出）。
 ///
-/// 适配器（filter/map/take/skip）返回**新节点**并移动消费当前节点——与 Rust
+/// 适配器（filter/map/take/skip）返回**新节点**并移动消费当前节点，与 Rust
 /// 迭代器适配器按值接管上游一致。流水线节点是一次性的：调用适配器后再使用
 /// 旧节点属于 moved-from 状态，不要这样做。
 template<typename Derived, typename T>

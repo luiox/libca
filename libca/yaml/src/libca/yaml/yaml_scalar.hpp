@@ -3,7 +3,7 @@
 /// @file yaml_scalar.hpp
 /// @brief YAML plain 标量的类型判定（YAML 1.2 core schema），parser 与 writer 共用。
 /// @details parser 用它把未加引号的标量文本解析成 Null/Boolean/Integer/Float/String；
-///          writer 用它判定一个字符串**若不加引号写出**会被读成什么类型——
+///          writer 用它判定一个字符串**若不加引号写出**会被读成什么类型，
 ///          kind != String 时必须加引号才能保住字符串身份（如 "true"、"3.14"）。
 /// @note 只认 true/false（含 True/TRUE 变体），不认 yes/no/on/off（Norway problem）。
 
@@ -18,7 +18,7 @@ enum class PlainScalarKind {
     Integer,        ///< 十进制（可带符号）/ 0x 十六进制 / 0o 八进制
     Float,          ///< 十进制浮点 / 科学计数 / .inf / .nan 家族
     String,         ///< 其余一切
-    IntOverflow,    ///< 形如整数但超出 i64 —— parser 应报错，writer 应加引号
+    IntOverflow,    ///< 形如整数但超出 i64: parser 应报错，writer 应加引号
     FloatOverflow   ///< 形如浮点但超出 f64 范围
 };
 

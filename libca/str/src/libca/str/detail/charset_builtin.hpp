@@ -27,7 +27,7 @@ namespace ca::str::detail {
 core::StatusResult<std::wstring> utf8_to_wide(std::string_view utf8);
 
 // std::wstring → UTF-8。拒绝孤立代理项（Windows）与超出 Unicode 标量值范围
-// 的码点（POSIX，>U+10FFFF 一律报错——glibc iconv 接受超上限码点的历史差异就此消除）。
+// 的码点（POSIX，>U+10FFFF 一律报错，glibc iconv 接受超上限码点的历史差异就此消除）。
 core::StatusResult<std::string> wide_to_utf8(std::wstring_view wide);
 
 // ============================================================================

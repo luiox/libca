@@ -106,7 +106,7 @@ TEST(LogMacroShortCircuitTest, UnregisteredTargetSkipsLambdaEvaluation)
 }
 
 // 编译期被裁剪的级别（默认 CA_COMPILE_LOG_LEVEL=2 即 Info，Trace/Debug 不生成调用）：
-// 实参零求值——该行为由 if constexpr 固有保证，此处测试固化之，防止未来改造回退。
+// 实参零求值，该行为由 if constexpr 固有保证，此处测试固化之，防止未来改造回退。
 TEST(LogMacroShortCircuitTest, CompileTimeDisabledLevelSkipsLambdaEvaluation)
 {
     int eval_count = 0;

@@ -27,7 +27,7 @@ using ca::core::Some;
 
 /// @brief 基于一层 JSON 对象的持久化键值存储。
 ///
-/// 存储模型是「扁平一层」的 JSON 对象：key 为任意 UTF-8 字符串（原样存储，不做
+/// 存储模型是扁平一层的 JSON 对象：key 为任意 UTF-8 字符串（原样存储，不做
 /// 路径/嵌套切分，`"a.b"` 就是一个普通 key），value 仅支持 bool / int（i64）/
 /// double（f64）/ string 四种标量。加载用 `KvStore::load(path)`，写回用
 /// `save()`；落盘格式为紧凑 JSON（`JsonWriter` 输出），保存经

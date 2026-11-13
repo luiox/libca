@@ -409,7 +409,7 @@ TEST(MessageQueueTest, OpenMissingQueueYieldsNotFound)
 // ---- remove_* ----
 
 // remove_* 移除名字后 create 同名对象应可重建；不存在的名字幂等成功。
-// Windows 上命名对象随句柄回收，remove 恒成功——本测试主要钉住 POSIX 行为。
+// Windows 上命名对象随句柄回收，remove 恒成功，本测试主要钉住 POSIX 行为。
 TEST(IpcRemoveTest, RemoveAllowsRecreateAndIsIdempotent)
 {
     const auto id = std::to_string(current_process_id());

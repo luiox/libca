@@ -8,7 +8,7 @@
 #include <utility>
 
 /// @file once.hpp
-/// @brief OnceCell / OnceLock —— 延迟一次性初始化，对齐 Rust std::cell::OnceCell
+/// @brief OnceCell / OnceLock: 延迟一次性初始化，对齐 Rust std::cell::OnceCell
 ///        与 std::sync::OnceLock。OnceCell 非线程安全、OnceLock 线程安全。
 ///        命名空间 `ca::sync`。
 

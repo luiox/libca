@@ -5,7 +5,7 @@
 /// @details 词法与语法分析合一（JSON 词法简单，单字节即可定 token）。解析过程对输入做单趟扫描，
 ///          按需回调 handler。首个错误经 handler.on_error 报告后立即停止。
 /// @note 字符串事件（on_string / on_object_key）的 Utf8StringRef 指向构造时传入的 arena
-///       内副本——所有解码后的字符串经 `arena.intern(...)` 入池。SAX 用户因此不持有 owning
+///       内副本，所有解码后的字符串经 `arena.intern(...)` 入池。SAX 用户因此不持有 owning
 ///       字符串；自定义 handler 拿到的 ref 生命周期绑定到 arena（由 JsonReader 路径下的
 ///       JsonDocument 持有，或纯 SAX 用户自管 arena）。
 

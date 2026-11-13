@@ -40,7 +40,7 @@ enum class OptKind
     StringList,
     /// 可选值字符串：值仅能内联提供（`--dump=x`）；裸出现（`--dump`）视为已提供
     /// 且值为空串（调用方自行约定空值的语义，如"输出到 stdout"）。
-    /// 空格形态不消费后继 token——`--dump out.json` 中 out.json 恒为位置参数，
+    /// 空格形态不消费后继 token，`--dump out.json` 中 out.json 恒为位置参数，
     /// 杜绝与位置参数/子命令的歧义。短别名支持裸形态（`-d`）与附着形态（`-dout.json`）。
     /// 典型用途：`--dump-config-schema[=file]` 不带值输出 stdout、带值写文件。
     OptionalString,
@@ -76,8 +76,8 @@ struct Arg
 };
 
 /// @brief 互斥组：组内选项至多出现一个；required 时至少出现一个。
-/// @note 「出现」按显式选择判定：只有命令行显式给出或注入初值（initial_values）
-///        算作选择；静态 default_value 预置不算——两个带默认值成员同组不会误报冲突，
+/// @note 出现按显式选择判定：只有命令行显式给出或注入初值（initial_values）
+///        算作选择；静态 default_value 预置不算，两个带默认值成员同组不会误报冲突，
 ///        但 required 组仍要求至少一个显式选择。
 struct MutexGroup
 {
@@ -179,7 +179,7 @@ enum class WidthMode
 ///        自动计算列宽并 padding，替代字符串字面量里的手工对齐空格
 ///        （上游需求）。
 /// @details 用法：i18n 资源只承载纯文案（每格一段，不含对齐空格与列宽假设），
-///          对齐在渲染期完成。表即多行块（子命令列表、参数组等）——块内用
+///          对齐在渲染期完成。表即多行块（子命令列表、参数组等），块内用
 ///          add_raw() 插节标题/分隔线等原样行，块间用 append() 合并后一次渲染。
 ///          支持末列自动折行（set_text_width）与单元格内 '\n' 硬换行的悬挂对齐。
 ///          列宽口径默认按 UTF-8 码点数（历史行为）；名/描述含 CJK 时用
@@ -195,7 +195,7 @@ public:
     void add_row(std::vector<std::string> cells);
 
     /// @brief 追加一行原样内容：不参与列宽与对齐计算，渲染时按原文输出（仅补
-    ///        换行）。用于节标题、usage 行、空行、分隔线等非表格内容——借此把
+    ///        换行）。用于节标题、usage 行、空行、分隔线等非表格内容，借此把
     ///        多个排版块组装进同一张表，一次 render() 出全文。
     /// @note 原样行不参与 size() 之外的任何度量，也不折行、不去尾随空白。
     void add_raw(std::string line);
@@ -226,7 +226,7 @@ public:
     /// @note 折行只作用于描述列（render/render_to_column）或末列
     ///       （render_columns），续行悬挂对齐到该列起始列；断点为空格与宽字符
     ///       边界，单词超过整行可用宽度时按宽度硬切，永不截断丢字。落行时行尾
-    ///       空格剥除、行首空格随断点丢弃——折行输出不作 verbatim 空格保留。
+    ///       空格剥除、行首空格随断点丢弃，折行输出不作 verbatim 空格保留。
     HelpTable& set_text_width(std::size_t columns) noexcept
     {
         text_width_ = columns;
@@ -271,7 +271,7 @@ private:
     std::size_t        text_width_ = 0;
 };
 
-/// @brief 选项值的来源。区分「命令行显式给值 / 注入初值 / 静态默认」；
+/// @brief 选项值的来源。区分命令行显式给值 / 注入初值 / 静态默认；
 ///        替代下游常见的 *Selected 标志族模式（显式覆盖告警、注入条件判定等）。
 enum class ValueSource
 {
@@ -361,7 +361,7 @@ public:
     ///        未知名字静默忽略；进入每个 command 时按该命令的选项名匹配一次。
     ///        StringList 初值按逗号拆分追加；Int 初值非法报 InvalidInteger、空串报
     ///        EmptyValue。required 把注入视为已提供；互斥组的冲突/缺失判定只把
-    ///        「命令行或注入」算作选择，静态默认不算。来源可用 source_of() 查询。
+    ///        命令行或注入算作选择，静态默认不算。来源可用 source_of() 查询。
     ca::core::Result<ParseResult, ParseError> parse(
         int argc, const char* const argv[],
         const std::unordered_map<std::string, std::string>& initial_values);

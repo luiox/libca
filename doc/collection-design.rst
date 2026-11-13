@@ -15,11 +15,9 @@ libca/collection 设计文档
 定位
 ----
 
-``libca_collection`` 提供基础容器和容器处理辅助。当前 main 分支包含可变顺序容器
-``ArrayList``、哈希映射容器 ``HashMap``、哈希集合容器 ``HashSet``、不可变列表 ``ImmutableList`` 和惰性容器处理 ``Stream``，主要用于补充标准库在表达力上的小缺口。
+``libca_collection`` 提供基础容器和容器处理辅助。当前 main 分支包含可变顺序容器 ``ArrayList``、哈希映射容器 ``HashMap``、哈希集合容器 ``HashSet``、不可变列表 ``ImmutableList`` 和惰性容器处理 ``Stream``，主要用于补充标准库在表达力上的小缺口。
 
-collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前实现是模板为主，因此主要在
-头文件中完成。
+collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前实现是模板为主，因此主要在头文件中完成。
 
 模块结构
 --------
@@ -28,8 +26,7 @@ collection 处于依赖分层 L1，原则上只依赖 core 或标准库。当前
 - ``hash_map.hpp``：Rust-like 基础 API 的哈希映射容器。
 - ``hash_set.hpp``：Rust-like 基础 API 的哈希集合容器。
 - ``immutable_list.hpp``：构造后不可修改的列表，支持范围 for、随机访问和追加生成新列表。
-- ``stream.hpp``：基于容器迭代器范围的惰性流水线：``filter/map/take/skip`` 适配器可任意叠加，
-  ``for_each/collect/count/reduce/any/all`` 为终止操作。
+- ``stream.hpp``：基于容器迭代器范围的惰性流水线：``filter/map/take/skip`` 适配器可任意叠加， ``for_each/collect/count/reduce/any/all`` 为终止操作。
 - ``lru_cache.hpp``：容量受限的 LRU 缓存，``get``/``put`` 均摊 O(1)，带命中统计与淘汰回调。
 - ``collection.hpp``：聚合头文件。
 
@@ -46,15 +43,9 @@ collection 不追求替代 STL，而是提供语义更明确的薄工具：
 性能边界
 --------
 
-``Stream`` 是模板化的惰性流水线：适配器按值组合、逐节点 ``next()`` 拉取，谓词与映射函数
-以模板参数保存（非 ``std::function``，无类型擦除开销）。节点是一次性的——调用适配器即
-移动消费上游，与 Rust 迭代器按值接管一致。性能敏感场景仍可直接使用 STL 算法。
-``ImmutableList::appended`` 会复制原列表，适合小列表和配置型数据，不适合大规模追加循环。
+``Stream`` 是模板化的惰性流水线：适配器按值组合、逐节点 ``next()`` 拉取，谓词与映射函数以模板参数保存（非 ``std::function``，无类型擦除开销）。节点是一次性的，调用适配器即移动消费上游，与 Rust 迭代器按值接管一致。性能敏感场景仍可直接使用 STL 算法。 ``ImmutableList::appended`` 会复制原列表，适合小列表和配置型数据，不适合大规模追加循环。
 
-``LruCache`` 用 ``std::list``\ （节点地址稳定，迭代器可长期存放在哈希索引中）+
-``std::unordered_map`` 实现，``get/put/remove`` 均摊 O(1)。它是纯数据结构：内部不加锁，
-多线程使用由外层同步；淘汰语义刻意收紧——只有容量驱动的淘汰才计入 ``evictions`` 并触发
-``on_evict``，``remove``/``clear`` 是显式所有权转移，不算淘汰，命中统计也不清零。
+``LruCache`` 用 ``std::list``\ （节点地址稳定，迭代器可长期存放在哈希索引中）+ ``std::unordered_map`` 实现，``get/put/remove`` 均摊 O(1)。它是纯数据结构：内部不加锁，多线程使用由外层同步；淘汰语义刻意收紧，只有容量驱动的淘汰才计入 ``evictions`` 并触发 ``on_evict``，``remove``/``clear`` 是显式所有权转移，不算淘汰，命中统计也不清零。
 
 扩展方向
 --------

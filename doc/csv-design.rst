@@ -19,11 +19,9 @@ libca/csv 设计文档
 定位
 ----
 
-``libca_csv`` 是独立的 CSV 文本读写模块，替代旧 ``utility`` 中的 ``CsvFile``。它只负责
-CSV 表格数据和文本格式之间的转换，不绑定业务 schema。
+``libca_csv`` 是独立的 CSV 文本读写模块，替代旧 ``utility`` 中的 ``CsvFile``。它只负责 CSV 表格数据和文本格式之间的转换，不绑定业务 schema。
 
-模块命名空间是 ``ca::csv``，构建目标是 ``libca_csv``，单元测试目标是
-``libca_csv_unittest``。依赖 ``libca_core`` 和 ``libca_str``。
+模块命名空间是 ``ca::csv``，构建目标是 ``libca_csv``，单元测试目标是 ``libca_csv_unittest``。依赖 ``libca_core`` 和 ``libca_str``。
 
 架构
 ----
@@ -34,9 +32,7 @@ CSV 表格数据和文本格式之间的转换，不绑定业务 schema。
 - ``CsvReader``：解析层，把字符串或文件解析成 ``CsvDocument``\ （字段经 ``intern_raw`` 入池）。
 - ``CsvWriter``：序列化层，把 ``CsvDocument`` 写成字符串或文件。
 
-数据模型不保存原始逗号、引号、换行风格，也不保存未加引号字段两侧的格式空白策略。
-这些属于读写策略，由 ``CsvReaderOptions`` 和 ``CsvWriterOptions`` 控制。这样模型保持稳定，
-Reader/Writer 可以分别演进。
+数据模型不保存原始逗号、引号、换行风格，也不保存未加引号字段两侧的格式空白策略。这些属于读写策略，由 ``CsvReaderOptions`` 和 ``CsvWriterOptions`` 控制。这样模型保持稳定， Reader/Writer 可以分别演进。
 
 Arena 架构与 ca::str 的集成（v1.3）
 -----------------------------------
@@ -58,10 +54,7 @@ IO 边界与 json/ini/toml 一致：
 为什么 csv 用 intern_raw（不校验 UTF-8）
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-CSV（RFC 4180）是字节级格式，不规定编码，字段可能含任意字节（含非 UTF-8）。
-``Utf8StringArena::intern`` 会校验 UTF-8，对非 UTF-8 字节会失败。本模块用
-``Utf8StringArena::intern_raw``\ （不校验 UTF-8，按原始字节入池，码点数取保守值=字节长度）——
-这正是 ``libca/str``\ （PR #151）新增 ``intern_raw`` 为此类字节级格式预留的入口。
+CSV（RFC 4180）是字节级格式，不规定编码，字段可能含任意字节（含非 UTF-8）。 ``Utf8StringArena::intern`` 会校验 UTF-8，对非 UTF-8 字节会失败。本模块用 ``Utf8StringArena::intern_raw``\ （不校验 UTF-8，按原始字节入池，码点数取保守值=字节长度），这正是 ``libca/str``\ （PR #151）新增 ``intern_raw`` 为此类字节级格式预留的入口。
 
 历史背景：为什么 v1.2 用 std::string，v1.3 改回 Utf8StringRef
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -73,27 +66,20 @@ v1.2 时数据模型用 ``std::string``，理由记录在案：
 
 v1.3 这两点障碍已被解除：
 
-- ``intern_raw``\ （PR #151）解决了第一点——不校验 UTF-8 按原始字节入池。
-- ``Utf8StringRef``\ （toml 已验证）可拷贝，解除了第二点——``CsvRow({...})`` 和 ``rows[i][j]`` 直接可用。
+- ``intern_raw``\ （PR #151）解决了第一点，不校验 UTF-8 按原始字节入池。
+- ``Utf8StringRef``\ （toml 已验证）可拷贝，解除了第二点，``CsvRow({...})`` 和 ``rows[i][j]`` 直接可用。
 
-迁移收益：消灭大表每字段一次堆分配（换成 arena 64KB chunk），字段去重 bonus（CSV 字段
-重复率高），析构一次性释放 arena chunk，与 json/ini/toml 的存储模型完全统一。
+迁移收益：消灭大表每字段一次堆分配（换成 arena 64KB chunk），字段去重 bonus（CSV 字段重复率高），析构一次性释放 arena chunk，与 json/ini/toml 的存储模型完全统一。
 
 CsvWriter 输出非 UTF-8 字段
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``CsvWriter::write`` 返回 ``Result<Utf8String, Utf8String>``。writer 输出非 UTF-8 字段
-需要绕过校验。本模块提供 ``CsvWriterOptions::validate_utf8`` 开关（默认 ``true``）：
+``CsvWriter::write`` 返回 ``Result<Utf8String, Utf8String>``。writer 输出非 UTF-8 字段需要绕过校验。本模块提供 ``CsvWriterOptions::validate_utf8`` 开关（默认 ``true``）：
 
-- ``validate_utf8 = true``\ （默认）：先经 ``utf8_to_utf32_length`` 非抛校验；字段含非法
-  字节时返回 Err（预期失败走 Result，不抛异常）。
-- ``validate_utf8 = false``：输出经 ``Utf8String::from_data_unchecked`` 构造，**不校验 UTF-8**，
-  按原始字节保留，与 ``CsvDocument::intern_raw`` 入池语义对齐。代价：Utf8String 的码点数
-  length 取保守值（= 字节长度），按码点迭代行为不准——但 CSV 字段就是字节序列，按码点
-  迭代本来也不是 CSV 的典型用法。
+- ``validate_utf8 = true``\ （默认）：先经 ``utf8_to_utf32_length`` 非抛校验；字段含非法字节时返回 Err（预期失败走 Result，不抛异常）。
+- ``validate_utf8 = false``：输出经 ``Utf8String::from_data_unchecked`` 构造，**不校验 UTF-8**，按原始字节保留，与 ``CsvDocument::intern_raw`` 入池语义对齐。代价：Utf8String 的码点数 length 取保守值（= 字节长度），按码点迭代行为不准，但 CSV 字段就是字节序列，按码点迭代本来也不是 CSV 的典型用法。
 
-``Utf8String::from_data_unchecked`` 是 ``libca/str`` 配套新增的工厂方法（与
-``Utf8StringArena::intern_raw`` 对称），供任何需要按原始字节保留的场景使用。
+``Utf8String::from_data_unchecked`` 是 ``libca/str`` 配套新增的工厂方法（与 ``Utf8StringArena::intern_raw`` 对称），供任何需要按原始字节保留的场景使用。
 
 解析策略
 --------
@@ -106,39 +92,30 @@ Reader 支持常见 RFC 4180 行为：
 - 支持 CRLF、LF，以及 quoted field 内部换行。
 - 可选择第一行作为标题行。
 
-默认情况下未加引号字段原样保留；如果调用方需要兼容旧 ``CsvFile`` 的 trim 行为，可以打开
-``trim_unquoted_space``。
+默认情况下未加引号字段原样保留；如果调用方需要兼容旧 ``CsvFile`` 的 trim 行为，可以打开 ``trim_unquoted_space``。
 
 写出策略
 --------
 
-Writer 默认只在必要时加引号。字段中包含分隔符、引号、换行，或者首尾有空格/制表符时，
-会自动加引号并转义字段内引号。分隔符默认是逗号，行结束符默认是 ``\n``\ （可改为 ``\r\n``）。
+Writer 默认只在必要时加引号。字段中包含分隔符、引号、换行，或者首尾有空格/制表符时，会自动加引号并转义字段内引号。分隔符默认是逗号，行结束符默认是 ``\n``\ （可改为 ``\r\n``）。
 
 DSV 预设（v1.4）
 ----------------
 
-csv 模块本质是可配置分隔符的 DSV（delimiter-separated values）reader/writer，
-``CsvReaderOptions::delimiter`` / ``CsvWriterOptions::delimiter`` 可设为任意字节。
-v1.4 起两侧各提供三个工厂方法，让常见分隔符的意图更显式、读写更易对齐：
+csv 模块本质是可配置分隔符的 DSV（delimiter-separated values）reader/writer， ``CsvReaderOptions::delimiter`` / ``CsvWriterOptions::delimiter`` 可设为任意字节。 v1.4 起两侧各提供三个工厂方法，让常见分隔符的意图更显式、读写更易对齐：
 
 - ``csv()``：标准 CSV（逗号分隔），等价于默认构造。
 - ``tsv()``：Tab 分隔（``delimiter = '\t'``）。
 - ``delimited(char)``：任意分隔符。
 
-预设只覆盖 ``delimiter``，``quote``、``line_ending``、``validate_utf8`` 等保持默认。
-读写双方需用同一预设才能 round-trip。分隔符与引号字符不能相同（reader 会在该情形返回错误）。
+预设只覆盖 ``delimiter``，``quote``、``line_ending``、``validate_utf8`` 等保持默认。读写双方需用同一预设才能 round-trip。分隔符与引号字符不能相同（reader 会在该情形返回错误）。
 
 错误模型（v1.2）
 ----------------
 
-读文件和解析使用 ``Result<CsvDocument, ParseError>`` 返回错误。``ParseError`` 含
-``SourceLocation``\ （1-based 行 + 列）和 ``Utf8String`` 消息，便于调用方定位输入问题
-（如 quoted field 内换行导致的未闭合，行号会反映跨行位置）。Writer 的字符串序列化不失败，
-文件写出用 ``Result<void, Utf8String>`` 表达打开或写入失败。
+读文件和解析使用 ``Result<CsvDocument, ParseError>`` 返回错误。``ParseError`` 含 ``SourceLocation``\ （1-based 行 + 列）和 ``Utf8String`` 消息，便于调用方定位输入问题（如 quoted field 内换行导致的未闭合，行号会反映跨行位置）。Writer 的字符串序列化不失败，文件写出用 ``Result<void, Utf8String>`` 表达打开或写入失败。
 
 与旧 utility 的关系
 -------------------
 
-旧 ``utility/CsvFile`` 只支持简单按逗号拆行，无法正确处理 quoted comma、字段内引号、
-多行字段。新模块迁移为独立库后，CSV 能力集中在 ``libca/csv``，后续不再在 utility 下扩展。
+旧 ``utility/CsvFile`` 只支持简单按逗号拆行，无法正确处理 quoted comma、字段内引号、多行字段。新模块迁移为独立库后，CSV 能力集中在 ``libca/csv``，后续不再在 utility 下扩展。

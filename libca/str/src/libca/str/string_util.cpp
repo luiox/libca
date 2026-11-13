@@ -50,7 +50,7 @@ namespace {
 std::string StringUtil::to_lower_case(const std::string& input) {
     std::string str = input;
     // 经 unsigned char 中转：char 为有符号时高位字节成负值，直接传 ::tolower 违反
-    // 「参数须可表示为 unsigned char 或 EOF」的前置条件（UB，MSVC debug 断言）
+    // 参数须可表示为 unsigned char 或 EOF的前置条件（UB，MSVC debug 断言）
     std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });
@@ -135,7 +135,7 @@ char StringUtil::to_char(const std::string& input) {
     return begin < input.size() ? input[begin] : static_cast<char>(0);
 }
 
-// 宽松版统一走 from_chars：跳过前导空白、容忍尾部非数字、失败返 0——历史语义
+// 宽松版统一走 from_chars：跳过前导空白、容忍尾部非数字、失败返 0，历史语义
 // 保持不变，但不再每次构造 istringstream（省分配 + locale 查询）。
 
 short StringUtil::to_short(const std::string& input) {

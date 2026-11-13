@@ -1,6 +1,6 @@
 """Sphinx 配置：libca 设计规格层（宏观）。
 
-规范见 AGENTS.md「文档规范」：本目录与各模块 doc/ 只收 RST 设计规格；
+规范见 AGENTS.md文档规范：本目录与各模块 doc/ 只收 RST 设计规格；
 markdown 属人读/AI 方向层，不进 doctree。CI 以 -W --keep-going 构建，警告即失败。
 """
 

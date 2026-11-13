@@ -11,8 +11,8 @@
 
 // ---- 多进程 IPC 容错测试的子进程角色（由 ipc_ring_test.cpp 自 spawn） ----
 
-// 写者角色：发送 count 条 "msg-<i>"。用 _Exit 模拟「进程退出但不做队列清理」——
-// 写者身份留在头部，读者据此获得「写者已死亡且排空」的 UNAVAILABLE 终止条件
+// 写者角色：发送 count 条 "msg-<i>"。用 _Exit 模拟进程退出但不做队列清理，
+// 写者身份留在头部，读者据此获得写者已死亡且排空的 UNAVAILABLE 终止条件
 // （若走正常析构，close() 会优雅释放身份，读者只会一直等待新写者）。
 static int ring_writer_child(const char* name, const char* count_text)
 {
@@ -45,7 +45,7 @@ static int ring_writer_hang_child(const char* name, const char* count_text, cons
 }
 
 // 死于写中的写者角色：发送一条完整消息后直接构造撕裂槽（Writing 态 + 半截 payload），
-// 再 _Exit 让写者进程消失——读者必须能跳过该槽而不读到撕裂数据。
+// 再 _Exit 让写者进程消失，读者必须能跳过该槽而不读到撕裂数据。
 static int ring_writer_torn_child(const char* name)
 {
     auto opened = ca::process::ipc::ShmRingQueue::open(name);

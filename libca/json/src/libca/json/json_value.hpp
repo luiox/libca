@@ -43,7 +43,7 @@ class JsonValue {
 public:
     /// Object 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "JsonValue 内含 JsonValue" 的
-    ///       循环定义——vector 支持不完整元素类型，pair 由标准库完整定义。
+    ///       循环定义，vector 支持不完整元素类型，pair 由标准库完整定义。
     using ObjectMember  = std::pair<ca::str::Utf8StringRef, JsonValue>;
     using ObjectStorage = std::vector<ObjectMember>;
     /// Array 元素的存储类型。
@@ -59,7 +59,7 @@ public:
     ~JsonValue();
 
     /// 显式深拷贝（递归拷贝整个子树）。字符串引用不复制 arena，故深拷贝出的 JsonValue
-    /// 仍指向原 arena——只是结构是新的。需完全独立的副本时另起 JsonDocument。
+    /// 仍指向原 arena，只是结构是新的。需完全独立的副本时另起 JsonDocument。
     JsonValue clone() const;
 
     // ---- 工厂 ----

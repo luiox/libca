@@ -67,7 +67,7 @@ public:
     ~XmlNode();
 
     /// 显式深拷贝（递归拷贝整个子树）。字符串引用不复制 arena，故深拷贝出的 XmlNode
-    /// 仍指向原 arena——只是结构是新的。需完全独立的副本时另起 XmlDocument。
+    /// 仍指向原 arena，只是结构是新的。需完全独立的副本时另起 XmlDocument。
     XmlNode clone() const;
 
     // ---- 工厂 ----
@@ -123,7 +123,7 @@ public:
     XmlNode* first_element(const ca::str::Utf8StringRef& name) noexcept;
 
     /// @brief 拼接元素的**直接** Text 与 Cdata 子节点内容，返回独立 Utf8String。
-    /// @details 常用于取「只有文本内容」的元素的值（如 `\<port\>8080</port>` 取 "8080"）。
+    /// @details 常用于取只有文本内容的元素的值（如 `\<port\>8080</port>` 取 "8080"）。
     ///          混合内容里穿插的子元素被跳过（只取直接文本）。返回值拥有独立堆内存，
     ///          不受 document 生命周期约束。@warning 必须为 Element。
     ca::str::Utf8String text() const;

@@ -124,7 +124,7 @@ Result<std::string, ConfigErrorInfo> Config::dump() {
     std::vector<std::pair<std::string, std::string>> entries;
     visit([&](const ConfigEntry& entry) { entries.emplace_back(entry.name, entry.value); });
 
-    // 逐项解析值文本并装配为单个 object。解析出的文档必须保活到写出为止——
+    // 逐项解析值文本并装配为单个 object。解析出的文档必须保活到写出为止，
     // JsonValue::clone 是浅引用，字符串仍在源文档 arena 内。
     std::vector<ca::json::JsonDocument> parsed_values;
     parsed_values.reserve(entries.size());

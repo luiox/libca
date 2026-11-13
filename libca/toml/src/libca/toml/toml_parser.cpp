@@ -130,7 +130,7 @@ void TomlParser::skip_ws_comments_newlines() {
 // ============================================================================
 
 bool TomlParser::run() {
-    // TOML 文件必须是合法 UTF-8。入口整体校验一次——字符串值经 arena intern 时
+    // TOML 文件必须是合法 UTF-8。入口整体校验一次，字符串值经 arena intern 时
     // 非法序列会静默变空串、解析"成功"，数据无声丢失（json/ini 已修过同类问题）。
     if (!ca::str::utf8_is_valid(data_, byte_length_)) {
         fail(SourceLocation{0, 1, 1}, "invalid UTF-8 in TOML text");
@@ -255,7 +255,7 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
     }
     // 重复检测（O(1)）：
     //   - 普通 [a.b]：若 a.b 已被 header 显式定义过（defined_paths_）报错。
-    //     注意「已被子表头隐式创建」（如 [a.b] 之后再写 [a]）是合法的：TOML 1.0
+    //     注意已被子表头隐式创建（如 [a.b] 之后再写 [a]）是合法的：TOML 1.0
     //     明确允许后置定义超表（spec：defining a super-table afterward is ok）。
     //   - 数组表 [[a.b]]：每个 [[a.b]] 都追加一个新元素，不视为重复；
     //     但若 a.b 已被普通 [header] 定义过，或已存在为非 array，报错。
@@ -266,7 +266,7 @@ bool TomlParser::parse_table_header(bool array_of_tables) {
         }
     } else {
         // [[a.b]]：若 a.b 已被普通 header 定义，报错；若 a.b 已是 array 则正常追加。
-        // 这里只检测"是 array or 不存在"——若存在但非 array，会在下面遍历时报错。
+        // 这里只检测"是 array or 不存在"，若存在但非 array，会在下面遍历时报错。
     }
 
     // 组织：从 root 开始走路径，按 array_of_tables 决定末端行为。
@@ -509,7 +509,7 @@ bool TomlParser::parse_value(TomlValue& out) {
         return false;
     }
 
-    // inf / nan（可能带符号）—— 先看符号再决定。
+    // inf / nan（可能带符号）， 先看符号再决定。
     // 数值或 datetime：以 -/+/数字开头。
     if (c == '-' || c == '+') {
         // 可能是 +/-inf / +/-nan，也可能是带符号数值或 datetime。

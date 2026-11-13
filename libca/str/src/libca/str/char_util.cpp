@@ -232,7 +232,7 @@ Utf8Char Utf8Char::to_lower() const noexcept {
     if (cp_ <= 0x7F)
         return Utf8Char(static_cast<u32>(std::tolower(static_cast<int>(cp_))));
     // wint_t 为 16 位（Windows）时增补平面码点截断后被 towlower/towupper 误转换
-    //（U+10061 截断成 'a'、to_upper 返回 'A'——数据损坏），保持原码点不变
+    //（U+10061 截断成 'a'、to_upper 返回 'A'，数据损坏），保持原码点不变
     if (cp_ > 0xFFFF) {
         if constexpr (sizeof(wint_t) <= 2)
             return *this;

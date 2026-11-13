@@ -15,7 +15,7 @@
 // - 输出约定：<顶层仓根>/test/（自动建目录）；可用环境变量 LIBCA_TEST_OUT_ROOT
 //   覆盖输出根（CI/沙箱场景）。
 //
-// 错误模型：setup/读取失败抛 std::runtime_error——测试基建在错误时快速失败，
+// 错误模型：setup/读取失败抛 std::runtime_error，测试基建在错误时快速失败，
 // 不引入 Result 传播负担。
 //
 // 线程性：setup 仅应在 main 启动阶段调用一次；此后全部接口只读，可并发调用。

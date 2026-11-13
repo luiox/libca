@@ -2,9 +2,7 @@
 
 独立 CSV 文本读写模块。命名空间 `ca::csv`，构建目标 `libca_csv`。
 
-采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，所有字段经
-`arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留——CSV 不规定编码，字段可能含
-任意字节）。字段存 `Utf8StringRef`，生命周期绑定 CsvDocument。`CsvDocument` 禁拷贝、仅移动。
+采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，所有字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留，CSV 不规定编码，字段可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 CsvDocument。`CsvDocument` 禁拷贝、仅移动。
 
 > 设计与格式策略见 `doc/csv设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
@@ -34,8 +32,7 @@ auto document = std::move(result).unwrap();
 Utf8StringRef name = document.rows()[0][1];  // Alice，指向 document 内部 arena
 ```
 
-`CsvReader::read` 接受 `Utf8StringRef`（零拷贝指向原文本）。字段解析后经 `intern_raw` 入池，
-保留任意字节（含非 UTF-8）。返回的 ref 生命周期绑定 document——document 析构后失效。
+`CsvReader::read` 接受 `Utf8StringRef`（零拷贝指向原文本）。字段解析后经 `intern_raw` 入池，保留任意字节（含非 UTF-8）。返回的 ref 生命周期绑定 document，document 析构后失效。
 
 ## 写出字符串
 
@@ -53,9 +50,7 @@ options.line_ending = "\r\n";
 Utf8String text = CsvWriter::write(document, options).unwrap();
 ```
 
-字段须先经 `CsvDocument::intern_field`（`intern_raw`）入池得到 `Utf8StringRef` 再构造 `CsvRow`。
-`CsvWriter::write` 返回 `Result<Utf8String, Utf8String>`。Writer 默认只在必要时加引号：
-字段含分隔符、引号、换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
+字段须先经 `CsvDocument::intern_field`（`intern_raw`）入池得到 `Utf8StringRef` 再构造 `CsvRow`。 `CsvWriter::write` 返回 `Result<Utf8String, Utf8String>`。Writer 默认只在必要时加引号：字段含分隔符、引号、换行，或首尾有空格/制表符时自动加引号，字段里的 `"` 会写成 `""`。
 
 > 默认 `validate_utf8 = true`：输出前校验 UTF-8，字段含非 UTF-8 字节时返回 Err（不抛
 > 异常）。字段含任意字节时设 `options.validate_utf8 = false`，writer 经
@@ -86,8 +81,7 @@ options.trim_unquoted_space = true;
 
 ## 处理 TSV / 任意分隔符（DSV）
 
-csv 模块本质是可配置分隔符的 DSV reader/writer，分隔符与引号字符都在 options 里。除手动改
-`delimiter` 外，也可以用预设工厂方法，意图更清晰：
+csv 模块本质是可配置分隔符的 DSV reader/writer，分隔符与引号字符都在 options 里。除手动改 `delimiter` 外，也可以用预设工厂方法，意图更清晰：
 
 ```cpp
 // TSV（Tab 分隔），读写预设要对齐
@@ -99,5 +93,4 @@ auto ropt = CsvReaderOptions::delimited('|');
 auto wopt = CsvWriterOptions::delimited('|');
 ```
 
-预设只覆盖 `delimiter`（`csv()` 等价于默认构造），`quote`、`line_ending`、`validate_utf8`
-等其余字段保持默认。reader 和 writer 各有 `csv()` / `tsv()` / `delimited(char)` 三组。
+预设只覆盖 `delimiter`（`csv()` 等价于默认构造），`quote`、`line_ending`、`validate_utf8` 等其余字段保持默认。reader 和 writer 各有 `csv()` / `tsv()` / `delimited(char)` 三组。

@@ -1,5 +1,5 @@
 /// @file path.hpp
-/// @brief Path —— 路径值类型：编码边界与路径语义运算。
+/// @brief Path: 路径值类型：编码边界与路径语义运算。
 ///        内部持有 std::filesystem::path（Windows 上为 UTF-16，POSIX 上为字节串），
 ///        编码转换全部经 ca::str::OsString 完成，构造/导出命名与其对齐
 ///        （from_utf8 / from_utf8_lossy / from_os_string / to_os_string / to_utf8_lossy）。
@@ -57,7 +57,7 @@ public:
 
 #ifdef _WIN32
     /// @brief 从宽字符路径构造（Windows 专用）。
-    /// @note 不做任何校验与转换，保留全部信息——包括未配对代理等无法映射到
+    /// @note 不做任何校验与转换，保留全部信息，包括未配对代理等无法映射到
     ///       合法 UTF-8 的名字，用于 Win32 API 边界的无损互操作。
     static Path from_native(std::wstring_view wide);
 #endif
