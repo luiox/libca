@@ -15,6 +15,7 @@ class ZipEntry;
 /// @brief 流式写出 ZIP（对应 java.util.zip.ZipOutputStream 语义）。
 ///
 /// 每条目以 data descriptor 收尾（bit 3 置位），CEN/EOCD 在 close 时统一回写。
+/// 传统 ZIP 写入边界见 doc:zip-design-zip64。
 /// 常规失败（磁盘写失败、状态机误用、非法压缩级别等）经 Result 返回；
 /// 异常仅保留在打开型构造重载（失败抛 std::runtime_error）。
 class ZipOutputStream {

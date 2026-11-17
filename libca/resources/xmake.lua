@@ -1,4 +1,5 @@
 -- libca.resources：嵌入资源库（清单驱动的目录树只读嵌入）。
+-- 生成规则的设计见 doc:resources-design-build-rule。
 --
 -- 组成：
 --   1. rule("libca.resources.embed")：构建期把挂载清单(*.resources)中的
