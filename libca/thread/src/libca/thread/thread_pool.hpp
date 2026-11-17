@@ -34,7 +34,8 @@ struct ThreadPoolOptions
     usize queue_capacity{256};
 };
 
-/// @brief CancelPending 关闭时，尚未开始的任务通过 future 抛出的异常。
+/// @brief 等待任务被取消或周期注册因取消而终止时，通过 future 抛出的异常。
+/// @note ThreadPool 的 CancelPending 与 ScheduledExecutor 的取消协议共用此类型。
 class TaskCancelled : public std::exception
 {
 public:
