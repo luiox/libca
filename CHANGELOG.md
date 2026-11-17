@@ -11,6 +11,8 @@
 
 ### libca
 
+- **[thread]** 新增 `ScheduledExecutor`，提供有界的延迟和周期任务调度，返回取消句柄与 future。固定频率周期任务跳过已错过的时隙，同一任务按次执行。关闭模式沿用 `ShutdownMode`，析构取消待执行任务并等待运行中的调用结束。
+- **[time]** 为 `Duration` 和 `Timestamp` 新增带溢出检查的构造、算术接口及负 Unix 时间戳向下取整接口，支持 constexpr 边界计算。
 - **[core，不兼容]** 移除 `libca/core/wrapper.hpp` 中已弃用的 `ca::Singleton<T>`。默认构造的单例可改用 `ca::MeyersSingleton<T>::get_instance()`，返回值由指针改为引用。带构造参数的实例可在调用方使用函数内静态对象，或由调用方构造并注入（#123）。
 
 ## [0.0.16] - 2026-10-19

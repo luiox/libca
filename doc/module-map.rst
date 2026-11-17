@@ -56,8 +56,8 @@ libca 模块地图
      - 时间点/时长/时钟语义、``Stopwatch``\ 、定时与耗时测量
      - :ref:`time-design`\（时钟语义 :ref:`time-design-clock`\、溢出边界 :ref:`time-design-overflow`\）
    * - thread
-     - 线程池、``StopSource``/``StopToken`` 协作取消、``BoundedQueue``\ 、``MessageLoop``\ 、Timer、EventBus
-     - :ref:`thread-design`\（关闭状态机 :ref:`thread-design-shutdown`\、MessageLoop :ref:`thread-design-message-loop`\）
+     - 线程池、定时执行器、协作取消、``BoundedQueue``\ 、``MessageLoop``\ 、Timer、EventBus
+     - :ref:`thread-design`\（关闭状态机 :ref:`thread-design-shutdown`\、定时执行器 :ref:`thread-design-scheduled-executor`\、MessageLoop :ref:`thread-design-message-loop`\）
    * - process
      - 子进程生命周期与管道、IPC（内核消息队列 + 无内核对象共享内存环）
      - :ref:`process-design`\（子进程 :ref:`process-design-child-lifecycle`\、IPC :ref:`process-design-ipc`\、容错环 :ref:`process-design-shm-ring-queue`\）

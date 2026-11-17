@@ -399,15 +399,15 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/time/scope_timing.hpp>`
 
 功能：
-- `Duration`：纳秒精度时间间隔，纯值类型，支持 constexpr 算术与 chrono 互转。
-- `Timestamp`：Unix epoch 纳秒时间戳，与 `Duration` 做加减、与 `system_clock` 互转。
+- `Duration`：纳秒精度时间间隔，支持 constexpr 算术、溢出检查与 chrono 互转。
+- `Timestamp`：Unix epoch 纳秒时间戳，支持溢出检查及向下取整，与 `Duration` 做加减、与 `system_clock` 互转。
 - `Date` / `Time` / `DateTime`：面向日历展示与简单解析的轻量类型。
 - `TimeUtil`：时钟工具，对齐 Java `currentTimeMillis` / `nanoTime` 语义。
 - `Stopwatch`：秒表（构造即启动，elapsed/restart/reset）。
 - `ScopeTiming`：RAII 耗时打点，按名字聚合 count/total/max 统计（支持注入 registry）。
 
 设计文档：
-- `libca/time/doc/time设计文档.md`
+- `doc/time-design.rst`
 
 ## collection
 
@@ -443,6 +443,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/thread/once.hpp>`
 - `<libca/thread/bounded_queue.hpp>`
 - `<libca/thread/thread_pool.hpp>`
+- `<libca/thread/scheduled_executor.hpp>`
 - `<libca/thread/timer.hpp>`
 - `<libca/thread/event_bus.hpp>`
 - `<libca/thread/object_pool.hpp>`
@@ -453,6 +454,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `Thread`：类似 `std::jthread` 的 move-only 结构化线程，析构时请求停止并 join。
 - `BoundedQueue<T>`：多生产者、多消费者有界队列，支持阻塞、立即和限时背压。
 - `ThreadPool`：固定 worker 线程池，任务返回值与异常经 future 传播，支持排空关闭和取消待执行任务。
+- `ScheduledExecutor`：有界延迟及周期调度，任务返回取消句柄与 future，支持固定延迟和固定频率周期任务。
 - `channel<T>`：MPSC 通道（多生产者单消费者），对齐 Rust `std::sync::mpsc` 简化版；全部 Sender 销毁后自动关闭生产端。
 - `OnceCell` / `OnceLock`：延迟一次性初始化容器（非线程安全 / 线程安全），对应 Rust 同名类型。
 - `TimerManager`：steady_clock 定时器调度（一次性/重复、句柄取消、回调在调度线程串行执行）。
@@ -461,7 +463,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `MessageLoop`：单线程任务循环（FIFO `post_task`、`post_task_with_result` 返回 `std::future`、steady_clock 定时的 `post_delay_task`、`stop` / `stop_and_drain`）。
 
 设计与使用文档：
-- `libca/thread/doc/thread设计文档.md`
+- `doc/thread-design.rst`
 - `libca/thread/README.md`（快速示例）
 
 ## process
