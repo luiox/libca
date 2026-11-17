@@ -11,6 +11,8 @@
 #include "libca/core/datatype.hpp"
 #include "libca/core/result.hpp"
 
+// 文件工具的设计与取舍见 doc:fs-design，原子写失败语义见 doc:fs-design-atomic-write。
+
 namespace ca { namespace fs {
 
 /// 文件写入模式常量

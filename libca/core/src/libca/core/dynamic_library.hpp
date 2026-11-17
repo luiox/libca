@@ -9,6 +9,7 @@
 namespace ca::core {
 
 /// @brief 跨平台动态库句柄。析构时自动卸载，不能复制但可以移动。
+///        裁决边界见 doc:core-design-dynamic-library。
 class DynamicLibrary
 {
 public:

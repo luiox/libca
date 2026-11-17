@@ -3,19 +3,9 @@
 libca_http 设计文档
 ===================
 
-.. code-block:: text
+``libca_http`` 在 :ref:`net-design` 与 :ref:`io-design` 之上为 C++17 提供可复用的同步 HTTP 基础设施；本篇记录报文层、URL 与同步 client/server 的数据模型、所有权与 framing 安全取舍。接口签名与逐方法契约见 ``libca/http`` 各头文件的 Doxygen 注释。
 
-   version: 1.6
-   update:
-   2026-09-13 - Url 升级 RFC 3986 全量解析：userinfo、path/query/fragment 组件、percent 工具、query 参数、normalize 与 round-trip
-   2026-09-13 - client 增加可选 keep-alive 连接池（按 origin 空闲复用、借出探活与空闲超时、多 client 共享）
-   2026-08-24 - 协议错误响应改 shutdown 写半侧+排水防 RST 吞响应；100-continue 仅 HTTP/1.1；client 幂等请求在 stale keep-alive 连接上自动重试一次
-   2026-07-20 - 增加可选 OpenSSL 3 HTTPS client transport
-   2026-07-19 - 增加同步 client、精确路由 server、有界并发与 stop-aware deadlines
-   2026-07-19 - 增加 incoming body 状态机与 chunked streaming writer
-   2026-07-19 - 完成 HTTP/1 数据模型、URL、headers 与同步 codec
-
-1. 目标与边界
+目标与边界
 -------------
 
 ``libca_http`` 建立在 ``libca_net`` 与 ``libca_io`` 上，为 C++17 提供可复用的同步 HTTP 基础设施。首个增量只实现与连接来源无关的报文层：
@@ -41,7 +31,9 @@ libca_http 设计文档
 
 本模块不实现 redirect、cookie、SSE event 语义层、压缩、代理、WebSocket、HTTP/2 或 TLS server。连接池只做借出时的超时与存活校验，不做后台主动探活、预连接或异步 IO。HTTPS client 通过实现相同 ``Reader`` / ``Writer`` 边界的私有 OpenSSL transport 接入，不能进入 HTTP/1 parser 或公开头文件。MCP 等上层协议使用 JSON-RPC，不把 XML 引入 HTTP 传输层。
 
-2. 数据与所有权
+.. _http-design-ownership:
+
+数据与所有权
 ---------------
 
 ``HttpRequest`` / ``HttpResponse`` 是完整缓冲报文。method、target、reason 和 header 使用 ``std::string``，因为它们属于外部 wire protocol 边界；body 使用 ``ca::core::Bytes``，不假设 UTF-8。chunked trailers 与普通 headers 分开保存，避免调用方误把 trailer 当成首部安全决策。
@@ -57,7 +49,9 @@ libca_http 设计文档
 
 不能用 ``std::map``，因为它会丢失重复字段与顺序；也不能把 header value 强制为 UTF-8，因为 HTTP 允许 ``obs-text`` 字节。
 
-3. URL
+.. _http-design-url:
+
+URL
 ------
 
 ``HttpUrl`` 只接受 http/https absolute URL，按 RFC 3986 拆分 scheme、userinfo、host、有效端口、path、query 与 fragment。空 path 规范化为 ``/``；``target()`` 仍返回 path + query 的 origin-form（fragment 不发送），``authority()`` 仍只含 host 与非默认端口（userinfo 不进入 Host header），保持既有调用方语义不变。IPv6 host 输入必须使用方括号，内部存储去掉方括号，生成 authority 与 ``to_string()`` 时恢复；userinfo 按最后一个 ``@`` 切分，内部允许 ``@`` 字符。
@@ -66,7 +60,7 @@ percent-encode/decode 与 query 参数解析（``HttpQueryParam`` 有序 kv，�
 
 parse 仍拒绝端口 0、超范围端口、反斜杠、控制字符、未加方括号 IPv6 与非 ASCII reg-name。 IDNA、percent-encoded host 与 IPv6 zone id 留给独立 URL 能力扩展，不在 HTTP client 中临时猜测；normalize 也不主动给裸的非法原始字节补编码，只规范化已存在的 ``%`` 序列。
 
-4. Codec 与缓冲
+Codec 与缓冲
 ---------------
 
 ``Http1Reader`` 借用底层 ``Reader``，内部持有 8 KiB 固定预读缓冲。它不使用拥有型 ``io::BufReader``，因为 TCP/TLS 连接还需要由同一上层对象写响应。reader 实例必须在整条 keep-alive 连接期间存活，才能保留已经读到下一条报文的字节。
@@ -81,7 +75,9 @@ parse 仍拒绝端口 0、超范围端口、反斜杠、控制字符、未加方
 
 ``Http1Writer`` 同样只借用 ``Writer``。完整缓冲报文没有显式 framing 时，writer 根据 body 补 Content-Length；显式 chunked 时把 body 写成一个或零个 data chunk，再写 trailers。未知长度 body 由 ``Http1ChunkedBodyWriter`` 逐块写入。活动 body 独占所属 writer，直至 ``finish()`` 成功写入 final chunk。析构不隐式结束报文，避免异常路径把截断的业务响应伪装成完整响应；放弃 body 后必须关闭连接。writer 不隐式 flush，SSE 可在每个 event chunk 后显式 flush，连接管理层决定普通报文何时提交底层缓冲。
 
-5. Framing 与安全
+.. _http-design-framing:
+
+Framing 与安全
 -----------------
 
 报文 framing 遵守以下严格规则：
@@ -98,14 +94,16 @@ parse 仍拒绝端口 0、超范围端口、反斜杠、控制字符、未加方
 
 这些约束优先避免 request smuggling 和连接解析分歧，不为历史宽松实现增加兼容分支。
 
-6. 错误模型与限制
+.. _http-design-error-model:
+
+错误模型与限制
 -----------------
 
 ``HttpResult<T>`` 使用 ``HttpError``，区分 IO、URL、协议、调用状态、header/body 限制和未支持能力。底层 ``IoError`` 完整保留，可由 ``io_error()`` 读取。协议错误不伪装成 IO ``InvalidData``，便于服务端映射 400/413/431，客户端区分网络失败与远端报文错误。
 
 ``HttpLimits`` 分别限制 start-line、headers 字节、header 数量和解码后 body 字节。普通 headers 与 trailers 共享 byte/count 预算；chunked 的限制作用于解码后累计 body，不能通过拆成许多小 chunk 绕过。
 
-7. Client 与 Server
+Client 与 Server
 -------------------
 
 ``HttpClient`` 是单调用线程使用的有状态对象。它按 scheme/host/port 识别 origin，相同 origin 且双方 keep-alive framing 允许时复用连接；origin 变化、close-delimited response、 CONNECT tunnel、协议错误或 IO 错误都会丢弃连接。服务器可能在两次请求之间关闭 idle 的 keep-alive 连接：幂等方法（GET/HEAD/PUT/DELETE/OPTIONS/TRACE）在响应任何字节前遇到 EOF 或 reset 类错误时，会在新连接上自动重试一次，非幂等方法直接报错。request target 与 Host 固定取自 URL，调用方不能让连接 origin 与 Host 分离。当前 response 完整缓冲，下载体积受 ``HttpLimits`` 控制；需要边读边处理时可直接使用 codec streaming API。
@@ -126,7 +124,7 @@ listener 使用 nonblocking accept 与短轮询，使 ``stop()`` 不依赖跨平
 
 server 识别 ``Expect: 100-continue``\ （仅 HTTP/1.1，1.0 请求不回 interim response），不支持的 expectation 返回 417；解析错误按类别映射 400/408/413/431/501，handler 失败映射 500，过载映射 503。所有这些响应都关闭存在解析歧义或生命周期错误的连接；协议错误响应与过载响应相同，先 shutdown 写半侧再排水读侧至 EOF 或期限，避免 Windows 上未读入站数据触发 RST 吞掉已发送的错误响应（如客户端仍在推送 body 时的 413）。
 
-8. 测试策略
+测试策略
 -----------
 
 单元测试使用每次只返回少量字节的 Reader，覆盖：

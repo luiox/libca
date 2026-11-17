@@ -3,11 +3,7 @@
 libca/toml 设计文档
 ===================
 
-.. code-block:: text
-
-   version: 1.0
-   update:
-   2026-07-19 - 首版，说明 TOML 模块的 Arena 架构、DOM 数据模型、解析器实现要点
+本篇是 ``libca_toml`` 的宏观规格：TOML 1.0 DOM 读写的 Arena 架构、``TomlDocument`` 所有权模型与解析器实现要点，Arena 架构以本模块为验证用例。接口签名与逐方法契约见 ``libca/toml`` 各头文件的 Doxygen 注释。
 
 定位
 ----
@@ -15,6 +11,8 @@ libca/toml 设计文档
 ``libca_toml`` 是 TOML 1.0 文本读写模块（DOM 形态），是 libca 多格式读写库系列的第四份（前三份为 json / ini / csv）。模块命名空间是 ``ca::toml``，构建目标是 ``libca_toml``，单元测试目标是 ``libca_toml_unittest``。依赖 ``libca_core`` 和 ``libca_str``，不依赖其它 libca 模块。
 
 主要使用场景是\ **配置文件**：替换 JSON 写的配置（JSON 不适合手写修改，且 nlohmann_json 依赖拉取麻烦、``std::string`` 与 ``ca::str`` 来回转换繁琐）。TOML 正是为手写配置设计。
+
+.. _toml-design-arena:
 
 为什么本轮改用 Arena 架构（与 json/ini 的核心差异）
 ---------------------------------------------------
@@ -29,6 +27,8 @@ libca/toml 设计文档
 **核心动机**\ （用户原话）："内存申请和释放有问题，用 Arena 直接消灭这些零散的所有内存分配，只需要整个 dom 销毁时候整个字符串 arena 销毁就行。"
 
 **Arena 方案先在 TOML 验证**\ （新代码无包袱）。TOML 合入并稳定后，再考虑把 json/ini 迁移到 Arena（另开 PR，复用 TOML 验证过的模式）。本轮不动 json/ini。
+
+.. _toml-design-ownership:
 
 所有权模型：TomlDocument
 ------------------------
@@ -55,6 +55,8 @@ libca/toml 设计文档
    };
 
 ``TomlReader::read()`` 返回 ``Result<TomlDocument, ParseError>``，document 把 arena + tree 一起 move 给用户。
+
+.. _toml-design-lifetime:
 
 生命周期约束
 ^^^^^^^^^^^^

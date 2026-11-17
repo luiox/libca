@@ -3,18 +3,9 @@
 libca::process 设计文档
 =======================
 
-.. code-block:: text
-
-   version: 1.2
-   update:
-   2026-07-14 - 由 design 文档 改名补 YAML 头，本文成为 process 唯一设计文档
-   2026-09-15 - 新增 ShmRingQueue IPC 容错章节：头部布局、心跳与接管时序、崩溃恢复边界
-
-..
-
-  本文讲 process 模块的设计边界与平台差异。具体 API 签名见 ``subprocess.hpp``、``ipc.hpp``
-  的 Doxygen 注释。进程控制对齐 Rust ``std::process`` 的所有权形状：可复用的 ``Command``、
-  ``spawn()`` 得到 move-only ``Child``，IPC 提供命名管道 / 共享内存 / 命名信号量 / 消息队列。
+本文讲 process 模块的设计边界与平台差异。具体 API 签名见 ``subprocess.hpp``、``ipc.hpp``
+的 Doxygen 注释。进程控制对齐 Rust ``std::process`` 的所有权形状：可复用的 ``Command``、
+``spawn()`` 得到 move-only ``Child``，IPC 提供命名管道 / 共享内存 / 命名信号量 / 消息队列。
 
 Goal
 ----
@@ -22,6 +13,8 @@ Goal
 ``libca_process`` provides cross-platform child-process control and the IPC resources needed to communicate with a child or an unrelated process. It is a separate library, like ``libca_fs``, and depends only on ``libca_core``.
 
 The public API follows the ownership shape of Rust ``std::process``: configure a reusable ``Command``, call ``spawn()`` to obtain a move-only ``Child``, then own its standard-stream endpoints and lifecycle explicitly. Public types use ``CamelCase``; methods and fields use ``snake_case``.
+
+.. _process-design-child-lifecycle:
 
 Process API
 -----------
@@ -48,6 +41,8 @@ Process API
 ``wait_with_output_for(timeout)`` bounds the wait. On expiry it returns ``DEADLINE_EXCEEDED`` without killing the child; the stream endpoints and the bytes drained so far stay inside the ``Child``, so a later call: normally after ``kill()``: resumes draining and returns everything together with the exit status, losing nothing. ``Command::output()`` accepts ``OutputOptions`` with ``timeout`` (zero means unbounded) and ``kill_on_timeout`` (default true), which terminates and reaps the child on expiry.
 
 ``ExitStatus::code`` holds a normal exit code or a platform-derived termination code. A nonzero exit code is valid process data, not a ``Status`` error. Operational failures return ``StatusResult<T>`` or ``Status``.
+
+.. _process-design-ipc:
 
 IPC API
 -------
@@ -81,6 +76,8 @@ The independent named resources are also move-only:
 All named resource names are simple tokens. The implementation supplies its own platform namespace prefix, preventing callers from injecting a filesystem path or a Win32 namespace path. ``create()`` fails with ``ALREADY_EXISTS``; ``open()`` fails with ``NOT_FOUND`` when the resource is absent. ``close()`` releases only the local handle or mapping. It never removes a name that another process may still be using.
 
 Message queues preserve one-message boundaries. On Windows they are intentionally one-way: ``create()`` returns the receiver and ``open()`` returns a sender. On Linux an opened queue can send and receive. A message larger than the configured maximum is rejected on Linux; Windows enforces the configured bound at the receiver. ``receive_for()`` returns an empty optional on timeout, allowing callers to distinguish it from operational failure.
+
+.. _process-design-shm-ring-queue:
 
 ShmRingQueue：IPC 容错（写者探活 + 崩溃可恢复）
 -----------------------------------------------
@@ -195,6 +192,8 @@ ShmRingQueue：IPC 容错（写者探活 + 崩溃可恢复）
 - Windows 命名映射随最后一个句柄消失：所有进程都退出后队列连同段一起消失，无需恢复；POSIX 段残留 /dev/shm，用后须 ``remove_shared_memory()`` 回收。
 - 同一进程内多线程并发调用同一队列的 ``send()`` / ``receive_for()`` 需调用方串行化：跨进程互斥由认领协议保证，进程内互斥不在本类职责内。
 - ``writer_slot`` 的 ELECTING 哨兵值 1 与 POSIX pid 1 冲突，接受该限制（写者不会是 pid 1；``process_identity_alive`` 对 pid < 2 直接判死）。
+
+.. _process-design-error-platform:
 
 Error and Platform Rules
 ------------------------

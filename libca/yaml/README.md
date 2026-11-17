@@ -5,7 +5,7 @@ YAML **配置子集**读写模块（DOM 形态）。命名空间 `ca::yaml`，�
 手写解析器，零第三方依赖，方便替换手写配置文件。深度集成 `ca::str`：输入接受 `Utf8StringRef`（零拷贝指向原文本），DOM 字符串值用 `Utf8StringRef` 指向所属 `YamlDocument` 内部的 `Utf8StringArena`。错误用 `Result<YamlDocument, ParseError>`，不用异常。
 
 > 这是**配置子集**，不是完整 YAML 1.2 实现。锚点/别名/标签/多文档/复杂键**明确报错拒绝**
-> （不静默忽略）。支持范围与拒绝清单见下,设计与取舍见 `doc/yaml设计文档.md`;
+> （不静默忽略）。支持范围与拒绝清单见下,设计与取舍见 `doc/yaml-design.rst`;
 > 接口签名见头文件 Doxygen 注释。
 
 ## 引入

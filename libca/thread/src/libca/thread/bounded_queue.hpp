@@ -13,6 +13,8 @@
 
 #include "libca/core/status.hpp"
 
+// 背压与关闭语义见 doc:thread-design-bounded-queue。
+
 namespace ca::thread {
 
 /// @brief 多生产者、多消费者的 move-only 有界阻塞队列。

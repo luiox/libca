@@ -10,6 +10,7 @@ namespace ca::io {
 using RawHandle = std::intptr_t;
 
 /// @brief Windows HANDLE 或 POSIX fd 的 move-only RAII 唯一所有者。
+///        所有权契约见 doc:io-design-handle-ownership。
 ///
 /// Windows 资源必须可由 CloseHandle() 关闭；SOCKET 不适用本类型。POSIX fd 由 close()
 /// 关闭，数值 0 是有效 fd。adopt() 明确接管调用方已有资源的关闭责任。

@@ -12,6 +12,7 @@
 /// @brief 日志门面：Logger 句柄、后端接口、类型擦除的格式化参数载体。
 /// @note 后端实现者只需 include 本文件与 level.hpp，**不需要依赖 fmt**。
 ///       门面侧（detail/fmt_format.hpp）才依赖 fmt，负责构造 OpaqueFormat。
+///       模块设计与取舍见 doc:log-design，fmt 解耦见 doc:log-design-opaque-format。
 ///       命名空间 `ca::log`。
 
 namespace ca::log {

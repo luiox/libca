@@ -4,6 +4,7 @@
 /// @date 2026/05/31
 ///
 /// 包含 ca::collection 命名空间下的所有组件
+/// 模块设计与取舍见 doc:collection-design。
 ///
 
 #pragma once

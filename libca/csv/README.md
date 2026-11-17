@@ -4,7 +4,7 @@
 
 采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，所有字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留，CSV 不规定编码，字段可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 CsvDocument。`CsvDocument` 禁拷贝、仅移动。
 
-> 设计与格式策略见 `doc/csv设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
+> 设计与格式策略见 `doc/csv-design.rst`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入
 

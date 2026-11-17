@@ -1,5 +1,8 @@
 #pragma once
 
+// libca/http：报文层与 client/server，建立在 net/io 之上。
+// 模块设计与取舍见 doc:http-design。
+
 #include "libca/http/client.hpp"
 #include "libca/http/client_pool.hpp"
 #include "libca/http/headers.hpp"

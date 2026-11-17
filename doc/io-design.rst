@@ -3,13 +3,9 @@
 libca_io 设计文档
 =================
 
-.. code-block:: text
+本篇是 ``libca_io`` 的宏观规格：文件、进程管道与网络连接共用的同步字节流协议，统一 EOF、短读短写与重试、错误分类和原生句柄所有权的语义。接口与逐方法契约见 ``libca/io`` 各头文件的 Doxygen 注释。
 
-   version: 1.0
-   update:
-   2026-07-11 - 完成 libca_io 第一版设计
-
-1. 目标与边界
+目标与边界
 -------------
 
 ``libca_io`` 为文件、进程管道和网络连接提供统一的同步字节流协议。设计参考 Rust ``std::io``，但使用 libca 的 C++17、``Result`` 和命名约定。模块的核心不是重新命名 ``read(2)`` / ``ReadFile()``，而是统一以下语义：
@@ -32,7 +28,9 @@ libca_io 设计文档
 
 ``libca_process`` 当前管道接口仍保留，后续迁移时其 ``PipeReader``、``PipeWriter`` 和 ``NamedPipeConnection`` 应实现 ``Reader`` / ``Writer``，不再维护另一套字节流规则。
 
-2. 错误模型
+.. _io-design-error-model:
+
+错误模型
 -----------
 
 通用 ``Status`` 无法表达 ``WouldBlock``、``Interrupted``、``BrokenPipe``、``UnexpectedEof`` 等 IO 特有条件，也不能稳定保留 ``errno`` / ``GetLastError()``。因此模块定义：
@@ -55,7 +53,9 @@ libca_io 设计文档
 
 首版错误类别至少包含：``NotFound``、``PermissionDenied``、``ConnectionRefused``、 ``ConnectionReset``、``ConnectionAborted``、``NotConnected``、``AddrInUse``、 ``AddrNotAvailable``、``BrokenPipe``、``AlreadyExists``、``WouldBlock``、``InvalidInput``、 ``InvalidData``、``TimedOut``、``WriteZero``、``Interrupted``、``UnexpectedEof``、``OutOfMemory``、 ``Unsupported`` 和 ``Other``。
 
-3. Reader
+.. _io-design-reader-contract:
+
+Reader
 ---------
 
 ``Reader`` 是可读字节流的抽象基类：
@@ -82,7 +82,7 @@ libca_io 设计文档
 - ``read_exact()`` 自动处理短读和 ``Interrupted``，提前 EOF 返回 ``UnexpectedEof``。
 - ``read_to_end()`` 设置最大长度，避免不可信输入导致无界内存增长。
 
-4. Writer
+Writer
 ---------
 
 ``Writer`` 是可写字节流的抽象基类：
@@ -102,7 +102,7 @@ libca_io 设计文档
 
 一次 write 可以短写。``write_all()`` 自动处理短写和 ``Interrupted``；非空输入返回 ``Ok(0)`` 时转换为 ``WriteZero``，避免无限循环。``flush()`` 只保证该 Writer 自己维护的缓冲已经交给下一层，不承诺磁盘持久化；需要 ``fsync`` / ``FlushFileBuffers`` 时由文件模块提供明确的持久化接口。
 
-5. Seek
+Seek
 -------
 
 ``Seek`` 表达可随机定位资源的能力，不是所有 Reader/Writer 都必须实现它：
@@ -131,11 +131,11 @@ libca_io 设计文档
 
 ``Start`` 使用无符号绝对位置，``Current`` / ``End`` 使用有符号相对偏移。管道和 socket 不应假装支持定位，应返回 ``Unsupported``。
 
-6. 缓冲读写
------------
+缓冲读写
+--------
 
-6.1 BufReader
-^^^^^^^^^^^^^
+BufReader
+^^^^^^^^^
 
 ``BufReader`` 拥有一个 ``std::unique_ptr<Reader>`` 和固定容量缓冲区，并自身实现 ``Reader``。它提供：
 
@@ -146,8 +146,8 @@ libca_io 设计文档
 
 底层对象由缓冲器独占，避免非缓冲读取绕过缓冲区后破坏顺序。需要共享底层资源时，调用方应在更高层提供同步代理，而不是让 ``BufReader`` 保存裸引用。
 
-6.2 BufWriter
-^^^^^^^^^^^^^
+BufWriter
+^^^^^^^^^
 
 ``BufWriter`` 拥有一个 ``std::unique_ptr<Writer>`` 和固定容量缓冲区，并自身实现 ``Writer``。
 
@@ -159,11 +159,13 @@ libca_io 设计文档
 
 缓冲器为 move-only。移动后对象不再拥有底层流，继续操作返回 ``InvalidInput``。
 
-7. 原生 handle/fd RAII
-----------------------
+.. _io-design-handle-ownership:
 
-7.1 OwnedHandle
-^^^^^^^^^^^^^^^
+原生 handle/fd RAII
+-------------------
+
+OwnedHandle
+^^^^^^^^^^^
 
 ``OwnedHandle`` 是 move-only 的唯一所有权包装：
 
@@ -176,8 +178,8 @@ libca_io 设计文档
 
 Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。未来 ``libca_net`` 应定义自己的 ``OwnedSocket``，但 socket 流仍实现相同 ``Reader`` / ``Writer``。
 
-7.2 NativeStream
-^^^^^^^^^^^^^^^^
+NativeStream
+^^^^^^^^^^^^
 
 ``NativeStream`` 拥有 ``OwnedHandle``，并实现 ``Reader``、``Writer`` 和 ``Seek``：
 
@@ -189,7 +191,9 @@ Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。
 
 文件和进程管道可直接使用或委托给 ``NativeStream``。socket 因 Windows 关闭与 IO API 不同，由 net 模块实现同一抽象而不复用 ``NativeStream``。
 
-8. 并发与生命周期
+.. _io-design-concurrency:
+
+并发与生命周期
 -----------------
 
 - 接口本身不承诺同一对象可被多个线程无锁并发调用。
@@ -198,8 +202,8 @@ Windows ``SOCKET`` 必须调用 ``closesocket()``，不属于 ``OwnedHandle``。
 - 缓冲区返回的 ``ByteSlice`` 不拥有内存，任何后续读取、consume、移动或析构都会使其失效。
 - ``OwnedHandle`` 和 ``NativeStream`` 移动后原对象为空，不会重复关闭。
 
-9. 测试策略
------------
+测试策略
+--------
 
 测试必须覆盖：
 

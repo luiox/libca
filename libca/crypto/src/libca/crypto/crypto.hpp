@@ -1,5 +1,6 @@
 /// @file crypto.hpp
 /// @brief libca_crypto 聚合头，引入全部哈希、编码、HMAC 与流密码组件。
+///        模块设计与取舍见 doc:crypto-design。
 #pragma once
 
 #include "libca/crypto/aes.hpp"

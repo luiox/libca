@@ -4,7 +4,7 @@
 
 核心目标是支持读入、修改少量 key、写回时保留人工维护的注释、空行和顺序，而不是只把 INI 读成 map。采用 **Arena 架构**：`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine` / `LineRecord`）存 `Utf8StringRef`，析构 document 时 arena 一次性释放，无零散堆分配。输入 `Utf8StringRef`，值 `Utf8StringRef`（生命周期绑定 document）。
 
-> 设计与保格式策略见 `doc/ini设计文档.md`；以下为快速示例。接口签名见头文件 Doxygen 注释。
+> 设计与保格式策略见 `doc/ini-design.rst`；以下为快速示例。接口签名见头文件 Doxygen 注释。
 
 ## 引入
 

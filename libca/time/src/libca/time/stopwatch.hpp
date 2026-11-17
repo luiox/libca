@@ -9,7 +9,7 @@ namespace ca::time {
 /// @brief 单调秒表，构造即开始计时。
 ///
 /// `Stopwatch` 基于 `TimeUtil::nano_time()`（steady_clock）测量相对耗时，
-/// 只保存一个起点，不持有线程或系统资源。典型用法：
+/// 只保存一个起点，不持有线程或系统资源。时钟语义见 doc:time-design-clock。典型用法：
 ///
 /// @code
 /// Stopwatch watch;

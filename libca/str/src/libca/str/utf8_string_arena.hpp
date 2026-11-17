@@ -4,6 +4,7 @@
 /// @date 2026/05/31
 /// @note 固定块链式扩展，内存不挪动。无锁，**非线程安全**。
 ///       选型：一批字符串有共同死亡点（整批共存、一起销毁）用 arena；寿命各异用 Utf8StringPool。
+///       两种池化策略的选型契约见 doc:str-design-arena-pool。
 /// @warning **返回的 Utf8StringRef 生命周期绑定 arena**：arena 析构或 clear() 后全部失效；
 ///          移动赋值会释放目标旧 chunk，使其旧 ref 失效。
 /// @code

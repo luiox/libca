@@ -5,6 +5,7 @@
 ///        （from_utf8 / from_utf8_lossy / from_os_string / to_os_string / to_utf8_lossy）。
 ///        语义对齐 Rust std::path::Path：可拷贝值语义，operator/ 拼接
 ///        （右操作数为绝对路径时整体替换），native 词法比较（不访问文件系统）。
+///        模块设计与取舍见 doc:fs-design，编码边界见 doc:fs-design-path-encoding。
 
 #pragma once
 

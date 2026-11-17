@@ -3,11 +3,7 @@
 libca/xml 设计文档
 ==================
 
-.. code-block:: text
-
-   version: 1.0
-   update:
-   2026-07-26 - 首版，说明 xml 配置子集的支持范围、统一节点模型、解析器字节游标架构、writer 混合内容保真规则与已知坑
+``libca_xml`` 是 XML 配置子集的 DOM 读写模块，面向手写配置的读取、修改与写回，不做完整 XML 校验。本文讲支持范围的取舍、统一节点模型、字节游标解析器与 writer 保真规则；微观契约以 ``libca/xml`` 各头文件的 Doxygen 注释为准。
 
 定位
 ----
@@ -33,6 +29,8 @@ libca/xml 设计文档
 
 支持范围表与拒绝清单见 README。
 
+.. _xml-design-node-model:
+
 节点模型：统一的 XmlNode
 ------------------------
 
@@ -45,6 +43,8 @@ libca/xml 设计文档
 - 字符串都是 ``Utf8StringRef``\ （指向 arena），故 ``XmlNode`` 可拷贝；``clone()`` 递归深拷贝结构。
 
 **XmlDocument** 持有 arena + 声明 + prolog/epilog（root 之外的注释）+ root。root 默认空 Text （中性态）；解析后是唯一根元素。move-only。
+
+.. _xml-design-parser:
 
 解析器架构：字节游标递归下降
 ----------------------------
@@ -61,12 +61,16 @@ XML 是定界符驱动（``<...>``）而非行/缩进驱动，所以用字节游
 - ``parse_reference``：``&#DD;``/``&#xHH;`` 数字引用（累加时即时判 >0x10FFFF 越界）经 ``encode_utf8`` 编码；命名实体仅 lt/gt/amp/apos/quot，其余报 "unknown entity reference"。
 - 名字字符：ASCII 字母/数字/``_``/``-``/``.``/``:`` + 所有 ``>=0x80`` 字节（宽松放行 Unicode 名字，不做完整 XML Name 产生式校验，配置够用）。
 
+.. _xml-design-trim:
+
 trim_whitespace（默认开）
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 文本 flush 时，若该文本节点\ **全是** XML 空白（空格/\t/\r/\n）且 trim 开，则丢弃。这样缩进美化过的元素树不会挂满纯空白文本节点，导航干净、writer 可重新缩进。**含任何非空白字符的文本节点永远完整保留**\ （``Hello`` 的尾空格不丢），所以有意义的混合内容不受影响。需逐字节保真时置 false。
 
 代价：严格夹在两个兄弟元素之间的"有意义纯空白"（如 ``<b>a</b> <b>c</b>`` 的那个空格）在默认模式下会丢。这在配置里极罕见；README 已注明，关 trim 即可保。
+
+.. _xml-design-writer:
 
 Writer：混合内容保真的缩进
 --------------------------

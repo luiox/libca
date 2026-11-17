@@ -14,6 +14,7 @@
 namespace ca::net {
 
 /// @brief 判断当前构建是否包含 OpenSSL TLS 实现（with_openssl=y）。
+///        TLS 层的设计边界见 doc:net-design-tls。
 bool tls_stream_supported() noexcept;
 
 /// @brief client 侧 TLS 连接配置，默认全部安全项开启。

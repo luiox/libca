@@ -11,6 +11,7 @@ constexpr ca::usize AES_GCM_NONCE_SIZE = 12;
 constexpr ca::usize AES_GCM_TAG_SIZE = 16;
 
 /// @brief AES 运算后端选择。
+/// @note 后端取舍与能力边界见 doc:crypto-design-backend。
 /// @note Builtin 为纯软件参考实现（正确性与无外部依赖优先，不承诺常量时间）；
 ///       防御时序攻击的场景应显式选择 OpenSSL/CNG 后端。
 enum class AesBackend

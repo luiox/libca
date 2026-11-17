@@ -10,6 +10,7 @@
 /// @file bytes.hpp
 /// @brief 字节序列三件套：ByteSlice（非拥有视图）、Bytes（不可变共享）、BytesMut（可变缓冲）。
 ///        适合协议解析与序列化。类型化读写显式区分端序（_be 大端/network、_le 小端）。
+///        core 件的裁决边界见 doc:core-design，字节缓冲契约见 doc:core-design-bytes。
 /// @note 错误模型分两类，对齐全库 Result：
 ///       - **读游标类**（get_*/advance/copy_to_slice）：输入截断是解析的正常预期，
 ///         返回 `Result<T, BytesError>`，剩余不足时得到 `Err(BytesError::Underflow)`，不抛异常。
