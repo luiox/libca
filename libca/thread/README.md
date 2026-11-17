@@ -96,3 +96,43 @@ pool.join();
 - 无论使用哪种模式，都应在 `shutdown()` 后调用 `join()` 并检查返回状态。
 - `join()` 必须由线程池外部的生命周期控制线程调用，不能在池内任务中等待本池。
 - 析构会执行排空关闭作为兜底，但不应依赖析构来观察 worker 基础设施错误。
+
+## 定时执行任务
+
+```cpp
+#include "libca/thread/scheduled_executor.hpp"
+
+ca::thread::ScheduledExecutorOptions options;
+options.thread_count = 2;
+options.task_capacity = 64;
+
+auto created = ca::thread::ScheduledExecutor::create(options);
+if (created.is_err()) {
+    handle_error(created.unwrap_err());
+    return;
+}
+auto executor = std::move(created).unwrap();
+auto submitted = executor.schedule_after(std::chrono::milliseconds(25), [] {
+    return 42;
+});
+if (submitted.is_err()) {
+    handle_error(submitted.unwrap_err());
+    return;
+}
+auto task = std::move(submitted).unwrap();
+auto answer = task.future.get();
+handle_status(executor.shutdown(ca::thread::ShutdownMode::Drain));
+handle_status(executor.join());
+```
+
+`task_capacity` 约束所有尚未完成的任务，包含等待、运行和周期任务。容量用尽时提交返回
+`RESOURCE_EXHAUSTED`。`schedule_at()` 接受 `steady_clock` 的绝对时间点，
+`schedule_after()` 接受相对延迟。任务到期后由空闲 worker 执行。
+
+周期任务可选择 `schedule_fixed_delay()` 或 `schedule_fixed_rate()`。固定延迟从上一次调用结束时起算，
+固定频率沿提交时的时间轴续期并跳过已错过的时隙。同一周期任务的多次调用依次完成。
+
+调用 `task.handle.cancel()` 可取消等待中的任务，并使其 future 抛出 `TaskCancelled`。
+运行中的任务通过自己的 `StopToken` 观察取消请求。周期任务的 future 用于观察取消和回调异常。
+`Drain` 等待已接受的一次性任务到期执行，并结束周期续期。`CancelPending` 取消等待中的任务并请求
+运行中的任务停止。析构执行 `CancelPending` 和 join，生命周期控制线程可显式调用并检查状态。

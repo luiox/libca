@@ -71,13 +71,13 @@ API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得�
 | **fs** | 文件与路径（封装 std::filesystem） |
 | **io** | Reader/Writer 抽象、buffer 与 native stream |
 | **net / http** | Socket/DNS（带 TTL 缓存，可注入解析器）/TCP/UDP/TLS 适配层/SockUtil；HTTP client/server（可选 OpenSSL，可选共享连接池与 DNS 缓存） |
-| **thread** | 结构化并发：ThreadPool/StopToken/BoundedQueue/Timer/EventBus/MessageLoop |
+| **thread** | 结构化并发及定时调度，含 ThreadPool、ScheduledExecutor、StopToken、BoundedQueue、Timer、EventBus、MessageLoop |
 | **process** | 子进程控制 + IPC（管道/共享内存/信号量/消息队列/无内核对象共享内存环 ShmRingQueue） |
 | **crypto** | SHA-1/2/3、MD5、HMAC/HKDF/PBKDF2、CRC、base64/base32；AES（ECB/CBC/CTR，内置实现 + 可选 OpenSSL/CNG 后端） |
 | **log** | 日志门面，后端可插拔（可选 spdlog） |
 | **config** | 强类型配置中心：`ConfigVar<T>` 幂等注册与变更监听 |
 | **opt** | 命令行选项解析 |
-| **time** | 日期时间 / duration / timestamp |
+| **time** | 日期时间、Duration / Timestamp、溢出检查和单调计时 |
 | **zip** | JVM ZipFile 语义 ZIP 读写 + 流式 gzip（可选 zlib） |
 | **random / uuid / env** | 随机数 / UUID / 环境变量 |
 | **resources / i18n** | 构建期资源嵌入 / `.lang` 消息国际化 |

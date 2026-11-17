@@ -2,10 +2,10 @@
 
 #include "libca/time/duration.hpp"
 #include "libca/time/scope_timing.hpp"
+#include "steady_clock_test_support.hpp"
 
 #include <chrono>
 #include <string>
-#include <thread>
 
 namespace ca::time {
 
@@ -60,7 +60,7 @@ TEST(ScopeTimingTest, GuardRecordsElapsedIntoInjectedRegistry)
     ScopeTimingRegistry registry;
     {
         ScopeTiming timing("sleep_scope", registry);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        test::wait_for_elapsed(std::chrono::milliseconds(10));
     }
 
     const auto snapshot = registry.snapshot();
