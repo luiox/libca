@@ -6,4 +6,3 @@
 
 - `[待办]` 协议子集边界在 README 明示：http 无协议升级（WebSocket）、yaml 无锚点/别名/ 多文档、xml 无 DTD/PI，避免下游预期落差。
 - `[待办]` 功能方向评估：fs 的 glob/通配匹配与目录监听；thread 的定时调度（scheduled executor）；time 模块加厚（自述薄）。
-
