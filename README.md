@@ -55,6 +55,10 @@ int main() {
 
 API 即文档：所有公开接口都有 Doxygen 头注释，查头文件即得用法。
 
+### 迁移
+
+主分支已移除弃用的 `ca::Singleton<T>`。`ca::MeyersSingleton<T>::get_instance()` 以默认构造创建实例并返回引用。需要构造参数时可使用函数内静态对象或依赖注入。
+
 ## 模块
 
 | 模块 | 职责 |

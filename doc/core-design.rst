@@ -114,3 +114,8 @@ core 是基础层，新增能力应优先补单元测试；对平台相关行为
 4. ``status.hpp``、``scope_guard.hpp``：理解通用状态返回和作用域清理工具。
 5. ``cast.hpp``、``any.hpp``：理解轻量 RTTI 与类型擦除。
 6. ``dynamic_library.hpp``、``stacktrace.hpp``、``platform.hpp``：仅在动态加载、调试或平台相关需求中阅读。
+
+单例生命周期
+------------
+
+``wrapper.hpp``\ 对齐 C++17 的函数内静态初始化语义。``ca::MeyersSingleton<T>``\ 按类型持有默认构造的实例，首次调用初始化并返回引用。旧接口 ``ca::Singleton<T>``\ 已移除。需要构造参数的调用方可定义自己的函数内静态对象，或在明确拥有者处构造并以依赖注入传递实例。
