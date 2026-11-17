@@ -2,9 +2,9 @@
 
 #include "libca/time/duration.hpp"
 #include "libca/time/stopwatch.hpp"
+#include "steady_clock_test_support.hpp"
 
 #include <chrono>
-#include <thread>
 
 namespace ca::time {
 
@@ -15,7 +15,7 @@ TEST(StopwatchTest, StartsOnConstructionAndElapsedGrows)
 
     // elapsed 非负且随真实时间单调不减
     const Duration first = watch.elapsed();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    test::wait_for_elapsed(std::chrono::milliseconds(10));
     const Duration second = watch.elapsed();
 
     EXPECT_GE(first.nanoseconds(), 0);
@@ -26,39 +26,42 @@ TEST(StopwatchTest, StartsOnConstructionAndElapsedGrows)
 TEST(StopwatchTest, RestartResumesFromZero)
 {
     Stopwatch watch;
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    test::wait_for_elapsed(std::chrono::milliseconds(10));
     const Duration before = watch.elapsed();
     ASSERT_GE(before.nanoseconds(), Duration::from_milliseconds(10).nanoseconds());
 
+    const auto restart_started = std::chrono::steady_clock::now();
     watch.restart();
-    EXPECT_TRUE(watch.is_running());
-
-    // restart 后重新从零计时，新耗时远小于之前的累计值
     const Duration after = watch.elapsed();
-    EXPECT_LT(after.nanoseconds(), before.nanoseconds());
+    const auto restart_finished = std::chrono::steady_clock::now();
+
+    // 新耗时只包含 restart 之后的时间，即使线程在调用之间被抢占。
+    EXPECT_TRUE(watch.is_running());
+    EXPECT_GE(after.nanoseconds(), 0);
+    EXPECT_LE(after, Duration::from_chrono(restart_finished - restart_started));
 
     // restart 后继续正常计时
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    test::wait_for_elapsed(std::chrono::milliseconds(5));
     EXPECT_GE(watch.elapsed().nanoseconds(), Duration::from_milliseconds(5).nanoseconds());
 }
 
 TEST(StopwatchTest, ResetStopsAndFreezesAtZero)
 {
     Stopwatch watch;
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    test::wait_for_elapsed(std::chrono::milliseconds(5));
     watch.reset();
 
     EXPECT_FALSE(watch.is_running());
     EXPECT_TRUE(watch.elapsed().is_zero());
 
     // 停表状态下耗时冻结为 0
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    test::wait_for_elapsed(std::chrono::milliseconds(5));
     EXPECT_TRUE(watch.elapsed().is_zero());
 
     // restart 后恢复计时
     watch.restart();
     EXPECT_TRUE(watch.is_running());
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    test::wait_for_elapsed(std::chrono::milliseconds(5));
     EXPECT_GE(watch.elapsed().nanoseconds(), Duration::from_milliseconds(5).nanoseconds());
 }
 
