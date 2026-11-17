@@ -7,6 +7,12 @@
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
 - 不兼容变更必须在合并前补充条目（见 README说明）
 
+## [Unreleased]
+
+### libca
+
+- **[core，不兼容]** 移除 `libca/core/wrapper.hpp` 中已弃用的 `ca::Singleton<T>`。默认构造的单例可改用 `ca::MeyersSingleton<T>::get_instance()`，返回值由指针改为引用。带构造参数的实例可在调用方使用函数内静态对象，或由调用方构造并注入（#123）。
+
 ## [0.0.16] - 2026-10-19
 
 ### libca
