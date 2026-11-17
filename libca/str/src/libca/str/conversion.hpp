@@ -82,7 +82,7 @@ usize utf16_to_utf8(const u16* utf16, usize unitCount, u8* utf8) noexcept;
 // UTF-8 / US-ASCII / Latin-1 ↔ UTF-16（拥有型，Result 错误通道）
 // ============================================================================
 // 直接产出 std::u16string / std::string：空输入返回空串，非法输入返回
-// StatusCode::INVALID_ARGUMENT，不再用 0 同时表示「空」与「非法」。
+// StatusCode::INVALID_ARGUMENT，不再用 0 同时表示空与非法。
 // UTF-16 侧是 code unit 序列：孤立的 lead/trail 代理在 UTF-8 出口算非法，
 // 在 ASCII / Latin-1 出口因超出可表示范围同样算非法。
 

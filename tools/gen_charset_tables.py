@@ -223,8 +223,8 @@ def check_spot_vectors(config):
 def derive_gb18030_ranges():
     """从 python gb18030 codec 推导四字节线性区间表（WHATWG index-gb18030-ranges 同源）。
 
-    GB18030 四字节指针空间是「已赋值码点（非 ASCII / 非双字节 / 非代理项）按码点
-    序的稠密排名」，码点有洞处指针跳变，因此整体是分段线性的：指针 207 段。
+    GB18030 四字节指针空间是已赋值码点（非 ASCII / 非双字节 / 非代理项）按码点
+    序的稠密排名，码点有洞处指针跳变，因此整体是分段线性的：指针 207 段。
     返回按 start_cp 升序的 [(start_cp, start_pointer), ...]。
     """
     samples = []
@@ -437,7 +437,7 @@ def render_inc(config, decode, ranges=None, max_ptr=None):
 
     parts = []
     parts.append("""//
-// %s 双字节码表 —— 由 tools/gen_charset_tables.py 生成，请勿手工编辑。
+// %s 双字节码表，由 tools/gen_charset_tables.py 生成，请勿手工编辑。
 // 生成命令：python tools/gen_charset_tables.py --charset %s
 // 数据源：python 内置 codec "%s"（与 WHATWG encoding 标准 index-%s 同源），
 // 生成时已断言 WHATWG 抽样向量一致 + %s。

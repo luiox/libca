@@ -94,7 +94,7 @@ Result<KvStore, ParseError> KvStore::load(const std::string& path)
             }
         }
     }
-    // JSON 重复 key 时 emplace 首个生效，与 JsonValue::find()「返回首个」语义一致。
+    // JSON 重复 key 时 emplace 首个生效，与 JsonValue::find()返回首个语义一致。
     return ca::Ok(std::move(store));
 }
 

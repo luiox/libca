@@ -10,7 +10,7 @@
 #include <vector>
 
 /// @file array_list.hpp
-/// @brief ArrayList — Rust-like 基础 API 的可变顺序容器。
+/// @brief ArrayList: Rust-like 基础 API 的可变顺序容器。
 
 namespace ca::collection {
 

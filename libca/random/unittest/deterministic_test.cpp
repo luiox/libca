@@ -14,7 +14,7 @@
 //     regcStringXorshift32（与 native_lib_crypto.hpp::xorshift32Step
 //     同式，vmc4 链路引用的是后者，两者已逐位核对一致）。
 // 背景 上游需求 A3/A4：上游侧 splitmix64/xorshift32 副本收敛到
-// libca 单份后，要求输出逐位不变——本文件任何向量变更都意味着破坏下游对拍。
+// libca 单份后，要求输出逐位不变，本文件任何向量变更都意味着破坏下游对拍。
 
 namespace ca::random::test {
 namespace {

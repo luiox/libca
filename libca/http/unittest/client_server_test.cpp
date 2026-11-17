@@ -991,7 +991,7 @@ TEST(HttpClientServerTest, ChunkedRequestUploadsBodyInChunks)
     EXPECT_TRUE(response.finish().is_ok());
 }
 
-// issue #228：stop 轮询路径必须以 select 等就绪、读本身不带超时——阻塞中的
+// issue #228：stop 轮询路径必须以 select 等就绪、读本身不带超时，阻塞中的
 // deadline read 在 stop 后应在轮询间隔量级返回取消错误，而不是依赖"阻塞读被
 // SO_RCVTIMEO 打断（Windows 上连接状态不确定）后重试"的语义；取消后连接还须
 // 保持可用，证明 socket 状态未被超时扰动。
@@ -1077,7 +1077,7 @@ TEST(HttpClientServerTest, DeadlineReaderStopPollingCancelsPromptlyAndKeepsSocke
 TEST(HttpClientServerTest, NonRetryableRequestOnResetConnectionKeepsOriginalDiagnostic)
 {
     // 脚本化 server：只接受一条连接。GET 正常响应（keep-alive）；读到复用连接上
-    // 下一个请求的首字节后，带着未读入站数据直接 close——close 因存在未读数据
+    // 下一个请求的首字节后，带着未读入站数据直接 close，close 因存在未读数据
     // 触发 RST 而非优雅 FIN，客户端 POST 失败时错误里应带上原始 reset 诊断。
     auto bound = net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
     ASSERT_TRUE(bound.is_ok());

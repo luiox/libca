@@ -351,7 +351,7 @@ TEST(OptParseTest, EmptyNameIsRejected)
     root.name = "prog";
     Arg a;
     a.aliases = {"-v"};
-    a.name    = "";  // 空 name，仅别名 —— 应被拒绝
+    a.name    = "";  // 空 name，仅别名，应被拒绝
     a.kind    = OptKind::Flag;
     root.args = {a};
     Parser p(root);
@@ -367,7 +367,7 @@ TEST(OptParseTest, RequiredWithDefaultIsRejected)
 {
     Command root;
     root.name = "prog";
-    // required + default_value 同时为真 —— 语义矛盾，应拒绝。
+    // required + default_value 同时为真，语义矛盾，应拒绝。
     root.args = {opt("cfg", 'c', "config", "default.ini", true)};
     Parser p(root);
     Argv argv = make_argv({"-c", "x.ini"});
@@ -1135,7 +1135,7 @@ TEST(OptV2P2Test, HelpTextGroupFilter)
 }
 
 // ==========================================================================
-// 值来源查询与互斥组判定修正：静态默认不构成「选择」
+// 值来源查询与互斥组判定修正：静态默认不构成选择
 // ==========================================================================
 
 using ca::opt::ValueSource;
@@ -1617,7 +1617,7 @@ TEST(OptV2FixTest, IntRejectsWhitespaceForms)
 }
 
 // 跨层级同名选项：父命令 CLI 显式给值不被子命令的种子（default/注入初值）覆盖
-// ——「命令行恒为最高」的全局优先级跨层级成立。
+// ，命令行恒为最高的全局优先级跨层级成立。
 TEST(OptV2FixTest, AncestorCliValueSurvivesDescendantSeed)
 {
     Arg level;

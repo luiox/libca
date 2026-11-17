@@ -1,5 +1,5 @@
 /// @file immutable_list.hpp
-/// @brief ImmutableList — 构造后内容只读的列表（header-only 模板）。
+/// @brief ImmutableList: 构造后内容只读的列表（header-only 模板）。
 ///
 /// 命名空间 ca::collection。底层数组用 `std::unique_ptr<const T[]>` 持有，
 /// 无拷贝（只支持移动），通过 appended() 产生新列表实现"逻辑可变"。

@@ -352,11 +352,11 @@ TEST(Utf8StringPoolTest, BucketCollisionEraseKeepsOther) {
     EXPECT_EQ(again.data(), keep.data());
 }
 
-// ---- Step 5: Pool 退出 fail-safe（disown）—— 消除「Pool 先死、PooledPtr 后死」UAF ----
+// ---- Step 5: Pool 退出 fail-safe（disown）， 消除Pool 先死、PooledPtr 后死UAF ----
 //
 // 这些测试覆盖原本会 UAF 的三条退出路径（析构 / clear / move-assign）。
-// 契约依据：spec §8「clear 整体兜底，不依赖 refcount 全部归零的纪律」——
-// 故「Pool 死时仍有 PooledPtr 活着」是设计预期的兜底场景，不是违约，绝不能崩。
+// 契约依据：spec §8clear 整体兜底，不依赖 refcount 全部归零的纪律，
+// 故Pool 死时仍有 PooledPtr 活着是设计预期的兜底场景，不是违约，绝不能崩。
 
 TEST(Utf8StringPoolTest, PoolDestructorBeforePooledPtr_NoUaf) {
     // Pool 先析构，PooledPtr 后析构：disown 后 PooledPtr 自管释放，无 UAF。

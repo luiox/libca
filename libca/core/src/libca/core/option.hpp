@@ -1,6 +1,6 @@
 /// @file option.hpp
 /// @brief Option\<T\>：可空值语义（对标 Rust Option / Some / None）。
-/// @details 与 Result<T, E>（成败语义）互补：表达「可能有值也可能没有」。
+/// @details 与 Result<T, E>（成败语义）互补：表达可能有值也可能没有。
 ///          内部基于 std::optional 存储实现（与 collection 模块包装 STL 容器同一策略），
 ///          API 面向 Rust 语义：Some/None 工厂、unwrap 家族、组合子与 Result 桥接。
 /// @note unwrap()/expect() 在 None 上 std::terminate（与 Result::unwrap 的失败行为一致）；
@@ -32,7 +32,7 @@ struct NoneT {
 inline constexpr NoneT None{};
 
 /// @brief 可空值（对标 Rust Option\<T\>）：Some(值) 或 None。
-/// @tparam T 值类型；T 须非 void（「可能有 void」退化为 bool，无意义）。
+/// @tparam T 值类型；T 须非 void（可能有 void退化为 bool，无意义）。
 /// @details 拷贝/移动语义跟随 T（T 可拷贝则 Option 可拷贝，T 仅移动则 Option 仅移动）。
 template<typename T>
 class Option {
@@ -105,7 +105,7 @@ public:
     }
 
     /// @brief 指针式访问（已确认 Some 的快捷路径，等价 unwrap() 的 operator 语法糖）。
-    /// @warning None 上解引用是 UB——与 std::optional::operator-> 同契约。
+    /// @warning None 上解引用是 UB，与 std::optional::operator-> 同契约。
     const T* operator->() const { return &*value_; }
     /// @brief 同 const 版本，返回可写指针。
     /// @warning None 上解引用是 UB。

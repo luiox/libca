@@ -112,7 +112,7 @@ TEST(CharsetConverterTest, InvalidUtf16Rejected) {
 
 #else  // !defined(_WIN32)
 
-// POSIX wchar 为 UCS-4。注意不能用「超出 Unicode 上限」做非法样本：glibc 的
+// POSIX wchar 为 UCS-4。注意不能用超出 Unicode 上限做非法样本：glibc 的
 // UTF-8 编码器按老 UCS-4 上限 0x7FFFFFFF 收值，0x110000 会被编成 5 字节序列
 // 而不报错。取 0x80000000（超出任何可编码范围）作为 iconv 保证拒绝的输入。
 TEST(CharsetConverterTest, InvalidWideCodePointRejected) {

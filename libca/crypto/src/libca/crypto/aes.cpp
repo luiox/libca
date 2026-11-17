@@ -666,7 +666,7 @@ Result<Bytes, CryptoError> cng_crypt(const wchar_t* chaining_mode, ByteSlice key
 
 // CTR 专用 CNG 流程。实测部分 Windows 的 AES primitive provider 会拒绝
 // ChainingModeCTR（BCryptSetProperty 返回 STATUS_INVALID_PARAMETER），因此这里
-// 不依赖原生 CTR：用「连续计数块缓冲 + ECB 批量加密」生成 keystream 后与数据
+// 不依赖原生 CTR：用连续计数块缓冲 + ECB 批量加密生成 keystream 后与数据
 // XOR，计数块按 128 位大端递增，语义与 SP800-38A 及其他后端严格一致。
 Result<Bytes, CryptoError> cng_ctr_crypt(ByteSlice key, ByteSlice counter_block, ByteSlice input)
 {

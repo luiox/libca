@@ -290,7 +290,7 @@ TEST(HttpConnectionPoolTest, KeepsDifferentOriginsSeparate)
 TEST(HttpConnectionPoolTest, ProbesAndRebuildsAfterServerClosedIdleConnection)
 {
     // 脚本化原始 server：每条连接响应一次后立即整体关闭。归还池中的连接在下一次
-    // checkout 时应被探活识别为失效并丢弃重建；用非幂等的 POST 验证——若探活失效，
+    // checkout 时应被探活识别为失效并丢弃重建；用非幂等的 POST 验证，若探活失效，
     // 写入会撞上 reset 且 POST 不会自动重试，请求必然失败。
     auto bound = net::TcpListener::bind(net::SocketAddress(net::IpAddress::localhost_v4(), 0));
     ASSERT_TRUE(bound.is_ok());

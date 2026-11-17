@@ -40,7 +40,7 @@ public:
         // to_chars 最短 round-trip：保证读回同一 double，且比 %.17g 显著更短更可读
         //（0.1 写作 "0.1" 而非 "0.10000000000000001"），也无 snprintf 的 locale/
         // 格式串开销。整数形态（2.0 写成 "2"、-0.0 写成 "-0"）读回会被当 Int，
-        // 类型与 -0.0 的符号双双丢失——需补 ".0" 保持 Float 形态
+        // 类型与 -0.0 的符号双双丢失，需补 ".0" 保持 Float 形态
         // （与 toml/yaml writer 做法一致）。
         auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), static_cast<double>(v));
         if (ec != std::errc{}) { sb_.append("0.0"); return; }

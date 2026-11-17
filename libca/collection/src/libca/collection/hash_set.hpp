@@ -11,7 +11,7 @@
 #include <utility>
 
 /// @file hash_set.hpp
-/// @brief HashSet — Rust-like 基础 API 的哈希集合容器。
+/// @brief HashSet: Rust-like 基础 API 的哈希集合容器。
 
 namespace ca::collection {
 

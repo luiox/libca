@@ -47,7 +47,7 @@ class TomlValue {
 public:
     /// Table 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "TomlValue 内含 TomlValue" 的
-    ///       循环定义——vector 支持不完整元素类型，pair 由标准库完整定义。
+    ///       循环定义，vector 支持不完整元素类型，pair 由标准库完整定义。
     using TableMember  = std::pair<ca::str::Utf8StringRef, TomlValue>;
     using TableStorage = std::vector<TableMember>;
     /// Array 元素的存储类型。
@@ -74,7 +74,7 @@ public:
     ~TomlValue();
 
     /// 显式深拷贝（递归拷贝整个子树）。字符串引用不复制 arena，故深拷贝出的 TomlValue
-    /// 仍指向原 arena——只是结构是新的。需完全独立的副本时另起 TomlDocument。
+    /// 仍指向原 arena，只是结构是新的。需完全独立的副本时另起 TomlDocument。
     TomlValue clone() const;
 
     // ---- 工厂 ----

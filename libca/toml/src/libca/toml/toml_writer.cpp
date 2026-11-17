@@ -19,7 +19,7 @@ namespace {
 
 // 时间部分统一格式化：HH:MM:SS[.fraction]，小数部分去掉尾随 0。
 // 秒与纳秒分别按整数格式化：不可对 "second + nanos/1e9" 的浮点值做
-// "%09.9f" 宽度格式化——宽度 9 小于 "S.SSSSSSSSS" 的实际长度，个位秒会
+// "%09.9f" 宽度格式化，宽度 9 小于 "S.SSSSSSSSS" 的实际长度，个位秒会
 // 丢失前导零（产出违反 TOML time-second = 2DIGIT 的非法输出），且
 // double 相加本身有精度风险。
 int format_hms(char* out, size_t cap, unsigned hour, unsigned minute,

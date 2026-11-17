@@ -106,7 +106,7 @@ TEST(ChannelTest, AllSendersDroppedReturnsNullopt)
         tx.send(1);
         tx2.send(2);
     }
-    // tx2 销毁，但 tx 仍存活——先把它也销毁，模拟"全部生产者离开"。
+    // tx2 销毁，但 tx 仍存活，先把它也销毁，模拟"全部生产者离开"。
     tx.close();
 
     EXPECT_EQ(rx.recv(), std::optional<int>(1));

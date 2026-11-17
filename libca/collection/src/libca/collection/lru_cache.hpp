@@ -10,7 +10,7 @@
 #include <utility>
 
 /// @file lru_cache.hpp
-/// @brief LruCache — 容量受限、按 LRU 策略淘汰的哈希缓存。
+/// @brief LruCache: 容量受限、按 LRU 策略淘汰的哈希缓存。
 
 namespace ca::collection {
 

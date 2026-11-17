@@ -133,7 +133,7 @@ TEST(StdioFileTest, ReadFileAllRejectsDirectory)
 {
     StdioTempDirGuard guard;
     // 目录不是可读文件：POSIX fopen 目录成功，read_file_all 在探尺寸前 fstat
-    // 拒绝（IsADirectory——glibc 目录流 ftello 返回垃圾大值，缺此拦截会按
+    // 拒绝（IsADirectory，glibc 目录流 ftello 返回垃圾大值，缺此拦截会按
     // 该 size 分配抛 length_error）；Windows 打开/读取失败按 errno 归类。
     auto content = read_file_all(Path::from_utf8_lossy(guard.path()));
     ASSERT_TRUE(content.is_err());

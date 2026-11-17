@@ -9,7 +9,7 @@
 using namespace ca::str;
 
 // ============================================================
-// format —— 编译期校验，返回 Utf8String
+// format: 编译期校验，返回 Utf8String
 // ============================================================
 
 TEST(FormatTest, basic_int_string) {
@@ -46,7 +46,7 @@ TEST(FormatTest, returns_utf8string_with_correct_semantics) {
 }
 
 // ============================================================
-// format_std —— 编译期校验，返回 std::string（不校验 UTF-8）
+// format_std: 编译期校验，返回 std::string（不校验 UTF-8）
 // ============================================================
 
 TEST(FormatStdTest, returns_std_string) {
@@ -144,7 +144,7 @@ TEST(FormatTest, format_to_builder_utf8_then_build_validates) {
 }
 
 // ============================================================
-// format_to(std::string) —— 不校验 UTF-8
+// format_to(std::string): 不校验 UTF-8
 // ============================================================
 
 TEST(FormatTest, format_to_std_string) {
@@ -167,7 +167,7 @@ TEST(FormatTest, format_to_std_string_returns_ref) {
 }
 
 // ============================================================
-// format_runtime —— 运行期格式串
+// format_runtime: 运行期格式串
 // ============================================================
 
 TEST(FormatRuntimeTest, runtime_format_string) {

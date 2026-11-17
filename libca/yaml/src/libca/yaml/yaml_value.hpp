@@ -43,7 +43,7 @@ class YamlValue {
 public:
     /// Mapping 成员的存储类型：pair 的 first 是 key（Utf8StringRef），second 是 value。
     /// @note 用 std::pair 而非自定义 struct 是为了打破 "YamlValue 内含 YamlValue" 的
-    ///       循环定义——vector 支持不完整元素类型，pair 由标准库完整定义。
+    ///       循环定义，vector 支持不完整元素类型，pair 由标准库完整定义。
     using MappingMember  = std::pair<ca::str::Utf8StringRef, YamlValue>;
     using MappingStorage = std::vector<MappingMember>;
     /// Sequence 元素的存储类型。
@@ -69,7 +69,7 @@ public:
     ~YamlValue();
 
     /// 显式深拷贝（递归拷贝整个子树）。字符串引用不复制 arena，故深拷贝出的 YamlValue
-    /// 仍指向原 arena——只是结构是新的。需完全独立的副本时另起 YamlDocument。
+    /// 仍指向原 arena，只是结构是新的。需完全独立的副本时另起 YamlDocument。
     YamlValue clone() const;
 
     // ---- 工厂 ----

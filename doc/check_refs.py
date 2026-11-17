@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""代码引用面门禁：规范见 AGENTS.md「文档规范」。
+"""代码引用面门禁：规范见 AGENTS.md文档规范。
 
 只认三类可校验事实，其余一律失败：
 
@@ -9,10 +9,10 @@
 2. 代码面出现的 ``doc/...rst`` 路径必须存在。
 3. 代码面不得引用设计内容形态的 ``.md``。白名单只有流程文档（README/
    CHANGELOG/AGENTS/CLAUDE/dev_plan 及各模块 doc/ 下尚未转写的存量设计
-   md——转写批次逐个摘除）；跨仓出处必须带仓名标记（libjbc / libjzip /
+   md，转写工作逐个摘除）；跨仓出处必须带仓名标记（libjbc / libjzip /
    mjbase / luiox / 私有仓），带标记即视为 prose，不做存在性校验。
-4. RST 里「``X`` 头注」指向微观层：``X`` 必须是某个 ``@defgroup`` 组名或某个
-   头文件名。宏观规格不许指向不存在的组注释——那一半内容就失踪了。
+4. RST 里``X`` 头注指向微观层：``X`` 必须是某个 ``@defgroup`` 组名或某个
+   头文件名。宏观规格不许指向不存在的组注释，那一半内容就失踪了。
 
 用法：python doc/check_refs.py [仓库根]
 """
@@ -29,10 +29,10 @@ CODE_ROOTS = ("libca", "tests", "xmake.lua")
 CODE_SUFFIXES = {".hpp", ".cpp", ".h", ".c", ".lua", ".sh", ".py", ".inc"}
 
 # 流程文档：仓库级、稳定、允许被代码注释点名，但只校验存在性。
-# 各模块 doc/ 下的存量设计 md 属待转写批次，暂列白名单（按 .name 豁免）。
+# 各模块 doc/ 下的存量设计 md 属待转写工作，暂列白名单（按 .name 豁免）。
 PROCESS_DOCS = {"README.md", "CHANGELOG.md", "AGENTS.md", "CLAUDE.md", "dev_plan.md",
                 "SECURITY.md", "CONTRIBUTING.md", "功能索引.md", "加密与编码内置化方案.md",
-                "后续批次路线图.md"}
+                "后续工作路线图.md"}
 # 跨仓出处的 prose 标记：命中则该行的 .md 提及不参与存在性校验。
 UPSTREAM_MARKERS = ("libjbc", "libjzip", "mjbase", "libca-em", "luiox", "私有仓", "私仓")
 
@@ -49,7 +49,7 @@ DEFGROUP = re.compile(r"@defgroup\s+([\w.-]+)")
 
 
 def micro_targets(src_root: Path):
-    """微观层可被「X 头注」点名的锚点：@defgroup 组名 + 头文件名/.stem。"""
+    """微观层可被X 头注点名的锚点：@defgroup 组名 + 头文件名/.stem。"""
     groups, headers = set(), set()
     if not src_root.is_dir():
         return groups, headers
@@ -152,7 +152,7 @@ def check(root: Path):
                     if any(marker in line for marker in UPSTREAM_MARKERS):
                         continue
                     problems.append(
-                        f"{rel}:{lineno}: 文档点名 markdown 规格 {m.group(0)}——"
+                        f"{rel}:{lineno}: 文档点名 markdown 规格 {m.group(0)}，"
                         "本仓设计内容用 :ref:，跨仓出处加仓名标记"
                     )
                 for m in REF_ROLE.finditer(line):
@@ -168,7 +168,7 @@ def check(root: Path):
                     if target in micro_groups or target in micro_headers:
                         continue
                     problems.append(
-                        f"{rel}:{lineno}: 「{target} 头注」在微观层无锚点——"
+                        f"{rel}:{lineno}: {target} 头注在微观层无锚点，"
                         f"应为 @defgroup 组名或头文件名（现有组：{', '.join(sorted(micro_groups)) or '无'}）"
                     )
 
@@ -189,7 +189,7 @@ def check(root: Path):
                     continue
                 if any(marker in line for marker in UPSTREAM_MARKERS):
                     continue
-                problems.append(f"{rel}:{lineno}: 代码面引用 markdown 规格 {m.group(0)}——设计内容转 doc/*.rst，或删指")
+                problems.append(f"{rel}:{lineno}: 代码面引用 markdown 规格 {m.group(0)}，设计内容转 doc/*.rst，或删指")
 
     return problems
 

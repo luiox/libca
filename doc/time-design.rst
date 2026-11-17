@@ -100,15 +100,10 @@ Date / Time / DateTime
 Stopwatch 与 ScopeTiming
 ---------------------------
 
-``Stopwatch`` 与 ``ScopeTiming`` 是两个只测相对耗时的测量入口，统一走 ``TimeUtil::nano_time()``
-（steady_clock），不引入 wall clock，避免系统对时干扰测量。
+``Stopwatch`` 与 ``ScopeTiming`` 是两个只测相对耗时的测量入口，统一走 ``TimeUtil::nano_time()`` （steady_clock），不引入 wall clock，避免系统对时干扰测量。
 
-- ``Stopwatch`` 是纯表示类：构造即启动，只保存一个起点。``restart()`` 把起点移到当前时刻
-  重新计时；``reset()`` 进入停表态，``elapsed()`` 冻结为 0 直到下次 ``restart()``。不提供
-  start/stop 累计语义，保持“测一段代码耗时”的最小用法。
-- ``ScopeTiming`` 是 RAII guard：构造登记名字并取起点，析构把耗时累计进注册表。聚合
-  统计（``count/total/max``）放在 ``ScopeTimingRegistry``，以 std::mutex 保护，guard 本身
-  不加锁。全局默认注册表是进程级单例，测试注入独立注册表即可精确断言、互不污染。
+- ``Stopwatch`` 是纯表示类：构造即启动，只保存一个起点。``restart()`` 把起点移到当前时刻重新计时；``reset()`` 进入停表态，``elapsed()`` 冻结为 0 直到下次 ``restart()``。不提供 start/stop 累计语义，保持“测一段代码耗时”的最小用法。
+- ``ScopeTiming`` 是 RAII guard：构造登记名字并取起点，析构把耗时累计进注册表。聚合统计（``count/total/max``）放在 ``ScopeTimingRegistry``，以 std::mutex 保护，guard 本身不加锁。全局默认注册表是进程级单例，测试注入独立注册表即可精确断言、互不污染。
 
 溢出策略与 Duration 一致：不做运行时检查，高频路径保持轻量。
 

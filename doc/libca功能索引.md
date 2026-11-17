@@ -26,8 +26,7 @@
 - `Result<T, E>`：用返回值表达成功/失败，提供 `Ok`、`Err`、链式处理和错误传播辅助。
 - `Option<T>`：Rust 语义可空值（`Some`/`None`），与 `Result` 经 `ok_or`/`ok`/`err` 互转。
 - `Bytes` / `BytesMut` / `ByteSlice`：字节缓冲、字节视图和协议解析辅助。
-- varint（LEB128）与 zigzag：`put_var_u32/u64`、`get_var_u32/u64`（非规范编码报
-  `BytesError::MalformedVarint`）、`zigzag_encode/decode` 有符号映射。
+- varint（LEB128）与 zigzag：`put_var_u32/u64`、`get_var_u32/u64`（非规范编码报 `BytesError::MalformedVarint`）、`zigzag_encode/decode` 有符号映射。
 - 类型转换：精确动态类型匹配、类型判断和安全转换辅助。
 - `Any`：轻量类型擦除，适合需要运行时保存少量异构值的边界。
 - 平台检测、导出宏、栈追踪等基础工具。
@@ -66,10 +65,7 @@ UTF-8 字符串与所有权模型模块。
 - `format` / `format_to` / `format_runtime`：基于 fmt 的 `{}`-style 格式化门面，返回 `Utf8String` 或追加到 builder/std::string（对标 Rust `format!`）。fmt 以 str 的 public 依赖提供，下游模块通过 `add_deps("libca_str")` 间接拿到。
 - `OsString` / `OsStr`：平台原生编码字符串载体（Windows UTF-16 / POSIX UTF-8），用于与 OS API 边界交互。
 - `CharsetConverter` 编码转换，三级查找：内置表 → iconv 回落（Tier3 长尾）→ UNSUPPORTED。
-  - 内置：UTF-8/16/32 纯算法互转、Latin-1（`latin1_*`）、CP1252（`cp1252_*`，
-    WHATWG index-windows-1252 差异表）、GB18030（`gb18030_*` 四方向，含 GBK/GB2312，
-    WHATWG 同源表构建期生成入库，四字节序列纯算法）；`supported()` / `list_supported()`
-    能力查询。
+  - 内置：UTF-8/16/32 纯算法互转、Latin-1（`latin1_*`）、CP1252（`cp1252_*`， WHATWG index-windows-1252 差异表）、GB18030（`gb18030_*` 四方向，含 GBK/GB2312， WHATWG 同源表构建期生成入库，四字节序列纯算法）；`supported()` / `list_supported()` 能力查询。
   - 裁剪 glibc 环境 GBK 不依赖 gconv 模块，固定向量跨平台一致。
 - C 字符串、宽字符串、字符分类和字符串工具函数。
 - `detect_bom` / `strip_bom`：UTF BOM 检测与剥离（UTF-8/16/32，最长匹配优先）。
@@ -89,13 +85,10 @@ UTF-8 字符串与所有权模型模块。
 - `<libca/fs/fs_error.hpp>`
 
 功能：
-- `Path`：路径值类型，编码边界收敛点——从字符串构造必须经 `from_utf8`（校验报
-  `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）工厂显式表达编码语义，
-  与 std::string 无隐式转换；`operator/` 拼接、native 词法比较。
+- `Path`：路径值类型，编码边界收敛点，从字符串构造必须经 `from_utf8`（校验报 `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）工厂显式表达编码语义，与 std::string 无隐式转换；`operator/` 拼接、native 词法比较。
 - `PathUtil`：路径拼接、规范化、扩展名、文件名、父目录等纯字符串路径操作；`normalize_within` 词法归一化并校验不逃出 base（路径穿越防护）。
 - `FileUtil`：读写文本、读写字节、文件/目录创建、删除、复制、移动和查询。
-- `StdioFile` / `open_stdio` / `read_file_all`：C stdio 读侧设施（整读大文件比
-  ifstream 快 3~4x，写路径维持 iostream）。
+- `StdioFile` / `open_stdio` / `read_file_all`：C stdio 读侧设施（整读大文件比 ifstream 快 3~4x，写路径维持 iostream）。
 - `FileMode`：写入模式控制。
 - `FsError`：文件操作错误码与可读文本转换。
 
@@ -131,10 +124,7 @@ UTF-8 字符串与所有权模型模块。
 
 ## ini
 
-INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。采用 **Arena 架构**：
-`IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine`/`LineRecord` 的 section/key/
-value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `Utf8StringRef`，
-值 `Utf8StringRef`（生命周期绑定 document），错误 `ParseError`。
+INI 配置读写模块，保格式（读改写时保留人工注释、空行和顺序）。采用 **Arena 架构**： `IniDocument` 内嵌 `Utf8StringArena`，所有字符串字段（`IniLine`/`LineRecord` 的 section/key/ value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `Utf8StringRef`，值 `Utf8StringRef`（生命周期绑定 document），错误 `ParseError`。
 
 入口头文件：
 - `<libca/ini/ini.hpp>`（聚合头）
@@ -150,9 +140,7 @@ value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `
 - `IniWriter`：按行节点顺序写回，返回 `Utf8String`。
 - 类型化访问：`get`（返回 Utf8StringRef）/`get_int`/`get_double`/`get_bool`/`get_or`，自动剥首尾配对引号后转换。`sections()`/`keys()` 返回 `vector<Utf8StringRef>`。
 - 保格式：set 只重建受影响行，保留缩进、分隔符、行内注释；带引号 value 修改后保留引号风格。
-- 选项：`allow_global_keys`、`hash_comment`/`semicolon_comment`、
-  `on_duplicate_section`/`on_duplicate_key`（`KeepLast`/`Error`）、
-  `inline_comment_strict_whitespace`；Writer 的 `line_ending`。
+- 选项：`allow_global_keys`、`hash_comment`/`semicolon_comment`、 `on_duplicate_section`/`on_duplicate_key`（`KeepLast`/`Error`）、 `inline_comment_strict_whitespace`；Writer 的 `line_ending`。
 
 设计与使用文档：
 - `libca/ini/doc/ini设计文档.md`
@@ -160,10 +148,7 @@ value/raw 等）存 `Utf8StringRef`，析构时 arena 一次性释放。输入 `
 
 ## csv
 
-CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，
-字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留——CSV 不规定编码，字段
-可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 document。IO 边界接入 `ca::str`：
-输入 `Utf8StringRef`，输出 `Utf8String`，错误 `ParseError`（带行+列）。
+CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` 内嵌 `Utf8StringArena`，字段经 `arena.intern_raw(...)` 入池（不校验 UTF-8，按原始字节保留，CSV 不规定编码，字段可能含任意字节）。字段存 `Utf8StringRef`，生命周期绑定 document。IO 边界接入 `ca::str`：输入 `Utf8StringRef`，输出 `Utf8String`，错误 `ParseError`（带行+列）。
 
 入口头文件：
 - `<libca/csv/csv.hpp>`（聚合头）
@@ -176,12 +161,9 @@ CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` �
 功能：
 - `CsvRow` / `CsvDocument`：表格数据模型（字段为 Utf8StringRef，禁拷贝仅移动），可选标题行 + 若干记录行。
 - `CsvDocument::intern_field`：把字节区间经 `intern_raw` 入池（不校验 UTF-8）。
-- `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。
-  支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
-- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号；
-  `validate_utf8`（默认 true）控制输出是否校验 UTF-8，置 false 可输出含非 UTF-8 字节的字段。
-- 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`；
-  Writer 的 `line_ending`、`write_header`、`validate_utf8`。
+- `CsvReader`：把字符串/文件解析为 `CsvDocument`，返回 `Result<CsvDocument, ParseError>`。支持 quoted comma、字段内双引号转义、quoted field 内换行、CRLF/LF。
+- `CsvWriter`：序列化为 `Utf8String`，按需加引号转义；`always_quote` 强制全加引号； `validate_utf8`（默认 true）控制输出是否校验 UTF-8，置 false 可输出含非 UTF-8 字节的字段。
+- 选项：`first_row_is_header`、`delimiter`/`quote`、`trim_unquoted_space`； Writer 的 `line_ending`、`write_header`、`validate_utf8`。
 - DSV 预设：Reader/Writer 选项均提供 `csv()` / `tsv()` / `delimited(char)` 快捷构造。
 
 设计与使用文档：
@@ -190,11 +172,7 @@ CSV 表格读写模块（RFC 4180）。采用 **Arena 架构**：`CsvDocument` �
 
 ## json
 
-JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采用 **Arena 架构**：DOM 字符串值
-与 object key 用 `Utf8StringRef`，指向所属 `JsonDocument` 内部的 `Utf8StringArena`，
-消灭零散堆分配，object key 自动去重。SAX 字符串事件同样传 `Utf8StringRef`（指向 parser
-关联的 arena）。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用
-`Result<JsonDocument, ParseError>`。
+JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采用 **Arena 架构**：DOM 字符串值与 object key 用 `Utf8StringRef`，指向所属 `JsonDocument` 内部的 `Utf8StringArena`，消灭零散堆分配，object key 自动去重。SAX 字符串事件同样传 `Utf8StringRef`（指向 parser 关联的 arena）。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<JsonDocument, ParseError>`。
 
 入口头文件：
 - `<libca/json/json.hpp>`（聚合头）
@@ -227,9 +205,7 @@ JSON 读写模块，提供 SAX（事件流）与 DOM（树）两种形态。采�
 
 ## toml
 
-TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 `Utf8StringRef` 指向
-所属 `TomlDocument` 内部的 `Utf8StringArena`，消灭零散堆分配，相同字符串自动去重。
-输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<TomlDocument, ParseError>`。
+TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 `Utf8StringRef` 指向所属 `TomlDocument` 内部的 `Utf8StringArena`，消灭零散堆分配，相同字符串自动去重。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<TomlDocument, ParseError>`。
 
 入口头文件：
 - `<libca/toml/toml.hpp>`（聚合头）
@@ -242,20 +218,13 @@ TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 
 - `<libca/toml/source_location.hpp>`
 
 功能：
-- `TomlValue`：DOM 节点，10 种类型（String/Integer/Float/Boolean + 4 种 datetime 变体 +
-  Array/Table）。存 `Utf8StringRef` 而非 `Utf8String`，因此**可拷贝**（不像 json 的 move-only）。
-- `TomlDatetime`：4 种 datetime 变体共用结构（offset date-time / local date-time /
-  local date / local time），用 `Kind` 枚举区分。
-- `TomlDocument`：所有权根，持有 arena + root `TomlValue`。析构即释放 arena，
-  所有 `Utf8StringRef` 失效。
-- `TomlReader`：把字符串/文件解析为 `TomlDocument`，返回 `Result<TomlDocument, ParseError>`。
-  支持 TOML 1.0 全子集：4 种字符串、各进制整数、inf/nan、dotted keys、标准表/inline table/
-  数组表、4 种 datetime。
-- `TomlWriter`：序列化为 `Utf8String`，顶层 key=value 在前，子表以 `[a.b]` / `[[a.b]]`
-  表头分段在后；含换行字符串用 multiline basic string 输出。
+- `TomlValue`：DOM 节点，10 种类型（String/Integer/Float/Boolean + 4 种 datetime 变体 + Array/Table）。存 `Utf8StringRef` 而非 `Utf8String`，因此**可拷贝**（不像 json 的 move-only）。
+- `TomlDatetime`：4 种 datetime 变体共用结构（offset date-time / local date-time / local date / local time），用 `Kind` 枚举区分。
+- `TomlDocument`：所有权根，持有 arena + root `TomlValue`。析构即释放 arena，所有 `Utf8StringRef` 失效。
+- `TomlReader`：把字符串/文件解析为 `TomlDocument`，返回 `Result<TomlDocument, ParseError>`。支持 TOML 1.0 全子集：4 种字符串、各进制整数、inf/nan、dotted keys、标准表/inline table/ 数组表、4 种 datetime。
+- `TomlWriter`：序列化为 `Utf8String`，顶层 key=value 在前，子表以 `[a.b]` / `[[a.b]]` 表头分段在后；含换行字符串用 multiline basic string 输出。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
-- 整数超 i64 报错（与 TOML 严格语义一致，不降级 float）；重复 key / 重复 table header /
-  parent-after-child 表头全部报错。允许 UTF-8 BOM。
+- 整数超 i64 报错（与 TOML 严格语义一致，不降级 float）；重复 key / 重复 table header / parent-after-child 表头全部报错。允许 UTF-8 BOM。
 
 设计与使用文档：
 - `libca/toml/doc/toml设计文档.md`
@@ -264,10 +233,7 @@ TOML 1.0 读写模块（DOM 形态）。采用 **Arena 架构**：DOM 节点存 
 
 ## yaml
 
-YAML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena
-架构**：DOM 节点存 `Utf8StringRef` 指向所属 `YamlDocument` 内部的 `Utf8StringArena`。
-输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<YamlDocument, ParseError>`。
-锚点/别名/标签/多文档/复杂键**明确报错拒绝**（非静默忽略）。
+YAML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena 架构**：DOM 节点存 `Utf8StringRef` 指向所属 `YamlDocument` 内部的 `Utf8StringArena`。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<YamlDocument, ParseError>`。锚点/别名/标签/多文档/复杂键**明确报错拒绝**（非静默忽略）。
 
 入口头文件：
 - `<libca/yaml/yaml.hpp>`（聚合头）
@@ -279,19 +245,12 @@ YAML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/yaml/source_location.hpp>`
 
 功能：
-- `YamlValue`：DOM 节点，7 种类型（Null/Boolean/Integer/Float/String/Sequence/Mapping）。
-  存 `Utf8StringRef` 因此**可拷贝**；默认构造为 Null（YAML 根可为任意节点）。Mapping 保序 +
-  key 索引 O(1) find/set。
+- `YamlValue`：DOM 节点，7 种类型（Null/Boolean/Integer/Float/String/Sequence/Mapping）。存 `Utf8StringRef` 因此**可拷贝**；默认构造为 Null（YAML 根可为任意节点）。Mapping 保序 + key 索引 O(1) find/set。
 - `YamlDocument`：所有权根，持有 arena + root `YamlValue`。析构即释放 arena。
-- `YamlReader`：把字符串/文件解析为 `YamlDocument`，返回 `Result<YamlDocument, ParseError>`。
-  支持块式 mapping/sequence（含 `- key:` 紧凑式、零缩进 sequence）、YAML 1.2 core schema
-  标量（**不支持 yes/no/on/off**，Norway problem）、单/双引号、单行 flow、块标量 `|`/`>` +
-  chomping、注释、BOM/CRLF。重复 key 报错。
-- `YamlWriter`：序列化为 `Utf8String`，块式输出。字符串按需加引号保证 write→read 类型保真
-  （`resolve_plain_scalar != String` 即加引号），含换行字符串输出为 `|` 块标量。
+- `YamlReader`：把字符串/文件解析为 `YamlDocument`，返回 `Result<YamlDocument, ParseError>`。支持块式 mapping/sequence（含 `- key:` 紧凑式、零缩进 sequence）、YAML 1.2 core schema 标量（**不支持 yes/no/on/off**，Norway problem）、单/双引号、单行 flow、块标量 `|`/`>` + chomping、注释、BOM/CRLF。重复 key 报错。
+- `YamlWriter`：序列化为 `Utf8String`，块式输出。字符串按需加引号保证 write→read 类型保真（`resolve_plain_scalar != String` 即加引号），含换行字符串输出为 `|` 块标量。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
-- 标量溢出退化为 String（core schema 语义，不像 toml 报错）。锚点/别名/标签/多文档/复杂键/
-  合并键/显式缩进指示符/`%` 指令全部报错。
+- 标量溢出退化为 String（core schema 语义，不像 toml 报错）。锚点/别名/标签/多文档/复杂键/ 合并键/显式缩进指示符/`%` 指令全部报错。
 
 设计与使用文档：
 - `libca/yaml/doc/yaml设计文档.md`
@@ -299,11 +258,7 @@ YAML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 
 ## xml
 
-XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena
-架构**：DOM 节点存 `Utf8StringRef` 指向所属 `XmlDocument` 内部的 `Utf8StringArena`。
-输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<XmlDocument, ParseError>`。
-命名空间不特殊处理（`prefix:local` 整体为名字）；DOCTYPE/DTD、自定义实体、非声明 PI
-**明确报错拒绝**（非静默忽略）。
+XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三方依赖，与 toml 同构的 **Arena 架构**：DOM 节点存 `Utf8StringRef` 指向所属 `XmlDocument` 内部的 `Utf8StringArena`。输入用 `Utf8StringRef`（零拷贝指向原文本），错误用 `Result<XmlDocument, ParseError>`。命名空间不特殊处理（`prefix:local` 整体为名字）；DOCTYPE/DTD、自定义实体、非声明 PI **明确报错拒绝**（非静默忽略）。
 
 入口头文件：
 - `<libca/xml/xml.hpp>`（聚合头）
@@ -315,13 +270,9 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 - `<libca/xml/source_location.hpp>`
 
 功能：
-- `XmlNode`：统一 DOM 节点，4 种形态（Element/Text/Comment/Cdata）。Element 有名字 +
-  属性（保序 + O(1) 索引）+ 子节点（**支持混合内容**）。存 `Utf8StringRef` 因此**可拷贝**。
-  导航 `first_element(name)` / `text()` / `attribute(key)`。
+- `XmlNode`：统一 DOM 节点，4 种形态（Element/Text/Comment/Cdata）。Element 有名字 + 属性（保序 + O(1) 索引）+ 子节点（**支持混合内容**）。存 `Utf8StringRef` 因此**可拷贝**。导航 `first_element(name)` / `text()` / `attribute(key)`。
 - `XmlDocument`：所有权根，持 arena + 声明 + prolog/epilog + root 元素。析构即释放 arena。
-- `XmlReader`：把字符串/文件解析为 `XmlDocument`，返回 `Result<XmlDocument, ParseError>`。
-  支持元素/属性/文本/注释（保留为节点）/CDATA/混合内容、命名实体 + 数字字符引用、XML 声明、
-  BOM/CRLF。`trim_whitespace`（默认开）丢弃元素间纯空白文本节点。
+- `XmlReader`：把字符串/文件解析为 `XmlDocument`，返回 `Result<XmlDocument, ParseError>`。支持元素/属性/文本/注释（保留为节点）/CDATA/混合内容、命名实体 + 数字字符引用、XML 声明、 BOM/CRLF。`trim_whitespace`（默认开）丢弃元素间纯空白文本节点。
 - `XmlWriter`：序列化为 `Utf8String`，缩进美化但对混合内容保真（含文本的元素整体行内输出）。
 - `ParseError`：位置（行+列+字节偏移）+ 人读消息。首错即停。
 - 多根、闭合标签不匹配、重复属性、未知实体、DOCTYPE/DTD、非声明 PI 全部报错。
@@ -349,20 +300,13 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 功能：
 - `IpAddress` / `SocketAddress`：IPv4、IPv6、端口、flow info 和 scope id 值类型。
 - `OwnedSocket`：Windows SOCKET 或 POSIX socket fd 的 move-only RAII 所有者。
-- `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选；`CachedDnsResolver`
-  带 TTL 的线程安全缓存（可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计）。
-- `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时、非阻塞与
-  `set_keepalive`（keepalive 三参数，Windows 仅两参可配）；`connect_timeout` 提供
-  可注入 `DnsResolveFn` 的重载（DNS 缓存等装饰器经此接入，为空走默认解析）。
+- `DnsResolver`：基于 getaddrinfo 的同步主机名解析和地址族筛选；`CachedDnsResolver` 带 TTL 的线程安全缓存（可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计）。
+- `TcpStream`：实现 Reader / Writer 的 TCP 字节流，支持连接超时、读写超时、非阻塞与 `set_keepalive`（keepalive 三参数，Windows 仅两参可配）；`connect_timeout` 提供可注入 `DnsResolveFn` 的重载（DNS 缓存等装饰器经此接入，为空走默认解析）。
 - `TcpListener`：TCP bind、accept、临时端口、非阻塞和 clone。
 - `UdpSocket`：保留数据报边界的 send/receive API、超时、非阻塞和 broadcast。
 - `SocketError`：原生 socket 错误码归一化（WSA/errno 双路），可桥接 `IoErrorKind`。
-- `sock_util`：`get_local_ip`（UDP connect 探路由，离线回落 loopback）、
-  `set_tcp_keepalive`、`interface_list`（本机接口与地址枚举）。
-- `TlsStream`：TLS 适配层（可选 OpenSSL，`with_openssl` 开关；未启用时为 stub）。
-  memory-BIO 包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；证书校验
-  与主机名验证默认开启、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。
-  TLS 协议本身永远不内置，只做成熟后端适配。
+- `sock_util`：`get_local_ip`（UDP connect 探路由，离线回落 loopback）、 `set_tcp_keepalive`、`interface_list`（本机接口与地址枚举）。
+- `TlsStream`：TLS 适配层（可选 OpenSSL，`with_openssl` 开关；未启用时为 stub）。 memory-BIO 包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；证书校验与主机名验证默认开启、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。 TLS 协议本身永远不内置，只做成熟后端适配。
 
 设计与使用文档：
 - `libca/net/doc/net设计文档.md`
@@ -370,8 +314,7 @@ XML **配置子集**读写模块（DOM 形态）。手写解析器、零第三�
 
 ## http
 
-建立在 net/io/thread 上的同步 HTTP/1.0/1.1 模块，提供独立于 TCP/TLS 的 codec、明文
-http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
+建立在 net/io/thread 上的同步 HTTP/1.0/1.1 模块，提供独立于 TCP/TLS 的 codec、明文 http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 入口头文件：
 - `<libca/http/http.hpp>`（聚合头）
@@ -388,15 +331,12 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `HttpRequest` / `HttpResponse`：完整缓冲报文，body 使用 `ca::core::Bytes`。
 - `HttpRequestHead` / `HttpResponseHead` / `HttpBodyInfo`：流式读取前的 head 与 framing 信息。
 - `HttpHeaders`：保序、允许重复、ASCII 大小写不敏感查询，拒绝 header injection 字节。
-- `HttpUrl`：RFC 3986 全量解析（scheme/userinfo/host/IPv6/port/path/query/fragment）、
-  percent 编解码、query 参数保序解析、normalize 与 round-trip 序列化。
-- `Http1Reader` / `Http1Writer`：完整缓冲或流式处理碎片化字节流、Content-Length、chunked、
-  trailers、close-delimited response、HEAD/无 body 状态码和 keep-alive framing。
+- `HttpUrl`：RFC 3986 全量解析（scheme/userinfo/host/IPv6/port/path/query/fragment）、 percent 编解码、query 参数保序解析、normalize 与 round-trip 序列化。
+- `Http1Reader` / `Http1Writer`：完整缓冲或流式处理碎片化字节流、Content-Length、chunked、 trailers、close-delimited response、HEAD/无 body 状态码和 keep-alive framing。
 - `Http1ChunkedBodyWriter`：逐 chunk 写入与显式 flush/finalize，支持 SSE 等低延迟输出。
 - `HttpClient`：HTTP/HTTPS 完整缓冲 response、同源 keep-alive、TLS verification、1xx 与分阶段总 deadline。
 - `HttpConnectionPool`：按 host 复用 keep-alive 连接（空闲超时、借出探活），经 `HttpClientOptions.pool` 注入。
-- `HttpClientOptions.dns_cache`：可选共享 `CachedDnsResolver`（TTL + LRU，线程安全可跨
-  client 共享），设置后新连接经其解析主机名；不注入行为不变。
+- `HttpClientOptions.dns_cache`：可选共享 `CachedDnsResolver`（TTL + LRU，线程安全可跨 client 共享），设置后新连接经其解析主机名；不注入行为不变。
 - `HttpServer`：method/path 精确路由、有界 worker/排队、keep-alive、stop-aware IO。
 - `HttpServerResponse`：handler 返回 buffered response 或 chunked producer。
 - `HttpLimits` / `HttpError`：start-line、header count/bytes、body 上限与结构化协议错误。
@@ -441,9 +381,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `murmur3_32`：非加密哈希（HashMap 键哈希/布隆过滤器用）。
 - 随机数辅助。
 - ChaCha20、RC4 等流式算法。
-- AES（ECB/CBC/CTR，128/192/256）：`AesBackend` 后端选择（Builtin/OpenSsl/Cng/Auto）。
-  Builtin 为参考实现、任何构建可用但不承诺常量时间；防时序攻击场景显式选
-  OpenSSL/CNG。**AES-GCM 仅外部后端提供**（内置请求返回 `UNSUPPORTED_ALGORITHM`）。
+- AES（ECB/CBC/CTR，128/192/256）：`AesBackend` 后端选择（Builtin/OpenSsl/Cng/Auto）。 Builtin 为参考实现、任何构建可用但不承诺常量时间；防时序攻击场景显式选 OpenSSL/CNG。**AES-GCM 仅外部后端提供**（内置请求返回 `UNSUPPORTED_ALGORITHM`）。
 
 设计文档：
 - `libca/crypto/doc/crypto设计文档.md`
@@ -520,8 +458,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `TimerManager`：steady_clock 定时器调度（一次性/重复、句柄取消、回调在调度线程串行执行）。
 - `EventBus`：进程内按事件名发布/订阅（快照语义、异常隔离、句柄注销）。
 - `ObjectPool<T>`：借还式对象池（shared_ptr 归还进池、try-lock 快路径、高竞争退化为直接构造）。
-- `MessageLoop`：单线程任务循环（FIFO `post_task`、`post_task_with_result` 返回
-  `std::future`、steady_clock 定时的 `post_delay_task`、`stop` / `stop_and_drain`）。
+- `MessageLoop`：单线程任务循环（FIFO `post_task`、`post_task_with_result` 返回 `std::future`、steady_clock 定时的 `post_delay_task`、`stop` / `stop_and_drain`）。
 
 设计与使用文档：
 - `libca/thread/doc/thread设计文档.md`
@@ -543,9 +480,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `ipc::SharedMemory`：共享内存（Windows 文件映射 / Linux shm_open）。
 - `ipc::NamedSemaphore`：命名信号量。
 - `ipc::MessageQueue`：消息队列（Windows mailslot / Linux POSIX mqueue）。
-- `ipc::ShmRingQueue`：无内核对象的共享内存环形队列（128B 头 + 环形槽位），写者活性
-  经心跳 + 出生时间戳判定、支持代际接管（写者崩溃后可恢复），适合高频小消息
-  同机通信；与 `MessageQueue` 并存不互替。
+- `ipc::ShmRingQueue`：无内核对象的共享内存环形队列（128B 头 + 环形槽位），写者活性经心跳 + 出生时间戳判定、支持代际接管（写者崩溃后可恢复），适合高频小消息同机通信；与 `MessageQueue` 并存不互替。
 
 相关文档：
 - `libca/process/doc/process设计文档.md`
@@ -560,15 +495,10 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 - `<libca/config/lexical_cast.hpp>`
 
 功能：
-- `ConfigVar<T>`：具名强类型配置项。`Config::lookup<T>(name, default)` 幂等（已存在
-  同类型返回同一实例）；同名不同类型冲突返回 nullptr。
+- `ConfigVar<T>`：具名强类型配置项。`Config::lookup<T>(name, default)` 幂等（已存在同类型返回同一实例）；同名不同类型冲突返回 nullptr。
 - `set` 值相等短路，真实变化才触发监听器；监听器回调在内部锁外执行。
-- `Config::load(text)` / `load_file(path)`：JSON 增量加载。已有配置项按 `JsonCast<T>`
-  转换赋值并触发变更监听；未注册 key 延迟物化（后续 lookup 时用已加载值）。
-  非法 JSON 整体拒绝、状态零变化；单 key 类型不匹配跳过该 key 并经
-  `ConfigErrorInfo` 报告详情。
-- `JsonCast<T>`：JsonValue ↔ T 双向转换链，支持 bool/字符串/各定长整数（带范围
-  检查）/浮点，及 `vector<T>`、`unordered_map<string, T>` 递归嵌套。
+- `Config::load(text)` / `load_file(path)`：JSON 增量加载。已有配置项按 `JsonCast<T>` 转换赋值并触发变更监听；未注册 key 延迟物化（后续 lookup 时用已加载值）。非法 JSON 整体拒绝、状态零变化；单 key 类型不匹配跳过该 key 并经 `ConfigErrorInfo` 报告详情。
+- `JsonCast<T>`：JsonValue ↔ T 双向转换链，支持 bool/字符串/各定长整数（带范围检查）/浮点，及 `vector<T>`、`unordered_map<string, T>` 递归嵌套。
 - `Config::visit`：遍历全部已注册配置项（快照，锁外渲染）。
 
 相关文档：
@@ -593,8 +523,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 ## env
 
-环境变量读写与操作系统信息查询模块。仅桌面端使用；Windows 上内部做 UTF-8 ↔ UTF-16
-转换，保证含非 ASCII 的环境变量正确往返。所有函数不抛异常，失败返回空值/false。
+环境变量读写与操作系统信息查询模块。仅桌面端使用；Windows 上内部做 UTF-8 ↔ UTF-16 转换，保证含非 ASCII 的环境变量正确往返。所有函数不抛异常，失败返回空值/false。
 
 入口头文件：
 - `<libca/env/env.hpp>`
@@ -606,8 +535,7 @@ http client、可选 OpenSSL 3 HTTPS client 与精确路由明文 server。
 
 ## random
 
-高层随机数接口。底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），
-不做伪随机引擎、不提供可复现种子；无共享可变状态，所有函数线程安全。
+高层随机数接口。底层随机源复用 `ca::crypto::secure_random_bytes`（系统 CSPRNG），不做伪随机引擎、不提供可复现种子；无共享可变状态，所有函数线程安全。
 
 入口头文件：
 - `<libca/random/random.hpp>`
@@ -632,8 +560,7 @@ UUID v4 生成与校验（不做 v1/v3/v5）。底层随机源复用系统 CSPRN
 
 ## zip
 
-压缩与归档模块：JVM `java.util.zip.ZipFile` 语义的 ZIP 读写 + gzip（流式与一次性）。
-zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分构建）。
+压缩与归档模块：JVM `java.util.zip.ZipFile` 语义的 ZIP 读写 + gzip（流式与一次性）。 zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分构建）。
 
 入口头文件：
 - `<libca/zip/file.hpp>`（只读访问器 `ZipFile`）
@@ -644,14 +571,10 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 - `<libca/zip/zip_error.hpp>`（`ZipError` 错误码）
 
 功能：
-- `ZipFile`：磁盘/内存镜像打开并立即解析的只读访问器；以最后一条合法 EOCD 为准，
-  支持前缀拼接（自提取类）与 ZIP64。读取路径经 `Result<T, ZipErrorInfo>` 返回错误；
-  打开型构造重载失败抛 `std::runtime_error`，`get_entry_at` 越界属编程错误抛
-  `std::out_of_range`。
+- `ZipFile`：磁盘/内存镜像打开并立即解析的只读访问器；以最后一条合法 EOCD 为准，支持前缀拼接（自提取类）与 ZIP64。读取路径经 `Result<T, ZipErrorInfo>` 返回错误；打开型构造重载失败抛 `std::runtime_error`，`get_entry_at` 越界属编程错误抛 `std::out_of_range`。
 - `ZipInputStream` / `ZipOutputStream`：条目流式读写，支持 DD（数据描述符）条目。
 - `ZipEntry`：名称、大小、时间等方法信息面的只读元数据。
-- `gzip_compress` / `gzip_decompress`：一次性 gzip 编解码（RFC 1952，支持多成员拼接，
-  成员尾部 CRC32/ISIZE 校验）。
+- `gzip_compress` / `gzip_decompress`：一次性 gzip 编解码（RFC 1952，支持多成员拼接，成员尾部 CRC32/ISIZE 校验）。
 - `GzipReader` / `GzipWriter`：流式 gzip（RFC 1952 头部逐 flag 解析）。
 - CRC32 等校验和。
 
@@ -659,9 +582,7 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 
 ## resources
 
-清单驱动的 constexpr 目录树嵌入与只读查询（header-only）。配套构建 rule
-`libca.resources.embed` 在构建期把挂载目录树生成为 constexpr 头嵌入二进制，
-单 exe 分发零文件依赖。
+清单驱动的 constexpr 目录树嵌入与只读查询（header-only）。配套构建 rule `libca.resources.embed` 在构建期把挂载目录树生成为 constexpr 头嵌入二进制，单 exe 分发零文件依赖。
 
 入口头文件：
 - `<libca/resources/resources.hpp>`（`Bundle` / `RawEntry`）
@@ -675,8 +596,7 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 
 ## i18n
 
-嵌入式 CLI 消息国际化（header-only）。配套构建 rule `libca.i18n.embed-lang` 从
-`translations/*.lang`（UTF-8 properties 风格）生成 constexpr 头嵌入二进制。
+嵌入式 CLI 消息国际化（header-only）。配套构建 rule `libca.i18n.embed-lang` 从 `translations/*.lang`（UTF-8 properties 风格）生成 constexpr 头嵌入二进制。
 
 入口头文件：
 - `<libca/i18n/i18n.hpp>`
@@ -691,8 +611,7 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 
 ## test
 
-基于 `.project_root_file` 标记文件的多项目测试布局与样本定位（header-only），
-解决多子项目仓库中测试资源与输出路径的硬编码问题。
+基于 `.project_root_file` 标记文件的多项目测试布局与样本定位（header-only），解决多子项目仓库中测试资源与输出路径的硬编码问题。
 
 入口头文件：
 - `<libca/test/test.hpp>`
@@ -706,8 +625,7 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 
 ## log
 
-日志门面与可插拔后端。fmt 依赖收敛在门面侧，后端实现者只需 `logger.hpp` + `level.hpp`；
-级别管理收归 `Logger`（atomic 运行期过滤），后端只负责输出。
+日志门面与可插拔后端。fmt 依赖收敛在门面侧，后端实现者只需 `logger.hpp` + `level.hpp`；级别管理收归 `Logger`（atomic 运行期过滤），后端只负责输出。
 
 入口头文件：
 - `<libca/log/log_macros.hpp>`（用户入口：日志宏）
@@ -717,8 +635,7 @@ zlib 经 xrepo 引入，根开关 `--with_zip=n` 可整体跳过（无 zlib 环�
 - `<libca/log/spdlog/spdlog_backend.hpp>`（spdlog 可选后端）
 
 功能：
-- `CA_LOG_<LEVEL>(...)` / `CA_LOGT_<LEVEL>(target, ...)`：日志宏，编译期裁剪
-  （`CA_COMPILE_LOG_LEVEL`，默认 Info）+ 运行期级别过滤（级别不满足时实参零求值）。
+- `CA_LOG_<LEVEL>(...)` / `CA_LOGT_<LEVEL>(target, ...)`：日志宏，编译期裁剪（`CA_COMPILE_LOG_LEVEL`，默认 Info）+ 运行期级别过滤（级别不满足时实参零求值）。
 - `Level`：Trace..Off；`Error_` 规避 Windows `wingdi.h` 的 `ERROR` 宏冲突。
 - `OpaqueFormat`：类型擦除的格式化参数载体（view 语义，严禁跨线程入队）。
 - `ILogBackend`：后端接口，调 `message.render_to(out)` 取格式化完成的字符串。

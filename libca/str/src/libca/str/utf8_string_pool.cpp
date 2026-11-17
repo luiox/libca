@@ -153,7 +153,7 @@ void Utf8StringPool::disown_all() noexcept {
     // 凡 hash_index_ 里的 entry 都还有外部 PooledPtr 持有（ref_count 归零的早已被
     // erase_entry 真删移出），故一律 disown：置 owner=nullptr，把字节/entry 所有权
     // 移交给那些存活句柄，由它们各自 release 时自管释放（见 PooledPtr::release 双分支）。
-    // 如此消除「Pool 先死、PooledPtr 后死」的 UAF；代价是这些条目失去真删/去重收益，
+    // 如此消除Pool 先死、PooledPtr 后死的 UAF；代价是这些条目失去真删/去重收益，
     // 故 spec §5 的 outlive 仍作为软契约保留（遵循则享受真删，违反则退化自管）。
     for (auto& [h, bucket] : hash_index_) {
         for (auto* ep : bucket) {
@@ -270,7 +270,7 @@ usize Utf8StringPool::total_bytes() const noexcept {
 }
 
 void Utf8StringPool::clear() noexcept {
-    // spec §8：clear 是「不依赖 refcount 全部归零的兜底」。走 disown_all →
+    // spec §8：clear 是不依赖 refcount 全部归零的兜底。走 disown_all →
     // 仍有 PooledPtr 活着时不崩溃，其所有权移交存活句柄自管释放。
     disown_all();
 }

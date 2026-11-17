@@ -1,5 +1,5 @@
 /// @file os_string.hpp
-/// @brief OsString / OsStr —— 对齐平台原生编码的字符串载体。
+/// @brief OsString / OsStr: 对齐平台原生编码的字符串载体。
 ///        Windows 内部存 UTF-16（std::wstring），POSIX 内部存 UTF-8（Utf8String）。
 ///        与 Utf8String 之间不做隐式转换，必须显式调用，提醒编码开销。
 /// @note OsString 为 move-only（POSIX 持有 move-only 的 Utf8String），与 Rust OsString

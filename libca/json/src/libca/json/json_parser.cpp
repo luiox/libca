@@ -112,7 +112,7 @@ void JsonParser::skip_ws_and_comments() {
 // ============================================================================
 
 bool JsonParser::parse() {
-    // RFC 8259：JSON 文本必须是合法 UTF-8。入口整体校验一次——此前字符串值里的
+    // RFC 8259：JSON 文本必须是合法 UTF-8。入口整体校验一次，此前字符串值里的
     // 非法序列经 arena intern 静默变空串、解析"成功"，数据无声丢失。
     if (!ca::str::utf8_is_valid(data_, byte_length_)) {
         fail(SourceLocation{0, 1, 1}, "invalid UTF-8 in JSON text");
@@ -311,7 +311,7 @@ bool JsonParser::parse_string_into(ca::str::Utf8StringRef& out) {
     const usize content_begin = pos_;
 
     // 快路径：先扫描一遍，若整段无转义（无 '\\'）也无非法控制字符，直接从输入缓冲
-    // intern 原文切片——省掉 Utf8StringBuilder 的逐字节追加与 build_or_empty 的一次
+    // intern 原文切片，省掉 Utf8StringBuilder 的逐字节追加与 build_or_empty 的一次
     // 额外 UTF-8 校验+堆分配。绝大多数 JSON 字符串走这条路径。
     while (pos_ < byte_length_) {
         const u8 c = data_[pos_];

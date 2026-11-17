@@ -155,7 +155,7 @@ public:
 class HttpChunkedRequest::Impl
 {
 public:
-    // 成员析构顺序（逆序）：chunked_writer 先于 connection 析构——writer 持有
+    // 成员析构顺序（逆序）：chunked_writer 先于 connection 析构，writer 持有
     // connection 内 codec_writer 的指针，不得在连接销毁后再触碰。
     std::unique_ptr<detail::ClientConnection> connection;
     HttpClientOptions                         options;
@@ -365,7 +365,7 @@ public:
     }
 
     // 流式请求：head 就绪即返回，body 留给 HttpStreamingResponse 消费。
-    // 不做 stale 重试（连接被流式对象接管前生命周期复杂化，收益低——文档化取舍）。
+    // 不做 stale 重试（连接被流式对象接管前生命周期复杂化，收益低，文档化取舍）。
     HttpResult<HttpStreamingResponse> request_streaming(const HttpUrl& url, HttpRequest request)
     {
         auto connected = connect(url);

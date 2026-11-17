@@ -124,7 +124,7 @@ bool CString::operator!=(const CStringRef& other) const noexcept { return !ref()
 
 
 // ============================================================================
-// CStringRef — 新增操作
+// CStringRef: 新增操作
 // ============================================================================
 
 bool CStringRef::starts_with(const CStringRef& prefix) const noexcept {
@@ -202,7 +202,7 @@ CString CStringRef::replace_all(const CStringRef& from, const CStringRef& to) co
 
 
 // ============================================================================
-// CString — 新增操作（委托给 ref）
+// CString: 新增操作（委托给 ref）
 // ============================================================================
 
 bool CString::starts_with(const CStringRef& prefix) const noexcept { return ref().starts_with(prefix); }

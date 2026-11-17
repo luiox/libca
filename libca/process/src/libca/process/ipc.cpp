@@ -139,7 +139,7 @@ StatusResult<std::string> posix_shared_memory_name(const std::string& name)
 #endif
 
 // 名字合法性双平台同口径：remove_* 在 Windows 上虽是空操作，仍拒绝路径型名字，
-// 避免「Windows 通过、Linux 拒绝」的平台行为分叉。
+// 避免Windows 通过、Linux 拒绝的平台行为分叉。
 Status validate_simple_token(const std::string& name)
 {
     if (name.empty() || name.find('/') != std::string::npos)
@@ -491,7 +491,7 @@ StatusResult<SharedMemory> SharedMemory::create(const std::string& name, usize s
         return Err(wide_name.unwrap_err());
     const u64 length = static_cast<u64>(size);
     // CreateFileMappingW 即使返回成功句柄，若同名对象已存在也会设 GetLastError = ERROR_ALREADY_EXISTS，
-    // 必须用这个标志区分"新建者"与"复用者"——只有新建者才被视为 create 成功。
+    // 必须用这个标志区分"新建者"与"复用者"，只有新建者才被视为 create 成功。
     HANDLE    handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
                                        nullptr,
                                        PAGE_READWRITE,
@@ -554,7 +554,7 @@ StatusResult<SharedMemory> SharedMemory::open(const std::string& name)
         return Err(windows_error("OpenFileMappingW"));
     }
     // 传 0 给 MapViewOfFile 表示映射整个 mapping 对象，再通过 VirtualQuery 查询
-    // 实际 RegionSize——Windows API 不提供"查询命名共享内存大小"的独立接口。
+    // 实际 RegionSize，Windows API 不提供"查询命名共享内存大小"的独立接口。
     MEMORY_BASIC_INFORMATION info{};
     void*                    view = MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (!view) {
@@ -1010,7 +1010,7 @@ StatusResult<std::optional<std::string>> MessageQueue::receive_for(
 }
 
 // ============================================================================
-// ShmRingQueue —— 共享内存环形消息队列（写者探活 + 崩溃可恢复）
+// ShmRingQueue: 共享内存环形消息队列（写者探活 + 崩溃可恢复）
 // ============================================================================
 
 namespace {
@@ -1088,7 +1088,7 @@ ProcessIdentity current_process_identity()
 #endif
 }
 
-// 判定「pid + 出生戳」是否仍是那个存活的原进程。
+// 判定pid + 出生戳是否仍是那个存活的原进程。
 // 返回 false 表示原写者进程已确认退出（含 pid 被复用的情况）。
 //       Windows：OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess
 //       判退出，GetProcessTimes 比对出生戳抵御 pid 复用；打开句柄被拒（ACCESS_DENIED）
@@ -1259,7 +1259,7 @@ StatusResult<ShmRingQueue> ShmRingQueue::create(const std::string& name, const O
     ShmRingQueue        queue(std::move(segment).unwrap(), options);
     detail::RingHeader* head = queue.header();
     // 初始化顺序：magic 先行、format_version 最后发布。并发 open() 以版本号判断初始化
-    // 是否完成——未完成时 open 返回 FAILED_PRECONDITION，调用方稍后重试即可。
+    // 是否完成，未完成时 open 返回 FAILED_PRECONDITION，调用方稍后重试即可。
     head->magic            = detail::kRingMagic;
     head->slot_count       = static_cast<u32>(options.slot_count);
     head->slot_stride      = detail::ring_slot_stride(options.max_message_size);
@@ -1342,8 +1342,8 @@ Status ShmRingQueue::ensure_writer_claimed()
         if (held == detail::kRingWriterElecting)
             return ErrStatus(StatusCode::UNAVAILABLE,
                              "another process is taking over the ring queue");
-        // 其它 pid 持有：仅当「心跳超时且进程已退出」才允许接管。进程活着（哪怕心跳
-        // 停更，如写者卡死）绝不接管——双写者会破坏环形槽协议。
+        // 其它 pid 持有：仅当心跳超时且进程已退出才允许接管。进程活着（哪怕心跳
+        // 停更，如写者卡死）绝不接管，双写者会破坏环形槽协议。
         if (!heartbeat_stale(head->writer_heartbeat.load(std::memory_order_relaxed), timeout))
             return ErrStatus(StatusCode::UNAVAILABLE,
                              "another writer is active and its heartbeat is fresh");
@@ -1401,7 +1401,7 @@ Status ShmRingQueue::send(const void* data, usize length)
     detail::RingSlotHeader* slot = slot_at(sequence);
     // 发布协议：先置 Writing 占槽（此后任一时刻崩溃，读者看到的都是可识别的撕裂槽），
     // 再写 payload/length/sequence，最后以 Committed 发布。读者 acquire 到 Committed 后，
-    // 其余字段必然完整可见——撕裂只可能停留在 Writing 态，可检测、可跳过。
+    // 其余字段必然完整可见，撕裂只可能停留在 Writing 态，可检测、可跳过。
     slot->state.store(static_cast<u32>(detail::RingSlotState::Writing));
     if (length != 0)
         std::memcpy(slot_payload(slot), data, length);
@@ -1421,7 +1421,7 @@ void ShmRingQueue::attach_reader() noexcept
 {
     detail::RingHeader* head   = header();
     reader_generation_         = head->generation.load();
-    // 从「最旧的保留消息」接入：保留窗为 [write_seq - slot_count, write_seq)，读者落在
+    // 从最旧的保留消息接入：保留窗为 [write_seq - slot_count, write_seq)，读者落在
     // 窗口起点即接到最旧的未覆盖消息；若写者继续套圈把窗口起点覆盖，receive_for 以
     // DATA_LOSS 显式暴露而不是静默丢消息。
     const u64 written   = head->write_seq.load();

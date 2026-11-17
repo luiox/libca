@@ -27,7 +27,7 @@ XmlDocument read_ok(const char* text, XmlReaderOptions opts = XmlReaderOptions()
     if (result.is_err()) {
         auto err = std::move(result).unwrap_err();
         ADD_FAILURE() << "parse failed @" << err.location.line << ":" << err.location.column
-                      << " — " << S(err.message) << "\ninput: " << text;
+                      << ": " << S(err.message) << "\ninput: " << text;
         return XmlDocument();
     }
     return std::move(result).unwrap();

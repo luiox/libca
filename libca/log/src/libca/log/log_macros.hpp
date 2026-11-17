@@ -16,7 +16,7 @@
 /// @note 用法：`\1 "libca/log/log_macros.hpp"` 然后 `CA_LOG_INFO("hello {}", name)`。
 ///       编译期级别由 `CA_COMPILE_LOG_LEVEL` 宏控制（默认 Info），低于该级别的宏不生成调用。
 /// @note 短路求值保证：编译期被裁剪的级别（if constexpr 整体丢弃）与运行期级别不满足
-///       （未注册 target 或 should_log 为 false）时，格式化实参 **零求值**——实参中的
+///       （未注册 target 或 should_log 为 false）时，格式化实参 **零求值**，实参中的
 ///       函数调用、临时对象构造等副作用均不会发生。运行期检查在宏内、实参求值之前完成。
 
 namespace ca::log {
@@ -36,7 +36,7 @@ constexpr bool should_compile(Level level) noexcept
 namespace detail {
 
 /// @brief 门面分发入口：按已通过过滤的 Logger 直接调后端。
-/// @note 级别过滤（编译期 + 运行期）已在宏内完成——这是"级别不满足时实参零求值"的
+/// @note 级别过滤（编译期 + 运行期）已在宏内完成，这是"级别不满足时实参零求值"的
 ///       前提：若把运行期检查留到本函数内，实参早在进入函数前就被求值了。因此本函数
 ///       假定 logger 非 nullptr 且 should_log 已通过，直接分发。
 ///       FmtArgsHolder 是 view：实参来自调用方栈帧，在本函数同步调用 backend->log() 期间

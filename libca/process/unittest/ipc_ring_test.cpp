@@ -73,7 +73,7 @@ ipc::detail::RingHeader* open_ring_header(const std::string& name, ipc::SharedMe
     return static_cast<ipc::detail::RingHeader*>(memory.data());
 }
 
-// 取一个确定已退出（已回收）的进程 pid，供「进程不在了」的探活测试使用。
+// 取一个确定已退出（已回收）的进程 pid，供进程不在了的探活测试使用。
 u64 reaped_child_pid()
 {
     auto spawned = child_command({"--subprocess-success"}).spawn();
@@ -96,7 +96,7 @@ std::string normalize_crlf(std::string text)
     return text;
 }
 
-// 把头部写者身份改成一个已退出进程 + 心跳归零：同时满足「心跳超时」与「进程不在了」。
+// 把头部写者身份改成一个已退出进程 + 心跳归零：同时满足心跳超时与进程不在了。
 void poke_dead_writer(ipc::detail::RingHeader* header, u64 dead_pid)
 {
     header->writer_slot.store(dead_pid);
@@ -509,7 +509,7 @@ TEST(ShmRingQueueCrossProcessTest, KilledWriterExcludesNewWriterThenYields)
     EXPECT_EQ(terminal.unwrap_err().code(), ca::core::StatusCode::UNAVAILABLE);
 
     // R2 在接管前接入旧世代（读取不具破坏性：R2 可能收到保留窗里的旧消息，
-    // 也可能直接得到排空终止——无论哪种，世代与游标都已记录）。
+    // 也可能直接得到排空终止，无论哪种，世代与游标都已记录）。
     auto bystander = ipc::ShmRingQueue::open(name, options);
     ASSERT_TRUE(bystander.is_ok()) << bystander.unwrap_err().to_string();
     auto r2 = std::move(bystander).unwrap();

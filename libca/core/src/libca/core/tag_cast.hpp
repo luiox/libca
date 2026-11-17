@@ -5,7 +5,7 @@
 /// @file tag_cast.hpp
 /// @brief 面向整数 tag 层级的 RTTI-free 向下转型：LLVM 风格 isa/cast/dyn_cast。
 ///
-/// 适用于"kind 即域数据"的类层级——每个节点本就携带 int 型 getType() 标签
+/// 适用于"kind 即域数据"的类层级，每个节点本就携带 int 型 getType() 标签
 /// （序列化/分派要用），转型零额外成本。类型经特化 TypeOf\<T\> 映射到其标签值
 /// 后即可参与识别；与 Polymorphic（cast.hpp，编译期 type_id 自动打标、精确
 /// 动态类型匹配）并存，语义不同：
@@ -54,7 +54,7 @@ using cleanup_t = std::remove_cv_t<typename remove_star<T>::type>;
 
 /// @brief 无检查向下转型（static_cast）到目标类型。
 ///
-/// @warning 不做任何类型检查；ptr 实际不是目标实例时是未定义行为——不确定时
+/// @warning 不做任何类型检查；ptr 实际不是目标实例时是未定义行为，不确定时
 ///          先用 isa 守护或改用 dyn_cast。
 /// @return 以目标指针形态返回 ptr；保持实参 const 性；ptr 为空返回空。
 template<typename T, typename U>

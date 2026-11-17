@@ -20,7 +20,7 @@ namespace ca::random {
 class Xorshift32 {
 public:
     /// @brief 以 seed 初始化内部状态。
-    /// @note seed == 0 合法但产出恒 0 序列（见类注释），不做隐式替换——
+    /// @note seed == 0 合法但产出恒 0 序列（见类注释），不做隐式替换，
     ///       与正典一致，回退策略归调用方。
     explicit Xorshift32(u32 seed)
         : state_(seed)

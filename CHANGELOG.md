@@ -5,115 +5,47 @@
 ## 格式约定
 
 - 每个条目注明影响范围（libca / libca.em / 构建 / 全局）与升级注意事项
-- 不兼容变更必须在合并前补充条目（见 README「说明」）
+- 不兼容变更必须在合并前补充条目（见 README说明）
 
 ## [0.0.16] - 2026-10-19
 
 ### libca
 
-- **[fs] 文件读路径 iostream → C stdio（#249 基准驱动）**：新增 `stdio_file.hpp`
-  公开头——`StdioFile`（FILE* RAII 句柄）+ `open_stdio`（平台打开封装：Windows
-  `_wfopen` / POSIX `fopen`，路径经 `Path` 编码边界）+ `read_file_all`（无预检
-  整读）。基准（`libca_fs_perf`，新 perf target）裁决：整读大文件 stdio 比
-  ifstream 快 3~4x（streambuf 分块拷贝代价），小/中持平；**整写无收益，写路径
-  维持 ofstream 不变**。落地替换：`FileUtil::read_all_bytes`/`read_all_text`/
-  `read_lines` 内部改 stdio 整读，读预检由 `exists()`+`is_regular_file()` 两次
-  stat 合并为一次 `status()`（错误语义不变，小文件读省 ~60% 开销）；六个解析器
-  （csv/ini/json/toml/xml/yaml）的 `read_file` 改经 `fs::read_file_all`（去掉
-  ifstream+ostringstream 双层流与整读内容的二次拷贝）。
-- **[行为收敛] 解析器 `read_file` 读失败消息**：`failed to open XXX file`
-  改为 `failed to read XXX file`（失败点不再只有"打开"，整读中途失败同通道
-  报错）；`FileUtil::read_lines` 由 getline 流式改为整读后拆行（返回值语义
-  不变：行尾 CRLF 剥离、末行无换行保留、结尾换行不产生空行），超大文件峰值
-  内存多一份文件内容。
-- **[crypto] SHA-3 按 FIPS 202 重写**：keccak-f 置换与 absorb/squeeze 全流程按
-  规范重写，输出正确性由 NIST 官方向量单测锁定（unittest/sha3_test.cpp）。
-  `operator()` / `add` / `reset` 公开调用面保留，尺寸参数收敛为 `ca::usize`
-  （同 `size_t`，调用方无感）。
+- **[fs] 文件读路径 iostream → C stdio（#249 基准驱动）**：新增 `stdio_file.hpp` 公开头，`StdioFile`（FILE* RAII 句柄）+ `open_stdio`（平台打开封装：Windows `_wfopen` / POSIX `fopen`，路径经 `Path` 编码边界）+ `read_file_all`（无预检整读）。基准（`libca_fs_perf`，新 perf target）裁决：整读大文件 stdio 比 ifstream 快 3~4x（streambuf 分块拷贝代价），小/中持平；**整写无收益，写路径维持 ofstream 不变**。落地替换：`FileUtil::read_all_bytes`/`read_all_text`/ `read_lines` 内部改 stdio 整读，读预检由 `exists()`+`is_regular_file()` 两次 stat 合并为一次 `status()`（错误语义不变，小文件读省 ~60% 开销）；六个解析器（csv/ini/json/toml/xml/yaml）的 `read_file` 改经 `fs::read_file_all`（去掉 ifstream+ostringstream 双层流与整读内容的二次拷贝）。
+- **[行为收敛] 解析器 `read_file` 读失败消息**：`failed to open XXX file` 改为 `failed to read XXX file`（失败点不再只有"打开"，整读中途失败同通道报错）；`FileUtil::read_lines` 由 getline 流式改为整读后拆行（返回值语义不变：行尾 CRLF 剥离、末行无换行保留、结尾换行不产生空行），超大文件峰值内存多一份文件内容。
+- **[crypto] SHA-3 按 FIPS 202 重写**：keccak-f 置换与 absorb/squeeze 全流程按规范重写，输出正确性由 NIST 官方向量单测锁定（unittest/sha3_test.cpp）。 `operator()` / `add` / `reset` 公开调用面保留，尺寸参数收敛为 `ca::usize` （同 `size_t`，调用方无感）。
 
 ## [0.0.15] - 2026-10-11
 
 ### libca
 
-- **[zip] Windows 非 ASCII 路径打开修复**：`ZipFile`/`ZipOutputStream` 的
-  `std::string` 路径参数明确为 UTF-8 编码契约；Windows 内部经 `ca::str::OsString`
-  转 UTF-16 走 `_wfopen`（窄 `fopen` 是 ANSI 代码页语义，UTF-8 中文/emoji 路径
-  此前必然打开失败或落到乱码文件名），POSIX 原样直通。zip 模块因此新增对
-  `libca_str` 的构建依赖；测试侧的 `std::filesystem::u8path`（C++20 起 P0492
-  废弃）一并清除，改经 `str::OsString` 桥接原生编码。
-- **[json/ini/toml] 数字转换 locale 加固**：`strtod`/`strtoll`/`snprintf("%.17g")`
-  全面替换为 `std::from_chars`/`std::to_chars`，数值解析与序列化不再受进程
-  `LC_NUMERIC`（宿主程序 `setlocale` 到逗号小数点区域）影响。行为收敛：ini 的
-  十六进制浮点（`0x1p2`）不再当 double 接受；子正规 double（如 `4.9e-324`）
-  跨平台统一为合法（glibc `strtod` 曾置 `ERANGE` 判非法，MSVC 合法）；
-  json/toml writer 浮点输出由 `%.17g` 改为 `to_chars` 最短 round-trip 表示
-  （`0.1` 写作 `"0.1"`），仍保证读回同一 double。
-- **[fs] glob 弃用 std::regex 改手写匹配器**：`*`/`?`/`**`/`**/` 语义与旧正则
-  逐条对齐，每候选匹配 15-18x 加速（免每模式 NFA 编译与逐候选解释执行）。
-  唯一口径差：`**` 不再排除含 `\n` 的路径段（旧 ECMAScript 正则的 `.` 不匹配
-  `\n`，而 POSIX 文件名可含换行）。
-- **[str] string_util 去 stringstream 残留**：空白 split / 两个 join 重载改
-  手写实现，语义不变（空白集合 = classic locale 的 ASCII isspace、空串元素
-  保留、空表/单元素边界已钉死测试），免去 streambuf 构造与 locale 查询开销。
-- **[全局] 测试侧 u8path 清零**：config/csv/ini/json/toml/xml/yaml/fs 单测中
-  13 处 `std::filesystem::u8path` 调用（C++20 起 P0492 废弃）统一改经
-  `ca::fs::Path::from_utf8_lossy(...).native()` 构造原生路径；zip 测试经
-  `str::OsString` 桥接（#250，zip 不引 fs 依赖属刻意）。src 与 test 至此
-  全库零 u8path 调用。
+- **[zip] Windows 非 ASCII 路径打开修复**：`ZipFile`/`ZipOutputStream` 的 `std::string` 路径参数明确为 UTF-8 编码契约；Windows 内部经 `ca::str::OsString` 转 UTF-16 走 `_wfopen`（窄 `fopen` 是 ANSI 代码页语义，UTF-8 中文/emoji 路径此前必然打开失败或落到乱码文件名），POSIX 原样直通。zip 模块因此新增对 `libca_str` 的构建依赖；测试侧的 `std::filesystem::u8path`（C++20 起 P0492 废弃）一并清除，改经 `str::OsString` 桥接原生编码。
+- **[json/ini/toml] 数字转换 locale 加固**：`strtod`/`strtoll`/`snprintf("%.17g")` 全面替换为 `std::from_chars`/`std::to_chars`，数值解析与序列化不再受进程 `LC_NUMERIC`（宿主程序 `setlocale` 到逗号小数点区域）影响。行为收敛：ini 的十六进制浮点（`0x1p2`）不再当 double 接受；子正规 double（如 `4.9e-324`）跨平台统一为合法（glibc `strtod` 曾置 `ERANGE` 判非法，MSVC 合法）； json/toml writer 浮点输出由 `%.17g` 改为 `to_chars` 最短 round-trip 表示（`0.1` 写作 `"0.1"`），仍保证读回同一 double。
+- **[fs] glob 弃用 std::regex 改手写匹配器**：`*`/`?`/`**`/`**/` 语义与旧正则逐条对齐，每候选匹配 15-18x 加速（免每模式 NFA 编译与逐候选解释执行）。唯一口径差：`**` 不再排除含 `\n` 的路径段（旧 ECMAScript 正则的 `.` 不匹配 `\n`，而 POSIX 文件名可含换行）。
+- **[str] string_util 去 stringstream 残留**：空白 split / 两个 join 重载改手写实现，语义不变（空白集合 = classic locale 的 ASCII isspace、空串元素保留、空表/单元素边界已钉死测试），免去 streambuf 构造与 locale 查询开销。
+- **[全局] 测试侧 u8path 清零**：config/csv/ini/json/toml/xml/yaml/fs 单测中 13 处 `std::filesystem::u8path` 调用（C++20 起 P0492 废弃）统一改经 `ca::fs::Path::from_utf8_lossy(...).native()` 构造原生路径；zip 测试经 `str::OsString` 桥接（#250，zip 不引 fs 依赖属刻意）。src 与 test 至此全库零 u8path 调用。
 
 ## [0.0.14] - 2026-10-10
 
 ### libca
 
-- **[fs] 新增 `Path` 路径值类型**：类型化 UTF-8 编码边界，语义对齐 Rust
-  `std::path::Path`。内部持 `std::filesystem::path`，编码转换经 `ca::str::OsString`
-  （fs 因此新增对 `libca_str` 的依赖）：`from_utf8`（显式校验，非法返回新增的
-  `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）/ `from_os_string` /
-  `from_native`（Windows）/ `to_utf8_lossy` / `to_os_string` / `native()`，
-  与 `std::string` 无隐式转换；`operator/`、parent/filename/stem/extension/
-  normalized/absolute/components、`operator==`/`operator<`/`std::hash`。
-- **[fs] FileUtil/PathUtil 全面接入 Path**：每个接受路径的 FileUtil 函数新增
-  `const Path&` 重载（list_files/list_entries 返回 `std::vector<Path>`、backup
-  返回 `Path`，避免每条结果重复编码转换）；`std::string` 重载族保留并委托
-  `Path::from_utf8_lossy`。**行为收敛**：string 族接口收到非法 UTF-8 时，从
-  「实现定义的静默损坏」（MSVC 有损替换 / libstdc++ 近似透传）统一定义为
-  U+FFFD 替换，不抛异常、跨平台一致；`PathUtil::to_absolute` 解析失败不再抛异常，
-  返回原路径（与该类「不抛异常」的既有承诺对齐）。`FsError` 新增 `classify_error`
-  公开 `std::error_code` 归类映射。
-- **[全局] u8path 清零**：fs/csv/ini/json/toml/xml/yaml 的文件流打开统一改为
-  `ca::fs::Path::from_utf8_lossy(...).native()`（fstream 原生接受
-  `std::filesystem::path`），`std::filesystem::u8path`/`generic_u8string` 在
-  全库 src 中不再出现——C++20（`char8_t` 废弃 u8path）迁移时只需改
-  `fs/path.cpp` 一处。解析器六模块因此新增对 `libca_fs` 的依赖。
+- **[fs] 新增 `Path` 路径值类型**：类型化 UTF-8 编码边界，语义对齐 Rust `std::path::Path`。内部持 `std::filesystem::path`，编码转换经 `ca::str::OsString` （fs 因此新增对 `libca_str` 的依赖）：`from_utf8`（显式校验，非法返回新增的 `FsError::InvalidUtf8`）/ `from_utf8_lossy`（U+FFFD 替代）/ `from_os_string` / `from_native`（Windows）/ `to_utf8_lossy` / `to_os_string` / `native()`，与 `std::string` 无隐式转换；`operator/`、parent/filename/stem/extension/ normalized/absolute/components、`operator==`/`operator<`/`std::hash`。
+- **[fs] FileUtil/PathUtil 全面接入 Path**：每个接受路径的 FileUtil 函数新增 `const Path&` 重载（list_files/list_entries 返回 `std::vector<Path>`、backup 返回 `Path`，避免每条结果重复编码转换）；`std::string` 重载族保留并委托 `Path::from_utf8_lossy`。**行为收敛**：string 族接口收到非法 UTF-8 时，从实现定义的静默损坏（MSVC 有损替换 / libstdc++ 近似透传）统一定义为 U+FFFD 替换，不抛异常、跨平台一致；`PathUtil::to_absolute` 解析失败不再抛异常，返回原路径（与该类不抛异常的既有承诺对齐）。`FsError` 新增 `classify_error` 公开 `std::error_code` 归类映射。
+- **[全局] u8path 清零**：fs/csv/ini/json/toml/xml/yaml 的文件流打开统一改为 `ca::fs::Path::from_utf8_lossy(...).native()`（fstream 原生接受 `std::filesystem::path`），`std::filesystem::u8path`/`generic_u8string` 在全库 src 中不再出现，C++20（`char8_t` 废弃 u8path）迁移时只需改 `fs/path.cpp` 一处。解析器六模块因此新增对 `libca_fs` 的依赖。
 
 ### 构建
 
-- **[全局] target 组名 `libs*` 重命名为 `libca*`**：组名是纯 xmake 标签，`libs` 目录
-  早已不存在（源码在 `libca/` 下），重命名使命令与实际布局一致——库
-  `xmake build -g libca`、全量单测 `xmake test -g libca/test`、基准 `libca/benchmark`、
-  性能 `libca/perf`。CI workflow 与 README/AGENTS/设计文档同步更新；组名不参与
-  包安装与 target 命名，对包消费无影响。
-- **[全局] 移除 `with_demo` 死选项**：仓库无任何 demo target，该选项从未被读取；
-  根 xmake.lua 删除选项定义，CI 同步去掉 `--with_demo=n`。
+- **[全局] target 组名 `libs*` 重命名为 `libca*`**：组名是纯 xmake 标签，`libs` 目录早已不存在（源码在 `libca/` 下），重命名使命令与实际布局一致，库 `xmake build -g libca`、全量单测 `xmake test -g libca/test`、基准 `libca/benchmark`、性能 `libca/perf`。CI workflow 与 README/AGENTS/设计文档同步更新；组名不参与包安装与 target 命名，对包消费无影响。
+- **[全局] 移除 `with_demo` 死选项**：仓库无任何 demo target，该选项从未被读取；根 xmake.lua 删除选项定义，CI 同步去掉 `--with_demo=n`。
 
 
 ## [0.0.13] - 2026-10-03
 
 ### libca
 
-- **[opt]** HelpTable 排版能力扩展（上游需求）：多列布局、原样行块组合、
-  折行（续行尾随空白对齐 render_columns 口径、折行空格口径写实）、CJK 显示
-  宽度与渲染列能力；非法 UTF-8/末列折行用例钉死行为（R54 N1-N3 落刀随本条
-  落地，opt.cpp/opt.hpp 实现域 + unittest 覆盖）
-- **[test]** fs 模块纯测试覆盖（零行为变更）：skip_permission_denied Linux-only
-  遍历三例（list_files 递归 / glob 递归 / copy_dir——无权限子树跳过而非失败；
-  root 环境下先恢复权限再 SKIP + 恢复 ec 检查，R55 N1 落刀随本条落地）与
-  metadata 符号链接分层语义三例（文件/目录链接描述链接本身不跟随、
-  modified_at 跟随目标、悬空链接返回 FileNotFound；对照 exists()/is_directory()
-  的跟随口径；NTFS symlink 创建失败则 GTEST_SKIP）
-- **[docs]** fs `FileMetadata` 注释口径卡：写明 `list_files`/`glob` 条目分类
-  **跟随** symlink（std::filesystem 目录遍历默认口径）而 `metadata()` 用
-  **lstat 不跟随**口径——"同路径两口径"的真实误用风险就地文档化，零代码改动
+- **[opt]** HelpTable 排版能力扩展（上游需求）：多列布局、原样行块组合、折行（续行尾随空白对齐 render_columns 口径、折行空格口径写实）、CJK 显示宽度与渲染列能力；非法 UTF-8/末列折行用例钉死行为（R54 N1-N3 落刀随本条落地，opt.cpp/opt.hpp 实现域 + unittest 覆盖）
+- **[test]** fs 模块纯测试覆盖（零行为变更）：skip_permission_denied Linux-only 遍历三例（list_files 递归 / glob 递归 / copy_dir，无权限子树跳过而非失败； root 环境下先恢复权限再 SKIP + 恢复 ec 检查，R55 N1 落刀随本条落地）与 metadata 符号链接分层语义三例（文件/目录链接描述链接本身不跟随、 modified_at 跟随目标、悬空链接返回 FileNotFound；对照 exists()/is_directory() 的跟随口径；NTFS symlink 创建失败则 GTEST_SKIP）
+- **[docs]** fs `FileMetadata` 注释口径卡：写明 `list_files`/`glob` 条目分类 **跟随** symlink（std::filesystem 目录遍历默认口径）而 `metadata()` 用 **lstat 不跟随**口径，"同路径两口径"的真实误用风险就地文档化，零代码改动
 
 ## [0.0.12] - 2026-10-03
 
@@ -126,168 +58,68 @@
 
 ### libca
 
-- **[str]** `Utf8String::clone()` 单分配化：修前每次 clone 双分配——先默认构造
-  分配 1 字节缓冲、随即 delete 再直配 `byte_length + 1`；现经内部
-  uninitialized 直配路径一次分配目标容量（含 `'\0'`）。非空 clone 每次
-  2 allocs → 1 allocs（分配计数探针实测，17 字节串 100 次 clone：
-  200 allocs / 1900 bytes → 100 allocs / 1800 bytes），clone 热点消费方
-  普遍降低分配流量。实现仅新增私有标记构造，不引入数据成员/虚函数，
-  **API/ABI 兼容，公开签名不动**；unittest 新增全局 new/delete delta 计数
-  回归，钉死「clone 分配次数 = 1」。升级注意：无（行为语义不变，仅分配
-  流量下降）。已知遗留：同文件 `from_data` / `from_data_unchecked` /
-  `from_validated` 存在同构双分配模式，本版不做，后续独立收敛。
+- **[str]** `Utf8String::clone()` 单分配化：修前每次 clone 双分配，先默认构造分配 1 字节缓冲、随即 delete 再直配 `byte_length + 1`；现经内部 uninitialized 直配路径一次分配目标容量（含 `'\0'`）。非空 clone 每次 2 allocs → 1 allocs（分配计数探针实测，17 字节串 100 次 clone： 200 allocs / 1900 bytes → 100 allocs / 1800 bytes），clone 热点消费方普遍降低分配流量。实现仅新增私有标记构造，不引入数据成员/虚函数， **API/ABI 兼容，公开签名不动**；unittest 新增全局 new/delete delta 计数回归，钉死clone 分配次数 = 1。升级注意：无（行为语义不变，仅分配流量下降）。已知遗留：同文件 `from_data` / `from_data_unchecked` / `from_validated` 存在同构双分配模式，本版不做，后续独立收敛。
 
 ## [0.0.10] - 2026-10-02
 
 ### libca
 
-- **[random]** 新增确定性伪随机原语 `SplitMix64` / `Xorshift32`（header-only，
-  仅依赖 core）：作为上游 A3/A4 的收敛单份，语义逐位锁定
-  本仓正典（SplitMix64 = vmc4_instance.cpp 内联版；Xorshift32 =
-  regc_cache_pool.cpp regcStringXorshift32，与 native_lib_crypto.hpp
-  xorshift32Step 同式），unittest 以 Python 复刻正典产出的 golden 向量做
-  位精确对拍，收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0
-  为定义行为（序列恒 0，与正典一致），不做隐式替换。
-- **[crypto]** 新增标准 DES 块密码原语 `crypto/des.hpp`（FIPS 46-3：IP/FP + 16 轮
-  Feistel、E 扩展、8 S-box、P 置换、PC-1/PC-2 密钥调度）：单块
-  `des_encrypt_block`/`des_decrypt_block`、`des_ecb_encrypt/decrypt` 与
-  `des_cbc_encrypt/decrypt` 双向（NoPadding，IV 显式传入，非整块返回
-  INVALID_ARGUMENT）、PKCS#5 助手 `pkcs5_pad`/`pkcs5_unpad`（非法填充报错）。
-  纯内置实现，**不接** OpenSSL/CNG 后端（现代提供方已弃用 DES）；密钥奇偶位不
-  校验不调整、弱密钥不拒绝（对齐 JCE `DESKeySpec` 语义，该项随本轮下沉
-  单份原语的逐位对齐硬要求），单测钉死 SunJCE 实测黄金组（对拍来源见
-  des_eval_test）。
+- **[random]** 新增确定性伪随机原语 `SplitMix64` / `Xorshift32`（header-only，仅依赖 core）：作为上游 A3/A4 的收敛单份，语义逐位锁定本仓正典（SplitMix64 = vmc4_instance.cpp 内联版；Xorshift32 = regc_cache_pool.cpp regcStringXorshift32，与 native_lib_crypto.hpp xorshift32Step 同式），unittest 以 Python 复刻正典产出的 golden 向量做位精确对拍，收敛后要求输出逐位不变。注意：Xorshift32 的 seed 0 为定义行为（序列恒 0，与正典一致），不做隐式替换。
+- **[crypto]** 新增标准 DES 块密码原语 `crypto/des.hpp`（FIPS 46-3：IP/FP + 16 轮 Feistel、E 扩展、8 S-box、P 置换、PC-1/PC-2 密钥调度）：单块 `des_encrypt_block`/`des_decrypt_block`、`des_ecb_encrypt/decrypt` 与 `des_cbc_encrypt/decrypt` 双向（NoPadding，IV 显式传入，非整块返回 INVALID_ARGUMENT）、PKCS#5 助手 `pkcs5_pad`/`pkcs5_unpad`（非法填充报错）。纯内置实现，**不接** OpenSSL/CNG 后端（现代提供方已弃用 DES）；密钥奇偶位不校验不调整、弱密钥不拒绝（对齐 JCE `DESKeySpec` 语义，该项随本轮下沉单份原语的逐位对齐硬要求），单测钉死 SunJCE 实测黄金组（对拍来源见 des_eval_test）。
 
 ### 全局
 
-- **[构建/包定义]** luiox-repo 的 `packages/l/libca/xmake.lua` Windows
-  `add_syslinks` 补齐清单补 `Iphlpapi`（上游需求）：50bb642 为 `libca.net`
-  新增自由函数 `ca::net::interface_list`（Windows 调 `GetAdaptersAddresses`，
-  符号在 iphlpapi.lib），而模块 target 的 `add_syslinks` 不随包安装传导，
-    补齐 Windows 清单遗漏同样导致消费方 HTTP 传输类项目（libmcp Streamable HTTP
-  首次拉入 `libca_net`）静态链接报 `LNK2019: __imp_GetAdaptersAddresses`。
-  修复在包定义层，syslinks 清单对既有各锁定版本一并生效（多链接一个未用
-  库无害）；`on_test` 新增的 net 链接级自检（syslinks 再缺失时包安装期即
-  失败）则按版本门控 `>= 0.0.8`——`sock_util.hpp` 自 0.0.8（560d263）才
-  存在，更早锁定版本的全新安装会死在自检编译期（评审 R7）。libca 仓内
-  net target 自 50bb642 起已正确声明 `add_syslinks("ws2_32", "iphlpapi")`，
-  仓内构建与源码无需变更；消费侧临时 `add_syslinks("Iphlpapi")` 垫片
-  （上游项目）可在修复生效后移除。
+- **[构建/包定义]** luiox-repo 的 `packages/l/libca/xmake.lua` Windows `add_syslinks` 补齐清单补 `Iphlpapi`（上游需求）：50bb642 为 `libca.net` 新增自由函数 `ca::net::interface_list`（Windows 调 `GetAdaptersAddresses`，符号在 iphlpapi.lib），而模块 target 的 `add_syslinks` 不随包安装传导，补齐 Windows 清单遗漏同样导致消费方 HTTP 传输类项目（libmcp Streamable HTTP 首次拉入 `libca_net`）静态链接报 `LNK2019: __imp_GetAdaptersAddresses`。修复在包定义层，syslinks 清单对既有各锁定版本一并生效（多链接一个未用库无害）；`on_test` 新增的 net 链接级自检（syslinks 再缺失时包安装期即失败）则按版本门控 `>= 0.0.8`，`sock_util.hpp` 自 0.0.8（560d263）才存在，更早锁定版本的全新安装会死在自检编译期（评审 R7）。libca 仓内 net target 自 50bb642 起已正确声明 `add_syslinks("ws2_32", "iphlpapi")`，仓内构建与源码无需变更；消费侧临时 `add_syslinks("Iphlpapi")` 垫片（上游项目）可在修复生效后移除。
 
 ## [0.0.9] - 2026-10-01
 
 ### 全局
 
-- **[不兼容]** 移除 `libca/ui` 模块（Windows-only Win32 GUI 薄封装：`Window`/
-  `WindowManager`、`Control`/`Button`、`MessageDialog`、`CaptureGuard`）：
+- **[不兼容]** 移除 `libca/ui` 模块（Windows-only Win32 GUI 薄封装：`Window`/ `WindowManager`、`Control`/`Button`、`MessageDialog`、`CaptureGuard`）：
   - 模块定位游离于本库"基础设施"主线之外，GUI 能力由独立 uikit 仓库承担；
   - 本仓库删除 `libca/ui/` 目录与 `includes("ui")`，libca 内部无其他模块依赖它；
-  - **消费方迁移**：使用了 `modules = "...ui..."` 或依赖 `ca::ui` 的下游需自行
-    承接（可将原四个组件源码拷走或改用 uikit）；未使用 ui 的下游无需任何改动；
-  - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除
-    `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
+  - **消费方迁移**：使用了 `modules = "...ui..."` 或依赖 `ca::ui` 的下游需自行承接（可将原四个组件源码拷走或改用 uikit）；未使用 ui 的下游无需任何改动；
+  - **包定义联动**：luiox-repo 的 `packages/l/libca/xmake.lua` 需同步删除 `MODULE_DEPS` 表中 `ui` 条目后发版，否则 `modules = "all"` 展开会链接失败。
 
 ### libca
 
-- **[str] UTF-8 校验收紧为 Unicode 标准严格模式**：`Utf8String::from_data` 等入口
-  （及 utf8_count_code_points/utf8_is_valid 公共地基，json/xml/yaml/toml/ini 各
-  parser 入口随之一致）此前放过 overlong 表达（`C0 80`）、UTF-16 代理区
-  （`ED A0 80`）与超出 U+10FFFF 的序列（`F4 90 80 80`），现一律拒绝。
-  另修复 `Utf8Iterator` 在非规范/截断输入下步进越过 end 的越界读。
-- **[str]** `StringUtil::base64UrlEncode/base64UrlDecode` 命名违反 snake_case 约定，
-  新增 `base64_url_encode/base64_url_decode`，旧名标记 `[[deprecated]]` 保留转调。
-- **[time]** `Date::from_string`/`Time::from_string` 从"只查前缀格式"收紧为严格
-  校验：恰好 10/8 字符（拒绝尾部脏字符），并校验字段范围（真实日历含闰年、
-  时 0-23、分/秒 0-59）。
-- **[toml]** 修复 writer 小数秒输出：`%09.9f` 宽度不足导致个位秒丢前导零
-  （产出 `07:32:5.5` 非法 TOML），改为秒/纳秒独立整数格式化；
-  `TomlValue::as_integer_or` 对 NaN/Inf/超 i64 范围浮点不再 UB cast，回落 fallback。
+- **[str] UTF-8 校验收紧为 Unicode 标准严格模式**：`Utf8String::from_data` 等入口（及 utf8_count_code_points/utf8_is_valid 公共地基，json/xml/yaml/toml/ini 各 parser 入口随之一致）此前放过 overlong 表达（`C0 80`）、UTF-16 代理区（`ED A0 80`）与超出 U+10FFFF 的序列（`F4 90 80 80`），现一律拒绝。另修复 `Utf8Iterator` 在非规范/截断输入下步进越过 end 的越界读。
+- **[str]** `StringUtil::base64UrlEncode/base64UrlDecode` 命名违反 snake_case 约定，新增 `base64_url_encode/base64_url_decode`，旧名标记 `[[deprecated]]` 保留转调。
+- **[time]** `Date::from_string`/`Time::from_string` 从"只查前缀格式"收紧为严格校验：恰好 10/8 字符（拒绝尾部脏字符），并校验字段范围（真实日历含闰年、时 0-23、分/秒 0-59）。
+- **[toml]** 修复 writer 小数秒输出：`%09.9f` 宽度不足导致个位秒丢前导零（产出 `07:32:5.5` 非法 TOML），改为秒/纳秒独立整数格式化； `TomlValue::as_integer_or` 对 NaN/Inf/超 i64 范围浮点不再 UB cast，回落 fallback。
 - **[xml]** 修复 writer CDATA 值含 `]]>` 时产出非法 XML：按标准惯用法拆分。
-- **[process]** 修复 Linux `/proc/<pid>/stat` 出生戳解析差一（cursor 未跳过 `)`，
-  第 20 个 token 取到恒为 0 的 itrealvalue，pid 复用防御失效）；
-  Windows `CREATE_NO_WINDOW` 改为仅在三路 stdio 均非 Inherit 时加（不再破坏
-  `Stdio::inherit()`）；Windows 找不到可执行文件统一映射 `NOT_FOUND`（对齐 POSIX
-  与 Rust ErrorKind::NotFound，此前为通用 INTERNAL）。
-- **[zip]** `ZipOutputStream` 第 65536 条起此前计数回绕产出目录损坏的归档，
-  现显式报错（无 ZIP64 写路径上限 65535 条）。
+- **[process]** 修复 Linux `/proc/<pid>/stat` 出生戳解析差一（cursor 未跳过 `)`，第 20 个 token 取到恒为 0 的 itrealvalue，pid 复用防御失效）； Windows `CREATE_NO_WINDOW` 改为仅在三路 stdio 均非 Inherit 时加（不再破坏 `Stdio::inherit()`）；Windows 找不到可执行文件统一映射 `NOT_FOUND`（对齐 POSIX 与 Rust ErrorKind::NotFound，此前为通用 INTERNAL）。
+- **[zip]** `ZipOutputStream` 第 65536 条起此前计数回绕产出目录损坏的归档，现显式报错（无 ZIP64 写路径上限 65535 条）。
 - **[config]** 清理 `config_var.hpp` 重复的 `#pragma once`。
-- **[fs] `FileMode::CREATE_NEW` 从 TOCTOU 检查改为内核原子创建**（`O_CREAT|O_EXCL`）：
-  并发独占创建不再可能后开者截断先者写入；`atomic_write_bytes` 的临时文件随之
-  真正原子。新增 `copy_ex/move_ex/remove_ex/remove_all_ex` Result 版本（EXDEV、
-  权限、目标占用等失败原因不再被吞成 bool），旧 bool 版保留转发。
-- **[fs]** `list_files(recursive)`/`copy_dir` 递归遍历补
-  `skip_permission_denied`（对齐 glob 口径）：树上无权限子目录跳过而非整体失败。
-- **[fs]** `metadata()` 符号链接分层语义文档化：类型/权限描述链接本身（不跟随），
-  modified_at 取自目标，悬空链接返回 FileNotFound。
-- **[str] `StringUtil::split`（char/separators 重载）统一为保留空段**：此前
-  getline/find_first_of 实现会丢弃尾部空段（`"a,"` → `["a"]`），与
-  `Utf8StringRef::split`（`"a,"` → `["a",""]`）同名不同义；现统一为 Rust
-  `split` 语义（`"a,"` → `["a",""]`），whitespace 重载保持 split_whitespace
-  语义不变。依赖"丢尾部空段"旧行为的调用方需适配。
-- **[str]** 数值转换补严格版 `parse_short/int/long/float/double`（基于
-  `std::from_chars`，全串消费、失败走 `Result<T, std::string>` 错误通道）；
-  宽松版 `to_*` 历史语义不变（失败返 0、容忍尾部非数字），实现同样改
-  from_chars（不再逐次构造 istringstream）。
-- **[str]** `ZUtf8StringRef::from_static` 缓存命中路径改 `shared_mutex` 读锁
-  （多线程热路径不再串行化），缓存加 4096 条上限（封顶后未命中仅计算不缓存，
-  不再按地址无界增长），新增 `clear_static_cache()` 出口。
-- **[collection]** `ArrayList`/`HashSet` 补 `push_back` 兼容别名：
-  `stream(v).collect<ArrayList<T>>()` / `collect<HashSet<T>>()` 此前编译失败，
-  现可用。
-- **[net]** `UdpSocket` 补 `set_ttl/ttl`（IPv4 走 IP_TTL，IPv6 走
-  IPV6_UNICAST_HOPS，往返一致）；组播成员管理暂不提供，待后续单独立项。
-- **[http] 协议健壮性三件**：服务端协议错误响应（431/413 等）此前硬编码按 GET
-  帧——HEAD 请求失败时多出的 body 字节会被客户端下一响应解析器吞掉，现按
-  请求行已解析 method 判定帧规则（Http1Reader 新增 last_head_method()）；
-  HTTP 客户端复用连接遇 reset 类错误且请求不可重试时，最终错误保留原始
-  EPIPE/RST 诊断（不再被笼统的"closed before response head"吞掉）；服务器
-  stop 轮询等待在原始 TCP 路径改用 select（Windows 上阻塞收发超时后连接处于
-  MSDN "不确定状态"，此前重试依赖该状态；TLS 路径无法规避、已注释文档化风险）。
-- **[http]** `HttpClient` 新增流式收发能力（此前响应体一律全量缓冲、请求体必须
-  全量持有，大文件 / SSE 在客户端侧不可行）：`request_streaming()` 返回
-  `HttpStreamingResponse`（head 就绪即返回，body 逐块消费）；`begin_chunked()`
-  返回 `HttpChunkedRequest`（chunked 请求体逐块上传，接通 codec 已有的
-  `begin_chunked_request`）。流式路径不做 stale 重试、消费完成后连接归池或关闭
-  （不再保留为本 client 复用连接），`max_body_bytes` 在流式下语义不变
-  （Content-Length 超限 head 阶段报错；chunked/close-delimited 累计超限报错），
-  大 body 流式消费需按需调高该上限。
-- **[不兼容]** `libca/zip` 错误通道从异常迁移到 `ca::Result<T, ZipErrorInfo>`
-  （全库最后一个以异常为错误通道的模块）：
-  - `ZipFile::open/read`、`ZipInputStream::get_next_entry/read/read_all`、
-    `ZipOutputStream::open/close/put_next_entry/write/close_entry/set_level`、
-    `GzipReader::read/read_all`、`gzip_decompress`、`GzipWriter::write/finish`、
-    `gzip_compress` 一律返回 `Result<..., ZipErrorInfo>`（`code` + `message`，
-    见 `libca/zip/zip_error.hpp`）；
-  - 错误码覆盖 `NOT_FOUND / INVALID_FORMAT / CRC_MISMATCH / UNSUPPORTED /
-    IO_FAILED / ZLIB_ERROR / INVALID_ARGUMENT / INVALID_STATE`；
-  - 异常仅保留在打开型构造重载（失败抛 `std::runtime_error`）与
-    `ZipFile::get_entry_at` 越界（抛 `std::out_of_range`，对齐 `std::vector::at`
-    语义）；需要 Result 语义的构造改为默认构造 + `open()`；
-  - 行为细化：`ZipInputStream::read` 遇 deflate 数据损坏不再静默返回部分数据，
-    改为返回 `Err(INVALID_FORMAT)`；`read_all` 对不支持的压缩方法返回
-    `Err(UNSUPPORTED)`；`ZipOutputStream::put_next_entry` 在未 open 时返回
-    `Err(INVALID_STATE)`（原先为未定义行为）；
+- **[fs] `FileMode::CREATE_NEW` 从 TOCTOU 检查改为内核原子创建**（`O_CREAT|O_EXCL`）：并发独占创建不再可能后开者截断先者写入；`atomic_write_bytes` 的临时文件随之真正原子。新增 `copy_ex/move_ex/remove_ex/remove_all_ex` Result 版本（EXDEV、权限、目标占用等失败原因不再被吞成 bool），旧 bool 版保留转发。
+- **[fs]** `list_files(recursive)`/`copy_dir` 递归遍历补 `skip_permission_denied`（对齐 glob 口径）：树上无权限子目录跳过而非整体失败。
+- **[fs]** `metadata()` 符号链接分层语义文档化：类型/权限描述链接本身（不跟随）， modified_at 取自目标，悬空链接返回 FileNotFound。
+- **[str] `StringUtil::split`（char/separators 重载）统一为保留空段**：此前 getline/find_first_of 实现会丢弃尾部空段（`"a,"` → `["a"]`），与 `Utf8StringRef::split`（`"a,"` → `["a",""]`）同名不同义；现统一为 Rust `split` 语义（`"a,"` → `["a",""]`），whitespace 重载保持 split_whitespace 语义不变。依赖"丢尾部空段"旧行为的调用方需适配。
+- **[str]** 数值转换补严格版 `parse_short/int/long/float/double`（基于 `std::from_chars`，全串消费、失败走 `Result<T, std::string>` 错误通道）；宽松版 `to_*` 历史语义不变（失败返 0、容忍尾部非数字），实现同样改 from_chars（不再逐次构造 istringstream）。
+- **[str]** `ZUtf8StringRef::from_static` 缓存命中路径改 `shared_mutex` 读锁（多线程热路径不再串行化），缓存加 4096 条上限（封顶后未命中仅计算不缓存，不再按地址无界增长），新增 `clear_static_cache()` 出口。
+- **[collection]** `ArrayList`/`HashSet` 补 `push_back` 兼容别名： `stream(v).collect<ArrayList<T>>()` / `collect<HashSet<T>>()` 此前编译失败，现可用。
+- **[net]** `UdpSocket` 补 `set_ttl/ttl`（IPv4 走 IP_TTL，IPv6 走 IPV6_UNICAST_HOPS，往返一致）；组播成员管理暂不提供，待后续单独立项。
+- **[http] 协议健壮性三件**：服务端协议错误响应（431/413 等）此前硬编码按 GET 帧，HEAD 请求失败时多出的 body 字节会被客户端下一响应解析器吞掉，现按请求行已解析 method 判定帧规则（Http1Reader 新增 last_head_method()）； HTTP 客户端复用连接遇 reset 类错误且请求不可重试时，最终错误保留原始 EPIPE/RST 诊断（不再被笼统的"closed before response head"吞掉）；服务器 stop 轮询等待在原始 TCP 路径改用 select（Windows 上阻塞收发超时后连接处于 MSDN "不确定状态"，此前重试依赖该状态；TLS 路径无法规避、已注释文档化风险）。
+- **[http]** `HttpClient` 新增流式收发能力（此前响应体一律全量缓冲、请求体必须全量持有，大文件 / SSE 在客户端侧不可行）：`request_streaming()` 返回 `HttpStreamingResponse`（head 就绪即返回，body 逐块消费）；`begin_chunked()` 返回 `HttpChunkedRequest`（chunked 请求体逐块上传，接通 codec 已有的 `begin_chunked_request`）。流式路径不做 stale 重试、消费完成后连接归池或关闭（不再保留为本 client 复用连接），`max_body_bytes` 在流式下语义不变（Content-Length 超限 head 阶段报错；chunked/close-delimited 累计超限报错），大 body 流式消费需按需调高该上限。
+- **[不兼容]** `libca/zip` 错误通道从异常迁移到 `ca::Result<T, ZipErrorInfo>` （全库最后一个以异常为错误通道的模块）：
+  - `ZipFile::open/read`、`ZipInputStream::get_next_entry/read/read_all`、 `ZipOutputStream::open/close/put_next_entry/write/close_entry/set_level`、 `GzipReader::read/read_all`、`gzip_decompress`、`GzipWriter::write/finish`、 `gzip_compress` 一律返回 `Result<..., ZipErrorInfo>`（`code` + `message`，见 `libca/zip/zip_error.hpp`）；
+  - 错误码覆盖 `NOT_FOUND / INVALID_FORMAT / CRC_MISMATCH / UNSUPPORTED / IO_FAILED / ZLIB_ERROR / INVALID_ARGUMENT / INVALID_STATE`；
+  - 异常仅保留在打开型构造重载（失败抛 `std::runtime_error`）与 `ZipFile::get_entry_at` 越界（抛 `std::out_of_range`，对齐 `std::vector::at` 语义）；需要 Result 语义的构造改为默认构造 + `open()`；
+  - 行为细化：`ZipInputStream::read` 遇 deflate 数据损坏不再静默返回部分数据，改为返回 `Err(INVALID_FORMAT)`；`read_all` 对不支持的压缩方法返回 `Err(UNSUPPORTED)`；`ZipOutputStream::put_next_entry` 在未 open 时返回 `Err(INVALID_STATE)`（原先为未定义行为）；
   - 全部 zip 单测迁移为 Result 断言（69 用例）。
 
-- **[csv/process/thread/yaml]** 健壮性批次 2（#235）：csv 读取选项校验拒绝保留分隔符/引号字符；
-  process `ipc` Windows 侧补 `VirtualQuery` 返回值检查；`thread` join 串行化消除竞争；
-  yaml `max_depth` 可配（防深嵌套递归失控）。
-- **[config]** 新增持久化出口与 checked 查询（#240）：`Config::save/dump/dump_file`、
-  `lookup_checked`（缺失/类型不符显式报错），附 K&R 格式化输出。
-- **[zip]** 条目数溢出守卫完成 Result 迁移：`close_entry` 第 65536 条起返回
-  `Err(UNSUPPORTED)`（原先抛 `std::runtime_error`，且异常穿越析构路径可致 terminate）。
+- **[csv/process/thread/yaml]** 健壮性改进（#235）：csv 读取选项校验拒绝保留分隔符/引号字符； process `ipc` Windows 侧补 `VirtualQuery` 返回值检查；`thread` join 串行化消除竞争； yaml `max_depth` 可配（防深嵌套递归失控）。
+- **[config]** 新增持久化出口与 checked 查询（#240）：`Config::save/dump/dump_file`、 `lookup_checked`（缺失/类型不符显式报错），附 K&R 格式化输出。
+- **[zip]** 条目数溢出守卫完成 Result 迁移：`close_entry` 第 65536 条起返回 `Err(UNSUPPORTED)`（原先抛 `std::runtime_error`，且异常穿越析构路径可致 terminate）。
 
 
 ## [0.0.7] - 2026-09-15
 
 ### 全局
 
-- **[不兼容]** `libca.em/`（C99 嵌入式组件）整体拆分至独立仓库
-  <https://github.com/luiox/libca-em>（git subtree split 保留完整提交历史）：
-  - 本仓库删除 `libca.em/`、`xmake/modules/`（源码包管理器随迁）、`with_em`
-    构建选项与 em 专用 CI 工作流；
-  - 消费方迁移：`import("libca.em")` 命名空间不变，仅需把 `em.setup` 的
-    `root` 与 `add_moduledirs` 指向 libca-em 仓库；
+- **[不兼容]** `libca.em/`（C99 嵌入式组件）整体拆分至独立仓库 <https://github.com/luiox/libca-em>（git subtree split 保留完整提交历史）：
+  - 本仓库删除 `libca.em/`、`xmake/modules/`（源码包管理器随迁）、`with_em` 构建选项与 em 专用 CI 工作流；
+  - 消费方迁移：`import("libca.em")` 命名空间不变，仅需把 `em.setup` 的 `root` 与 `add_moduledirs` 指向 libca-em 仓库；
   - 源码包机制规范随迁为 libca-em 仓库 `doc/源码包规范.md`。
 
 ## [0.0.1] - 未发布
@@ -296,321 +128,95 @@
 
 ### libca
 
-- **[process] 子进程超时通道（#206）**：`Child::wait_with_output_for(timeout)` 超时返回
-  `DEADLINE_EXCEEDED`，不杀子进程，stdout/stderr 端与已排空的数据留在 `Child`，kill 后
-  再调 `wait_with_output()` 续接即可取回全部输出与退出状态（不丢数据）；`Command::output`
-  新增 `OutputOptions` 重载（`timeout` + `kill_on_timeout`，后者默认 true：超时自动终止并
-  回收）。`wait_with_output()` 的排空从并发读线程改为等待期间非阻塞增量排空（Windows
-  `PeekNamedPipe` / POSIX `poll`），对外行为不变。承接上游项目的 cli 编译器外呼超时
-  （其 dev_plan G-2）。
-- **2026-09 小件批次**（分支 `feat/small-items`，全部为新增能力，详见各头文件 Doxygen）：
-  - **[core]** 新增 `at_exit.hpp`（`AtExitManager` 进程级 LIFO 退出回调）、
-    `registry.hpp`（`Registry<K,Base>` 泛型自注册工厂）、`minidump.hpp`
-    （Windows 崩溃转储落盘，非 Windows 返回不支持）。
+- **[process] 子进程超时通道（#206）**：`Child::wait_with_output_for(timeout)` 超时返回 `DEADLINE_EXCEEDED`，不杀子进程，stdout/stderr 端与已排空的数据留在 `Child`，kill 后再调 `wait_with_output()` 续接即可取回全部输出与退出状态（不丢数据）；`Command::output` 新增 `OutputOptions` 重载（`timeout` + `kill_on_timeout`，后者默认 true：超时自动终止并回收）。`wait_with_output()` 的排空从并发读线程改为等待期间非阻塞增量排空（Windows `PeekNamedPipe` / POSIX `poll`），对外行为不变。承接上游项目的 cli 编译器外呼超时（其 dev_plan G-2）。
+- **2026-09 小件改进**（分支 `feat/small-items`，全部为新增能力，详见各头文件 Doxygen）：
+  - **[core]** 新增 `at_exit.hpp`（`AtExitManager` 进程级 LIFO 退出回调）、 `registry.hpp`（`Registry<K,Base>` 泛型自注册工厂）、`minidump.hpp` （Windows 崩溃转储落盘，非 Windows 返回不支持）。
   - **[str]** 新增 `bom.hpp`（UTF BOM 检测/剥离，UTF-8/16/32 最长匹配）。
-  - **[fs]** `PathUtil::normalize_within` 路径穿越防护（纯词法）；`FsError` 追加
-    `PathOutsideBase`；`FileUtil::read_all_text` 增加 `strip_bom` 可选参数
-    （默认 false，既有调用不受影响）。
+  - **[fs]** `PathUtil::normalize_within` 路径穿越防护（纯词法）；`FsError` 追加 `PathOutsideBase`；`FileUtil::read_all_text` 增加 `strip_bom` 可选参数（默认 false，既有调用不受影响）。
   - **[json]** 新增 `KvStore` JSON 持久化键值存储；json 模块由此新增对 fs 的单向依赖。
-  - **[crypto]** 新增 `murmur3_32` 非加密哈希、Base32 编解码（RFC 4648）；
-    `CryptoError` 追加 `INVALID_BASE32`。
+  - **[crypto]** 新增 `murmur3_32` 非加密哈希、Base32 编解码（RFC 4648）； `CryptoError` 追加 `INVALID_BASE32`。
   - **[collection]** 新增 `LruCache<K,V>`（容量淘汰 + 命中统计 + on_evict 回调）。
   - **[time]** 新增 `Stopwatch` 秒表、`ScopeTiming` RAII 耗时打点。
-  - **[thread]** 新增 `TimerManager`（steady_clock 定时器，一次性/重复/句柄取消）、
-    `EventBus`（进程内事件总线，快照语义 + 异常隔离）、`ObjectPool<T>`
-    （借还式对象池，try-lock 快路径 + weak_ptr 归还）。
-  - **[log]** 行为变更：日志宏运行期级别不满足时**实参零求值**（此前实参总被求值，
-    仅输出被过滤）；格式化副作用依赖旧行为的调用方需注意。
-  - **[net]** 新增 `SocketError` 归一化错误码与 `from_native`（WSA/errno 双路），
-    纯新增不改既有错误模型。
-  - **[http]** 新增 `HttpConnectionPool`（keep-alive 连接复用，经 `HttpClientOptions.pool`
-    注入，不注入则行为不变）。**行为变更**：`HttpUrl::parse` 由拒绝 userinfo 改为
-    按 RFC 3986 解析（`user@host` 形式）；`HttpUrl` 新增 percent 编解码、query 参数
-    保序解析、normalize 与 round-trip 序列化。
-  - **[zip]** 新增流式 gzip：`GzipReader`/`GzipWriter` 与一次性
-    `gzip_compress`/`gzip_decompress`（多成员拼接、CRC32/ISIZE 校验）。
-  - 文档：新增 `doc/加密与编码内置化方案.md`、`doc/后续批次路线图.md`。
+  - **[thread]** 新增 `TimerManager`（steady_clock 定时器，一次性/重复/句柄取消）、 `EventBus`（进程内事件总线，快照语义 + 异常隔离）、`ObjectPool<T>` （借还式对象池，try-lock 快路径 + weak_ptr 归还）。
+  - **[log]** 行为变更：日志宏运行期级别不满足时**实参零求值**（此前实参总被求值，仅输出被过滤）；格式化副作用依赖旧行为的调用方需注意。
+  - **[net]** 新增 `SocketError` 归一化错误码与 `from_native`（WSA/errno 双路），纯新增不改既有错误模型。
+  - **[http]** 新增 `HttpConnectionPool`（keep-alive 连接复用，经 `HttpClientOptions.pool` 注入，不注入则行为不变）。**行为变更**：`HttpUrl::parse` 由拒绝 userinfo 改为按 RFC 3986 解析（`user@host` 形式）；`HttpUrl` 新增 percent 编解码、query 参数保序解析、normalize 与 round-trip 序列化。
+  - **[zip]** 新增流式 gzip：`GzipReader`/`GzipWriter` 与一次性 `gzip_compress`/`gzip_decompress`（多成员拼接、CRC32/ISIZE 校验）。
+  - 文档：新增 `doc/加密与编码内置化方案.md`、`doc/后续工作路线图.md`。
 
 - **2026-09 第二批**（分支 `feat/batch-2`，全部为新增能力，详见各头文件 Doxygen）：
-  - **[core]** `bytes.hpp` 新增 varint（LEB128）读写：`BytesMut::put_var_u32/u64`、
-    `Bytes/BytesMut::get_var_u32/u64`（截断返回 Underflow，非规范编码返回
-    `MalformedVarint`，出错游标不动），及 zigzag 有符号映射自由函数；
-    `BytesError` 追加 `MalformedVarint` 枚举值；`BytesMut::fill(u8)` 就地填充
-    已写区域（volatile 写抗死存储消除，作敏感缓冲离场清零入口）。
-  - **[crypto]** 密码学 P0 四件套：SHA-512/SHA-384（FIPS 180-4）；HMAC 家族扩展
-    `hmac_sha1`/`hmac_sha512`（内部与 `hmac_sha256` 收敛到共享模板，既有行为不变）；
-    HKDF（RFC 5869，SHA-1/256/512 三套 extract/expand/derive）；PBKDF2-HMAC-SHA256
-    （RFC 7914，`dk_len` 上限 (2^32-1)·32 显式拒绝）。`CryptoError` 追加
-    `UNSUPPORTED_ALGORITHM`（为后续 OpenSSL/CNG 后端预留）。
-  - **[config]** 新模块：强类型配置中心。`ConfigVar<T>`（幂等 lookup，类型冲突返回
-    nullptr；set 值相等短路；监听器锁外回调）、`JsonCast<T>` 双向转换链（含
-    `vector<T>`/`unordered_map<string,T>` 嵌套）、`Config::load/load_file` JSON
-    增量加载（非法输入整体拒绝零副作用；未注册 key 延迟物化，类型不符退回默认值；
-    监听器回调抛异常不穿透 load，转 `LISTENER_FAILED` 计入失败 key）。
-    config 依赖 core/json/fs。
+  - **[core]** `bytes.hpp` 新增 varint（LEB128）读写：`BytesMut::put_var_u32/u64`、 `Bytes/BytesMut::get_var_u32/u64`（截断返回 Underflow，非规范编码返回 `MalformedVarint`，出错游标不动），及 zigzag 有符号映射自由函数； `BytesError` 追加 `MalformedVarint` 枚举值；`BytesMut::fill(u8)` 就地填充已写区域（volatile 写抗死存储消除，作敏感缓冲离场清零入口）。
+  - **[crypto]** 密码学 P0 四件套：SHA-512/SHA-384（FIPS 180-4）；HMAC 家族扩展 `hmac_sha1`/`hmac_sha512`（内部与 `hmac_sha256` 收敛到共享模板，既有行为不变）； HKDF（RFC 5869，SHA-1/256/512 三套 extract/expand/derive）；PBKDF2-HMAC-SHA256 （RFC 7914，`dk_len` 上限 (2^32-1)·32 显式拒绝）。`CryptoError` 追加 `UNSUPPORTED_ALGORITHM`（为后续 OpenSSL/CNG 后端预留）。
+  - **[config]** 新模块：强类型配置中心。`ConfigVar<T>`（幂等 lookup，类型冲突返回 nullptr；set 值相等短路；监听器锁外回调）、`JsonCast<T>` 双向转换链（含 `vector<T>`/`unordered_map<string,T>` 嵌套）、`Config::load/load_file` JSON 增量加载（非法输入整体拒绝零副作用；未注册 key 延迟物化，类型不符退回默认值；监听器回调抛异常不穿透 load，转 `LISTENER_FAILED` 计入失败 key）。 config 依赖 core/json/fs。
 
 - **2026-09 第三批**（分支 `feat/batch-3`，痛点清除）：
-  - **[str] 编码内置化**：`CharsetConverter` 改三级查找——内置表（Tier1/2）→
-    iconv 回落（Tier3 长尾）→ UNSUPPORTED。Tier1 纯算法内置 UTF 家族/Latin-1/
-    CP1252（新增 `latin1_*`/`cp1252_*` 门面方法）；GB18030（含 GBK/GB2312）经
-    `tools/gen_charset_tables.py` 生成 WHATWG 同源表入库（`gb18030_tables.inc`，
-    构建不依赖 python/网络），新增 `gb18030_*` 四方向与 `supported()` /
-    `list_supported()`；根 xmake 新增 `with_iconv` option（默认开，关得纯内置构建）。
-    **行为变更**：GBK 路径按 GB18030 严格语义——单字节 0x80 由"映射欧元"
-    （Windows CP_936 旧行为）改为报错（GB18030 编码欧元 = `A2 E3`）；`utf8→gbk`
-    对增补平面字符从 best-fit 替换改为输出四字节 GB18030 序列。裁剪 glibc 环境
-    GBK 不再依赖 gconv 模块，固定向量跨平台一致。
-  - **[net] TlsStream**：从 http 层抽出全部 OpenSSL 逻辑为独立适配层
-    （memory-BIO 解耦，包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；
-    握手/renegotiation/WANT_READ 重试封死在内部）。安全默认值：证书校验与主机名
-    验证默认开（opt-out 显式）、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。
-    http client/server 切换到 TlsStream，行为等价（回归 76/76）。无 OpenSSL 构建
-    编译为 stub（`Unsupported`）。**net 由此新增 with_openssl 可选依赖**。
-  - **[net] SockUtil 与 DNS 缓存**：`get_local_ip`（UDP connect 探路由，离线回落
-    loopback）、TCP keepalive 三参数（`TcpStream::set_keepalive`，Windows 经
-    SIO_KEEPALIVE_VALS 只支持两参，文档注明）、`interface_list()`（getifaddrs /
-    GetAdaptersAddresses）；`CachedDnsResolver` 带 TTL 的线程安全 DNS 缓存
-    （可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计；http 接入方式见
-    net 设计文档 12.1，本批未改 http）。
-  - **[global] `.clang-format` 对齐规则口径**：K&R Attach 大括号、ColumnLimit 120
-    （此前配置为 Allman 风/100 列，与 AGENTS.md 冲突导致存量合规代码报违规）；
-    不做存量代码重排。
+  - **[str] 编码内置化**：`CharsetConverter` 改三级查找，内置表（Tier1/2）→ iconv 回落（Tier3 长尾）→ UNSUPPORTED。Tier1 纯算法内置 UTF 家族/Latin-1/ CP1252（新增 `latin1_*`/`cp1252_*` 门面方法）；GB18030（含 GBK/GB2312）经 `tools/gen_charset_tables.py` 生成 WHATWG 同源表入库（`gb18030_tables.inc`，构建不依赖 python/网络），新增 `gb18030_*` 四方向与 `supported()` / `list_supported()`；根 xmake 新增 `with_iconv` option（默认开，关得纯内置构建）。 **行为变更**：GBK 路径按 GB18030 严格语义，单字节 0x80 由"映射欧元" （Windows CP_936 旧行为）改为报错（GB18030 编码欧元 = `A2 E3`）；`utf8→gbk` 对增补平面字符从 best-fit 替换改为输出四字节 GB18030 序列。裁剪 glibc 环境 GBK 不再依赖 gconv 模块，固定向量跨平台一致。
+  - **[net] TlsStream**：从 http 层抽出全部 OpenSSL 逻辑为独立适配层（memory-BIO 解耦，包装任意 `io::Reader`/`io::Writer`，明文侧实现 Reader/Writer；握手/renegotiation/WANT_READ 重试封死在内部）。安全默认值：证书校验与主机名验证默认开（opt-out 显式）、SNI 默认 = host、最低 TLS 1.2、错误分类可判别。 http client/server 切换到 TlsStream，行为等价（回归 76/76）。无 OpenSSL 构建编译为 stub（`Unsupported`）。**net 由此新增 with_openssl 可选依赖**。
+  - **[net] SockUtil 与 DNS 缓存**：`get_local_ip`（UDP connect 探路由，离线回落 loopback）、TCP keepalive 三参数（`TcpStream::set_keepalive`，Windows 经 SIO_KEEPALIVE_VALS 只支持两参，文档注明）、`interface_list()`（getifaddrs / GetAdaptersAddresses）；`CachedDnsResolver` 带 TTL 的线程安全 DNS 缓存（可注入 resolver 与时钟、LRU 淘汰、负项不缓存、命中统计；http 接入方式见 net 设计文档 12.1，本批未改 http）。
+  - **[global] `.clang-format` 对齐规则口径**：K&R Attach 大括号、ColumnLimit 120 （此前配置为 Allman 风/100 列，与 AGENTS.md 冲突导致存量合规代码报违规）；不做存量代码重排。
 
 - **2026-09 第四批**（分支 `feat/batch-4`，全部为新增能力，详见各头文件 Doxygen）：
-  - **[thread] MessageLoop**：单线程任务循环（FIFO `post_task`、`post_task_with_result`
-    返回 `std::future`、内部 steady_clock 定时的 `post_delay_task`、`stop` /
-    `stop_and_drain`）。性能参考：post ~7.4M op/s，跨线程 ping-pong rtt ~582K op/s。
-  - **[process] ShmRingQueue**：无内核对象的共享内存环形队列（128B 头 + 环形槽位），
-    写者活性经心跳 + 出生时间戳判定、支持代际接管（进程崩溃后新写者可恢复队列）。
-    与既有 `ipc::MessageQueue`（内核对象队列）并存，不改既有接口。性能参考：
-    ~1.7M op/s（同场景内核消息队列 ~366K op/s）。
-  - **[crypto] AES**：内置实现 ECB/CBC/CTR（128/192/256）+ `AesBackend` 后端选择
-    （`Builtin`/`OpenSsl`/`Cng`/`Auto`，Auto 按 availability 回落）。**口径：AES-GCM
-    仅由外部后端（OpenSSL/CNG）提供**——内置实现无侧信道承诺，不提供 GCM；
-    内置路径请求 GCM 返回 `UNSUPPORTED_ALGORITHM`。性能参考：Builtin ~17 MB/s、
-    OpenSSL ~620 MB/s、CNG ~322 MB/s（AES-256-CBC，本机）。crypto 由此新增
-    `with_openssl` 可选依赖（与 net 一致，默认关）。
-  - **[net/http] DNS 缓存接线**：`TcpStream::connect_timeout` 新增可注入
-    `DnsResolveFn` 的重载（指针仅当次调用有效，为空走默认解析，既有调用不受影响）；
-    `HttpClientOptions` 新增 `dns_cache`（可选共享 `CachedDnsResolver`，线程安全可跨
-    client 共享；不注入行为不变）。批次 3 预告的 http 接入方式就此落地。
-  - **排期说明**：zip 异常模型收敛**未列入本批**，移入批次 5（见路线图）。
+  - **[thread] MessageLoop**：单线程任务循环（FIFO `post_task`、`post_task_with_result` 返回 `std::future`、内部 steady_clock 定时的 `post_delay_task`、`stop` / `stop_and_drain`）。性能参考：post ~7.4M op/s，跨线程 ping-pong rtt ~582K op/s。
+  - **[process] ShmRingQueue**：无内核对象的共享内存环形队列（128B 头 + 环形槽位），写者活性经心跳 + 出生时间戳判定、支持代际接管（进程崩溃后新写者可恢复队列）。与既有 `ipc::MessageQueue`（内核对象队列）并存，不改既有接口。性能参考： ~1.7M op/s（同场景内核消息队列 ~366K op/s）。
+  - **[crypto] AES**：内置实现 ECB/CBC/CTR（128/192/256）+ `AesBackend` 后端选择（`Builtin`/`OpenSsl`/`Cng`/`Auto`，Auto 按 availability 回落）。**口径：AES-GCM 仅由外部后端（OpenSSL/CNG）提供**，内置实现无侧信道承诺，不提供 GCM；内置路径请求 GCM 返回 `UNSUPPORTED_ALGORITHM`。性能参考：Builtin ~17 MB/s、 OpenSSL ~620 MB/s、CNG ~322 MB/s（AES-256-CBC，本机）。crypto 由此新增 `with_openssl` 可选依赖（与 net 一致，默认关）。
+  - **[net/http] DNS 缓存接线**：`TcpStream::connect_timeout` 新增可注入 `DnsResolveFn` 的重载（指针仅当次调用有效，为空走默认解析，既有调用不受影响）； `HttpClientOptions` 新增 `dns_cache`（可选共享 `CachedDnsResolver`，线程安全可跨 client 共享；不注入行为不变）。路线图阶段 3 预告的 http 接入方式就此落地。
+  - **排期说明**：zip 异常模型收敛**未列入本轮**，移入路线图阶段 5（见路线图）。
 
-- 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、
-  `opt`（命令行选项解析）。
-- **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物
-  一次性入池的规范入口）；`Utf8StringArena::owns(const Utf8StringRef&)` 指针范围归属
-  判定（上层容器 debug 断言「视图确属本池」用）；`Utf8StringRef` 与 `std::string_view`
-  的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。承接树 API 的权重重构
-  （内部设计文档 §1.6）。
-- **[str] 不兼容 API 收敛**：移除 `Utf8String::size()` / `empty()`，长度统一语义明确的
-  `length()`（码点数）与 `byte_length()`（字节数），空判断统一 `is_empty()`；
-  `ZUtf8StringRef`、`Utf8String` 到 `std::string_view` 均改为显式转换——每个字符串类型
-  只保留一个隐式视图出口（`Utf8String` / `ZUtf8StringRef` → `Utf8StringRef` →
-  `std::string_view` 单向链），杜绝双隐式出口在重载调用点的同级竞争二义；传
-  string_view 形参改写 `f(s.ref())`。
-- **[zip] 新模块**：JVM `ZipFile` 语义只读访问器（最后合法 EOCD/前缀拼接恢复/ZIP64）
-  与流式读写（`ZipInputStream`/`ZipOutputStream`，DD 条目支持）；zlib 经 xrepo，
-  根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
-- **[resources] 新模块**：清单驱动 constexpr 目录树嵌入 + header-only 查询运行时
-  （bundle 隔离/二分查找/前缀过滤迭代），构建 rule 全局注册名
-  `libca.resources.embed`。
+- 新增模块：`env`（环境变量/系统信息）、`random`（CSPRNG 随机数）、`uuid`（UUID v4）、 `opt`（命令行选项解析）。
+- **[str] arena/视图人体工学**：`Utf8StringArena::intern(std::string_view)`（拼装产物一次性入池的规范入口）；`Utf8StringArena::owns(const Utf8StringRef&)` 指针范围归属判定（上层容器 debug 断言视图确属本池用）；`Utf8StringRef` 与 `std::string_view` 的对称 `==`/`!=`（逐字节，不要求合法 UTF-8）。承接树 API 的权重重构（内部设计文档 §1.6）。
+- **[str] 不兼容 API 收敛**：移除 `Utf8String::size()` / `empty()`，长度统一语义明确的 `length()`（码点数）与 `byte_length()`（字节数），空判断统一 `is_empty()`； `ZUtf8StringRef`、`Utf8String` 到 `std::string_view` 均改为显式转换，每个字符串类型只保留一个隐式视图出口（`Utf8String` / `ZUtf8StringRef` → `Utf8StringRef` → `std::string_view` 单向链），杜绝双隐式出口在重载调用点的同级竞争二义；传 string_view 形参改写 `f(s.ref())`。
+- **[zip] 新模块**：JVM `ZipFile` 语义只读访问器（最后合法 EOCD/前缀拼接恢复/ZIP64）与流式读写（`ZipInputStream`/`ZipOutputStream`，DD 条目支持）；zlib 经 xrepo，根开关 `with_zip=n` 可整体跳过（无 zlib 环境不影响其余部分）。
+- **[resources] 新模块**：清单驱动 constexpr 目录树嵌入 + header-only 查询运行时（bundle 隔离/二分查找/前缀过滤迭代），构建 rule 全局注册名 `libca.resources.embed`。
 - **[i18n] 新模块**：`.lang` 构建期嵌入（rule `libca.i18n.embed-lang`，zh_CN 超集校验）
   + tr/trf 回退运行时（当前语言 → zh_CN → key 原样）。
-- **[test] 新模块**：`.project_root_file` 标记扫描与多项目 test_resource 定位、
-  `<top>/test` 输出根约定（环境变量 `LIBCA_TEST_OUT_ROOT` 可覆盖）。
-- **[core] 新增 `tag_cast.hpp`**：整数 tag 层级的 LLVM 风格 `isa`/`cast`/`dyn_cast`
-  （`TypeOf<T>` 特化接入），作为与 `Polymorphic` 并存的第二种 RTTI-free 机制，
-  位于 `ca::core::tag_cast` 命名空间。
-- `str`：新增 `OsString`/`OsStr` 平台原生字符串；新增 `format`/`format_to`/`format_runtime`
-  格式化门面（fmt 转为 str 的 public 依赖，下游经 `add_deps("libca_str")` 间接获得）。
+- **[test] 新模块**：`.project_root_file` 标记扫描与多项目 test_resource 定位、 `<top>/test` 输出根约定（环境变量 `LIBCA_TEST_OUT_ROOT` 可覆盖）。
+- **[core] 新增 `tag_cast.hpp`**：整数 tag 层级的 LLVM 风格 `isa`/`cast`/`dyn_cast` （`TypeOf<T>` 特化接入），作为与 `Polymorphic` 并存的第二种 RTTI-free 机制，位于 `ca::core::tag_cast` 命名空间。
+- `str`：新增 `OsString`/`OsStr` 平台原生字符串；新增 `format`/`format_to`/`format_runtime` 格式化门面（fmt 转为 str 的 public 依赖，下游经 `add_deps("libca_str")` 间接获得）。
 - `thread`：新增 MPSC 通道 `channel`；新增 `OnceCell`/`OnceLock` 延迟初始化。
 - `csv`：新增 DSV 预设 `csv()` / `tsv()` / `delimited(char)`。
-- **log 模块重新设计**：门面/后端分离，fmt 依赖收敛到门面侧；`LoggerRegistry` 按 target
-  分发取代单一全局 logger；级别管理收归 `Logger`；新增零依赖 `SimpleLogBackend` 与可选
-  spdlog 后端。升级注意：旧 `set_global_logger` 全局接口移除，迁移到
-  `LoggerRegistry::register_logger` + `CA_LOG_*`/`CA_LOGT_*` 宏入口。
-- **不兼容改名**：`Level::Error` → `Level::Error_`，规避 Windows `wingdi.h` 的 `ERROR`
-  宏冲突；受影响代码需同步改名。
-- **[opt] v2 重写**：`Arg` 移除 `short_name` / `has_value` 旧字段，取值类型唯一由
-  `kind`（Flag/String/Int/StringList/Positional）表达，短名与多别名统一为
-  `aliases` 列表；新增位置参数收集（`positionals()`）、Int 类型化校验、StringList
-  追加语义、带默认取值重载。行为变更：未声明的裸 token 由静默丢弃改为报错，
-  `--` 之后的 token 收集进 `positionals()`。该子库此前无下游用户，不提供迁移层。
-  设计见 `libca/opt/doc/opt设计文档.md`。
-- **[opt] v2-P1**：`parse()` 返回类型改为 `Result<ParseResult, ParseError>`
-  （类别 + 出错选项名 + 现成描述，`to_status_code()` 提供到 `StatusCode` 的桥接；
-  原 `--help` 的 CANCELLED+文本模式迁移为 `HelpRequested` 类别）；新增互斥组
-  （`Command::mutex_groups`）、选项分组渲染（`Arg::group`）、自定义 usage 行
-  （`Command::usage`）。
-- **[opt] v2-P2**：新增带初始值注入的 `parse()` 重载（优先级
-  default < 注入初值 < 命令行，仅带值选项参与，required/互斥组视为已提供）；
-  新增 `help_text(cmd, groups)` 分组过滤帮助渲染与 `Parser::root()`
-  元数据只读访问（schema 导出由下游自建）。
-- **[opt] v2 评审修正**：新增 `ParseResult::source_of()` 值来源查询
-  （`ValueSource::{None,CommandLine,Initial,Default}`）；修复互斥组与默认值/
-  注入初值叠加时的误报——冲突/缺失判定只把命令行或注入初值算作「选择」，
-  静态默认不再触发 MutexConflict 或短路 required 组。
-- **[opt] OptionalString**：新增可选值形态 `OptKind::OptionalString`——
-  值仅经内联（`--dump=x`）或短选项附着（`-dx`）提供，裸出现视为已提供且值为
-  空串；空格形态不消费后继 token，杜绝与位置参数/子命令的歧义。适用于
-  "不带值输出 stdout、带值写文件"类选项。
-- **[opt] 互斥组标识**：`MutexGroup` 新增 `label`，互斥类错误经
-  `ParseError.group` 回填组标识（无 label 时为成员名拼接），下游按组分派文案；
-  `group` 字段置于结构体末尾，三元素聚合初始化写法不受影响。
-- **[opt] 修复子命令 usage 行**：子命令层 `--help` 曾输出 `Usage: <sub> <sub>
-  [options]`（子命令名重复且程序名缺失），改为 `Usage: <程序名> <子命令路径>
-  [options]`；自定义 `Command::usage` 由「前置子命令路径 + usage」改为完整替换
-  （与头文件声明一致，程序名由定义方书写）。根命令与 `help_text()` 输出不变。
-- **[opt] 内置 -h/--help 可被覆盖**：`--help` / `-h` 注册为某选项的长名/别名时
-  （如 `-h` 作 `--host` 的别名），按该选项定义解析，不再触发内置帮助；未注册时
-  行为不变。此前注册这两个 token 会静默失效。
-- **[opt] Int 严格化**：选项值与注入初值含空白即报 InvalidInteger（`" 30"`、
-  `"30 "` 对称拒绝）。此前 `strtoll` 跳过前导空白，`" 30"` 被接受而 `"30 "` 报错；
-  显式正负号（`+30`）不受影响。
-- **[opt] 跨层级同名选项优先级**：父命令与子命令注册同名选项（值键跨层级共享）
-  时，父命令行显式给值不再被子命令的 default/注入初值静默覆盖——
-  「default < 注入初值 < 命令行」的全局优先级在跨层级场景同样成立；
-  子命令的同名显式出现仍按 last-wins 生效。
-- **[core] Result 存储对齐修复**：`Storage::Align` 由「跟随尺寸更大者的 alignof」
-  改为 `max(alignof(T), alignof(E))`——`Result<array<char,40>, string>` 等尺寸
-  相近而 alignof 悬殊的组合曾取到 1，对齐不足属严格 UB（x86 潜伏，MSVC debug /
-  ARM 可能崩溃）。补双向 static_assert。
-- **[str] UTF-8 转换校验续字节**：`utf8_to_utf16/_utf32/_latin1` 全系列与
-  `to_wstring` 此前不校验续字节，「合法首字节 + 非法续字节」被误解码成错误码点
-  （违反「返回 0 / 抛异常」契约）。新增 `utf8_valid_continuation` 助手并接入
-  全部逐序列解码循环，与 `utf8_is_valid` 的校验口径一致。
-- **[log] registry 退休列表保活**：被替换/注销/clear 的旧 Logger 此前随 map
-  释放最后引用即刻析构，而调用链在锁释放后仍持裸指针——并发注销（典型：
-  shutdown 阶段 `clear()` 与打日志并发）use-after-free。旧 Logger 现移入退休
-  列表（进程生命周期保活），兑现头文件承诺的 `get()` 裸指针安全契约。
-- **[ini] 解析健壮性四项**：非法 UTF-8 报 ParseError（此前 `read()` 抛异常击穿
-  Result 契约，GBK 存量配置直接 terminate 调用方）；行内注释先于分隔符出现时
-  注释文字里的 `=`/`:` 不再被误当分隔符吞进 key；跳过 UTF-8 BOM（此前首
-  key/section 带不可见 U+FEFF 前缀）；`get_int`/`get_double` 拒绝前导空白
-  （此前 `" 42"` 合法而 `"42 "` 报错）。
-- **[json] 解析入口整体校验 UTF-8**：字符串值里的非法 UTF-8 此前经 arena
-  intern 静默变空串、解析"成功"（RFC 8259 要求 JSON 文本为合法 UTF-8），
-  数据无声丢失；现统一报错。
-- **[xml] 解析入口整体校验 UTF-8**：元素名/属性值/文本里的非法序列此前静默
-  变空（曾产出空名元素的损坏 DOM），而注释/CDATA 原样保留；现统一报错。
-- **[csv] read 跳过 UTF-8 BOM**：首个 header 字段此前带不可见 U+FEFF 前缀，
-  按名取列全部失配且无报错。
-- **[thread] 公共头 `std::max` 加括号**：`bounded_queue.hpp` 中未加括号的
-  `std::max` 在下游先包含 `<windows.h>`（未定义 NOMINMAX）时被函数式 `max`
-  宏改写、包含即编译失败。
-- **[fs] move 不再预删目标**：覆盖移动此前先 `remove_all(dst)` 再 rename，
-  目标为目录时整棵子树被删而源 rename 失败，数据白白丢失；也不存在"原子
-  替换"窗口。现 rename 失败即返回 false，文件目标的覆盖由系统原子替换
-  完成（Windows 走 MOVEFILE_REPLACE_EXISTING）。overwrite=false 语义不变。
-- **[fs] glob 裸相对模式修复**：`*.txt` 等不含斜杠的相对模式此前用完整路径
-  拼接候选再匹配，永远失配；现候选 = 模式前缀 + 文件名，与模式形状对齐。
-- **[str] 增补平面码点防 wint_t 截断**：Windows 上 `wint_t` 为 16 位，
-  `Utf8Char::is_*`/`to_*` 直接 `static_cast<wint_t>(cp_)` 会把 U+10000 以上
-  码点截断成错误 BMP 码点（如 U+10061 判成 'a' 可转大写）。超 BMP 码点现
-  短路返回"非字母数字"类结果。`to_lower_case`/`to_upper_case` 同步修复
-  `::tolower(char)` 负值 UB（现经 `unsigned char` 转换）。
-- **[crypto] 密钥材料离场清零**：hmac/chacha20/rc4 计算后密钥块、轮状态与
-  S-box 残留在栈/堆上不清零，可被交换/转储/复用内存读到。新增
-  `crypto_util::secure_zero`（volatile 逐字节写，防优化器消除），计算完
-  即擦除全部密钥派生材料。
-- **[toml] 对齐 TOML 1.0 四项**：`[a.b]` 后定义 `[a]` 超表合法（此前误拒）；
-  进制整数先校验字符集再 strtoll（`0x-5`/`0x 5` 此前被解析成奇怪值而非
-  报错）；`1e_2` 类指数 mark 后下划线拒绝；writer 转义 DEL（0x7F，
-  TOML 1.0 不允许原样出现在基本字符串中）。
-- **[yaml] `\xXX` 转义按码点编码**：XX >= 0x80 时此前按原始单字节追加产生
-  非法 UTF-8，经 arena intern 静默变空串（字符串无声丢失）；YAML 1.2 中
-  `\xXX` 是码点转义 U+00XX，现编码为对应 UTF-8 序列。
-- **[http] 协议错误响应防 RST**：400/408/413/431/501 错误路径此前直接关闭
-  连接，Windows 上未读入站数据（如客户端仍在推送 body 时的 413）触发 RST
-  吞掉已发送的响应；现与过载路径一致——shutdown 写半侧后排空读侧至 EOF
-  或期限。`Expect: 100-continue` 仅 HTTP/1.1 回 interim（1.0 无此语义，
-  此前会回出 "HTTP/1.0 100 Continue"）。client 复用的 keep-alive 连接被
-  服务器关闭时（idle 回收常态），幂等方法在响应任何字节前遇 EOF/reset
-  自动在新连接上重试一次（RFC 9110 9.2.2）；非幂等方法维持报错。
-- **[libca] 格式化模块文件路径经 u8path**：json/xml/csv/ini/yaml/toml 的
-  `read_file`/`write_file` 此前把 UTF-8 路径按窄字符传给 fstream，Windows
-  ACP 非 UTF-8（中文环境默认 GBK）时非 ASCII 路径打开失败或落到错误文件；
-  现统一经 `std::filesystem::u8path`，与 `libca/fs` 做法一致。
-- **[toml] 解析入口整体校验 UTF-8**：与 json/ini/xml 对齐——字符串值里的非法
-  UTF-8 此前经 arena intern 静默变空串、解析"成功"（TOML 1.0 要求文件为合法
-  UTF-8），数据无声丢失；现入口统一报错。
-- **[yaml] 解析入口整体校验 UTF-8**：同上，plain/引号标量里的非法序列此前
-  静默变空串；现入口统一报错。
-- **[json] float 整数形态补 `.0`**：writer 用 `%.17g` 输出整数形态的 float
-  （`2.0` 写成 `"2"`）读回被当 Int、`-0.0` 的符号与类型双丢；现与 toml/yaml
-  writer 一致，整数形态追加 `.0` 保持 Float。
-- **[str] moved-from Utf8String 转 string_view 回落空视图**：移动后
-  `data_` 为 nullptr，`operator std::string_view` 此前直接构造
-  `string_view(nullptr, 0)`（UB）；现与 Utf8StringRef/ZUtf8StringRef 同口径
-  回落默认构造的空视图。
-- **[collection] Stream filter/map 覆盖语义显式化**：头文件以 `@warning`
-  声明 filter()/map() 是覆盖式而非链式组合（再次调用替换先前谓词），并补
-  钉住该契约的测试；行为本身不变。
-- **[core] 新增 `Option<T>`**：Rust 语义的可空值类型（内部包装 `std::optional`），
-  `Some`/`None` 工厂与哨兵，`unwrap`/`expect`/`map`/`and_then`/`or_else`/`take`/
-  `unwrap_or` 系列与 `ok_or<E>()` 转 `Result`；`Result::ok()/err()` 反向桥接
-  （`T` 为 void 时不参与）。与 `Result` 同居 `ca::core`，`ca` 顶层重导出。
-- **[crypto] sha3 未对齐输入 UB 修复**：`process_block` 此前把数据指针直接
-  cast 成 `const uint64_t*` 按道读取，缓冲非 8 字节对齐（堆上偏移切片）时属
-  严格别名/对齐 UB（x86 潜伏，ARM 可能崩溃）；改按 8 字节 word `memcpy`
-  混入，编译器会优化回单条加载。补非对齐缓冲摘要不变的钉住测试。
-- **[toml] 浮点与表重开严格化（TOML 1.0 对齐）**：`1.` / `.5` / `1.e2` 等
-  `.` 一侧缺数字的浮点形态此前被宽容接受（`strtod` 家族行为），TOML 1.0 要求
-  两侧均有数字，现报错；dotted-key 创建的表不可被 `[header]` 重开或作为
-  header 路径段打开，header 显式定义的表不可被 dotted-key 扩展，inline
-  table 全封闭（header/dotted-key 均不可扩展）——此前部分场景静默允许，
-  现按 spec 拒绝，杜绝数据模型歧义。
-- **[process] IPC unlink API 与长度封顶**：新增
-  `remove_shared_memory`/`remove_semaphore`/`remove_message_queue`
-  （POSIX `shm_unlink`/`sem_unlink`/`mq_unlink`，ENOENT 幂等成功；Windows
-  侧为带命名校验的 no-op，内核对象随句柄关闭回收）；管道 `read`/`write`
-  系列长度参数按 `SSIZE_MAX` 封顶（POSIX）或 DWORD 范围校验（Windows），
-  超限报错而非静默截断；`NamedSemaphore::release` 拒绝超出 LONG_MAX 的
-  count，限时等待时长 DWORD 溢出钳制。
-- **[xml] 默认 `max_depth` 1000→256**（行为变更）：实测 Windows 默认 1MB
-  线程栈下 ~850 层嵌套即栈溢出，原默认 1000 的守卫来不及触发（守卫本身
-  递归）；256 与 libxml2 `XML_MAX_DEPTH` 一致，正常文档不受影响。需要更深
-  嵌套的特殊场景须显式调大选项并同时增大线程栈。
-- **[str] Utf8String 错误通道**：新增 `try_from_data`/`try_from_cstr`，返回
-  `StatusResult<Utf8String>`，非法 UTF-8 报 `INVALID_ARGUMENT` 而非静默
-  产出空串；`from_cstr` 头文件补 `@warning` 显式声明吞错语义。
-- **[str] wstring/cstring Doxygen 补全**：两个头文件的公共 API 注释补齐
-  （此前部分接口无文档）；行为不变。
-- **[str] 操作类 API 测试空白补齐**：`starts_with`/`ends_with`/`trim`/
-  `split`/`replace_all`/`to_lower`/`to_upper` 此前在 Utf8StringRef（含
-  拥有型 Utf8String）与 `CString`/`WString` 系均零测试覆盖，现双侧补齐
-  （视图侧同时钉住"指向原数据"的非拥有语义与 split 的空片段/空分隔符
-  边界）。
-- **[collection] Stream 重写为惰性流水线（不兼容行为变更）**：filter/map
-  不再是覆盖式（旧实现 `.filter(p1).filter(p2)` 静默只应用 p2），改为
-  Rust 迭代器风格的适配器链——每个适配器返回新节点按值持有上游，可任意
-  叠加；新增 `take`/`skip` 适配器与 `count`/`reduce`/`any`/`all` 终止操作；
-  `map` 允许改变元素类型。谓词/映射由 `std::function` 改为模板参数保存
-  （无类型擦除开销）。升级注意：适配器会移动消费当前节点（节点一次性，
-  与 Rust by-value 迭代器一致）；`for_each` 返回值由 `Stream&` 改为
-  `void`；`stream(const Container&)` 重载合并为单个模板（元素一律按值
-  拷出，不再产出 `Stream<const T>`）。设计见
-  `libca/collection/doc/collection设计文档.md`。
-- **[process] ipc 测试独立成文件并补缺口**：ipc 用例从 subprocess_test.cpp
-  迁至 `unittest/ipc_test.cpp`；新增错误路径（重复 create → ALREADY_EXISTS、
-  open/connect 不存在名字 → NOT_FOUND）、NamedPipe 对端关闭 EOF 契约与
-  双工 echo、MessageQueue 多消息边界与顺序、NamedSemaphore 阻塞 acquire
-  与 initial_count 语义、SharedMemory 生命周期用例。
-- **[process] ipc 错误码对齐头文件契约**：`NamedPipeServer::create` 重复名字
-  映射为 ALREADY_EXISTS（Windows `ERROR_ACCESS_DENIED` / POSIX `EADDRINUSE`，
-  此前双平台均报 INTERNAL）；`NamedPipeClient::connect` 与
-  SharedMemory/NamedSemaphore/MessageQueue 的 `open` 打开不存在的名字映射为
-  NOT_FOUND（Windows `ERROR_FILE_NOT_FOUND`，此前报 INTERNAL；POSIX 侧仅管道
-  connect 缺映射）。
-- **[env][crypto] 移除不可达的 macOS/BSD 平台分支**：平台支持明确收敛为
-  Windows/Linux（`core/platform.hpp` 的 `#error` 不变，注释改为「有意只支持」）。
-  `env` 的 `_NSGetExecutablePath` / `sw_vers` 与 `crypto` 的 `arc4random_buf`
-  分支在现有平台宏下不可达，予以删除。
-- **[str] CharsetConverter POSIX 实现（iconv）**：非 Windows 平台此前 8 个转换
-  函数恒返回 `UNIMPLEMENTED`，现基于 iconv 实现——GBK 用 glibc "GBK" 转换器，
-  本地代码页取 `nl_langinfo(CODESET)`，wchar 用 "WCHAR_T"。错误语义与 Windows
-  分支对齐：非法/残缺序列返回 `INVALID_ARGUMENT`，转换对不被系统支持（iconv
-  缺该 gconv 模块）返回 `UNIMPLEMENTED`。跨平台注意：`std::wstring` 编码跟随
-  平台（Windows UTF-16 / Linux UCS-4）；POSIX「本地代码页」在未 setlocale 时
-  为 "C"（ASCII）。charset 测试重构为可移植用例（码点断言）+ 平台专属用例。
+- **log 模块重新设计**：门面/后端分离，fmt 依赖收敛到门面侧；`LoggerRegistry` 按 target 分发取代单一全局 logger；级别管理收归 `Logger`；新增零依赖 `SimpleLogBackend` 与可选 spdlog 后端。升级注意：旧 `set_global_logger` 全局接口移除，迁移到 `LoggerRegistry::register_logger` + `CA_LOG_*`/`CA_LOGT_*` 宏入口。
+- **不兼容改名**：`Level::Error` → `Level::Error_`，规避 Windows `wingdi.h` 的 `ERROR` 宏冲突；受影响代码需同步改名。
+- **[opt] v2 重写**：`Arg` 移除 `short_name` / `has_value` 旧字段，取值类型唯一由 `kind`（Flag/String/Int/StringList/Positional）表达，短名与多别名统一为 `aliases` 列表；新增位置参数收集（`positionals()`）、Int 类型化校验、StringList 追加语义、带默认取值重载。行为变更：未声明的裸 token 由静默丢弃改为报错， `--` 之后的 token 收集进 `positionals()`。该子库此前无下游用户，不提供迁移层。设计见 `libca/opt/doc/opt设计文档.md`。
+- **[opt] v2-P1**：`parse()` 返回类型改为 `Result<ParseResult, ParseError>` （类别 + 出错选项名 + 现成描述，`to_status_code()` 提供到 `StatusCode` 的桥接；原 `--help` 的 CANCELLED+文本模式迁移为 `HelpRequested` 类别）；新增互斥组（`Command::mutex_groups`）、选项分组渲染（`Arg::group`）、自定义 usage 行（`Command::usage`）。
+- **[opt] v2-P2**：新增带初始值注入的 `parse()` 重载（优先级 default < 注入初值 < 命令行，仅带值选项参与，required/互斥组视为已提供）；新增 `help_text(cmd, groups)` 分组过滤帮助渲染与 `Parser::root()` 元数据只读访问（schema 导出由下游自建）。
+- **[opt] v2 评审修正**：新增 `ParseResult::source_of()` 值来源查询（`ValueSource::{None,CommandLine,Initial,Default}`）；修复互斥组与默认值/ 注入初值叠加时的误报，冲突/缺失判定只把命令行或注入初值算作选择，静态默认不再触发 MutexConflict 或短路 required 组。
+- **[opt] OptionalString**：新增可选值形态 `OptKind::OptionalString`，值仅经内联（`--dump=x`）或短选项附着（`-dx`）提供，裸出现视为已提供且值为空串；空格形态不消费后继 token，杜绝与位置参数/子命令的歧义。适用于 "不带值输出 stdout、带值写文件"类选项。
+- **[opt] 互斥组标识**：`MutexGroup` 新增 `label`，互斥类错误经 `ParseError.group` 回填组标识（无 label 时为成员名拼接），下游按组分派文案； `group` 字段置于结构体末尾，三元素聚合初始化写法不受影响。
+- **[opt] 修复子命令 usage 行**：子命令层 `--help` 曾输出 `Usage: <sub> <sub> [options]`（子命令名重复且程序名缺失），改为 `Usage: <程序名> <子命令路径> [options]`；自定义 `Command::usage` 由前置子命令路径 + usage改为完整替换（与头文件声明一致，程序名由定义方书写）。根命令与 `help_text()` 输出不变。
+- **[opt] 内置 -h/--help 可被覆盖**：`--help` / `-h` 注册为某选项的长名/别名时（如 `-h` 作 `--host` 的别名），按该选项定义解析，不再触发内置帮助；未注册时行为不变。此前注册这两个 token 会静默失效。
+- **[opt] Int 严格化**：选项值与注入初值含空白即报 InvalidInteger（`" 30"`、 `"30 "` 对称拒绝）。此前 `strtoll` 跳过前导空白，`" 30"` 被接受而 `"30 "` 报错；显式正负号（`+30`）不受影响。
+- **[opt] 跨层级同名选项优先级**：父命令与子命令注册同名选项（值键跨层级共享）时，父命令行显式给值不再被子命令的 default/注入初值静默覆盖， default < 注入初值 < 命令行的全局优先级在跨层级场景同样成立；子命令的同名显式出现仍按 last-wins 生效。
+- **[core] Result 存储对齐修复**：`Storage::Align` 由跟随尺寸更大者的 alignof 改为 `max(alignof(T), alignof(E))`，`Result<array<char,40>, string>` 等尺寸相近而 alignof 悬殊的组合曾取到 1，对齐不足属严格 UB（x86 潜伏，MSVC debug / ARM 可能崩溃）。补双向 static_assert。
+- **[str] UTF-8 转换校验续字节**：`utf8_to_utf16/_utf32/_latin1` 全系列与 `to_wstring` 此前不校验续字节，合法首字节 + 非法续字节被误解码成错误码点（违反返回 0 / 抛异常契约）。新增 `utf8_valid_continuation` 助手并接入全部逐序列解码循环，与 `utf8_is_valid` 的校验口径一致。
+- **[log] registry 退休列表保活**：被替换/注销/clear 的旧 Logger 此前随 map 释放最后引用即刻析构，而调用链在锁释放后仍持裸指针，并发注销（典型： shutdown 阶段 `clear()` 与打日志并发）use-after-free。旧 Logger 现移入退休列表（进程生命周期保活），兑现头文件承诺的 `get()` 裸指针安全契约。
+- **[ini] 解析健壮性四项**：非法 UTF-8 报 ParseError（此前 `read()` 抛异常击穿 Result 契约，GBK 存量配置直接 terminate 调用方）；行内注释先于分隔符出现时注释文字里的 `=`/`:` 不再被误当分隔符吞进 key；跳过 UTF-8 BOM（此前首 key/section 带不可见 U+FEFF 前缀）；`get_int`/`get_double` 拒绝前导空白（此前 `" 42"` 合法而 `"42 "` 报错）。
+- **[json] 解析入口整体校验 UTF-8**：字符串值里的非法 UTF-8 此前经 arena intern 静默变空串、解析"成功"（RFC 8259 要求 JSON 文本为合法 UTF-8），数据无声丢失；现统一报错。
+- **[xml] 解析入口整体校验 UTF-8**：元素名/属性值/文本里的非法序列此前静默变空（曾产出空名元素的损坏 DOM），而注释/CDATA 原样保留；现统一报错。
+- **[csv] read 跳过 UTF-8 BOM**：首个 header 字段此前带不可见 U+FEFF 前缀，按名取列全部失配且无报错。
+- **[thread] 公共头 `std::max` 加括号**：`bounded_queue.hpp` 中未加括号的 `std::max` 在下游先包含 `<windows.h>`（未定义 NOMINMAX）时被函数式 `max` 宏改写、包含即编译失败。
+- **[fs] move 不再预删目标**：覆盖移动此前先 `remove_all(dst)` 再 rename，目标为目录时整棵子树被删而源 rename 失败，数据白白丢失；也不存在"原子替换"窗口。现 rename 失败即返回 false，文件目标的覆盖由系统原子替换完成（Windows 走 MOVEFILE_REPLACE_EXISTING）。overwrite=false 语义不变。
+- **[fs] glob 裸相对模式修复**：`*.txt` 等不含斜杠的相对模式此前用完整路径拼接候选再匹配，永远失配；现候选 = 模式前缀 + 文件名，与模式形状对齐。
+- **[str] 增补平面码点防 wint_t 截断**：Windows 上 `wint_t` 为 16 位， `Utf8Char::is_*`/`to_*` 直接 `static_cast<wint_t>(cp_)` 会把 U+10000 以上码点截断成错误 BMP 码点（如 U+10061 判成 'a' 可转大写）。超 BMP 码点现短路返回"非字母数字"类结果。`to_lower_case`/`to_upper_case` 同步修复 `::tolower(char)` 负值 UB（现经 `unsigned char` 转换）。
+- **[crypto] 密钥材料离场清零**：hmac/chacha20/rc4 计算后密钥块、轮状态与 S-box 残留在栈/堆上不清零，可被交换/转储/复用内存读到。新增 `crypto_util::secure_zero`（volatile 逐字节写，防优化器消除），计算完即擦除全部密钥派生材料。
+- **[toml] 对齐 TOML 1.0 四项**：`[a.b]` 后定义 `[a]` 超表合法（此前误拒）；进制整数先校验字符集再 strtoll（`0x-5`/`0x 5` 此前被解析成奇怪值而非报错）；`1e_2` 类指数 mark 后下划线拒绝；writer 转义 DEL（0x7F， TOML 1.0 不允许原样出现在基本字符串中）。
+- **[yaml] `\xXX` 转义按码点编码**：XX >= 0x80 时此前按原始单字节追加产生非法 UTF-8，经 arena intern 静默变空串（字符串无声丢失）；YAML 1.2 中 `\xXX` 是码点转义 U+00XX，现编码为对应 UTF-8 序列。
+- **[http] 协议错误响应防 RST**：400/408/413/431/501 错误路径此前直接关闭连接，Windows 上未读入站数据（如客户端仍在推送 body 时的 413）触发 RST 吞掉已发送的响应；现与过载路径一致，shutdown 写半侧后排空读侧至 EOF 或期限。`Expect: 100-continue` 仅 HTTP/1.1 回 interim（1.0 无此语义，此前会回出 "HTTP/1.0 100 Continue"）。client 复用的 keep-alive 连接被服务器关闭时（idle 回收常态），幂等方法在响应任何字节前遇 EOF/reset 自动在新连接上重试一次（RFC 9110 9.2.2）；非幂等方法维持报错。
+- **[libca] 格式化模块文件路径经 u8path**：json/xml/csv/ini/yaml/toml 的 `read_file`/`write_file` 此前把 UTF-8 路径按窄字符传给 fstream，Windows ACP 非 UTF-8（中文环境默认 GBK）时非 ASCII 路径打开失败或落到错误文件；现统一经 `std::filesystem::u8path`，与 `libca/fs` 做法一致。
+- **[toml] 解析入口整体校验 UTF-8**：与 json/ini/xml 对齐，字符串值里的非法 UTF-8 此前经 arena intern 静默变空串、解析"成功"（TOML 1.0 要求文件为合法 UTF-8），数据无声丢失；现入口统一报错。
+- **[yaml] 解析入口整体校验 UTF-8**：同上，plain/引号标量里的非法序列此前静默变空串；现入口统一报错。
+- **[json] float 整数形态补 `.0`**：writer 用 `%.17g` 输出整数形态的 float （`2.0` 写成 `"2"`）读回被当 Int、`-0.0` 的符号与类型双丢；现与 toml/yaml writer 一致，整数形态追加 `.0` 保持 Float。
+- **[str] moved-from Utf8String 转 string_view 回落空视图**：移动后 `data_` 为 nullptr，`operator std::string_view` 此前直接构造 `string_view(nullptr, 0)`（UB）；现与 Utf8StringRef/ZUtf8StringRef 同口径回落默认构造的空视图。
+- **[collection] Stream filter/map 覆盖语义显式化**：头文件以 `@warning` 声明 filter()/map() 是覆盖式而非链式组合（再次调用替换先前谓词），并补钉住该契约的测试；行为本身不变。
+- **[core] 新增 `Option<T>`**：Rust 语义的可空值类型（内部包装 `std::optional`）， `Some`/`None` 工厂与哨兵，`unwrap`/`expect`/`map`/`and_then`/`or_else`/`take`/ `unwrap_or` 系列与 `ok_or<E>()` 转 `Result`；`Result::ok()/err()` 反向桥接（`T` 为 void 时不参与）。与 `Result` 同居 `ca::core`，`ca` 顶层重导出。
+- **[crypto] sha3 未对齐输入 UB 修复**：`process_block` 此前把数据指针直接 cast 成 `const uint64_t*` 按道读取，缓冲非 8 字节对齐（堆上偏移切片）时属严格别名/对齐 UB（x86 潜伏，ARM 可能崩溃）；改按 8 字节 word `memcpy` 混入，编译器会优化回单条加载。补非对齐缓冲摘要不变的钉住测试。
+- **[toml] 浮点与表重开严格化（TOML 1.0 对齐）**：`1.` / `.5` / `1.e2` 等 `.` 一侧缺数字的浮点形态此前被宽容接受（`strtod` 家族行为），TOML 1.0 要求两侧均有数字，现报错；dotted-key 创建的表不可被 `[header]` 重开或作为 header 路径段打开，header 显式定义的表不可被 dotted-key 扩展，inline table 全封闭（header/dotted-key 均不可扩展），此前部分场景静默允许，现按 spec 拒绝，杜绝数据模型歧义。
+- **[process] IPC unlink API 与长度封顶**：新增 `remove_shared_memory`/`remove_semaphore`/`remove_message_queue` （POSIX `shm_unlink`/`sem_unlink`/`mq_unlink`，ENOENT 幂等成功；Windows 侧为带命名校验的 no-op，内核对象随句柄关闭回收）；管道 `read`/`write` 系列长度参数按 `SSIZE_MAX` 封顶（POSIX）或 DWORD 范围校验（Windows），超限报错而非静默截断；`NamedSemaphore::release` 拒绝超出 LONG_MAX 的 count，限时等待时长 DWORD 溢出钳制。
+- **[xml] 默认 `max_depth` 1000→256**（行为变更）：实测 Windows 默认 1MB 线程栈下 ~850 层嵌套即栈溢出，原默认 1000 的守卫来不及触发（守卫本身递归）；256 与 libxml2 `XML_MAX_DEPTH` 一致，正常文档不受影响。需要更深嵌套的特殊场景须显式调大选项并同时增大线程栈。
+- **[str] Utf8String 错误通道**：新增 `try_from_data`/`try_from_cstr`，返回 `StatusResult<Utf8String>`，非法 UTF-8 报 `INVALID_ARGUMENT` 而非静默产出空串；`from_cstr` 头文件补 `@warning` 显式声明吞错语义。
+- **[str] wstring/cstring Doxygen 补全**：两个头文件的公共 API 注释补齐（此前部分接口无文档）；行为不变。
+- **[str] 操作类 API 测试空白补齐**：`starts_with`/`ends_with`/`trim`/ `split`/`replace_all`/`to_lower`/`to_upper` 此前在 Utf8StringRef（含拥有型 Utf8String）与 `CString`/`WString` 系均零测试覆盖，现双侧补齐（视图侧同时钉住"指向原数据"的非拥有语义与 split 的空片段/空分隔符边界）。
+- **[collection] Stream 重写为惰性流水线（不兼容行为变更）**：filter/map 不再是覆盖式（旧实现 `.filter(p1).filter(p2)` 静默只应用 p2），改为 Rust 迭代器风格的适配器链，每个适配器返回新节点按值持有上游，可任意叠加；新增 `take`/`skip` 适配器与 `count`/`reduce`/`any`/`all` 终止操作； `map` 允许改变元素类型。谓词/映射由 `std::function` 改为模板参数保存（无类型擦除开销）。升级注意：适配器会移动消费当前节点（节点一次性，与 Rust by-value 迭代器一致）；`for_each` 返回值由 `Stream&` 改为 `void`；`stream(const Container&)` 重载合并为单个模板（元素一律按值拷出，不再产出 `Stream<const T>`）。设计见 `libca/collection/doc/collection设计文档.md`。
+- **[process] ipc 测试独立成文件并补缺口**：ipc 用例从 subprocess_test.cpp 迁至 `unittest/ipc_test.cpp`；新增错误路径（重复 create → ALREADY_EXISTS、 open/connect 不存在名字 → NOT_FOUND）、NamedPipe 对端关闭 EOF 契约与双工 echo、MessageQueue 多消息边界与顺序、NamedSemaphore 阻塞 acquire 与 initial_count 语义、SharedMemory 生命周期用例。
+- **[process] ipc 错误码对齐头文件契约**：`NamedPipeServer::create` 重复名字映射为 ALREADY_EXISTS（Windows `ERROR_ACCESS_DENIED` / POSIX `EADDRINUSE`，此前双平台均报 INTERNAL）；`NamedPipeClient::connect` 与 SharedMemory/NamedSemaphore/MessageQueue 的 `open` 打开不存在的名字映射为 NOT_FOUND（Windows `ERROR_FILE_NOT_FOUND`，此前报 INTERNAL；POSIX 侧仅管道 connect 缺映射）。
+- **[env][crypto] 移除不可达的 macOS/BSD 平台分支**：平台支持明确收敛为 Windows/Linux（`core/platform.hpp` 的 `#error` 不变，注释改为有意只支持）。 `env` 的 `_NSGetExecutablePath` / `sw_vers` 与 `crypto` 的 `arc4random_buf` 分支在现有平台宏下不可达，予以删除。
+- **[str] CharsetConverter POSIX 实现（iconv）**：非 Windows 平台此前 8 个转换函数恒返回 `UNIMPLEMENTED`，现基于 iconv 实现，GBK 用 glibc "GBK" 转换器，本地代码页取 `nl_langinfo(CODESET)`，wchar 用 "WCHAR_T"。错误语义与 Windows 分支对齐：非法/残缺序列返回 `INVALID_ARGUMENT`，转换对不被系统支持（iconv 缺该 gconv 模块）返回 `UNIMPLEMENTED`。跨平台注意：`std::wstring` 编码跟随平台（Windows UTF-16 / Linux UCS-4）；POSIX本地代码页在未 setlocale 时为 "C"（ASCII）。charset 测试重构为可移植用例（码点断言）+ 平台专属用例。

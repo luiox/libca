@@ -18,7 +18,7 @@ namespace {
 /// @brief 在原始 socket 上 select 等待可读/可写（与 tcp.cpp connect_timeout
 ///        同款模式）。返回 false 表示等待超时（socket 状态未受扰动）。
 /// @details Windows 上阻塞收发一旦超时，连接处于 MSDN 所称"不确定状态"、应当
-///          关闭而非继续重试——select 超时无此副作用，故 stop 轮询等待走此路径
+///          关闭而非继续重试，select 超时无此副作用，故 stop 轮询等待走此路径
 ///          而非反复设 SO_RCVTIMEO/SO_SNDTIMEO 超时重试（issue #228）。
 inline io::IoResult<bool> wait_socket_ready(net::TcpStream&           stream,
                                             bool                      for_write,
@@ -131,7 +131,7 @@ public:
             } else {
                 // TLS transport（bidirectional_io_）：SSL 内部缓冲使原始 fd 的可读性
                 // 不可靠，只能保留 SO_RCVTIMEO 超时重试。Windows 上该重试依赖超时后
-                // "不确定"的连接状态，存在静默损坏风险——平台限制，此处显式文档化；
+                // "不确定"的连接状态，存在静默损坏风险，平台限制，此处显式文档化；
                 // 原始 TCP 路径已用 select 规避。
                 auto       configured = stream_->set_read_timeout(wait);
                 if (configured.is_err())

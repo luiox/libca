@@ -9,7 +9,7 @@
 /// @file at_exit.hpp
 /// @brief 进程级 LIFO 退出回调管理器（chromium 式 AtExitManager）。
 /// @note 与 scope_guard 的分工：scope_guard 管理栈作用域内的清理（defer 语义），
-///       AtExitManager 管理进程/静态单例生命周期——回调不跟随某个栈帧，而是在
+///       AtExitManager 管理进程/静态单例生命周期，回调不跟随某个栈帧，而是在
 ///       manager 析构或显式 Run() 时按注册逆序（LIFO）统一执行，适合静态对象、
 ///       全局单例、第三方库全局资源的释放。
 /// @note 嵌套语义：manager 之间构成全局栈，注册总是发生在"当前"（栈顶）manager 上。

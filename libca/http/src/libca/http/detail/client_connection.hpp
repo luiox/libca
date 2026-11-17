@@ -40,7 +40,7 @@ public:
     // unique_ptr 转移所有权，禁止拷贝与移动本身。
 
     // checkout 前的存活校验：codec 仍有预读字节视为存活（下一条请求继续消费）；否则对
-    // 原始 socket 做一次非阻塞读——读到 WouldBlock/TimedOut 表示无数据待读（存活），
+    // 原始 socket 做一次非阻塞读，读到 WouldBlock/TimedOut 表示无数据待读（存活），
     // 读到 EOF、reset 或任何意外字节都表示连接已被服务器关闭或状态异常（失效）。
     // TLS 连接的探针读走一个密文字节同样正确：close_notify 密文或提前到达的数据都意味着
     // 该连接不应再被复用。

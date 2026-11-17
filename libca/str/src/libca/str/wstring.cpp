@@ -121,7 +121,7 @@ bool WString::operator!=(const WStringRef& other) const noexcept { return !ref()
 
 
 // ============================================================================
-// WStringRef — 新增操作
+// WStringRef: 新增操作
 // ============================================================================
 
 bool WStringRef::starts_with(const WStringRef& prefix) const noexcept {
@@ -199,7 +199,7 @@ WString WStringRef::replace_all(const WStringRef& from, const WStringRef& to) co
 
 
 // ============================================================================
-// WString — 新增操作（委托给 ref）
+// WString: 新增操作（委托给 ref）
 // ============================================================================
 
 bool WString::starts_with(const WStringRef& prefix) const noexcept { return ref().starts_with(prefix); }

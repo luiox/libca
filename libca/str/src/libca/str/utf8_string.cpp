@@ -302,7 +302,7 @@ Utf8String Utf8String::clone() const {
         return Utf8String();
 
     // 单分配直配：经 uninitialized 构造置空后直接分配目标容量（含 '\0'），
-    // 消除此前「默认构造先 new 1 字节缓冲、随即 delete 再直配」的双分配。
+    // 消除此前默认构造先 new 1 字节缓冲、随即 delete 再直配的双分配。
     // 源对象不变式保证 data_[byte_length_] == '\0'，整段复制即带终止符。
     Utf8String s(uninitialized_t{});
     s.data_ = new u8[byte_length_ + 1];
@@ -533,7 +533,7 @@ const char* Utf8String::c_str() const noexcept {
 
 Utf8String::operator std::string_view() const noexcept {
     // moved-from 对象 data_ 为 nullptr：nullptr 传 string_view(const CharT*, n) 是 UB
-    // （即便 n==0），空视图须回落默认构造——与 Utf8StringRef/ZUtf8StringRef 同一口径。
+    // （即便 n==0），空视图须回落默认构造，与 Utf8StringRef/ZUtf8StringRef 同一口径。
     return data_ ? std::string_view(reinterpret_cast<const char*>(data_),
                                     static_cast<std::string_view::size_type>(byte_length_))
                  : std::string_view{};
@@ -622,7 +622,7 @@ bool Utf8String::operator!=(const char* cstr) const noexcept {
 }
 
 // ============================================================================
-// Utf8StringRef — 新增操作
+// Utf8StringRef: 新增操作
 // ============================================================================
 
 bool Utf8StringRef::starts_with(const Utf8StringRef& prefix) const noexcept {
@@ -769,7 +769,7 @@ Utf8String Utf8StringRef::replace_all(const Utf8StringRef& from, const Utf8Strin
 
 
 // ============================================================================
-// Utf8StringRef — 查找
+// Utf8StringRef: 查找
 // ============================================================================
 
 usize Utf8StringRef::index_of(const Utf8StringRef& needle) const noexcept {
@@ -820,7 +820,7 @@ bool Utf8StringRef::contains(const Utf8StringRef& needle) const noexcept {
 
 
 // ============================================================================
-// Utf8StringRef — 迭代器
+// Utf8StringRef: 迭代器
 // ============================================================================
 
 Utf8Iterator Utf8StringRef::begin() const noexcept {
@@ -834,7 +834,7 @@ Utf8Iterator Utf8StringRef::end() const noexcept {
 
 
 // ============================================================================
-// Utf8String — 新增操作（委托给 ref）
+// Utf8String: 新增操作（委托给 ref）
 // ============================================================================
 
 bool Utf8String::starts_with(const Utf8StringRef& prefix) const noexcept { return ref().starts_with(prefix); }

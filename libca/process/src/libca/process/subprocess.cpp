@@ -111,7 +111,7 @@ bool utf8_to_utf16(const std::string& value, std::wstring& converted)
                                               length) != 0;
 }
 
-// 按 Microsoft「Parsing C++ Command-Line Arguments」规则转义单个参数：总是用双引号
+// 按 MicrosoftParsing C++ Command-Line Arguments规则转义单个参数：总是用双引号
 // 包裹，引号前的反斜杠翻倍，紧跟引号的反斜杠再额外翻倍（故 *2+1），尾部反斜杠翻倍
 // （故结尾 *2）。CreateProcessW 不做 shell 解析，子进程靠 CRT 按此规则还原 argv。
 std::wstring quote_argument(const std::wstring& value)

@@ -425,7 +425,7 @@ core::StatusResult<std::wstring> bytes_to_wide(std::string bytes)
     return core::Ok<std::wstring>(std::move(wide));
 }
 
-// 当前 locale 的 codeset，等价 Windows 的「本地 ANSI 代码页」语义。
+// 当前 locale 的 codeset，等价 Windows 的本地 ANSI 代码页语义。
 // 注意：C 程序启动时 locale 恒为 "C"（codeset 为 ASCII）；调用方需要跟随
 // 环境时应先 setlocale(LC_ALL, "")。
 const char* local_codeset()

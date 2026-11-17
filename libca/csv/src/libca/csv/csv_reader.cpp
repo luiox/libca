@@ -61,7 +61,7 @@ ca::Result<CsvDocument, ParseError> CsvReader::read(
     auto& arena = document.arena();
 
     // 字段收集用 Utf8StringRef vector，每个字段经 intern_raw 入池（不校验 UTF-8，
-    // 按原始字节保留——CSV 字段可能是任意字节序列）。
+    // 按原始字节保留，CSV 字段可能是任意字节序列）。
     auto intern_field = [&](const std::string& s) {
         return arena.intern_raw(reinterpret_cast<const ca::u8*>(s.data()), s.size());
     };
