@@ -218,7 +218,7 @@ jobs:
         run: xmake build -g libca
 
       - name: Run unit tests
-        run: xmake test -g libca/test
+        run: xmake test -g libca/test -v
 
   build-and-test-openssl-windows:
     name: build & test OpenSSL (windows, msvc)

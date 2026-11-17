@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "libca/time/time_util.hpp"
+#include "steady_clock_test_support.hpp"
 
 #include <chrono>
-#include <thread>
 
 using namespace ca::time;
 
@@ -38,7 +38,7 @@ TEST(TimeUtilTest, current_time_millisLooksLikeUnixEpochMillis)
 TEST(TimeUtilTest, nano_timeIsMonotonicForRelativeTiming)
 {
     const ca::i64 before = TimeUtil::nano_time();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    test::wait_for_elapsed(std::chrono::milliseconds(1));
     const ca::i64 after = TimeUtil::nano_time();
 
     EXPECT_GE(before, 0);
