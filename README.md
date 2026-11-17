@@ -1,6 +1,6 @@
 # libca [![CI](https://github.com/luiox/libca/actions/workflows/ci.yml/badge.svg)](https://github.com/luiox/libca/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-C++17 基础设施库：把 Rust 的核心语义带进现代 C++: `Result<T,E>`/`Option<T>` 错误处理、UTF-8 所有权字符串、Rust 风格容器，外加 JSON/HTTP/子进程/线程池/日志/ZIP 等 27 个开箱模块。
+C++17 基础设施库：把 Rust 的核心语义带进现代 C++: `Result<T,E>`/`Option<T>` 错误处理、UTF-8 所有权字符串、Rust 风格容器，外加 JSON/HTTP/子进程/线程池/日志/ZIP 等 27 个模块。
 
 ## 特性
 
@@ -89,11 +89,6 @@ xmake test -g libca/test
 ```
 
 模块库 target 在 `libca` 组，单测在 `libca/test` 组（另有 `libca/benchmark`、`libca/perf`，默认不构建）。`libca_<模块>_unittest` 等 test target 只在 `--with_tests=y` 时定义；经 xrepo 包消费时包定义强制关闭测试，不向下游导出任何 test target、也不拉 gtest，与下游工程的同名 target 无冲突。
-
-## 说明
-
-* 本库**由 AI 生成**，优先服务于作者个人项目；pre-1.0 阶段无 API 兼容性与可用性保证，生产使用请自行评估（免责条款见 [LICENSE](LICENSE)）。
-* Issue 欢迎提：作者会安排 AI 分诊处理，但不承诺时效。
 
 ## License
 
