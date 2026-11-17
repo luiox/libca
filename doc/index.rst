@@ -25,9 +25,12 @@ libca 设计规格
    csv-design
    xml-design
    config-design
+   zip-design
    net-design
    http-design
    crypto-design
    random-design
    log-design
    opt-design
+   resources-design
+   i18n-design

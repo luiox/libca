@@ -17,6 +17,7 @@ namespace ca::zip {
 /// 前缀拼接（自提取类）与 ZIP64。常规失败（文件不存在、结构损坏、CRC 不符、
 /// 条目缺失等）经 Result 返回；异常仅保留在打开型构造重载（失败抛
 /// std::runtime_error）与 get_entry_at 的越界编程错误（抛 std::out_of_range）。
+/// 目录定位、前缀恢复与 ZIP64 边界见 doc:zip-design。
 class ZipFile {
 public:
     ZipFile();

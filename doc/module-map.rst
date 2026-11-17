@@ -100,7 +100,7 @@ libca 模块地图
      - :ref:`config-design`\（加载语义 :ref:`config-design-load-semantics`\）
    * - zip
      - zip/gzip 读写与校验和
-     - 边界即头注（zip_error.hpp / file.hpp），无独立规格页；错误模型迁移 ``Result`` 列入路线图
+     - :ref:`zip-design`\（前缀恢复 :ref:`zip-design-prefix`\、ZIP64 :ref:`zip-design-zip64`\）
 
 网络与协议
 ----------
@@ -159,7 +159,7 @@ libca 模块地图
 嵌入与国际化
 ------------
 
-构建期生成、运行时零文件依赖的两个 header-only 件：边界即各自头注，无独立规格页。
+两个 header-only 模块都在构建期生成嵌入数据，运行时不依赖外部文件。
 
 .. list-table::
    :header-rows: 1
@@ -170,10 +170,10 @@ libca 模块地图
      - 规格
    * - i18n
      - CLI 消息国际化运行时：翻译表由 xmake rule 从 ``translations/*.lang`` 生成 constexpr 头嵌入
-     - 边界即头注（i18n.hpp）
+     - :ref:`i18n-design`\（生成规则 :ref:`i18n-design-build-rule`\）
    * - resources
      - 嵌入资源运行时：目录树由 xmake rule 生成 constexpr 头嵌入，按 bundle 查询
-     - 边界即头注（resources.hpp）
+     - :ref:`resources-design`\（生成规则 :ref:`resources-design-build-rule`\）
 
 测试基建
 --------

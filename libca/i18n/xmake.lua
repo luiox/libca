@@ -1,4 +1,5 @@
 -- libca.i18n：嵌入式 CLI 消息国际化。
+-- 生成规则的设计见 doc:i18n-design-build-rule。
 --
 -- 组成：
 --   1. rule("libca.i18n.embed-lang")：构建期把 translations/*.lang 生成为
