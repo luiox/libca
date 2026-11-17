@@ -4,6 +4,7 @@
 #include "libca/crypto/hex.hpp"
 #include "libca/crypto/hmac.hpp"
 #include "libca/crypto/sha1.hpp"
+#include "libca/crypto/sha256.hpp"
 
 using namespace ca::crypto;
 using namespace ca::core;
@@ -195,11 +196,49 @@ TEST(HmacSha512Test, BytesVariantMatchesHex)
 }
 
 // ============================================================
-// HMAC 家族回归：hmac_sha256 重构到共享模板后行为不变（RFC 4231 TC2）
+// HMAC-SHA256：RFC 4231 向量与块长边界。
 // ============================================================
 
-TEST(HmacSha256Test, Rfc4231TestCase2AfterSharedImplRefactor)
-{
+TEST(HmacSha256Test, Rfc4231TestCase1) {
+    const auto key = repeated_key(0x0b, 20);
+    const auto digest = hmac_sha256(bytes(key), bytes("Hi There"));
+
+    EXPECT_EQ(digest.len(), SHA256::HashBytes);
+    EXPECT_EQ(hex_of(digest), "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");
+}
+
+TEST(HmacSha256Test, Rfc4231TestCase2) {
     EXPECT_EQ(hmac_sha256_hex(bytes("Jefe"), bytes("what do ya want for nothing?")),
               "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+}
+
+TEST(HmacSha256Test, Rfc4231TestCase6LargerThanBlockSizeKey) {
+    const auto key = repeated_key(0xaa, 131);
+    const auto digest = hmac_sha256(bytes(key), bytes("Test Using Larger Than Block-Size Key - Hash Key First"));
+
+    EXPECT_EQ(hex_of(digest), "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
+}
+
+TEST(HmacSha256Test, Rfc4231TestCase7LargerThanBlockSizeKeyAndData) {
+    const auto key = repeated_key(0xaa, 131);
+    const auto digest = hmac_sha256(bytes(key),
+                                    bytes("This is a test using a larger than block-size key and a larger "
+                                          "than block-size data. The key needs to be hashed before being "
+                                          "used by the HMAC algorithm."));
+
+    EXPECT_EQ(hex_of(digest), "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2");
+}
+
+TEST(HmacSha256Test, EmptyKeyAndInput) {
+    // 固定向量由 Python hmac 模块交叉验证。
+    EXPECT_EQ(hmac_sha256_hex(ByteSlice(), ByteSlice()),
+              "b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad");
+}
+
+TEST(HmacSha256Test, BlockSizedKeyAndBinaryInput) {
+    // key 恰为一个块，不能走对超长 key 先求 hash 的分支。
+    const auto key = repeated_key(0x00, 64);
+    const ca::u8 data[] = {0x00, 0xff};
+    EXPECT_EQ(hmac_sha256_hex(bytes(key), ByteSlice(data, sizeof(data))),
+              "8a77e257888c00952923e35383f4082183ad8beacc68fe11bbbdc61b10873d0f");
 }
